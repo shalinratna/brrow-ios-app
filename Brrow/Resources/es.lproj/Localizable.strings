@@ -1,0 +1,347 @@
+/* 
+  Spanish (Español) Localization
+  Brrow App
+*/
+
+// MARK: - Common
+"cancel" = "Cancelar";
+"save" = "Guardar";
+"delete" = "Eliminar";
+"edit" = "Editar";
+"done" = "Listo";
+"ok" = "OK";
+"yes" = "Sí";
+"no" = "No";
+"back" = "Atrás";
+"next" = "Siguiente";
+"previous" = "Anterior";
+"close" = "Cerrar";
+"search" = "Buscar";
+"filter" = "Filtrar";
+"sort" = "Ordenar";
+"share" = "Compartir";
+"loading" = "Cargando";
+"error" = "Error";
+"success" = "Éxito";
+"confirm" = "Confirmar";
+"apply" = "Aplicar";
+"reset" = "Restablecer";
+"submit" = "Enviar";
+"continue" = "Continuar";
+"skip" = "Omitir";
+"finish" = "Finalizar";
+"create" = "Crear";
+"add" = "Agregar";
+"remove" = "Eliminar";
+"update" = "Actualizar";
+"refresh" = "Actualizar";
+"retry" = "Reintentar";
+"select" = "Seleccionar";
+"selected" = "Seleccionado";
+"all" = "Todo";
+"none" = "Ninguno";
+"view" = "Ver";
+"more" = "Más";
+"less" = "Menos";
+"show_more" = "Mostrar más";
+"show_less" = "Mostrar menos";
+"see_all" = "Ver todo";
+"view_all" = "Ver todo";
+"clear" = "Limpiar";
+"clear_all" = "Limpiar todo";
+"apply_filters" = "Aplicar filtros";
+"filters" = "Filtros";
+"sort_by" = "Ordenar por";
+"newest_first" = "Más reciente primero";
+"oldest_first" = "Más antiguo primero";
+"price_low_to_high" = "Precio: Menor a Mayor";
+"price_high_to_low" = "Precio: Mayor a Menor";
+"distance" = "Distancia";
+"relevance" = "Relevancia";
+"popularity" = "Popularidad";
+"login" = "Iniciar sesión";
+"logout" = "Cerrar sesión";
+"signup" = "Registrarse";
+"register" = "Registrar";
+
+// MARK: - Navigation & Tabs
+"home" = "Inicio";
+"marketplace" = "Mercado";
+"browse" = "Explorar";
+"post" = "Publicar";
+"messages" = "Mensajes";
+"profile" = "Perfil";
+"settings" = "Configuración";
+"notifications" = "Notificaciones";
+"favorites" = "Favoritos";
+"activity" = "Actividad";
+"help" = "Ayuda";
+
+// MARK: - Home Screen
+"good_morning" = "¡Buenos días!";
+"good_afternoon" = "¡Buenas tardes!";
+"good_evening" = "¡Buenas noches!";
+"welcome_back" = "¡Bienvenido de vuelta!";
+"what_would_you_like_to_share_today" = "¿Qué te gustaría compartir hoy?";
+"what_would_you_like_to_do" = "¿Qué te gustaría hacer?";
+"choose_option_to_get_started" = "Elige una opción para comenzar";
+"quick_actions" = "Acciones rápidas";
+"featured_items" = "Artículos destacados";
+"recent_activity" = "Actividad reciente";
+"trending_now" = "Tendencias";
+"popular_categories" = "Categorías populares";
+"near_you" = "Cerca de ti";
+"todays_deals" = "Ofertas de hoy";
+"garage_sales_near_you" = "Ventas de garaje cerca de ti";
+"no_garage_sales_nearby" = "No hay ventas de garaje cerca";
+"sales_this_weekend" = "%d ventas este fin de semana";
+"no_sales_this_weekend" = "No hay ventas este fin de semana";
+"tap_to_explore" = "Toca para explorar";
+"available" = "Disponible";
+"hot_deals" = "Ofertas calientes";
+"requests" = "Solicitudes";
+"see_requests" = "Ver solicitudes";
+"list_item" = "Publicar artículo";
+"share_something" = "Compartir algo";
+"find_items" = "Buscar artículos";
+"no_recent_activity" = "Sin actividad reciente";
+"your_recent_activity_will_appear_here" = "Tu actividad reciente aparecerá aquí";
+"no_featured_items_available" = "No hay artículos destacados disponibles";
+
+// MARK: - Marketplace
+"search_items" = "Buscar artículos...";
+"all_items" = "Todos los artículos";
+"browse_categories" = "Explorar categorías";
+"no_items_found" = "No se encontraron artículos";
+"try_adjusting_filters" = "Intenta ajustar tus filtros";
+"load_more" = "Cargar más";
+"items_found" = "%d artículos encontrados";
+"nearby_items" = "Artículos cercanos";
+"new_arrivals" = "Recién llegados";
+"ending_soon" = "Terminando pronto";
+"free_items" = "Artículos gratis";
+"all_categories" = "Todas las categorías";
+
+// MARK: - Post Creation
+"list_something" = "Publicar algo";
+"find_something" = "Buscar algo";
+"host_garage_sale" = "Organizar venta de garaje";
+"share_items_services_community" = "Comparte artículos o servicios con tu comunidad";
+"post_what_looking_for" = "Publica lo que estás buscando";
+"organize_sale_event" = "Organiza un evento de venta en el vecindario";
+"share_items_description" = "Comparte artículos con tus vecinos";
+"post_needs_description" = "Publica lo que necesitas";
+"tap_to_continue" = "Toca para continuar";
+"tap_to_select" = "Toca para seleccionar";
+"choose_how_to_contribute" = "Elige cómo te gustaría contribuir a tu comunidad";
+"create_listing" = "Crear publicación";
+"create_request" = "Crear solicitud";
+"create_garage_sale" = "Crear venta de garaje";
+
+// MARK: - Messages/Chat
+"new_message" = "Nuevo mensaje";
+"search_conversations" = "Buscar conversaciones...";
+"no_messages_yet" = "Sin mensajes aún";
+"messages_from_inquiries_appear_here" = "Los mensajes de consultas aparecerán aquí";
+"browse_marketplace" = "Explorar mercado";
+"find_items_connect_lenders" = "Encuentra artículos y conecta con prestamistas";
+"chat_with" = "Chatear con %@";
+"enhanced_chat_coming_soon" = "¡Experiencia de chat mejorada próximamente!";
+"type_message" = "Escribe un mensaje...";
+"send" = "Enviar";
+"today" = "Hoy";
+"yesterday" = "Ayer";
+"seen" = "Visto";
+"delivered" = "Entregado";
+"sent" = "Enviado";
+"now" = "Ahora";
+"search_users" = "Buscar usuarios...";
+
+// MARK: - Profile
+"my_profile" = "Mi perfil";
+"edit_profile" = "Editar perfil";
+"view_profile" = "Ver perfil";
+"member_since" = "Miembro desde %@";
+"verified_user" = "Usuario verificado";
+"trust_score" = "Puntuación de confianza";
+"response_rate" = "Tasa de respuesta";
+"response_time" = "Tiempo de respuesta";
+"total_listings" = "Total de publicaciones";
+"active_listings" = "Publicaciones activas";
+"completed_rentals" = "Rentas completadas";
+"total_earnings" = "Ganancias totales";
+"this_month" = "Este mes";
+"last_month" = "Mes pasado";
+"view_insights" = "Ver estadísticas";
+"manage_listings" = "Administrar publicaciones";
+"rental_history" = "Ofertas";
+"payment_methods" = "Métodos de pago";
+"notification_settings" = "Configuración de notificaciones";
+"privacy_settings" = "Configuración de privacidad";
+"help_support" = "Ayuda y soporte";
+"about" = "Acerca de";
+"terms_of_service" = "Términos de servicio";
+"privacy_policy" = "Política de privacidad";
+"rate_app" = "Calificar app";
+"share_app" = "Compartir app";
+"sign_out" = "Cerrar sesión";
+
+// MARK: - Listing Details
+"per_day" = "por día";
+"per_hour" = "por hora";
+"per_week" = "por semana";
+"day" = "día";
+"hour" = "hora";
+"week" = "semana";
+"available_now" = "Disponible ahora";
+"unavailable" = "No disponible";
+"rent_now" = "Rentar ahora";
+"message_owner" = "Mensaje al propietario";
+"make_offer" = "Hacer una oferta";
+"add_to_favorites" = "Agregar a favoritos";
+"remove_from_favorites" = "Quitar de favoritos";
+"share_listing" = "Compartir publicación";
+"report_listing" = "Reportar publicación";
+"description" = "Descripción";
+"location" = "Ubicación";
+"availability" = "Disponibilidad";
+"rental_terms" = "Términos de renta";
+"security_deposit" = "Depósito de seguridad";
+"minimum_rental" = "Renta mínima";
+"maximum_rental" = "Renta máxima";
+"pickup_delivery" = "Recogida y entrega";
+"insurance_included" = "Seguro incluido";
+"owner_info" = "Información del propietario";
+"similar_items" = "Artículos similares";
+"reviews" = "Reseñas";
+"questions_answers" = "Preguntas y respuestas";
+"listed_by" = "Publicado por";
+"view_profile" = "Ver perfil";
+"request_item" = "Solicitar artículo";
+"contact_owner" = "Contactar propietario";
+"free" = "Gratis";
+
+// MARK: - Settings
+"account_settings" = "Configuración de cuenta";
+"language_settings" = "Configuración de idioma";
+"choose_preferred_language" = "Elige tu idioma preferido";
+"current_language" = "Idioma actual";
+"available_languages" = "Idiomas disponibles";
+"apply_changes" = "Aplicar cambios";
+"restart_required" = "Se requiere reiniciar";
+"restart_required_message" = "La aplicación necesita reiniciarse para aplicar el cambio de idioma";
+"restart_now" = "Reiniciar ahora";
+"later" = "Más tarde";
+"language_change_info" = "Cambiar el idioma reiniciará la aplicación";
+"notifications_settings" = "Notificaciones";
+"push_notifications" = "Notificaciones push";
+"email_notifications" = "Notificaciones por correo";
+"sms_notifications" = "Notificaciones SMS";
+"rental_requests" = "Solicitudes de renta";
+"messages_alerts" = "Alertas de mensajes";
+"payment_updates" = "Actualizaciones de pago";
+"promotional_offers" = "Ofertas promocionales";
+"security" = "Seguridad";
+"change_password" = "Cambiar contraseña";
+"two_factor_auth" = "Autenticación de dos factores";
+"face_id" = "Face ID";
+"touch_id" = "Touch ID";
+"privacy" = "Privacidad";
+"blocked_users" = "Usuarios bloqueados";
+"data_usage" = "Uso de datos";
+"delete_account" = "Eliminar cuenta";
+
+// MARK: - Forms & Validation
+"required_field" = "Campo requerido";
+"invalid_email" = "Correo electrónico inválido";
+"password_too_short" = "La contraseña debe tener al menos 8 caracteres";
+"passwords_dont_match" = "Las contraseñas no coinciden";
+"invalid_phone" = "Número de teléfono inválido";
+"field_required" = "Este campo es requerido";
+"select_option" = "Selecciona una opción";
+"enter_valid_amount" = "Ingresa una cantidad válida";
+"enter_title" = "Ingresa título";
+"enter_description" = "Ingresa descripción";
+"select_category" = "Selecciona categoría";
+"add_photos" = "Agregar fotos";
+"take_photo" = "Tomar foto";
+"choose_from_library" = "Elegir de la biblioteca";
+"photo_limit_reached" = "Límite de fotos alcanzado (máx. 10)";
+
+// MARK: - Categories
+"electronics" = "Electrónicos";
+"furniture" = "Muebles";
+"tools" = "Herramientas";
+"sports" = "Deportes";
+"books" = "Libros";
+"clothing" = "Ropa";
+"toys_games" = "Juguetes y juegos";
+"home_garden" = "Hogar y jardín";
+"vehicles" = "Vehículos";
+"musical_instruments" = "Instrumentos musicales";
+"party_supplies" = "Artículos para fiestas";
+"camping_gear" = "Equipo de camping";
+"baby_items" = "Artículos para bebé";
+"pet_supplies" = "Suministros para mascotas";
+"other" = "Otro";
+
+// MARK: - Error Messages
+"network_error" = "Error de red. Por favor intenta de nuevo.";
+"something_went_wrong" = "Algo salió mal";
+"try_again_later" = "Por favor intenta más tarde";
+"no_internet_connection" = "Sin conexión a internet";
+"server_error" = "Error del servidor";
+"timeout_error" = "La solicitud expiró";
+"unknown_error" = "Ocurrió un error desconocido";
+"login_required" = "Inicio de sesión requerido";
+"login_required_message" = "Necesitas iniciar sesión para realizar esta acción";
+
+// MARK: - Success Messages
+"listing_created" = "¡Publicación creada exitosamente!";
+"profile_updated" = "¡Perfil actualizado exitosamente!";
+"password_changed" = "¡Contraseña cambiada exitosamente!";
+"item_added_favorites" = "Artículo agregado a favoritos";
+"item_removed_favorites" = "Artículo eliminado de favoritos";
+"message_sent" = "Mensaje enviado";
+"offer_submitted" = "Oferta enviada";
+"rental_confirmed" = "Renta confirmada";
+
+// MARK: - Time
+"just_now" = "Justo ahora";
+"minutes_ago" = "hace %d minutos";
+"hours_ago" = "hace %d horas";
+"days_ago" = "hace %d días";
+"weeks_ago" = "hace %d semanas";
+"months_ago" = "hace %d meses";
+"years_ago" = "hace %d años";
+
+// MARK: - Ratings
+"rate_experience" = "Califica tu experiencia";
+"leave_review" = "Deja una reseña";
+"rating_submitted" = "Calificación enviada";
+"reviews_count" = "%d reseñas";
+
+// MARK: - Chat
+"message_owner" = "Mensaje al propietario";
+"start_conversation_about" = "Iniciar conversación sobre";
+"type_message" = "Escribe un mensaje...";
+
+// MARK: - Seeks
+"seeks" = "Búsquedas";
+"my_seeks" = "Mis búsquedas";
+"search_seeks" = "Buscar solicitudes...";
+"active_seeks" = "Activas";
+"with_matches" = "Con coincidencias";
+"urgent" = "Urgente";
+"community_seeks" = "Búsquedas de la comunidad";
+"no_seeks_found" = "No se encontraron búsquedas";
+"be_first_to_post" = "¡Sé el primero en publicar lo que estás buscando!";
+"highest_budget" = "Mayor presupuesto";
+"most_urgent" = "Más urgente";
+"nearest" = "Más cercano";
+
+// MARK: - Business Features
+"subscription" = "Suscripción";
+"business_account" = "Cuenta de negocio";
+"achievements" = "Logros";
+"borrow_vs_buy" = "Rentar vs Comprar";

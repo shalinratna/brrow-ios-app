@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification - Brrow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .status.loading {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .message {
+            font-size: 18px;
+            line-height: 1.5;
+        }
+        
+        .app-links {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .app-links h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .app-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .app-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #333;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .app-button:hover {
+            background: #555;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">B</div>
+        <h1>Email Verification</h1>
+        <p class="subtitle">Confirming your email address</p>
+        
+        <div id="status" class="status loading">
+            <div class="spinner"></div>
+            <div class="message">Verifying your email...</div>
+        </div>
+        
+        <div class="app-links">
+            <h3>Open in Brrow App</h3>
+            <div class="app-buttons">
+                <a href="brrow://verified" class="app-button">Open App</a>
+                <a href="https://apps.apple.com/app/brrow" class="app-button">Download App</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            © 2025 Brrow. All rights reserved.
+        </div>
+    </div>
+    
+    <script>
+        // Get token from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        async function verifyEmail() {
+            const statusDiv = document.getElementById('status');
+            
+            if (!token) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `
+                    <div class="status-icon">❌</div>
+                    <div class="message">Invalid verification link.<br>Please check your email for the correct link.</div>
+                `;
+                return;
+            }
+            
+            try {
+                // Call the API to verify the email
+                const response = await fetch('https://brrowapp.com/brrow/api/verify_email_token.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `
+                        <div class="status-icon">✅</div>
+                        <div class="message">Your email has been verified successfully!<br>You can now close this page and return to the app.</div>
+                    `;
+                    
+                    // Try to open the app
+                    setTimeout(() => {
+                        window.location.href = 'brrow://verified?token=' + token;
+                    }, 2000);
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = `
+                        <div class="status-icon">❌</div>
+                        <div class="message">${data.message || 'Verification failed. The link may have expired.'}<br>Please request a new verification email.</div>
+                    `;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `
+                    <div class="status-icon">❌</div>
+                    <div class="message">An error occurred during verification.<br>Please try again later.</div>
+                `;
+            }
+        }
+        
+        // Start verification when page loads
+        verifyEmail();
+    </script>
+</body>
+</html>

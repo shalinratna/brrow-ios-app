@@ -1,0 +1,115 @@
+/* 
+  Arabic (العربية) Localization - RTL Language
+  Brrow App
+  
+  Note: This is a sample translation to demonstrate RTL support
+  Full translation would require a professional Arabic translator
+*/
+
+// MARK: - Common
+"cancel" = "إلغاء";
+"save" = "حفظ";
+"delete" = "حذف";
+"edit" = "تعديل";
+"done" = "تم";
+"ok" = "موافق";
+"yes" = "نعم";
+"no" = "لا";
+"back" = "رجوع";
+"next" = "التالي";
+"previous" = "السابق";
+"close" = "إغلاق";
+"search" = "بحث";
+"filter" = "تصفية";
+"sort" = "ترتيب";
+"share" = "مشاركة";
+"loading" = "جاري التحميل";
+"error" = "خطأ";
+"success" = "نجاح";
+"confirm" = "تأكيد";
+"apply" = "تطبيق";
+"reset" = "إعادة تعيين";
+"submit" = "إرسال";
+"continue" = "متابعة";
+"skip" = "تخطي";
+"finish" = "إنهاء";
+"create" = "إنشاء";
+"add" = "إضافة";
+"remove" = "إزالة";
+"update" = "تحديث";
+"refresh" = "تحديث";
+"retry" = "إعادة المحاولة";
+"select" = "اختيار";
+"selected" = "محدد";
+"all" = "الكل";
+"none" = "لا شيء";
+"view" = "عرض";
+"more" = "المزيد";
+"less" = "أقل";
+"show_more" = "عرض المزيد";
+"show_less" = "عرض أقل";
+"see_all" = "عرض الكل";
+"view_all" = "عرض الكل";
+"clear" = "مسح";
+"clear_all" = "مسح الكل";
+"apply_filters" = "تطبيق الفلاتر";
+"filters" = "الفلاتر";
+"sort_by" = "ترتيب حسب";
+"newest_first" = "الأحدث أولاً";
+"oldest_first" = "الأقدم أولاً";
+"price_low_to_high" = "السعر: من الأقل إلى الأعلى";
+"price_high_to_low" = "السعر: من الأعلى إلى الأقل";
+"distance" = "المسافة";
+"relevance" = "الصلة";
+"popularity" = "الشعبية";
+"login" = "تسجيل الدخول";
+"logout" = "تسجيل الخروج";
+"signup" = "التسجيل";
+"register" = "سجل";
+
+// MARK: - Navigation & Tabs
+"home" = "الرئيسية";
+"marketplace" = "السوق";
+"browse" = "تصفح";
+"post" = "نشر";
+"messages" = "الرسائل";
+"profile" = "الملف الشخصي";
+"settings" = "الإعدادات";
+"notifications" = "الإشعارات";
+"favorites" = "المفضلة";
+"activity" = "النشاط";
+"help" = "المساعدة";
+
+// MARK: - Home Screen
+"good_morning" = "صباح الخير!";
+"good_afternoon" = "مساء الخير!";
+"good_evening" = "مساء الخير!";
+"welcome_back" = "مرحباً بعودتك!";
+"what_would_you_like_to_share_today" = "ماذا تريد أن تشارك اليوم؟";
+"what_would_you_like_to_do" = "ماذا تريد أن تفعل؟";
+"choose_option_to_get_started" = "اختر خياراً للبدء";
+"quick_actions" = "إجراءات سريعة";
+"featured_items" = "عناصر مميزة";
+"recent_activity" = "النشاط الأخير";
+"trending_now" = "الرائج الآن";
+"popular_categories" = "الفئات الشائعة";
+"near_you" = "بالقرب منك";
+"todays_deals" = "عروض اليوم";
+
+// MARK: - Settings
+"account_settings" = "إعدادات الحساب";
+"language_settings" = "إعدادات اللغة";
+"choose_preferred_language" = "اختر لغتك المفضلة";
+"current_language" = "اللغة الحالية";
+"available_languages" = "اللغات المتاحة";
+"apply_changes" = "تطبيق التغييرات";
+"language_change_info" = "تغيير اللغة سيعيد تشغيل التطبيق";
+"notifications_settings" = "الإشعارات";
+"push_notifications" = "الإشعارات الفورية";
+"email_notifications" = "إشعارات البريد الإلكتروني";
+"security" = "الأمان";
+"privacy" = "الخصوصية";
+
+// NOTE: This is a partial translation for demonstration
+// Full translation requires professional Arabic translator
+// Keep English for untranslated strings - they will fallback

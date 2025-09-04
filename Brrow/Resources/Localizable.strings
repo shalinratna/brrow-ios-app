@@ -1,0 +1,9 @@
+/* 
+  Localizable.strings
+  Brrow
+  
+  Base localization file - DO NOT DELETE
+  This file is required for Xcode to properly handle localizations
+*/
+
+/* This is the base file - actual translations are in language-specific .lproj folders */

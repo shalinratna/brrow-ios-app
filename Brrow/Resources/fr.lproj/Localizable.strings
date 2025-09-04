@@ -1,0 +1,354 @@
+/* 
+  NEEDS TRANSLATION TO: fr
+  This is a copy of English strings - please translate all values
+*/
+
+/* 
+  Localizable.strings
+  Brrow
+  
+  English Localization
+*/
+
+// MARK: - Common
+"cancel" = "Cancel";
+"save" = "Save";
+"delete" = "Delete";
+"edit" = "Edit";
+"done" = "Done";
+"ok" = "OK";
+"yes" = "Yes";
+"no" = "No";
+"back" = "Back";
+"next" = "Next";
+"previous" = "Previous";
+"close" = "Close";
+"search" = "Search";
+"filter" = "Filter";
+"sort" = "Sort";
+"share" = "Share";
+"loading" = "Loading";
+"error" = "Error";
+"success" = "Success";
+"confirm" = "Confirm";
+"apply" = "Apply";
+"reset" = "Reset";
+"submit" = "Submit";
+"continue" = "Continue";
+"skip" = "Skip";
+"finish" = "Finish";
+"create" = "Create";
+"add" = "Add";
+"remove" = "Remove";
+"update" = "Update";
+"refresh" = "Refresh";
+"retry" = "Retry";
+"select" = "Select";
+"selected" = "Selected";
+"all" = "All";
+"none" = "None";
+"view" = "View";
+"more" = "More";
+"less" = "Less";
+"show_more" = "Show More";
+"show_less" = "Show Less";
+"see_all" = "See All";
+"view_all" = "View All";
+"clear" = "Clear";
+"clear_all" = "Clear All";
+"apply_filters" = "Apply Filters";
+"filters" = "Filters";
+"sort_by" = "Sort By";
+"newest_first" = "Newest First";
+"oldest_first" = "Oldest First";
+"price_low_to_high" = "Price: Low to High";
+"price_high_to_low" = "Price: High to Low";
+"distance" = "Distance";
+"relevance" = "Relevance";
+"popularity" = "Popularity";
+"login" = "Login";
+"logout" = "Logout";
+"signup" = "Sign Up";
+"register" = "Register";
+
+// MARK: - Navigation & Tabs
+"home" = "Home";
+"marketplace" = "Marketplace";
+"browse" = "Browse";
+"post" = "Post";
+"messages" = "Messages";
+"profile" = "Profile";
+"settings" = "Settings";
+"notifications" = "Notifications";
+"favorites" = "Favorites";
+"activity" = "Activity";
+"help" = "Help";
+
+// MARK: - Home Screen
+"good_morning" = "Good Morning!";
+"good_afternoon" = "Good Afternoon!";
+"good_evening" = "Good Evening!";
+"welcome_back" = "Welcome Back!";
+"what_would_you_like_to_share_today" = "What would you like to share today?";
+"what_would_you_like_to_do" = "What would you like to do?";
+"choose_option_to_get_started" = "Choose an option to get started";
+"quick_actions" = "Quick Actions";
+"featured_items" = "Featured Items";
+"recent_activity" = "Recent Activity";
+"trending_now" = "Trending Now";
+"popular_categories" = "Popular Categories";
+"near_you" = "Near You";
+"todays_deals" = "Today's Deals";
+"garage_sales_near_you" = "Garage Sales Near You";
+"no_garage_sales_nearby" = "No garage sales nearby";
+"sales_this_weekend" = "%d sales this weekend";
+"no_sales_this_weekend" = "No sales this weekend";
+"tap_to_explore" = "Tap to explore";
+"available" = "Available";
+"hot_deals" = "Hot Deals";
+"requests" = "Requests";
+"see_requests" = "See Requests";
+"list_item" = "List Item";
+"share_something" = "Share something";
+"find_items" = "Find items";
+"no_recent_activity" = "No recent activity";
+"your_recent_activity_will_appear_here" = "Your recent activity will appear here";
+"no_featured_items_available" = "No featured items available";
+
+// MARK: - Marketplace
+"search_items" = "Search items...";
+"all_items" = "All Items";
+"browse_categories" = "Browse Categories";
+"no_items_found" = "No items found";
+"try_adjusting_filters" = "Try adjusting your filters";
+"load_more" = "Load More";
+"items_found" = "%d items found";
+"nearby_items" = "Nearby Items";
+"new_arrivals" = "New Arrivals";
+"ending_soon" = "Ending Soon";
+"free_items" = "Free Items";
+"all_categories" = "All Categories";
+
+// MARK: - Post Creation
+"list_something" = "List Something";
+"find_something" = "Find Something";
+"host_garage_sale" = "Host Garage Sale";
+"share_items_services_community" = "Share items or services with your community";
+"post_what_looking_for" = "Post what you're looking for";
+"organize_sale_event" = "Organize a neighborhood sale event";
+"share_items_description" = "Share items with your neighbors";
+"post_needs_description" = "Post what you need";
+"tap_to_continue" = "Tap to continue";
+"tap_to_select" = "Tap to select";
+"choose_how_to_contribute" = "Choose how you'd like to contribute to your community";
+"create_listing" = "Create Listing";
+"create_request" = "Create Request";
+"create_garage_sale" = "Create Garage Sale";
+
+// MARK: - Messages/Chat
+"new_message" = "New Message";
+"search_conversations" = "Search conversations...";
+"no_messages_yet" = "No Messages Yet";
+"messages_from_inquiries_appear_here" = "Messages from inquiries will appear here";
+"browse_marketplace" = "Browse Marketplace";
+"find_items_connect_lenders" = "Find items and connect with lenders";
+"chat_with" = "Chat with %@";
+"enhanced_chat_coming_soon" = "Enhanced chat experience coming soon!";
+"type_message" = "Type a message...";
+"send" = "Send";
+"today" = "Today";
+"yesterday" = "Yesterday";
+"seen" = "Seen";
+"delivered" = "Delivered";
+"sent" = "Sent";
+"now" = "Now";
+"search_users" = "Search users...";
+
+// MARK: - Profile
+"my_profile" = "My Profile";
+"edit_profile" = "Edit Profile";
+"view_profile" = "View Profile";
+"member_since" = "Member since %@";
+"verified_user" = "Verified User";
+"trust_score" = "Trust Score";
+"response_rate" = "Response Rate";
+"response_time" = "Response Time";
+"total_listings" = "Total Listings";
+"active_listings" = "Active Listings";
+"completed_rentals" = "Completed Rentals";
+"total_earnings" = "Total Earnings";
+"this_month" = "This Month";
+"last_month" = "Last Month";
+"view_insights" = "View Insights";
+"manage_listings" = "Manage Listings";
+"rental_history" = "Rental History";
+"payment_methods" = "Payment Methods";
+"notification_settings" = "Notification Settings";
+"privacy_settings" = "Privacy Settings";
+"help_support" = "Help & Support";
+"about" = "About";
+"terms_of_service" = "Terms of Service";
+"privacy_policy" = "Privacy Policy";
+"rate_app" = "Rate App";
+"share_app" = "Share App";
+"sign_out" = "Sign Out";
+
+// MARK: - Listing Details
+"per_day" = "per day";
+"per_hour" = "per hour";
+"per_week" = "per week";
+"day" = "day";
+"hour" = "hour";
+"week" = "week";
+"available_now" = "Available Now";
+"unavailable" = "Unavailable";
+"rent_now" = "Rent Now";
+"message_owner" = "Message Owner";
+"make_offer" = "Make an Offer";
+"add_to_favorites" = "Add to Favorites";
+"remove_from_favorites" = "Remove from Favorites";
+"share_listing" = "Share Listing";
+"report_listing" = "Report Listing";
+"description" = "Description";
+"location" = "Location";
+"availability" = "Availability";
+"rental_terms" = "Rental Terms";
+"security_deposit" = "Security Deposit";
+"minimum_rental" = "Minimum Rental";
+"maximum_rental" = "Maximum Rental";
+"pickup_delivery" = "Pickup & Delivery";
+"insurance_included" = "Insurance Included";
+"owner_info" = "Owner Information";
+"similar_items" = "Similar Items";
+"reviews" = "Reviews";
+"questions_answers" = "Questions & Answers";
+"listed_by" = "Listed by";
+"view_profile" = "View Profile";
+"request_item" = "Request Item";
+"contact_owner" = "Contact Owner";
+"free" = "Free";
+
+// MARK: - Settings
+"account_settings" = "Account Settings";
+"language_settings" = "Language Settings";
+"choose_preferred_language" = "Choose your preferred language";
+"current_language" = "Current Language";
+"available_languages" = "Available Languages";
+"apply_changes" = "Apply Changes";
+"restart_required" = "Restart Required";
+"restart_required_message" = "The app needs to restart to apply the language change";
+"restart_now" = "Restart Now";
+"later" = "Later";
+"language_change_info" = "Changing language will restart the app";
+"notifications_settings" = "Notifications";
+"push_notifications" = "Push Notifications";
+"email_notifications" = "Email Notifications";
+"sms_notifications" = "SMS Notifications";
+"rental_requests" = "Rental Requests";
+"messages_alerts" = "Message Alerts";
+"payment_updates" = "Payment Updates";
+"promotional_offers" = "Promotional Offers";
+"security" = "Security";
+"change_password" = "Change Password";
+"two_factor_auth" = "Two-Factor Authentication";
+"face_id" = "Face ID";
+"touch_id" = "Touch ID";
+"privacy" = "Privacy";
+"blocked_users" = "Blocked Users";
+"data_usage" = "Data Usage";
+"delete_account" = "Delete Account";
+
+// MARK: - Forms & Validation
+"required_field" = "Required field";
+"invalid_email" = "Invalid email address";
+"password_too_short" = "Password must be at least 8 characters";
+"passwords_dont_match" = "Passwords don't match";
+"invalid_phone" = "Invalid phone number";
+"field_required" = "This field is required";
+"select_option" = "Select an option";
+"enter_valid_amount" = "Enter a valid amount";
+"enter_title" = "Enter title";
+"enter_description" = "Enter description";
+"select_category" = "Select category";
+"add_photos" = "Add Photos";
+"take_photo" = "Take Photo";
+"choose_from_library" = "Choose from Library";
+"photo_limit_reached" = "Photo limit reached (10 max)";
+
+// MARK: - Categories
+"electronics" = "Electronics";
+"furniture" = "Furniture";
+"tools" = "Tools";
+"sports" = "Sports";
+"books" = "Books";
+"clothing" = "Clothing";
+"toys_games" = "Toys & Games";
+"home_garden" = "Home & Garden";
+"vehicles" = "Vehicles";
+"musical_instruments" = "Musical Instruments";
+"party_supplies" = "Party Supplies";
+"camping_gear" = "Camping Gear";
+"baby_items" = "Baby Items";
+"pet_supplies" = "Pet Supplies";
+"other" = "Other";
+
+// MARK: - Error Messages
+"network_error" = "Network error. Please try again.";
+"something_went_wrong" = "Something went wrong";
+"try_again_later" = "Please try again later";
+"no_internet_connection" = "No internet connection";
+"server_error" = "Server error";
+"timeout_error" = "Request timed out";
+"unknown_error" = "Unknown error occurred";
+"login_required" = "Login Required";
+"login_required_message" = "You need to be logged in to perform this action";
+
+// MARK: - Success Messages
+"listing_created" = "Listing created successfully!";
+"profile_updated" = "Profile updated successfully!";
+"password_changed" = "Password changed successfully!";
+"item_added_favorites" = "Item added to favorites";
+"item_removed_favorites" = "Item removed from favorites";
+"message_sent" = "Message sent";
+"offer_submitted" = "Offer submitted";
+"rental_confirmed" = "Rental confirmed";
+
+// MARK: - Time
+"just_now" = "Just now";
+"minutes_ago" = "%d minutes ago";
+"hours_ago" = "%d hours ago";
+"days_ago" = "%d days ago";
+"weeks_ago" = "%d weeks ago";
+"months_ago" = "%d months ago";
+"years_ago" = "%d years ago";
+
+// MARK: - Ratings
+"rate_experience" = "Rate your experience";
+"leave_review" = "Leave a review";
+"rating_submitted" = "Rating submitted";
+"reviews_count" = "%d reviews";
+
+// MARK: - Chat
+"message_owner" = "Message Owner";
+"start_conversation_about" = "Start a conversation about";
+"type_message" = "Type a message...";
+
+// MARK: - Seeks
+"seeks" = "Seeks";
+"my_seeks" = "My Seeks";
+"search_seeks" = "Search seeks...";
+"active_seeks" = "Active";
+"with_matches" = "Matches";
+"urgent" = "Urgent";
+"community_seeks" = "Community Seeks";
+"no_seeks_found" = "No Seeks Found";
+"be_first_to_post" = "Be the first to post what you're looking for!";
+"highest_budget" = "Highest Budget";
+"most_urgent" = "Most Urgent";
+"nearest" = "Nearest";
+
+// MARK: - Business Features
+"subscription" = "Subscription";
+"business_account" = "Business Account";
+"achievements" = "Achievements";
+"borrow_vs_buy" = "Borrow vs Buy";

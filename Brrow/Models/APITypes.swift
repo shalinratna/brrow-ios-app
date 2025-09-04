@@ -1,0 +1,770 @@
+//
+//  APITypes.swift
+//  Brrow
+//
+//  Missing API Type Definitions
+//
+
+import Foundation
+
+// MARK: - Authentication Response
+struct AuthResponse: Codable {
+    let token: String?
+    let user: User
+    let expiresAt: String?
+    
+    init(token: String, user: User, expiresAt: String? = nil) {
+        self.token = token
+        self.user = user
+        self.expiresAt = expiresAt
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Try to decode token - it might be missing in some responses
+        self.token = try container.decodeIfPresent(String.self, forKey: .token)
+        
+        // User is required
+        self.user = try container.decode(User.self, forKey: .user)
+        
+        // Expires at is optional
+        self.expiresAt = try container.decodeIfPresent(String.self, forKey: .expiresAt)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case token
+        case user
+        case expiresAt = "expires_at"
+    }
+}
+
+// MARK: - Listings Response
+struct ListingsResponse: Codable {
+    let success: Bool
+    let data: ListingsData?
+    let message: String?
+    
+    struct ListingsData: Codable {
+        let listings: [Listing]
+        let pagination: PaginationData
+    }
+    
+    struct PaginationData: Codable {
+        let total: Int
+        let page: Int?
+        let perPage: Int?
+        let totalPages: Double?  // API returns as float
+        let hasMore: Bool?
+        
+        // Support both field names for compatibility
+        let limit: Int?
+        let offset: Int?
+        let pages: Int?
+        
+        enum CodingKeys: String, CodingKey {
+            case total
+            case page
+            case perPage = "per_page"
+            case totalPages = "total_pages"
+            case hasMore = "has_more"
+            case limit
+            case offset
+            case pages
+        }
+        
+        // Computed property for compatibility
+        var pageLimit: Int {
+            return perPage ?? limit ?? 20
+        }
+    }
+}
+
+// MARK: - User Listings Response
+struct UserListingsResponse: Codable {
+    let success: Bool
+    let data: UserListingsData?
+    let message: String?
+    
+    struct UserListingsData: Codable {
+        let listings: [Listing]
+        let stats: ListingStats?
+        let total: Int?  // Optional for backward compatibility
+        
+        struct ListingStats: Codable {
+            let total_listings: Int
+            let active_listings: Int
+            let archived_listings: Int
+            let total_views: Int
+            let total_borrowed: Int
+        }
+    }
+}
+
+// MARK: - User Rating
+struct UserRating: Codable, Identifiable {
+    let id: Int
+    let rating: Double
+    let review: String
+    let reviewerName: String
+    let reviewerProfilePicture: String?
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case rating
+        case review
+        case reviewerName = "reviewer_name"
+        case reviewerProfilePicture = "reviewer_profile_picture"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Empty Response
+struct EmptyResponse: Codable {
+    let success: Bool
+    let message: String?
+}
+
+// MARK: - Success Response
+struct SuccessResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: [String: AnyCodable]?
+}
+
+// MARK: - AnyCodable for dynamic JSON
+struct AnyCodable: Codable {
+    let value: Any
+    
+    init(_ value: Any) {
+        self.value = value
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = string
+        } else if let array = try? container.decode([AnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dictionary = try? container.decode([String: AnyCodable].self) {
+            value = dictionary.mapValues { $0.value }
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unable to decode AnyCodable")
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        
+        if let bool = value as? Bool {
+            try container.encode(bool)
+        } else if let int = value as? Int {
+            try container.encode(int)
+        } else if let double = value as? Double {
+            try container.encode(double)
+        } else if let string = value as? String {
+            try container.encode(string)
+        } else if let array = value as? [Any] {
+            try container.encode(array.map { AnyCodable($0) })
+        } else if let dictionary = value as? [String: Any] {
+            try container.encode(dictionary.mapValues { AnyCodable($0) })
+        } else {
+            throw EncodingError.invalidValue(value, EncodingError.Context(codingPath: container.codingPath, debugDescription: "Unable to encode AnyCodable"))
+        }
+    }
+}
+
+// MARK: - Password Reset Response
+struct PasswordResetResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: PasswordResetData?
+    
+    struct PasswordResetData: Codable {
+        let token: String?
+        let user: User?
+    }
+}
+
+// MARK: - RSVP Response
+struct RSVPResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: RSVPData?
+    
+    struct RSVPData: Codable {
+        let rsvpStatus: String?
+        let totalRSVPs: Int?
+        
+        enum CodingKeys: String, CodingKey {
+            case rsvpStatus = "rsvp_status"
+            case totalRSVPs = "total_rsvps"
+        }
+    }
+}
+
+// MARK: - Favorite Response
+struct FavoriteResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: FavoriteData?
+    
+    struct FavoriteData: Codable {
+        let isFavorited: Bool?
+        let totalFavorites: Int?
+        
+        enum CodingKeys: String, CodingKey {
+            case isFavorited = "is_favorited"
+            case totalFavorites = "total_favorites"
+        }
+    }
+}
+
+// MARK: - Image Upload Response
+struct APIImageUploadResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: ImageUploadData?
+    
+    struct ImageUploadData: Codable {
+        let url: String
+        let publicId: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case url
+            case publicId = "public_id"
+        }
+    }
+}
+
+// MARK: - Pagination Info
+struct PaginationInfo: Codable {
+    let page: Int
+    let limit: Int
+    let total: Int
+    let hasMore: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case page
+        case limit
+        case total
+        case hasMore = "has_more"
+    }
+}
+
+// MARK: - Profile Picture Upload Response
+struct ProfilePictureUploadResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: ProfilePictureData?
+    
+    struct ProfilePictureData: Codable {
+        let url: String
+        let thumbnailUrl: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case url
+            case thumbnailUrl = "thumbnail_url"
+        }
+    }
+}
+
+// MARK: - Karma Badges (removed but keeping for compatibility)
+struct KarmaBadges: Codable {
+    let badges: [String]
+    
+    init() {
+        self.badges = []
+    }
+}
+
+// MARK: - Karma Response (removed per user request)
+
+// MARK: - Request Types
+struct LoginRequest: Codable {
+    let login: String
+    let password: String
+}
+
+struct RegisterRequest: Codable {
+    let username: String
+    let email: String
+    let password: String
+    let birthdate: String
+}
+
+struct AppleLoginRequest: Codable {
+    let appleUserId: String
+    let email: String?
+    let fullName: String
+    let identityToken: String
+    
+    enum CodingKeys: String, CodingKey {
+        case appleUserId = "apple_user_id"
+        case email
+        case fullName = "full_name"
+        case identityToken = "identity_token"
+    }
+}
+
+// MARK: - User Achievements Response
+struct UserAchievementsResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: UserAchievementsData?
+    
+    struct UserAchievementsData: Codable {
+        let achievements: [Achievement]
+        let totalPoints: Int
+        let level: Int
+        let nextLevelPoints: Int
+        
+        enum CodingKeys: String, CodingKey {
+            case achievements
+            case totalPoints = "total_points"
+            case level
+            case nextLevelPoints = "next_level_points"
+        }
+    }
+}
+
+// MARK: - Achievement Model
+struct Achievement: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let description: String
+    let category: String
+    let pointsReward: Int
+    let icon: String
+    let targetValue: Int
+    let currentProgress: Int
+    let isUnlocked: Bool
+    let unlockedAt: String?
+    
+    // For API compatibility
+    var points: Int { pointsReward }
+    var progress: Double { Double(currentProgress) }
+    var maxProgress: Double { Double(targetValue) }
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case description
+        case category
+        case pointsReward = "points_reward"
+        case icon
+        case targetValue = "target_value"
+        case currentProgress = "current_progress"
+        case isUnlocked = "is_unlocked"
+        case unlockedAt = "unlocked_at"
+    }
+}
+
+// MARK: - Create Listing Request
+struct CreateListingRequest: Codable {
+    let title: String
+    let description: String
+    let price: Double
+    let category: String
+    let location: String
+    let type: String
+    let images: [String]
+    let inventoryAmt: Int?
+    let isFree: Bool
+    let pricePerDay: Double?
+    let buyoutValue: Double?
+    let latitude: Double?
+    let longitude: Double?
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case price  // Always send price, even if 0 for free items
+        case category
+        case location
+        case type
+        case images
+        case inventoryAmt = "inventory_amt"
+        case isFree = "is_free"
+        case pricePerDay = "price_per_day"
+        case buyoutValue = "buyout_value"
+        case latitude
+        case longitude
+    }
+}
+
+// MARK: - Additional Missing Types
+struct APIResponse<T: Codable>: Codable {
+    let success: Bool
+    let data: T?
+    let message: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case status
+        case data
+        case message
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Handle both "success" (bool) and "status" (string) fields
+        if let successBool = try? container.decode(Bool.self, forKey: .success) {
+            self.success = successBool
+        } else if let statusString = try? container.decode(String.self, forKey: .status) {
+            self.success = (statusString == "success")
+        } else {
+            self.success = false
+        }
+        
+        self.data = try container.decodeIfPresent(T.self, forKey: .data)
+        self.message = try container.decodeIfPresent(String.self, forKey: .message)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(success, forKey: .success)
+        try container.encodeIfPresent(data, forKey: .data)
+        try container.encodeIfPresent(message, forKey: .message)
+    }
+}
+
+struct FetchListingsAPIResponse: Codable {
+    let success: Bool
+    let data: FetchListingsData?
+    let message: String?
+    
+    struct FetchListingsData: Codable {
+        let listings: [Listing]
+        let pagination: ListingsResponse.PaginationData?
+        
+        // Custom decoder to handle both simple and complex responses
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            // Try to decode listings
+            self.listings = try container.decodeIfPresent([Listing].self, forKey: .listings) ?? []
+            
+            // Pagination is optional
+            self.pagination = try? container.decode(ListingsResponse.PaginationData.self, forKey: .pagination)
+        }
+        
+        private enum CodingKeys: String, CodingKey {
+            case listings
+            case pagination
+        }
+    }
+}
+
+struct FeaturedListingsAPIResponse: Codable {
+    let success: Bool
+    let data: FeaturedListingsData?
+    let message: String?
+    
+    struct FeaturedListingsData: Codable {
+        let listings: [Listing]
+        let pagination: ListingsResponse.PaginationData?
+        
+        // Custom decoder to handle both simple array and nested structure
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            // Try to decode listings directly
+            if let listingsArray = try? container.decode([Listing].self, forKey: .listings) {
+                self.listings = listingsArray
+            } else {
+                // Fall back to empty array if decoding fails
+                self.listings = []
+            }
+            
+            // Pagination is optional
+            self.pagination = try? container.decode(ListingsResponse.PaginationData.self, forKey: .pagination)
+        }
+        
+        private enum CodingKeys: String, CodingKey {
+            case listings
+            case pagination
+        }
+    }
+}
+
+struct SearchSuggestionsResponse: Codable {
+    let suggestions: [String]
+}
+
+struct FavoritesResponse: Codable {
+    let success: Bool
+    let favorites: [Listing]?
+    let count: Int?
+    let message: String?
+}
+
+struct FavoriteStatusResponse: Codable {
+    let success: Bool
+    let isFavorited: Bool
+    let message: String?
+}
+
+struct UserPostsResponse: Codable {
+    let success: Bool
+    let posts: [UserPost]
+    let total: Int
+    let limit: Int
+    let offset: Int
+    let hasMore: Bool
+    let message: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case success, posts, total, limit, offset, message
+        case hasMore = "has_more"
+    }
+}
+
+struct CreateOfferRequest: Codable {
+    let listingId: String
+    let amount: Double
+    let message: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case listingId = "listing_id"
+        case amount
+        case message
+    }
+}
+
+struct UpdateProfileRequest: Codable {
+    let name: String
+    let bio: String
+}
+
+struct UpdateProfileImageRequest: Codable {
+    let imageUrl: String
+    
+    enum CodingKeys: String, CodingKey {
+        case imageUrl = "image_url"
+    }
+}
+
+struct ToggleFavoriteRequest: Codable {
+    let listingId: Int
+    let userId: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case listingId = "listing_id"
+        case userId = "user_id"
+    }
+}
+
+struct RSVPRequest: Codable {
+    let garageSaleId: String
+    let isRsvp: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case garageSaleId = "garage_sale_id"
+        case isRsvp = "is_rsvp"
+    }
+}
+
+struct GarageSaleFavoriteRequest: Codable {
+    let garageSaleId: String
+    
+    enum CodingKeys: String, CodingKey {
+        case garageSaleId = "garage_sale_id"
+    }
+}
+
+struct ToggleActiveRequest: Codable {
+    let isActive: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case isActive = "is_active"
+    }
+}
+
+struct ToggleFeaturedRequest: Codable {
+    let isFeatured: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case isFeatured = "is_featured"
+    }
+}
+
+struct UpdateOfferStatusRequest: Codable {
+    let offerId: String
+    let status: String
+    
+    enum CodingKeys: String, CodingKey {
+        case offerId = "offer_id"
+        case status
+    }
+}
+
+struct UpdateTransactionStatusRequest: Codable {
+    let transactionId: String
+    let status: String
+    
+    enum CodingKeys: String, CodingKey {
+        case transactionId = "transaction_id"
+        case status
+    }
+}
+
+struct APIExtendTransactionRequest: Codable {
+    let transactionId: String
+    let additionalDays: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case transactionId = "transaction_id"
+        case additionalDays = "additional_days"
+    }
+}
+
+struct CreateListingWithPromotionRequest: Codable {
+    let listing: CreateListingRequest
+    let promotion: PromotionRequest?
+}
+
+struct CreateListingWithPromotionResponse: Codable {
+    let success: Bool
+    let listing: Listing?
+    let promotion: PromotionData?
+    let message: String?
+}
+
+struct PromotionRequest: Codable {
+    let type: String
+    let duration: Int
+}
+
+struct PromotionData: Codable {
+    let id: String
+    let type: String
+    let startDate: String
+    let endDate: String
+    let paymentRequired: Bool?
+    let paymentIntentId: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case type
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case paymentRequired = "payment_required"
+        case paymentIntentId = "payment_intent_id"
+    }
+}
+
+struct ConfirmPromotionRequest: Codable {
+    let promotionId: String
+    let paymentMethod: String
+    
+    enum CodingKeys: String, CodingKey {
+        case promotionId = "promotion_id"
+        case paymentMethod = "payment_method"
+    }
+}
+
+struct PromotionConfirmationResponse: Codable {
+    let success: Bool
+    let message: String?
+    let paymentRequired: Bool?
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+        case paymentRequired = "payment_required"
+    }
+}
+
+struct APIMessagesResponse: Codable {
+    let success: Bool
+    let messages: [Message]
+    let pagination: PaginationInfo?
+}
+
+struct APICategory: Codable {
+    let id: String
+    let name: String
+    let icon: String
+}
+
+struct CategoriesResponse: Codable {
+    let success: Bool
+    let categories: [APICategory]
+    let message: String?
+}
+
+// MARK: - ID.me Verification Types
+struct UpdateVerificationStatusRequest: Codable {
+    let isVerified: Bool
+    let verificationLevel: String?
+    let verificationProvider: String
+    
+    enum CodingKeys: String, CodingKey {
+        case isVerified = "is_verified"
+        case verificationLevel = "verification_level"
+        case verificationProvider = "verification_provider"
+    }
+}
+
+struct UserVerificationResponse: Codable {
+    let success: Bool
+    let data: UserVerificationData?
+    let message: String?
+    
+    struct UserVerificationData: Codable {
+        let isVerified: Bool
+        let verificationLevel: String?
+        let verificationProvider: String?
+        let verifiedAt: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case isVerified = "is_verified"
+            case verificationLevel = "verification_level"
+            case verificationProvider = "verification_provider"
+            case verifiedAt = "verified_at"
+        }
+    }
+}
+
+// MARK: - Enum Types
+enum OfferStatus: String, Codable {
+    case pending = "pending"
+    case accepted = "accepted"
+    case rejected = "rejected"
+    case cancelled = "cancelled"
+    case expired = "expired"
+}
+
+enum TransactionStatus: String, Codable {
+    case pending = "pending"
+    case confirmed = "confirmed"
+    case active = "active"
+    case completed = "completed"
+    case cancelled = "cancelled"
+    case disputed = "disputed"
+}
+
+// MARK: - Email Verification Types
+struct EmailVerificationResponse: Codable {
+    let success: Bool
+    let message: String
+    let email: String?
+    let alreadyVerified: Bool?
+    let expiresInHours: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case success, message, email
+        case alreadyVerified = "already_verified"
+        case expiresInHours = "expires_in_hours"
+    }
+}
