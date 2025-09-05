@@ -32,7 +32,12 @@ enum BrrowAPIError: Error {
 class APIClient: ObservableObject {
     static let shared = APIClient()
     
-    private(set) var baseURL = "https://brrowapp.com"
+    private var baseURL: String {
+        get async {
+            return await APIEndpointManager.shared.getBestEndpoint()
+        }
+    }
+    private var primaryURL = "https://brrowapp.com"
     private let session: URLSession = NetworkManager.createURLSession()
     private var cancellables = Set<AnyCancellable>()
     private let authManager = AuthManager.shared
@@ -52,8 +57,8 @@ class APIClient: ObservableObject {
     
     // MARK: - Configuration
     static func configure(baseURL: String, timeout: TimeInterval, maxRetries: Int) {
-        shared.baseURL = baseURL
-        print("🔧 API Client configured: \(baseURL)")
+        // baseURL is now managed by APIEndpointManager
+        print("🔧 API Client configured with endpoint manager")
     }
     
     // MARK: - Token Refresh
@@ -66,6 +71,7 @@ class APIClient: ObservableObject {
         debugLog("🔄 Attempting token refresh")
         
         do {
+            let baseURL = await self.baseURL
             var request = URLRequest(url: URL(string: "\(baseURL)/refresh_token.php")!)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -153,7 +159,7 @@ class APIClient: ObservableObject {
                 "platform": "iOS",
                 "app_version": "1.0",
                 "debug_mode": debugMode,
-                "base_url": baseURL
+                "base_url": await baseURL
             ]
         ] as [String: Any]
         
@@ -187,7 +193,8 @@ class APIClient: ObservableObject {
     }
     
     // MARK: - Shaiitech System Headers
-    private func createRequest(for endpoint: String, method: HTTPMethod = .GET) -> URLRequest {
+    private func createRequest(for endpoint: String, method: HTTPMethod = .GET) async -> URLRequest {
+        let baseURL = await self.baseURL
         let urlString = "\(baseURL)/\(endpoint)"
         // Ensure URL is valid and won't cause NaN errors
         let sanitized = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -256,7 +263,7 @@ class APIClient: ObservableObject {
         body: Data? = nil,
         responseType: T.Type
     ) async throws -> T {
-        var request = createRequest(for: endpoint, method: method)
+        var request = await createRequest(for: endpoint, method: method)
         
         if let body = body {
             request.httpBody = body
@@ -328,7 +335,7 @@ class APIClient: ObservableObject {
             }
         }
         
-        var request = createRequest(for: endpoint, method: method)
+        var request = await createRequest(for: endpoint, method: method)
         
         if let body = body {
             request.httpBody = body
@@ -838,7 +845,7 @@ class APIClient: ObservableObject {
     func testAuthenticationDetailed() async throws -> [String: Any] {
         debugLog("🔐 Testing authentication...")
         
-        let request = createRequest(for: "test_auth.php", method: .GET)
+        let request = await createRequest(for: "test_auth.php", method: .GET)
         let (data, response) = try await session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -1003,6 +1010,7 @@ class APIClient: ObservableObject {
         }
         
         // Convert parameters to query string
+        let baseURL = await self.baseURL
         var urlComponents = URLComponents(string: "\(baseURL)/search_listings.php")!
         urlComponents.queryItems = parameters.map { URLQueryItem(name: $0.key, value: "\($0.value)") }
         
@@ -1275,6 +1283,7 @@ class APIClient: ObservableObject {
     
     // MARK: - Rental Transaction Operations
     func createRentalRequest(data: [String: Any]) async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_create_rental.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1300,6 +1309,7 @@ class APIClient: ObservableObject {
     }
     
     func acceptRejectRental(transactionId: String, action: String, rejectionReason: String? = nil) async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_accept_rental.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1334,6 +1344,7 @@ class APIClient: ObservableObject {
     }
     
     func completeRental(transactionId: String, condition: String, notes: String?, rating: Int?, review: String?) async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_complete_rental.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1368,6 +1379,7 @@ class APIClient: ObservableObject {
     }
     
     func getRentals(type: String = "all", status: String = "all", limit: Int = 20, offset: Int = 0) async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         var components = URLComponents(string: "\(baseURL)/api_get_rentals.php")!
         components.queryItems = [
             URLQueryItem(name: "type", value: type),
@@ -1399,6 +1411,7 @@ class APIClient: ObservableObject {
     // MARK: - Push Notification Operations
     
     func registerDeviceToken(_ deviceInfo: [String: Any]) async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_register_device_token.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1424,6 +1437,7 @@ class APIClient: ObservableObject {
     }
     
     func getNotificationPreferences() async throws -> NotificationSettings {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_notification_preferences.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -1452,6 +1466,7 @@ class APIClient: ObservableObject {
     }
     
     func updateNotificationPreferences(_ preferences: [String: Any]) async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_notification_preferences.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1477,6 +1492,7 @@ class APIClient: ObservableObject {
     }
     
     func getNotifications(type: String = "all", limit: Int = 20, offset: Int = 0) async throws -> (notifications: [AppNotification], unreadCount: Int) {
+        let baseURL = await self.baseURL
         var components = URLComponents(string: "\(baseURL)/api_get_notifications.php")!
         components.queryItems = [
             URLQueryItem(name: "type", value: type),
@@ -1515,6 +1531,7 @@ class APIClient: ObservableObject {
     // Removed duplicate - using the APIResponse version below
     
     func markAllNotificationsAsRead_OLD() async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_get_notifications.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1541,6 +1558,7 @@ class APIClient: ObservableObject {
     }
     
     func sendTestNotification(data: [String: Any]) async throws -> [String: Any] {
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_send_push_notification.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1807,6 +1825,7 @@ class APIClient: ObservableObject {
     // MARK: - Search & Discovery
     
     func fetchSearchSuggestions(query: String) async throws -> [SearchSuggestion] {
+        let baseURL = await self.baseURL
         var components = URLComponents(string: "\(baseURL)/api/search_suggestions.php")!
         components.queryItems = [
             URLQueryItem(name: "q", value: query),
@@ -1839,6 +1858,7 @@ class APIClient: ObservableObject {
     }
     
     func searchListings(query: String, page: Int = 1, sort: MarketplaceSortOption? = nil) async throws -> [Listing] {
+        let baseURL = await self.baseURL
         var components = URLComponents(string: "\(baseURL)/api/search.php")!
         components.queryItems = [
             URLQueryItem(name: "q", value: query),
@@ -1879,6 +1899,7 @@ class APIClient: ObservableObject {
     }
     
     func fetchFilteredListings(category: String? = nil, filters: MarketplaceFilters? = nil, page: Int = 1) async throws -> [Listing] {
+        let baseURL = await self.baseURL
         var components = URLComponents(string: "\(baseURL)/api/listings.php")!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "page", value: String(page))
@@ -2928,6 +2949,7 @@ class APIClient: ObservableObject {
                 let bodyData = try JSONSerialization.data(withJSONObject: parameters)
                 
                 // Custom response handling for complex JSON
+                let baseURL = await self.baseURL
                 var request = URLRequest(url: URL(string: "\(baseURL)/borrow_vs_buy.php")!)
                 request.httpMethod = "POST"
                 request.httpBody = bodyData
@@ -3463,6 +3485,7 @@ class APIClient: ObservableObject {
     }
     
     func handleStripeWebhook(payload: Data, signature: String) async throws {
+        let baseURL = await self.baseURL
         var request = URLRequest(url: URL(string: "\(baseURL)/stripe_webhook.php")!)
         request.httpMethod = "POST"
         request.httpBody = payload
@@ -3758,6 +3781,7 @@ class APIClient: ObservableObject {
         
         let bodyData = try JSONSerialization.data(withJSONObject: parameters)
         
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_update_location.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -3808,6 +3832,7 @@ class APIClient: ObservableObject {
         
         let queryString = queryParams.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
         
+        let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api_location_search.php?\(queryString)")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"

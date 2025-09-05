@@ -150,7 +150,8 @@ class ImageUploadManager {
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         
         // Create request
-        guard let url = URL(string: "\(APIClient.shared.baseURL)/\(endpoint)") else {
+        let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+        guard let url = URL(string: "\(baseURL)/\(endpoint)") else {
             throw ImageUploadError.invalidURL
         }
         

@@ -287,7 +287,7 @@ struct MessageBubbleView: View {
                         .cornerRadius(18)
                 } else if message.type == .image {
                     if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
-                        AsyncImage(url: URL(string: "https://brrowapp.com/brrow" + mediaData.url)) { image in
+                        AsyncImage(url: URL(string: "https://brrow-backend-nodejs-production.up.railway.app/brrow" + mediaData.url)) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -306,12 +306,12 @@ struct MessageBubbleView: View {
                                 )
                         }
                         .fullScreenCover(isPresented: $showingFullScreenImage) {
-                            ImageViewerView(imageUrl: "https://brrowapp.com/brrow" + mediaData.url)
+                            ImageViewerView(imageUrl: "https://brrow-backend-nodejs-production.up.railway.app/brrow" + mediaData.url)
                         }
                     }
                 } else if message.type == .video {
                     if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
-                        VideoThumbnailView(videoUrl: "https://brrowapp.com/brrow" + mediaData.url)
+                        VideoThumbnailView(videoUrl: "https://brrow-backend-nodejs-production.up.railway.app/brrow" + mediaData.url)
                             .frame(maxWidth: 250, maxHeight: 300)
                             .cornerRadius(12)
                     }

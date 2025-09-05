@@ -109,7 +109,7 @@ class TokenManager {
             throw TokenRefreshError.noToken
         }
         
-        let baseURL = APIClient.shared.baseURL
+        let baseURL = await APIEndpointManager.shared.getBestEndpoint()
         guard let url = URL(string: "\(baseURL)/refresh_token.php") else {
             throw TokenRefreshError.invalidURL
         }

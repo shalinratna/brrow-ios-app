@@ -17,7 +17,7 @@ class FileUploadService: ObservableObject {
     @Published var error: String?
     
     private var cancellables = Set<AnyCancellable>()
-    private let baseURL = "https://brrowapp.com"
+    private let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
     
     func uploadImage(_ image: UIImage, fileName: String = UUID().uuidString + ".jpg") async throws -> String {
         isUploading = true

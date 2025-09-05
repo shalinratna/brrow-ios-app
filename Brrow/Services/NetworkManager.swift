@@ -147,6 +147,16 @@ class NetworkManager {
                     do {
                         // First check if response is actually JSON
                         if let responseString = String(data: data, encoding: .utf8) {
+                            // Check if response is PHP source code (AwardSpace not executing PHP)
+                            if responseString.contains("<?php") {
+                                print("⚠️ PHP source code detected - server not executing PHP")
+                                // Report endpoint failure to trigger failover
+                                if let baseURL = request.url?.host {
+                                    APIEndpointManager.shared.reportEndpointFailure("https://\(baseURL)")
+                                }
+                                throw BrrowAPIError.serverError("Primary server error. Switching to backup...")
+                            }
+                            
                             // Check for PHP errors in response
                             if responseString.contains("<br />") && 
                                (responseString.contains("Parse error") || 

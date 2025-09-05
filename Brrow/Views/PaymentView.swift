@@ -393,6 +393,7 @@ class PaymentViewModel: ObservableObject {
 // MARK: - Extension for APIClient
 extension APIClient {
     func createPaymentIntent(data: [String: Any]) async throws -> [String: Any] {
+        let baseURL = await APIEndpointManager.shared.getBestEndpoint()
         let url = URL(string: "\(baseURL)/api_create_payment_intent.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

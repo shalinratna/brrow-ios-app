@@ -8,12 +8,14 @@ class APIEndpointManager: ObservableObject {
     @Published var currentEndpoint: String = ""
     @Published var isUsingBackup = false
     
-    private let primaryEndpoint = "https://brrowapp.com"
-    private let backupEndpoint = "https://brrow-backend-production.up.railway.app"
+    // Use Railway as primary (AwardSpace PHP not executing)
+    private let primaryEndpoint = "https://brrow-backend-nodejs-production.up.railway.app"
+    private let backupEndpoint = "https://brrowapp.com"
     
     private var endpoints: [Endpoint] = []
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "EndpointManager")
+    private let endpointsLock = NSLock()
     
     struct Endpoint {
         let url: String
@@ -56,9 +58,12 @@ class APIEndpointManager: ObservableObject {
     /// Get the best available endpoint
     func getBestEndpoint() async -> String {
         // Quick check if current endpoint is healthy
-        if let current = endpoints.first(where: { $0.url == currentEndpoint }),
-           current.isHealthy,
-           Date().timeIntervalSince(current.lastChecked) < 60 { // Use cached result for 1 minute
+        endpointsLock.lock()
+        let shouldUseCurrent = endpoints.first(where: { $0.url == currentEndpoint })
+            .map { $0.isHealthy && Date().timeIntervalSince($0.lastChecked) < 60 } ?? false
+        endpointsLock.unlock()
+        
+        if shouldUseCurrent {
             return currentEndpoint
         }
         
@@ -66,7 +71,11 @@ class APIEndpointManager: ObservableObject {
         await checkAllEndpoints()
         
         // Return the best healthy endpoint
-        if let best = endpoints.filter({ $0.isHealthy }).sorted(by: { $0.priority < $1.priority }).first {
+        endpointsLock.lock()
+        let best = endpoints.filter({ $0.isHealthy }).sorted(by: { $0.priority < $1.priority }).first
+        endpointsLock.unlock()
+        
+        if let best = best {
             DispatchQueue.main.async {
                 self.currentEndpoint = best.url
                 self.isUsingBackup = (best.url == self.backupEndpoint)
@@ -89,33 +98,36 @@ class APIEndpointManager: ObservableObject {
             }
             
             for await (url, isHealthy, responseTime) in group {
+                endpointsLock.lock()
                 if let index = endpoints.firstIndex(where: { $0.url == url }) {
                     endpoints[index].isHealthy = isHealthy
                     endpoints[index].lastChecked = Date()
                     endpoints[index].responseTime = responseTime
                 }
+                endpointsLock.unlock()
             }
         }
         
         // Update current endpoint if needed
-        if let current = endpoints.first(where: { $0.url == currentEndpoint }),
-           !current.isHealthy {
-            // Switch to backup
-            if let backup = endpoints.filter({ $0.isHealthy }).sorted(by: { $0.priority < $1.priority }).first {
-                DispatchQueue.main.async {
-                    self.currentEndpoint = backup.url
-                    self.isUsingBackup = (backup.url == self.backupEndpoint)
-                    
-                    // Log the switch
-                    print("🔄 Switched to \(self.isUsingBackup ? "backup" : "primary") endpoint: \(backup.url)")
-                }
+        endpointsLock.lock()
+        let currentIsUnhealthy = endpoints.first(where: { $0.url == currentEndpoint })?.isHealthy == false
+        let backup = currentIsUnhealthy ? endpoints.filter({ $0.isHealthy }).sorted(by: { $0.priority < $1.priority }).first : nil
+        endpointsLock.unlock()
+        
+        if let backup = backup {
+            DispatchQueue.main.async {
+                self.currentEndpoint = backup.url
+                self.isUsingBackup = (backup.url == self.backupEndpoint)
+                
+                // Log the switch
+                print("🔄 Switched to \(self.isUsingBackup ? "backup" : "primary") endpoint: \(backup.url)")
             }
         }
     }
     
     /// Check if a specific endpoint is healthy
     private func checkEndpointHealth(_ endpoint: String) async -> (String, Bool, TimeInterval) {
-        let url = URL(string: "\(endpoint)/test_php_simple.php")!
+        let url = URL(string: "\(endpoint)/health")!
         let startTime = Date()
         
         do {
@@ -123,11 +135,22 @@ class APIEndpointManager: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             let responseTime = Date().timeIntervalSince(startTime)
             
+            // Check if response is PHP source code (AwardSpace error)
+            if let responseString = String(data: data, encoding: .utf8),
+               responseString.contains("<?php") {
+                print("⚠️ AwardSpace PHP execution error detected - switching to Railway backup")
+                return (endpoint, false, 999)
+            }
+            
             if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode == 200,
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               json["success"] as? Bool == true {
-                return (endpoint, true, responseTime)
+               httpResponse.statusCode == 200 {
+                // Check for Node.js health response or PHP success response
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    // Node.js health endpoint response
+                    if json["status"] as? String == "healthy" || json["success"] as? Bool == true {
+                        return (endpoint, true, responseTime)
+                    }
+                }
             }
         } catch {
             print("❌ Endpoint \(endpoint) health check failed: \(error)")
@@ -138,22 +161,24 @@ class APIEndpointManager: ObservableObject {
     
     /// Report endpoint failure (called when a request fails)
     func reportEndpointFailure(_ endpoint: String) {
+        endpointsLock.lock()
         if let index = endpoints.firstIndex(where: { $0.url == endpoint }) {
             endpoints[index].isHealthy = false
-            
-            Task {
-                // Try to find a better endpoint
-                _ = await getBestEndpoint()
-            }
+        }
+        endpointsLock.unlock()
+        
+        Task {
+            // Try to find a better endpoint
+            _ = await getBestEndpoint()
         }
     }
     
     /// Get status for UI display
     func getStatus() -> String {
-        if isUsingBackup {
-            return "Using backup server (Railway)"
+        if currentEndpoint == backupEndpoint {
+            return "Using AwardSpace (backup)"
         } else {
-            return "Connected to primary server"
+            return "Connected to Railway (primary)"
         }
     }
     
@@ -181,12 +206,28 @@ extension APIClient {
         request.httpMethod = method
         request.httpBody = body
         
-        if let token = authToken {
+        if let token = AuthManager.shared.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Check if response is PHP source code (AwardSpace error)
+            if let responseString = String(data: data, encoding: .utf8),
+               responseString.contains("<?php") {
+                print("🔄 AwardSpace PHP error detected - switching to Railway backup")
+                
+                // Report failure
+                APIEndpointManager.shared.reportEndpointFailure(baseURL)
+                
+                // Retry with backup endpoint
+                let backupURL = await getBaseURL()
+                if backupURL != baseURL {
+                    print("✅ Switching to backup: \(backupURL)")
+                    return try await makeRequest(endpoint, method: method, body: body)
+                }
+            }
             
             if let httpResponse = response as? HTTPURLResponse,
                httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
@@ -201,7 +242,7 @@ extension APIClient {
                     return try await makeRequest(endpoint, method: method, body: body)
                 }
                 
-                throw APIError.serverError
+                throw BrrowAPIError.serverError("All endpoints failed")
             }
         } catch {
             // Report failure

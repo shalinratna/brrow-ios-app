@@ -80,7 +80,8 @@ class ChatDetailViewModel: ObservableObject {
     
     func sendMediaMessage(data: Data, conversationId: String, receiverId: String, isVideo: Bool) async throws {
         // Create multipart form data request
-        var request = URLRequest(url: URL(string: "https://brrowapp.com/api_upload_media_message.php")!)
+        let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+        var request = URLRequest(url: URL(string: "\(baseURL)/api_upload_media_message.php")!)
         request.httpMethod = "POST"
         
         // Add auth headers

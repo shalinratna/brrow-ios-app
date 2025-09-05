@@ -57,7 +57,8 @@ class GarageSalesViewModel: ObservableObject {
             let parameters = buildRequestParameters()
             
             // Use the new clean API endpoint
-            let url = "https://brrowapp.com/api/garage_sales/fetch.php"
+            let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+            let url = "\(baseURL)/api/garage_sales/fetch.php"
             var request = URLRequest(url: URL(string: url)!)
             request.httpMethod = "GET"
             

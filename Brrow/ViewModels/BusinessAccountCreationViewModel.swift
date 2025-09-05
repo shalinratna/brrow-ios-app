@@ -63,7 +63,7 @@ class BusinessAccountCreationViewModel: ObservableObject {
         // Simulate upload for now
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             self.businessLicenseUploaded = true
-            self.businessLicenseUrl = "https://brrowapp.com/uploads/business/license_\(UUID().uuidString).pdf"
+            self.businessLicenseUrl = "https://brrow-backend-nodejs-production.up.railway.app/uploads/business/license_\(UUID().uuidString).pdf"
         }
     }
     
@@ -71,7 +71,7 @@ class BusinessAccountCreationViewModel: ObservableObject {
         // Simulate upload for now
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             self.taxDocumentUploaded = true
-            self.taxDocumentUrl = "https://brrowapp.com/uploads/business/tax_\(UUID().uuidString).pdf"
+            self.taxDocumentUrl = "https://brrow-backend-nodejs-production.up.railway.app/uploads/business/tax_\(UUID().uuidString).pdf"
         }
     }
     
@@ -79,7 +79,7 @@ class BusinessAccountCreationViewModel: ObservableObject {
         // Simulate upload for now
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             self.insuranceUploaded = true
-            self.insuranceUrl = "https://brrowapp.com/uploads/business/insurance_\(UUID().uuidString).pdf"
+            self.insuranceUrl = "https://brrow-backend-nodejs-production.up.railway.app/uploads/business/insurance_\(UUID().uuidString).pdf"
         }
     }
     

@@ -427,9 +427,9 @@ struct Listing: Codable, Identifiable, Equatable {
         isActive: true,
         isArchived: false,
         images: [
-            "https://brrowapp.com/images/drill1.jpg",
-            "https://brrowapp.com/images/drill2.jpg",
-            "https://brrowapp.com/images/drill3.jpg"
+            "https://brrow-backend-nodejs-production.up.railway.app/images/drill1.jpg",
+            "https://brrow-backend-nodejs-production.up.railway.app/images/drill2.jpg",
+            "https://brrow-backend-nodejs-production.up.railway.app/images/drill3.jpg"
         ],
         rating: 4.8
     )

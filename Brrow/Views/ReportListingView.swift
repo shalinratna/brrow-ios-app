@@ -149,7 +149,8 @@ struct ReportListingView: View {
         
         Task {
             do {
-                let url = URL(string: "\(APIClient.shared.baseURL)/report_listing.php")!
+                let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+                let url = URL(string: "\(baseURL)/report_listing.php")!
                 
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"

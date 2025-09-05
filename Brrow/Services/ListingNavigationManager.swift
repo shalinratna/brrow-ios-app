@@ -61,7 +61,8 @@ class ListingNavigationManager: ObservableObject {
         
         Task {
             do {
-                let url = URL(string: "\(APIClient.shared.baseURL)/get_listing.php?listing_id=\(id)")!
+                let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+                let url = URL(string: "\(baseURL)/get_listing.php?listing_id=\(id)")!
                 
                 var request = URLRequest(url: url)
                 request.httpMethod = "GET"

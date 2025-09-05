@@ -81,7 +81,8 @@ struct DeepLinkedListingView: View {
     private func loadListing() {
         Task {
             do {
-                let url = URL(string: "\(APIClient.shared.baseURL)/get_listing.php?listing_id=\(listingId)")!
+                let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+                let url = URL(string: "\(baseURL)/get_listing.php?listing_id=\(listingId)")!
                 
                 var request = URLRequest(url: url)
                 request.httpMethod = "GET"
