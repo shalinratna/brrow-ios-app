@@ -45,8 +45,8 @@ class FileUploadService: ObservableObject {
             throw FileUploadError.invalidURL
         }
         
-        // Create request - use upload_file.php in root which works correctly
-        guard let url = URL(string: "\(baseURL)/upload_file.php") else {
+        // Create request - use Node.js upload endpoint 
+        guard let url = URL(string: "\(baseURL)/api/upload") else {
             throw FileUploadError.invalidURL
         }
         

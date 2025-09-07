@@ -72,7 +72,7 @@ class APIClient: ObservableObject {
         
         do {
             let baseURL = await self.baseURL
-            var request = URLRequest(url: URL(string: "\(baseURL)/refresh_token.php")!)
+            var request = URLRequest(url: URL(string: "\(baseURL)/api/auth/refresh-token")!)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(currentToken)", forHTTPHeaderField: "Authorization")
@@ -202,7 +202,7 @@ class APIClient: ObservableObject {
               let url = URL(string: sanitized) else {
             debugLog("❌ Invalid URL: \(urlString)")
             // Return a dummy request to avoid crash
-            return URLRequest(url: URL(string: "https://brrowapp.com/api_health.php")!)
+            return URLRequest(url: URL(string: "https://brrowapp.com/health")!)
         }
         
         debugLog("Creating request", data: ["endpoint": endpoint, "method": method.rawValue, "url": url.absoluteString])
@@ -410,7 +410,7 @@ class APIClient: ObservableObject {
                     
                     // Don't logout immediately - some endpoints may return 401 for other reasons
                     // Only logout for critical auth endpoints where 401 definitely means invalid token
-                    let criticalAuthEndpoints = ["login.php", "register.php", "test_auth.php", "refresh_token.php", "validate_token.php", "get_profile.php"]
+                    let criticalAuthEndpoints = ["api/auth/login", "api/auth/register", "api/auth/test", "api/auth/refresh-token", "api/auth/validate-token", "api/users/me"]
                     let shouldConsiderLogout = criticalAuthEndpoints.contains(where: { endpoint.contains($0) })
                     
                     // Never logout guest users
@@ -420,7 +420,7 @@ class APIClient: ObservableObject {
                     }
                     
                     // Check if we can refresh the token and retry (only once to avoid infinite loop)
-                    if endpoint != "refresh_token.php", let refreshed = await TokenManager.shared.refreshToken() {
+                    if endpoint != "api/auth/refresh-token", let refreshed = await TokenManager.shared.refreshToken() {
                         debugLog("🔄 Token refreshed, retrying request")
                         // Update the authorization header with new token
                         var retryRequest = request
@@ -611,13 +611,13 @@ class APIClient: ObservableObject {
     
     // MARK: - Authentication
     func login(email: String, password: String) async throws -> AuthResponse {
-        let loginRequest = LoginRequest(login: email, password: password)
+        let loginRequest = LoginRequest(email: email, password: password)
         let bodyData = try JSONEncoder().encode(loginRequest)
         
         debugLog("🔐 Login attempt", data: ["email": email])
         
         let response = try await performRequest(
-            endpoint: "api_login.php",
+            endpoint: APIEndpoints.Auth.login,
             method: .POST,
             body: bodyData,
             responseType: APIResponse<AuthResponse>.self
@@ -643,8 +643,8 @@ class APIClient: ObservableObject {
             throw BrrowAPIError.serverError(response.message ?? "Login failed")
         }
         
-        // Ensure token is present
-        guard let token = authData.token, !token.isEmpty else {
+        // Ensure token is present (support both accessToken and token)
+        guard let token = authData.authToken, !token.isEmpty else {
             debugLog("❌ Token missing or empty in response")
             throw BrrowAPIError.serverError("Authentication token missing from response")
         }
@@ -653,11 +653,12 @@ class APIClient: ObservableObject {
         return authData
     }
     
-    func appleLogin(userIdentifier: String, email: String?, fullName: String, identityToken: String) async throws -> AuthResponse {
+    func appleLogin(userIdentifier: String, email: String?, firstName: String?, lastName: String?, identityToken: String) async throws -> AuthResponse {
         let request = AppleLoginRequest(
             appleUserId: userIdentifier,
             email: email,
-            fullName: fullName,
+            firstName: firstName,
+            lastName: lastName,
             identityToken: identityToken
         )
         let bodyData = try JSONEncoder().encode(request)
@@ -665,7 +666,7 @@ class APIClient: ObservableObject {
         debugLog("🍎 Apple Sign In attempt", data: ["userIdentifier": userIdentifier, "email": email ?? "none"])
         
         let response = try await performRequest(
-            endpoint: "api_apple_login.php",
+            endpoint: APIEndpoints.Auth.appleLogin,
             method: .POST,
             body: bodyData,
             responseType: APIResponse<AuthResponse>.self
@@ -681,8 +682,8 @@ class APIClient: ObservableObject {
             throw BrrowAPIError.serverError(response.message ?? "Apple Sign In failed")
         }
         
-        // Ensure token is present
-        guard let token = authData.token, !token.isEmpty else {
+        // Ensure token is present (support both accessToken and token)
+        guard let token = authData.authToken, !token.isEmpty else {
             debugLog("❌ Token missing or empty in Apple Sign In response")
             throw BrrowAPIError.serverError("Authentication token missing from response")
         }
@@ -691,16 +692,16 @@ class APIClient: ObservableObject {
         return authData
     }
     
-    func register(username: String, email: String, password: String, birthdate: String) async throws -> AuthResponse {
+    func register(username: String, email: String, password: String, firstName: String, lastName: String, birthdate: String) async throws -> AuthResponse {
         debugLog("🔐 Starting registration", data: ["username": username, "email": email, "birthdate": birthdate])
         
-        let registerRequest = RegisterRequest(username: username, email: email, password: password, birthdate: birthdate)
+        let registerRequest = RegisterRequest(username: username, email: email, password: password, firstName: firstName, lastName: lastName, birthdate: birthdate)
         let bodyData = try JSONEncoder().encode(registerRequest)
         
         debugLog("📤 Registration request encoded", data: ["body_size": bodyData.count])
         
         let response = try await performRequest(
-            endpoint: "api_register.php",
+            endpoint: APIEndpoints.Auth.register,
             method: .POST,
             body: bodyData,
             responseType: APIResponse<AuthResponse>.self
@@ -756,7 +757,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONEncoder().encode(requestData)
         
         return try await performRequest(
-            endpoint: "request_password_reset.php",
+            endpoint: "api/auth/request-password-reset",
             method: .POST,
             body: bodyData,
             responseType: PasswordResetResponse.self
@@ -771,7 +772,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONEncoder().encode(requestData)
         
         return try await performRequest(
-            endpoint: "reset_password.php",
+            endpoint: "api/auth/reset-password",
             method: .POST,
             body: bodyData,
             responseType: PasswordResetResponse.self
@@ -797,7 +798,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: requestData)
         
         return try await performRequest(
-            endpoint: "submit_creator_application.php",
+            endpoint: "api/creators/applications",
             method: .POST,
             body: bodyData,
             responseType: CreatorApplicationResponse.self
@@ -806,7 +807,7 @@ class APIClient: ObservableObject {
     
     func getCreatorStatus() async throws -> CreatorStatusResponse {
         return try await performRequest(
-            endpoint: "get_creator_status.php",
+            endpoint: "api/creators/status",
             method: .GET,
             responseType: CreatorStatusResponse.self
         )
@@ -814,7 +815,7 @@ class APIClient: ObservableObject {
     
     func getCreatorDashboard() async throws -> CreatorDashboard {
         return try await performRequest(
-            endpoint: "get_creator_dashboard.php",
+            endpoint: "api/creators/dashboard",
             method: .GET,
             responseType: CreatorDashboard.self
         )
@@ -825,7 +826,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONEncoder().encode(requestData)
         
         return try await performRequest(
-            endpoint: "set_creator_referral.php",
+            endpoint: "api/creators/referral",
             method: .POST,
             body: bodyData,
             responseType: SetCreatorReferralResponse.self
@@ -834,7 +835,7 @@ class APIClient: ObservableObject {
     
     func startCreatorStripeOnboarding() async throws -> CreatorStripeOnboardingResponse {
         return try await performRequest(
-            endpoint: "creator_stripe_onboarding.php",
+            endpoint: "api/creators/stripe-onboarding",
             method: .POST,
             body: nil,
             responseType: CreatorStripeOnboardingResponse.self
@@ -845,7 +846,7 @@ class APIClient: ObservableObject {
     func testAuthenticationDetailed() async throws -> [String: Any] {
         debugLog("🔐 Testing authentication...")
         
-        let request = await createRequest(for: "test_auth.php", method: .GET)
+        let request = await createRequest(for: "api/auth/test", method: .GET)
         let (data, response) = try await session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -867,7 +868,7 @@ class APIClient: ObservableObject {
     // MARK: - User Profile
     func fetchUserProfile(userId: Int) async throws -> ProfileResponse {
         let response = try await performRequest(
-            endpoint: "api_get_profile.php?user_id=\(userId)",
+            endpoint: "api/users/\(userId)/profile",
             method: .GET,
             responseType: APIResponse<ProfileResponse>.self
         )
@@ -882,7 +883,7 @@ class APIClient: ObservableObject {
     // fetchUserActivities is defined later in the file to return [APIUserActivity]
     
     // MARK: - File Upload
-    func uploadFileData(_ imageData: Data, fileName: String, endpoint: String = "api_upload_v2.php", entityType: String = "listings", entityId: String? = nil) async throws -> String {
+    func uploadFileData(_ imageData: Data, fileName: String, endpoint: String = "api/upload", entityType: String = "listings", entityId: String? = nil) async throws -> String {
         // High-quality upload with configurable endpoint and entity type
         let base64String = imageData.base64EncodedString()
         let fileType = fileName.hasSuffix(".png") ? "image/png" : "image/jpeg"
@@ -948,7 +949,7 @@ class APIClient: ObservableObject {
         return try await uploadFileData(
             imageData, 
             fileName: fileName, 
-            endpoint: "api_upload_v2.php",
+            endpoint: "api/upload",
             entityType: "misc",  // Default to misc for legacy calls
             entityId: tempId
         )
@@ -966,8 +967,8 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: uploadRequest)
         
         let response = try await performRequest(
-            endpoint: "api_update_profile_picture.php",  // Use dedicated profile picture endpoint
-            method: .POST,
+            endpoint: "api/users/me/profile-image",  // Use dedicated profile picture endpoint
+            method: .PUT,
             body: bodyData,
             responseType: ImageUploadResponse.self,
             cachePolicy: .ignoreCache
@@ -1011,7 +1012,7 @@ class APIClient: ObservableObject {
         
         // Convert parameters to query string
         let baseURL = await self.baseURL
-        var urlComponents = URLComponents(string: "\(baseURL)/search_listings.php")!
+        var urlComponents = URLComponents(string: "\(baseURL)/api/search")!
         urlComponents.queryItems = parameters.map { URLQueryItem(name: $0.key, value: "\($0.value)") }
         
         guard let url = urlComponents.url else {
@@ -1060,7 +1061,7 @@ class APIClient: ObservableObject {
             return cachedListings
         }
         
-        var endpoint = "fetch_listings.php?"
+        var endpoint = "api/listings?"
         var params: [String] = []
         
         if let category = category {
@@ -1102,7 +1103,7 @@ class APIClient: ObservableObject {
     func fetchListingDetails(id: Int) async throws -> Listing {
         // Deprecated - use fetchListingDetailsByListingId instead
         let response = try await performRequest(
-            endpoint: "fetch_listing_details.php?id=\(id)",
+            endpoint: "api/listings/\(id)",
             method: .GET,
             responseType: APIResponse<Listing>.self
         )
@@ -1116,7 +1117,7 @@ class APIClient: ObservableObject {
     
     func fetchListingDetailsByListingId(_ listingId: String) async throws -> Listing {
         let response = try await performRequest(
-            endpoint: "api_get_listing_details_complete.php?listing_id=\(listingId)",
+            endpoint: "api/listings/\(listingId)",
             method: .GET,
             responseType: APIResponse<ListingDetailResponse>.self
         )
@@ -1155,55 +1156,67 @@ class APIClient: ObservableObject {
     func createListing(_ listing: CreateListingRequest) async throws -> Listing {
         let bodyData = try JSONEncoder().encode(listing)
         
-        let response = try await performRequest(
-            endpoint: "ios_create_listing_moderated.php",  // Uses moderation queue
-            method: .POST,
-            body: bodyData,
-            responseType: CreateListingResponse.self
-        )
-        
-        guard response.isSuccessful, let createdListing = response.data else {
-            throw BrrowAPIError.serverError(response.message ?? "Failed to create listing")
+        struct CreateListingAPIResponse: Codable {
+            let success: Bool
+            let listing: Listing?
+            let error: String?
         }
         
-        return createdListing.toListing()
+        let response = try await performRequest(
+            endpoint: "api/listings",
+            method: .POST,
+            body: bodyData,
+            responseType: CreateListingAPIResponse.self
+        )
+        
+        guard response.success, let createdListing = response.listing else {
+            throw BrrowAPIError.serverError(response.error ?? "Failed to create listing")
+        }
+        
+        return createdListing
     }
     
     // MARK: - Listing Management
     
     func updateListing(listingId: String, updates: [String: Any]) async throws -> Listing {
-        var body = updates
-        body["listing_id"] = listingId
+        let bodyData = try JSONSerialization.data(withJSONObject: updates)
         
-        let bodyData = try JSONSerialization.data(withJSONObject: body)
-        
-        let response = try await performRequest(
-            endpoint: "api_update_listing_simple.php",  // Simplified version
-            method: .POST,
-            body: bodyData,
-            responseType: UpdateListingResponse.self
-        )
-        
-        guard response.success, let data = response.data else {
-            throw BrrowAPIError.serverError(response.message ?? "Failed to update listing")
+        struct UpdateListingAPIResponse: Codable {
+            let success: Bool
+            let listing: Listing?
+            let error: String?
         }
         
-        return data
+        let response = try await performRequest(
+            endpoint: "api/listings/\(listingId)",
+            method: .PUT,
+            body: bodyData,
+            responseType: UpdateListingAPIResponse.self
+        )
+        
+        guard response.success, let updatedListing = response.listing else {
+            throw BrrowAPIError.serverError(response.error ?? "Failed to update listing")
+        }
+        
+        return updatedListing
     }
     
     func deleteListing(listingId: String) async throws {
-        let body = ["listing_id": listingId]
-        let bodyData = try JSONSerialization.data(withJSONObject: body)
+        struct DeleteListingAPIResponse: Codable {
+            let success: Bool
+            let message: String?
+            let error: String?
+        }
         
         let response = try await performRequest(
-            endpoint: "api_delete_listing_simple.php",  // Simplified version
-            method: .POST,
-            body: bodyData,
-            responseType: DeleteResponse.self
+            endpoint: "api/listings/\(listingId)",
+            method: .DELETE,
+            body: nil,
+            responseType: DeleteListingAPIResponse.self
         )
         
         guard response.success else {
-            throw BrrowAPIError.serverError(response.message ?? "Failed to delete listing")
+            throw BrrowAPIError.serverError(response.error ?? "Failed to delete listing")
         }
     }
     
@@ -1215,8 +1228,8 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         
         let response = try await performRequest(
-            endpoint: "api_update_garage_sale.php",
-            method: .POST,
+            endpoint: "api/garage-sales",
+            method: .PUT,
             body: bodyData,
             responseType: GarageSaleUpdateResponse.self
         )
@@ -1233,7 +1246,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         
         let response = try await performRequest(
-            endpoint: "api_delete_garage_sale.php",
+            endpoint: "api/garage-sales",
             method: .POST,
             body: bodyData,
             responseType: DeleteResponse.self
@@ -1252,8 +1265,8 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         
         let response = try await performRequest(
-            endpoint: "api_update_seek.php",
-            method: .POST,
+            endpoint: "api/seeks",
+            method: .PUT,
             body: bodyData,
             responseType: SeekUpdateResponse.self
         )
@@ -1270,7 +1283,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         
         let response = try await performRequest(
-            endpoint: "api_delete_seek.php",
+            endpoint: "api/seeks",
             method: .POST,
             body: bodyData,
             responseType: DeleteResponse.self
@@ -1412,7 +1425,7 @@ class APIClient: ObservableObject {
     
     func registerDeviceToken(_ deviceInfo: [String: Any]) async throws -> [String: Any] {
         let baseURL = await self.baseURL
-        let url = URL(string: "\(baseURL)/api_register_device_token.php")!
+        let url = URL(string: "\(baseURL)/api/users/me/fcm-token")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1711,7 +1724,7 @@ class APIClient: ObservableObject {
         let bodyData = try encoder.encode(garageSale)
         
         let response = try await performRequest(
-            endpoint: "api_create_garage_sale_with_images.php",
+            endpoint: "api/garage-sales",
             method: .POST,
             body: bodyData,
             responseType: APIResponse<GarageSale>.self
@@ -1826,7 +1839,7 @@ class APIClient: ObservableObject {
     
     func fetchSearchSuggestions(query: String) async throws -> [SearchSuggestion] {
         let baseURL = await self.baseURL
-        var components = URLComponents(string: "\(baseURL)/api/search_suggestions.php")!
+        var components = URLComponents(string: "\(baseURL)/api/search/suggestions")!
         components.queryItems = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "limit", value: "10")
@@ -1859,7 +1872,7 @@ class APIClient: ObservableObject {
     
     func searchListings(query: String, page: Int = 1, sort: MarketplaceSortOption? = nil) async throws -> [Listing] {
         let baseURL = await self.baseURL
-        var components = URLComponents(string: "\(baseURL)/api/search.php")!
+        var components = URLComponents(string: "\(baseURL)/api/search")!
         components.queryItems = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "page", value: String(page))
@@ -1900,7 +1913,7 @@ class APIClient: ObservableObject {
     
     func fetchFilteredListings(category: String? = nil, filters: MarketplaceFilters? = nil, page: Int = 1) async throws -> [Listing] {
         let baseURL = await self.baseURL
-        var components = URLComponents(string: "\(baseURL)/api/listings.php")!
+        var components = URLComponents(string: "\(baseURL)/api/listings")!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "page", value: String(page))
         ]
@@ -1951,7 +1964,7 @@ class APIClient: ObservableObject {
         }
         
         let response = try await performRequest(
-            endpoint: "api_fetch_seeks.php",
+            endpoint: "api/seeks",
             method: .GET,
             responseType: APIResponse<SeeksResponse>.self
         )
@@ -1969,7 +1982,7 @@ class APIClient: ObservableObject {
         }
         
         let response = try await performRequest(
-            endpoint: "api_fetch_user_seeks.php?user_id=\(userId)",
+            endpoint: "api/seeks?user_id=\(userId)",
             method: .GET,
             responseType: APIResponse<UserSeeksResponse>.self
         )
@@ -1985,7 +1998,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONEncoder().encode(seek)
         
         let response = try await performRequest(
-            endpoint: "api_create_seek_with_images.php",
+            endpoint: "api/seeks",
             method: .POST,
             body: bodyData,
             responseType: APIResponse<Seek>.self
@@ -2049,7 +2062,7 @@ class APIClient: ObservableObject {
         }
         
         let response = try await performRequest(
-            endpoint: "api_fetch_user_rating.php?user_id=\(userId)",
+            endpoint: "api/users/\(userId)/rating",
             method: .GET,
             responseType: APIResponse<UserRatingResponse>.self
         )
@@ -2076,7 +2089,7 @@ class APIClient: ObservableObject {
         }
         
         let response = try await performRequest(
-            endpoint: "api_get_profile.php",
+            endpoint: "api/users/me",
             method: .GET,
             responseType: ProfileResponse.self
         )
@@ -2093,8 +2106,8 @@ class APIClient: ObservableObject {
         let bodyData = try JSONEncoder().encode(updateRequest)
         
         return try await performRequest(
-            endpoint: "api_update_profile.php",
-            method: .POST,
+            endpoint: "api/users/me",
+            method: .PUT,
             body: bodyData,
             responseType: User.self
         )
@@ -2114,8 +2127,8 @@ class APIClient: ObservableObject {
         }
         
         let response = try await performRequest(
-            endpoint: "api_update_profile.php",
-            method: .POST,
+            endpoint: "api/users/me",
+            method: .PUT,
             body: bodyData,
             responseType: ProfileUpdateAPIResponse.self
         )
@@ -2171,8 +2184,8 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: data)
         
         let response = try await performRequest(
-            endpoint: "api_update_profile_enhanced.php",
-            method: .POST,
+            endpoint: "api/users/me",
+            method: .PUT,
             body: bodyData,
             responseType: ProfileUpdateResponse.self
         )
@@ -2184,7 +2197,7 @@ class APIClient: ObservableObject {
     
     func checkUsernameAvailability(username: String) async throws -> UsernameAvailabilityResponse {
         return try await performRequest(
-            endpoint: "api_check_username.php?username=\(username)",
+            endpoint: "api/users/username-available?username=\(username)",
             method: .GET,
             responseType: UsernameAvailabilityResponse.self
         )
@@ -2270,8 +2283,8 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: updates)
         
         return try await performRequest(
-            endpoint: "api_update_profile.php",
-            method: .POST,
+            endpoint: "api/users/me",
+            method: .PUT,
             body: bodyData,
             responseType: User.self
         )
@@ -2580,7 +2593,7 @@ class APIClient: ObservableObject {
         do {
             // Try the new format first
             let response = try await performRequest(
-                endpoint: "api_fetch_conversations.php",
+                endpoint: "api/conversations",
                 method: .GET,
                 responseType: FetchConversationsResponse.self
             )
@@ -2600,7 +2613,7 @@ class APIClient: ObservableObject {
             
             do {
                 let response = try await performRequest(
-                    endpoint: "api_fetch_conversations.php",
+                    endpoint: "api/conversations",
                     method: .GET,
                     responseType: AlternativeConversationsResponse.self
                 )
@@ -2767,12 +2780,13 @@ class APIClient: ObservableObject {
         
         let bodyData = try JSONEncoder().encode(event)
         
-        _ = try await performRequest(
-            endpoint: "api_analytics_simple.php",
-            method: .POST,
-            body: bodyData,
-            responseType: AnalyticsResponse.self
-        )
+        // Analytics endpoint not yet implemented in Node.js backend
+        // Silently skip for now to avoid errors
+        debugLog("📊 Analytics event (skipped - not implemented)", data: [
+            "event": event.eventName,
+            "type": event.eventType
+        ])
+        return
     }
     
     // MARK: - Combine-based Analytics (for legacy support)
@@ -3202,7 +3216,7 @@ class APIClient: ObservableObject {
     
     // MARK: - Search
     func searchListings(query: String, category: String) async throws -> [Listing] {
-        var endpoint = "search_listings.php?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        var endpoint = "api/search?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
         if !category.isEmpty {
             endpoint += "&category=\(category.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
         }
@@ -3216,7 +3230,7 @@ class APIClient: ObservableObject {
     
     func fetchSearchSuggestions() async throws -> [String] {
         let response = try await performRequest(
-            endpoint: "search_suggestions.php",
+            endpoint: "api/search/suggestions",
             method: .GET,
             responseType: SuggestionsResponse.self
         )
@@ -3238,7 +3252,7 @@ class APIClient: ObservableObject {
         // For image upload, we need a multipart form data request
         // This is a simplified version - in production, use proper multipart encoding
         return try await performRequest(
-            endpoint: "upload_image.php",
+            endpoint: "api/upload",
             method: .POST,
             body: imageData,
             responseType: APIImageUploadResponse.self
@@ -3248,7 +3262,7 @@ class APIClient: ObservableObject {
     // MARK: - Earnings
     func fetchEarningsOverview() async throws -> EarningsOverview {
         let response = try await performRequest(
-            endpoint: "api_fetch_earnings_overview.php",
+            endpoint: "api/earnings/overview",
             method: .GET,
             responseType: FixedEarningsOverviewResponse.self
         )
@@ -3267,7 +3281,7 @@ class APIClient: ObservableObject {
     
     func fetchRecentEarningsTransactions() async throws -> [EarningsTransaction] {
         return try await performRequest(
-            endpoint: "api_fetch_earnings_transactions.php",
+            endpoint: "api/earnings/transactions",
             method: .GET,
             responseType: [EarningsTransaction].self
         )
@@ -3275,7 +3289,7 @@ class APIClient: ObservableObject {
     
     func fetchRecentPayouts() async throws -> [EarningsPayout] {
         return try await performRequest(
-            endpoint: "api_fetch_recent_payouts_fixed.php",
+            endpoint: "api/earnings/payouts",
             method: .GET,
             responseType: [EarningsPayout].self
         )
@@ -3290,7 +3304,7 @@ class APIClient: ObservableObject {
         
         do {
             let chartData = try await performRequest(
-                endpoint: "api_fetch_earnings_chart.php",
+                endpoint: "api/earnings/chart",
                 method: .GET,
                 responseType: [ChartDataPoint].self
             )
@@ -3342,7 +3356,7 @@ class APIClient: ObservableObject {
         }
         
         let response = try await performRequest(
-            endpoint: "api_fetch_user_reviews.php?user_id=\(userId)",
+            endpoint: "api/users/\(userId)/reviews",
             method: .GET,
             responseType: SocialReviewResponse.self
         )
@@ -3361,7 +3375,7 @@ class APIClient: ObservableObject {
         }
         
         let response = try await performRequest(
-            endpoint: "api_fetch_user_earnings.php?user_id=\(userId)",
+            endpoint: "api/users/\(userId)/earnings",
             method: .GET,
             responseType: SocialEarningsResponse.self
         )
@@ -3377,7 +3391,7 @@ class APIClient: ObservableObject {
     // MARK: - Categories
     func fetchCategories() async throws -> [APICategory] {
         let response = try await performRequest(
-            endpoint: "get_categories.php",
+            endpoint: "api/categories",
             method: .GET,
             responseType: CategoriesResponse.self
         )
@@ -3682,8 +3696,8 @@ class APIClient: ObservableObject {
     func registerDeviceToken(parameters: [String: Any]) async throws -> EmptyResponse {
         let bodyData = try JSONSerialization.data(withJSONObject: parameters)
         return try await performRequest(
-            endpoint: "api_register_device_token.php",
-            method: .POST,
+            endpoint: "api/users/me/fcm-token",
+            method: .PUT,
             body: bodyData,
             responseType: EmptyResponse.self
         )
@@ -3693,8 +3707,8 @@ class APIClient: ObservableObject {
         let parameters = ["device_token": deviceToken]
         let bodyData = try JSONSerialization.data(withJSONObject: parameters)
         return try await performRequest(
-            endpoint: "unregister_device_token.php",
-            method: .POST,
+            endpoint: "api/users/me/fcm-token",
+            method: .DELETE,
             body: bodyData,
             responseType: EmptyResponse.self
         )
@@ -3782,7 +3796,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: parameters)
         
         let baseURL = await self.baseURL
-        let url = URL(string: "\(baseURL)/api_update_location.php")!
+        let url = URL(string: "\(baseURL)/api/users/me/location")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -3833,7 +3847,7 @@ class APIClient: ObservableObject {
         let queryString = queryParams.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
         
         let baseURL = await self.baseURL
-        let url = URL(string: "\(baseURL)/api_location_search.php?\(queryString)")!
+        let url = URL(string: "\(baseURL)/api/search/location?\(queryString)")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         

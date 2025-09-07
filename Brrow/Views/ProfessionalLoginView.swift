@@ -265,20 +265,16 @@ struct ProfessionalLoginView: View {
             }
             
             // Create full name string
-            var fullNameString = ""
-            if let fullName = fullName {
-                let parts = [fullName.givenName, fullName.familyName]
-                    .compactMap { $0 }
-                    .filter { !$0.isEmpty }
-                fullNameString = parts.joined(separator: " ")
-            }
+            let firstName = fullName?.givenName
+            let lastName = fullName?.familyName
             
             // Sign in with Apple
             Task {
                 await viewModel.signInWithApple(
                     userIdentifier: userIdentifier,
                     email: email,
-                    fullName: fullNameString,
+                    firstName: firstName,
+                    lastName: lastName,
                     identityToken: tokenString
                 )
             }

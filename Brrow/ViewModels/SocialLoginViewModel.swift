@@ -246,7 +246,8 @@ extension AuthManager {
         let response = try await APIClient.shared.appleLogin(
             userIdentifier: data["user_identifier"] as? String ?? "",
             email: data["email"] as? String,
-            fullName: "\(data["first_name"] as? String ?? "") \(data["last_name"] as? String ?? "")".trimmingCharacters(in: .whitespaces),
+            firstName: data["first_name"] as? String,
+            lastName: data["last_name"] as? String,
             identityToken: data["identity_token"] as? String ?? ""
         )
         

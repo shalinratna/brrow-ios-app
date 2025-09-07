@@ -14,10 +14,17 @@ class LoginViewModel: ObservableObject {
     @Published var email = ""
     @Published var password = ""
     @Published var username = ""
+    @Published var firstName = ""
+    @Published var lastName = ""
     @Published var birthdate = Date()
     @Published var isLoading = false
     @Published var errorMessage = ""
     @Published var isLoginMode = true
+    
+    var isBirthdateValid: Bool {
+        let age = Calendar.current.dateComponents([.year], from: birthdate, to: Date()).year ?? 0
+        return age >= 13
+    }
     @Published var isLoggedIn = false
     @Published var showPassword = false
     @Published var showError = false
@@ -126,13 +133,16 @@ class LoginViewModel: ObservableObject {
         
         isLoading = true
         errorMessage = ""
+        showError = false
         
         Task {
             do {
                 let user = try await authManager.register(
                     email: email,
                     username: username, 
-                    password: password, 
+                    password: password,
+                    firstName: firstName,
+                    lastName: lastName,
                     birthdate: birthdate
                 )
                 await MainActor.run {
@@ -159,12 +169,15 @@ class LoginViewModel: ObservableObject {
         email = ""
         password = ""
         username = ""
+        firstName = ""
+        lastName = ""
         birthdate = Date()
         errorMessage = ""
+        showError = false
     }
     
     @MainActor
-    func signInWithApple(userIdentifier: String, email: String?, fullName: String, identityToken: String) async {
+    func signInWithApple(userIdentifier: String, email: String?, firstName: String?, lastName: String?, identityToken: String) async {
         isLoading = true
         errorMessage = ""
         showError = false
@@ -173,7 +186,8 @@ class LoginViewModel: ObservableObject {
             let response = try await APIClient.shared.appleLogin(
                 userIdentifier: userIdentifier,
                 email: email,
-                fullName: fullName,
+                firstName: firstName,
+                lastName: lastName,
                 identityToken: identityToken
             )
             

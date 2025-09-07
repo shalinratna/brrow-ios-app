@@ -32,7 +32,7 @@ struct BrrowApp: App {
                 } else if !hasAgreedToTerms {
                     ComplianceAgreementView(hasAgreedToTerms: $hasAgreedToTerms)
                 } else if !hasCompletedOnboarding {
-                    OnboardingView()
+                    ModernOnboardingView()
                 } else if authManager.isValidatingToken {
                     // Show loading while validating token
                     ZStack {
@@ -59,7 +59,7 @@ struct BrrowApp: App {
                             WidgetIntegrationService.shared.refreshWidgetsOnAppActivation()
                         }
                 } else {
-                    ProfessionalLoginView()
+                    ModernAuthView()
                         .applyRTLIfNeeded()
                         .withUniversalListingDetail()
                 }

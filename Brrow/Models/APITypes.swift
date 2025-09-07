@@ -10,32 +10,49 @@ import Foundation
 // MARK: - Authentication Response
 struct AuthResponse: Codable {
     let token: String?
+    let accessToken: String?
+    let refreshToken: String?
     let user: User
     let expiresAt: String?
+    let isNewUser: Bool?
+    
+    // Computed property to get the actual token (supports both formats)
+    var authToken: String? {
+        return accessToken ?? token
+    }
     
     init(token: String, user: User, expiresAt: String? = nil) {
         self.token = token
+        self.accessToken = nil
+        self.refreshToken = nil
         self.user = user
         self.expiresAt = expiresAt
+        self.isNewUser = nil
     }
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Try to decode token - it might be missing in some responses
+        // Try to decode both token formats
         self.token = try container.decodeIfPresent(String.self, forKey: .token)
+        self.accessToken = try container.decodeIfPresent(String.self, forKey: .accessToken)
+        self.refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
         
         // User is required
         self.user = try container.decode(User.self, forKey: .user)
         
-        // Expires at is optional
+        // Optional fields
         self.expiresAt = try container.decodeIfPresent(String.self, forKey: .expiresAt)
+        self.isNewUser = try container.decodeIfPresent(Bool.self, forKey: .isNewUser)
     }
     
     private enum CodingKeys: String, CodingKey {
         case token
+        case accessToken
+        case refreshToken
         case user
         case expiresAt = "expires_at"
+        case isNewUser
     }
 }
 
@@ -290,7 +307,7 @@ struct KarmaBadges: Codable {
 
 // MARK: - Request Types
 struct LoginRequest: Codable {
-    let login: String
+    let email: String
     let password: String
 }
 
@@ -298,21 +315,17 @@ struct RegisterRequest: Codable {
     let username: String
     let email: String
     let password: String
+    let firstName: String
+    let lastName: String
     let birthdate: String
 }
 
 struct AppleLoginRequest: Codable {
     let appleUserId: String
     let email: String?
-    let fullName: String
+    let firstName: String?
+    let lastName: String?
     let identityToken: String
-    
-    enum CodingKeys: String, CodingKey {
-        case appleUserId = "apple_user_id"
-        case email
-        case fullName = "full_name"
-        case identityToken = "identity_token"
-    }
 }
 
 // MARK: - User Achievements Response
@@ -369,37 +382,7 @@ struct Achievement: Codable, Identifiable {
 }
 
 // MARK: - Create Listing Request
-struct CreateListingRequest: Codable {
-    let title: String
-    let description: String
-    let price: Double
-    let category: String
-    let location: String
-    let type: String
-    let images: [String]
-    let inventoryAmt: Int?
-    let isFree: Bool
-    let pricePerDay: Double?
-    let buyoutValue: Double?
-    let latitude: Double?
-    let longitude: Double?
-    
-    enum CodingKeys: String, CodingKey {
-        case title
-        case description
-        case price  // Always send price, even if 0 for free items
-        case category
-        case location
-        case type
-        case images
-        case inventoryAmt = "inventory_amt"
-        case isFree = "is_free"
-        case pricePerDay = "price_per_day"
-        case buyoutValue = "buyout_value"
-        case latitude
-        case longitude
-    }
-}
+// CreateListingRequest moved to ListingModels.swift
 
 // MARK: - Additional Missing Types
 struct APIResponse<T: Codable>: Codable {
@@ -694,7 +677,18 @@ struct APIMessagesResponse: Codable {
 struct APICategory: Codable {
     let id: String
     let name: String
-    let icon: String
+    let description: String?
+    let iconUrl: String?
+    let parentId: String?
+    let isActive: Bool
+    let sortOrder: Int?
+    let createdAt: Date?
+    let updatedAt: Date?
+    
+    // Computed property for backward compatibility
+    var icon: String {
+        return iconUrl ?? "📦"
+    }
 }
 
 struct CategoriesResponse: Codable {

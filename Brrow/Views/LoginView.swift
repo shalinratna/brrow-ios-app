@@ -276,22 +276,26 @@ struct ModernTextField: View {
                 .font(.system(size: 15, weight: .medium, design: .default))
                 .foregroundColor(Theme.Colors.text)
             
-            HStack(spacing: Theme.Spacing.sm) {
+            HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(text.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.primary)
-                    .frame(width: 20)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(text.isEmpty ? Theme.Colors.secondaryText.opacity(0.6) : Theme.Colors.primary)
+                    .frame(width: 24)
                 
                 TextField(placeholder, text: $text)
-                    .font(.system(size: 16, weight: .regular, design: .default))
+                    .font(.system(size: 16, weight: .regular, design: .rounded))
                     .foregroundColor(Theme.Colors.text)
             }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Colors.surface)
-            .cornerRadius(Theme.CornerRadius.card)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 15)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Theme.Colors.surface)
+                    .shadow(color: Theme.Colors.primary.opacity(text.isEmpty ? 0 : 0.08), radius: 6, x: 0, y: 2)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
-                    .stroke(borderColor, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(borderColor, lineWidth: text.isEmpty ? 1 : 2)
             )
             .keyboardType(keyboardType)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: text)

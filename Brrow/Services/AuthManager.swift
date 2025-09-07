@@ -69,7 +69,7 @@ class AuthManager: ObservableObject {
             .handleEvents(
                 receiveOutput: { [weak self] authResponse in
                     print("🔐 AuthManager: Received auth response")
-                    print("🔐 AuthManager: Token = \(authResponse.token ?? "nil")")
+                    print("🔐 AuthManager: Token = \(authResponse.authToken ?? "nil")")
                     print("🔐 AuthManager: User = \(authResponse.user.username)")
                     self?.handleAuthSuccess(authResponse)
                 },
@@ -84,14 +84,25 @@ class AuthManager: ObservableObject {
             .eraseToAnyPublisher()
     }
     
-    func register(email: String, username: String, password: String, birthdate: Date) async throws -> User {
+    func register(email: String, username: String, password: String, firstName: String, lastName: String, birthdate: Date) async throws -> User {
         let birthdateString = ISO8601DateFormatter().string(from: birthdate)
-        return try await registerWithAPI(username: username, email: email, password: password, birthdate: birthdateString)
+        return try await registerWithAPI(username: username, email: email, password: password, firstName: firstName, lastName: lastName, birthdate: birthdateString)
     }
     
-    private func registerWithAPI(username: String, email: String, password: String, birthdate: String) async throws -> User {
-        // This will be implemented with actual API call
-        throw NSError(domain: "AuthError", code: 501, userInfo: [NSLocalizedDescriptionKey: "Registration not yet implemented"])
+    private func registerWithAPI(username: String, email: String, password: String, firstName: String, lastName: String, birthdate: String) async throws -> User {
+        // Call the actual API
+        let response = try await APIClient.shared.register(
+            username: username,
+            email: email,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            birthdate: birthdate
+        )
+        
+        handleAuthSuccess(response)
+        
+        return response.user
     }
     
     func register_legacy(username: String, email: String, password: String, birthdate: String) -> AnyPublisher<Bool, BrrowAPIError> {
@@ -230,7 +241,7 @@ class AuthManager: ObservableObject {
                 
                 do {
                     // Make a direct API call to refresh token
-                    guard let url = URL(string: "https://brrowapp.com/api_refresh_token.php") else {
+                    guard let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/auth/refresh-token") else {
                         promise(.failure(.networkError("Invalid URL")))
                         return
                     }
@@ -384,11 +395,11 @@ class AuthManager: ObservableObject {
     // MARK: - Auth Success Handler
     func handleAuthSuccess(_ authResponse: AuthResponse) {
         print("🔐 handleAuthSuccess called")
-        print("🔐 Token to save: \(authResponse.token ?? "nil")")
+        print("🔐 Token to save: \(authResponse.authToken ?? "nil")")
         print("🔐 User to save: \(authResponse.user.username) (API ID: \(authResponse.user.apiId))")
         
         // Store in keychain FIRST before updating published properties
-        if let token = authResponse.token {
+        if let token = authResponse.authToken {
             print("🔐 Saving token to keychain...")
             keychain.save(token, forKey: tokenKey)
             print("✅ Token saved to keychain")
@@ -566,7 +577,7 @@ class AuthManager: ObservableObject {
         // Optional: Perform background validation without aggressive logout
         Task {
             do {
-                guard let url = URL(string: "https://brrowapp.com/api_get_profile.php?api_id=\(user.apiId)") else {
+                guard let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/users/me") else {
                     return // Don't logout on URL construction failure
                 }
                 

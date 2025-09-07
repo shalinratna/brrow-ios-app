@@ -3,7 +3,7 @@
 //  Brrow
 //
 //  Centralized API endpoints configuration
-//  Updated: August 28, 2025
+//  Updated: September 5, 2025 - Migrated to Node.js REST API
 //
 
 import Foundation
@@ -16,89 +16,88 @@ struct APIEndpoints {
     
     // MARK: - Authentication
     struct Auth {
-        static let login = "api_login.php"
-        static let register = "api_register.php"
-        static let appleLogin = "api_apple_login.php"
-        static let refreshToken = "refresh_token.php"
-        static let validateToken = "validate_token.php"
-        static let logout = "logout.php"
+        static let login = "api/auth/login"
+        static let register = "api/auth/register"
+        static let appleLogin = "api/auth/apple-login"
+        static let refreshToken = "api/auth/refresh-token"
+        static let validateToken = "api/auth/validate-token"
+        static let logout = "api/auth/logout"
     }
     
     // MARK: - Listings
     struct Listings {
-        // Use moderated version for new listings
-        static let create = "ios_create_listing_moderated.php"
-        static let getDetails = "get_listing_details.php"
-        static let update = "api_update_listing_simple.php"
-        static let delete = "api_delete_listing_simple.php"
-        static let fetchAll = "api_fetch_listings_zero_errors.php"  // Guaranteed zero decoding errors
-        static let getUserListings = "api_user_listings_zero_errors.php"  // Guaranteed zero decoding errors
-        static let search = "search_listings.php"
-        static let featured = "api_fetch_featured.php"  // Working featured endpoint
+        static let create = "api/listings"  // POST
+        static let getDetails = "api/listings"  // GET /api/listings/:id
+        static let update = "api/listings"  // PUT /api/listings/:id
+        static let delete = "api/listings"  // DELETE /api/listings/:id
+        static let fetchAll = "api/listings"  // GET
+        static let getUserListings = "api/listings"  // GET with user filter
+        static let search = "api/search"  // GET
+        static let featured = "api/listings/featured"  // GET
     }
     
     // MARK: - Seeks
     struct Seeks {
-        static let create = "api_create_seek_with_images.php"
-        static let getDetails = "api_get_seek_details.php"
-        static let update = "api_update_seek.php"
-        static let delete = "api_delete_seek.php"
-        static let fetchAll = "api_fetch_seeks.php"
+        static let create = "api/seeks"  // POST
+        static let getDetails = "api/seeks"  // GET /api/seeks/:id
+        static let update = "api/seeks"  // PUT /api/seeks/:id
+        static let delete = "api/seeks"  // DELETE /api/seeks/:id
+        static let fetchAll = "api/seeks"  // GET
     }
     
     // MARK: - Garage Sales
     struct GarageSales {
-        static let create = "api_create_garage_sale_with_images.php"
-        static let getDetails = "api_get_garage_sale_details.php"
-        static let update = "api_update_garage_sale.php"
-        static let delete = "api_delete_garage_sale.php"
-        static let fetchAll = "api_garage_sales_fetch.php"  // Working garage sales endpoint
+        static let create = "api/garage-sales"  // POST
+        static let getDetails = "api/garage-sales"  // GET /api/garage-sales/:id
+        static let update = "api/garage-sales"  // PUT /api/garage-sales/:id
+        static let delete = "api/garage-sales"  // DELETE /api/garage-sales/:id
+        static let fetchAll = "api/garage-sales"  // GET
     }
     
     // MARK: - User Profile
     struct Profile {
-        static let get = "api_get_user_profile.php"
-        static let update = "api_update_profile.php"
-        static let updateImage = "api_update_profile_image.php"
-        static let updateFCMToken = "api_update_fcm_token.php"
-        static let updateLanguage = "api_update_user_language.php"  // Working endpoint
+        static let get = "api/users/me"  // GET
+        static let update = "api/users/me"  // PUT
+        static let updateImage = "api/users/me/profile-image"  // PUT
+        static let updateFCMToken = "api/users/me/fcm-token"  // PUT
+        static let updateLanguage = "api/users/me/language"  // PUT
     }
     
     // MARK: - Messaging
     struct Messages {
-        static let send = "api_send_message_with_notification.php"  // Includes push notification
-        static let fetchConversations = "api_fetch_conversations.php"
-        static let fetchMessages = "fetch_messages.php"
+        static let send = "api/messages"  // POST
+        static let fetchConversations = "api/conversations"  // GET
+        static let fetchMessages = "api/conversations"  // GET /api/conversations/:id/messages
     }
     
     // MARK: - Favorites
     struct Favorites {
-        static let toggle = "api_toggle_favorite.php"
-        static let getFavorites = "api_get_favorites.php"
-        static let check = "check_favorite.php"
+        static let toggle = "api/favorites"  // POST/DELETE
+        static let getFavorites = "api/favorites"  // GET
+        static let check = "api/favorites"  // GET with query params
     }
     
     // MARK: - Notifications
     struct Notifications {
-        static let updateFCMToken = "api_update_fcm_token.php"
-        static let send = "api_send_notification.php"
-        static let test = "test_push_notification.php"
+        static let updateFCMToken = "api/users/me/fcm-token"  // PUT
+        static let send = "api/notifications"  // POST
+        static let get = "api/notifications"  // GET
     }
     
     // MARK: - Moderation
     struct Moderation {
-        static let moderate = "api_moderate_listing.php"
-        static let approveAjax = "admin/approve_listing_ajax.php"
+        static let moderate = "api/listings/moderate"  // POST
+        static let approve = "api/admin/listings/approve"  // POST
     }
     
     // MARK: - Upload
     struct Upload {
-        static let image = "api_upload_v2.php"
+        static let file = "api/upload"  // POST - handles both images and videos
     }
     
     // MARK: - Categories
     struct Categories {
-        static let getAll = "get_categories.php"
+        static let getAll = "api/categories"  // GET
     }
     
     // MARK: - Helper Methods

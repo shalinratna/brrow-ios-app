@@ -32,69 +32,89 @@ enum PromotionStatus: String, Codable {
     case used = "used"
 }
 
+// MARK: - Item Condition Enum
+enum ItemCondition: String, Codable, CaseIterable {
+    case new = "NEW"
+    case likeNew = "LIKE_NEW"
+    case good = "GOOD"
+    case fair = "FAIR"
+    case poor = "POOR"
+}
+
+// MARK: - Listing Status Enum
+enum ListingStatus: String, Codable, CaseIterable {
+    case available = "AVAILABLE"
+    case sold = "SOLD"
+    case pending = "PENDING"
+    case reserved = "RESERVED"
+    case deleted = "DELETED"
+}
+
 // MARK: - Listing Model (Codable for API)
 struct Listing: Codable, Identifiable, Equatable {
     static func == (lhs: Listing, rhs: Listing) -> Bool {
-        return lhs.listingId == rhs.listingId
+        return lhs.id == rhs.id
     }
-    let id: Int
-    let listingId: String  // The proper listing ID to use for API calls
-    let ownerId: Int
+    
+    // Core fields from backend
+    let id: String  // Using the Prisma cuid
     let title: String
     let description: String
+    let categoryId: String
+    let condition: ItemCondition
     let price: Double
-    let priceType: PriceType
-    let buyoutValue: Double?
-    let createdAt: Date
-    let updatedAt: Date?
-    let status: String
-    let category: String
-    let type: String
+    let isNegotiable: Bool
+    let availabilityStatus: ListingStatus
     let location: Location
-    let views: Int
-    let timesBorrowed: Int
-    let inventoryAmt: Int
+    let userId: String
+    let viewCount: Int
+    let favoriteCount: Int
     let isActive: Bool
-    let isArchived: Bool
-    let images: [String]
-    let rating: Double?
-    var condition: String = "Good"
-    var moderationStatus: String?
-    var isOwner: Bool?
+    let isPremium: Bool
+    let premiumExpiresAt: Date?
+    let deliveryOptions: DeliveryOptions?
+    let tags: [String]
+    let metadata: [String: Any]?
+    let createdAt: Date
+    let updatedAt: Date
     
-    // Promotion properties
-    var isPromoted: Bool = false
-    var promotionType: PromotionType?
-    var promotionFee: Double?
-    var promotionStatus: PromotionStatus = .inactive
-    var promotionStartDate: Date?
-    var promotionEndDate: Date?
-    
-    // Additional properties for marketplace
-    var imageUrls: [String]?
-    var ownerUsername: String?
-    var ownerProfilePicture: String?
-    var distance: Double?
-    var viewCount: Int?
-    var reviewCount: Int?
-    var isUrgent: Bool = false
-    var isSaved: Bool = false
+    // Relationships
+    let user: UserInfo?
+    let category: Category?
+    let images: [ListingImage]
+    let videos: [ListingVideo]?
     
     // Client-side properties
+    var isOwner: Bool?
     var isFavorite: Bool = false
-    var ownerApiId: String?
-    var allowsOffers: Bool = true
-    var rentalPeriod: String?
-    var securityDeposit: Double?
-    var deliveryAvailable: Bool?
     
-    // Extended owner information
-    var ownerRating: Double?
-    var ownerVerified: Bool = false
-    var ownerBio: String?
-    var ownerLocation: String?
-    var ownerMemberSince: String?
-    var ownerTotalListings: Int?
+    // Legacy support (computed properties for backward compatibility)
+    var listingId: String { id }
+    var ownerId: Int { 0 } // Deprecated
+    var ownerApiId: String? { user?.apiId }
+    var ownerUsername: String? { user?.username }
+    var ownerProfilePicture: String? { user?.profilePictureUrl }
+    var ownerRating: Double? { user?.averageRating }
+    var ownerVerified: Bool { user?.emailVerifiedAt != nil || user?.idmeVerified == true }
+    var status: String { availabilityStatus.rawValue }
+    var imageUrls: [String] { images.map { $0.imageUrl } }
+    var type: String { "listing" } // Legacy
+    var views: Int { viewCount }
+    var timesBorrowed: Int { 0 } // Not implemented
+    var inventoryAmt: Int { 1 } // Default
+    var isArchived: Bool { !isActive }
+    var rating: Double? { nil } // Use ownerRating instead
+    var priceType: PriceType { .fixed }
+    var buyoutValue: Double? { nil }
+    var isPromoted: Bool { isPremium }
+    var distance: Double? { nil } // Calculate client-side
+    var reviewCount: Int? { user?.totalRatings }
+    var isUrgent: Bool { false }
+    var isSaved: Bool { isFavorite }
+    var allowsOffers: Bool { isNegotiable }
+    var rentalPeriod: String? { nil }
+    var securityDeposit: Double? { nil }
+    var deliveryAvailable: Bool? { deliveryOptions?.delivery ?? false }
     
     // Computed properties
     var isFree: Bool {

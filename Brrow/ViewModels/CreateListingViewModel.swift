@@ -249,6 +249,30 @@ class CreateListingViewModel: ObservableObject {
         selectedPhotos.remove(at: index)
     }
     
+    // MARK: - Helper Methods
+    
+    @MainActor
+    private func getCategoryId(for categoryName: String) async -> String {
+        // Map category names to IDs (these should match what's in the database)
+        let categoryMap: [String: String] = [
+            "Electronics": "cmf7c7sci0000pt0ruo6ooqui",
+            "Furniture": "cmf7c7sps0001pt0rliuzbu0u",
+            "Clothing & Fashion": "cmf7c7taa0002pt0r718q1iw7",
+            "Vehicles": "cmf7c7tal0003pt0rw8agqrq3",
+            "Sports & Outdoors": "cmf7c7tax0004pt0r0l90rc4b",
+            "Books & Media": "cmf7c7tbg0005pt0rx36ct66l",
+            "Toys & Games": "cmf7c7tc70006pt0rikmtbbd8",
+            "Tools & Equipment": "cmf7c7tcx0007pt0rwcdafp3n",
+            "Home & Garden": "cmf7c7td70008pt0rhgd2oi1r",
+            "Beauty & Health": "cmf7c7u0f0009pt0rld3ijaf5",
+            "Pets & Animals": "cmf7c7u19000apt0r35ztyxj9",
+            "Services": "cmf7c7u1j000bpt0rtnhiwsiy",
+            "Other": "cmf7c7u1x000cpt0rhf0gw3v3"
+        ]
+        
+        return categoryMap[categoryName] ?? "cmf7c7u1x000cpt0rhf0gw3v3" // Default to "Other"
+    }
+    
     // MARK: - Location Methods
     func requestLocationPermission() {
         locationService.requestLocationPermission()
@@ -379,7 +403,7 @@ class CreateListingViewModel: ObservableObject {
         
         let uploadedUrls = try await processor.uploadProcessedImages(
             processedImages,
-            to: "api_upload_v2.php",  // Use new entity-based upload endpoint
+            to: "api/upload",  // Use new entity-based upload endpoint
             entityType: "listings",
             entityId: tempListingId  // Will be updated with real ID after creation
         )
