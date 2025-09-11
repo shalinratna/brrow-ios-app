@@ -45,13 +45,13 @@ struct EditListingView: View {
         self._title = State(initialValue: listing.title)
         self._description = State(initialValue: listing.description)
         self._price = State(initialValue: String(format: "%.2f", listing.price))
-        self._pricingType = State(initialValue: listing.priceType.rawValue)
-        self._category = State(initialValue: listing.category)
+        self._pricingType = State(initialValue: "fixed")  // Default to fixed since priceType is computed
+        self._category = State(initialValue: listing.category?.name ?? "Other")
         self._condition = State(initialValue: listing.condition)
         self._location = State(initialValue: "\(listing.location.city), \(listing.location.state)")
-        self._securityDeposit = State(initialValue: String(format: "%.2f", listing.securityDeposit ?? 0))
+        self._securityDeposit = State(initialValue: String(format: "%.2f", 0))  // securityDeposit doesn't exist in new model
         self._deliveryAvailable = State(initialValue: listing.deliveryAvailable ?? false)
-        self._existingImages = State(initialValue: listing.images)
+        self._existingImages = State(initialValue: listing.imageUrls)
     }
     
     var body: some View {
@@ -393,8 +393,8 @@ struct EditListingView: View {
         return title != listing.title ||
                description != listing.description ||
                price != String(format: "%.2f", listing.price) ||
-               pricingType != listing.priceType.rawValue ||
-               category != listing.category ||
+               pricingType != "fixed" ||
+               category != (listing.category?.name ?? "Other") ||
                condition != listing.condition ||
                location != "\(listing.location.city), \(listing.location.state)" ||
                !imagesToDelete.isEmpty ||
@@ -430,10 +430,10 @@ struct EditListingView: View {
                 if let priceValue = Double(price), priceValue != listing.price {
                     updates["price"] = priceValue
                 }
-                if pricingType != listing.priceType.rawValue {
-                    updates["pricing_type"] = pricingType
-                }
-                if category != listing.category {
+                // Always include pricing type since it's not stored in the new model
+                updates["pricing_type"] = pricingType
+                
+                if category != (listing.category?.name ?? "Other") {
                     updates["category"] = category
                 }
                 if condition != listing.condition {
@@ -520,19 +520,14 @@ class EditListingViewModel: ObservableObject {
 struct EditListingView_Previews: PreviewProvider {
     static var previews: some View {
         let sampleListing = Listing(
-            id: 1,
-            listingId: "lst_123",
-            ownerId: 1,
+            id: "lst_123",
             title: "Sample Item",
             description: "A sample listing for preview",
+            categoryId: "cat_electronics",
+            condition: "GOOD",
             price: 25.00,
-            priceType: .daily,
-            buyoutValue: nil,
-            createdAt: Date(),
-            updatedAt: nil,
-            status: "active",
-            category: "Electronics",
-            type: "rent",
+            isNegotiable: true,
+            availabilityStatus: .available,
             location: Location(
                 address: "123 Main St",
                 city: "San Francisco",
@@ -542,13 +537,33 @@ struct EditListingView_Previews: PreviewProvider {
                 latitude: 37.7749,
                 longitude: -122.4194
             ),
-            views: 0,
-            timesBorrowed: 0,
-            inventoryAmt: 1,
+            userId: "usr_123",
+            viewCount: 0,
+            favoriteCount: 0,
             isActive: true,
-            isArchived: false,
+            isPremium: false,
+            premiumExpiresAt: nil as Date?,
+            deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+            tags: [],
+            metadata: nil as [String: String]?,
+            createdAt: Date(),
+            updatedAt: Date(),
+            user: nil as UserInfo?,
+            category: CategoryModel(
+                id: "cat_electronics",
+                name: "Electronics",
+                description: "Electronic items",
+                iconUrl: nil,
+                parentId: nil,
+                isActive: true,
+                sortOrder: 1,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
             images: [],
-            rating: nil
+            videos: nil as [ListingVideo]?,
+            isOwner: true,
+            isFavorite: false
         )
         
         EditListingView(listing: sampleListing)

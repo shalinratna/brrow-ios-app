@@ -32,15 +32,6 @@ enum PromotionStatus: String, Codable {
     case used = "used"
 }
 
-// MARK: - Item Condition Enum
-enum ItemCondition: String, Codable, CaseIterable {
-    case new = "NEW"
-    case likeNew = "LIKE_NEW"
-    case good = "GOOD"
-    case fair = "FAIR"
-    case poor = "POOR"
-}
-
 // MARK: - Listing Status Enum
 enum ListingStatus: String, Codable, CaseIterable {
     case available = "AVAILABLE"
@@ -61,7 +52,7 @@ struct Listing: Codable, Identifiable, Equatable {
     let title: String
     let description: String
     let categoryId: String
-    let condition: ItemCondition
+    let condition: String  // Changed from ItemCondition to String
     let price: Double
     let isNegotiable: Bool
     let availabilityStatus: ListingStatus
@@ -74,13 +65,13 @@ struct Listing: Codable, Identifiable, Equatable {
     let premiumExpiresAt: Date?
     let deliveryOptions: DeliveryOptions?
     let tags: [String]
-    let metadata: [String: Any]?
+    let metadata: [String: String]?  // Changed from Any to String for Codable
     let createdAt: Date
     let updatedAt: Date
     
     // Relationships
     let user: UserInfo?
-    let category: Category?
+    let category: CategoryModel?
     let images: [ListingImage]
     let videos: [ListingVideo]?
     
@@ -90,35 +81,29 @@ struct Listing: Codable, Identifiable, Equatable {
     
     // Legacy support (computed properties for backward compatibility)
     var listingId: String { id }
-    var ownerId: Int { 0 } // Deprecated
-    var ownerApiId: String? { user?.apiId }
+    var imageUrls: [String] { 
+        images.compactMap { image in
+            if let url = image.url ?? image.imageUrl {
+                return url
+            }
+            return nil
+        }
+    }
+    var status: String { availabilityStatus.rawValue }
+    var views: Int { viewCount }
+    var inventoryAmt: Int { 1 } // Default
+    var isArchived: Bool { !isActive }
     var ownerUsername: String? { user?.username }
     var ownerProfilePicture: String? { user?.profilePictureUrl }
     var ownerRating: Double? { user?.averageRating }
     var ownerVerified: Bool { user?.emailVerifiedAt != nil || user?.idmeVerified == true }
-    var status: String { availabilityStatus.rawValue }
-    var imageUrls: [String] { images.map { $0.imageUrl } }
-    var type: String { "listing" } // Legacy
-    var views: Int { viewCount }
-    var timesBorrowed: Int { 0 } // Not implemented
-    var inventoryAmt: Int { 1 } // Default
-    var isArchived: Bool { !isActive }
-    var rating: Double? { nil } // Use ownerRating instead
-    var priceType: PriceType { .fixed }
-    var buyoutValue: Double? { nil }
     var isPromoted: Bool { isPremium }
-    var distance: Double? { nil } // Calculate client-side
-    var reviewCount: Int? { user?.totalRatings }
-    var isUrgent: Bool { false }
-    var isSaved: Bool { isFavorite }
     var allowsOffers: Bool { isNegotiable }
-    var rentalPeriod: String? { nil }
-    var securityDeposit: Double? { nil }
     var deliveryAvailable: Bool? { deliveryOptions?.delivery ?? false }
     
     // Computed properties
     var isFree: Bool {
-        return priceType == .free || price == 0
+        return price == 0
     }
     
     var locationString: String {
@@ -126,273 +111,30 @@ struct Listing: Codable, Identifiable, Equatable {
     }
     
     var distanceText: String? {
-        guard let distance = distance else { return nil }
-        if distance < 1 {
-            return "\(Int(distance * 5280)) ft away"
-        } else {
-            return String(format: "%.1f mi away", distance)
-        }
-    }
-    
-    // Custom initializer for API responses
-    init(id: Int, title: String, description: String, price: Double, category: String, 
-         location: String, images: [String], userId: Int, listingId: String, 
-         pricePerDay: Double, createdAt: String, status: String, datePosted: String,
-         views: Int, timesBorrowed: Int, inventoryAmt: Int, isFree: Bool, 
-         isActive: Bool, rating: Double?, username: String, userProfilePicture: String?,
-         isFavorite: Bool, isPromoted: Bool, promotionType: String?) {
-        self.id = id
-        self.listingId = listingId
-        self.ownerId = userId
-        self.title = title
-        self.description = description
-        self.price = pricePerDay > 0 ? pricePerDay : price
-        self.priceType = isFree ? .free : .daily
-        self.buyoutValue = nil
-        self.createdAt = ISO8601DateFormatter().date(from: createdAt) ?? Date()
-        self.updatedAt = nil
-        self.status = status
-        self.category = category
-        self.type = "listing"
-        self.location = Location(
-            address: location,
-            city: "",
-            state: "",
-            zipCode: "",
-            country: "USA",
-            latitude: 0,
-            longitude: 0
-        )
-        self.views = views
-        self.timesBorrowed = timesBorrowed
-        self.inventoryAmt = inventoryAmt
-        self.isActive = isActive
-        self.isArchived = false
-        self.images = images
-        self.rating = rating
-        self.ownerUsername = username
-        self.ownerProfilePicture = userProfilePicture
-        self.isFavorite = isFavorite
-        self.isPromoted = isPromoted
-        self.promotionType = promotionType.flatMap { PromotionType(rawValue: $0) }
+        // Calculate distance client-side if needed
+        return nil
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, title, description, price, status, category, type, views, rating
-        case listingId = "listing_id"
-        case ownerId = "owner_id"
-        case priceType = "price_type"
-        case buyoutValue = "buyout_value"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-        case location
-        case timesBorrowed = "times_borrowed"
-        case inventoryAmt = "inventory_amt"
-        case isActive = "is_active"
-        case isArchived = "is_archived"
-        case images
-        case isPromoted = "is_promoted"
-        case promotionType = "promotion_type"
-        case promotionFee = "promotion_fee"
-        case promotionStatus = "promotion_status"
-        case promotionStartDate = "promotion_start_date"
-        case promotionEndDate = "promotion_end_date"
-        case imageUrls
-        case distance
-        case viewCount
-        case reviewCount
-        case isUrgent
-        case isSaved
-        case moderationStatus = "moderation_status"
-        case isOwner = "is_owner"
-        case ownerUsername = "owner_username"
-        case ownerProfilePicture = "owner_profile_picture"
-        case condition
-        case rentalPeriod = "rental_period"
-    }
-    
-    // Standard initializer
-    init(id: Int, listingId: String, ownerId: Int, title: String, description: String, price: Double, priceType: PriceType, buyoutValue: Double?, createdAt: Date, updatedAt: Date?, status: String, category: String, type: String, location: Location, views: Int, timesBorrowed: Int, inventoryAmt: Int, isActive: Bool, isArchived: Bool, images: [String], rating: Double?) {
-        self.id = id
-        self.listingId = listingId
-        self.ownerId = ownerId
-        self.title = title
-        self.description = description
-        self.price = price
-        self.priceType = priceType
-        self.buyoutValue = buyoutValue
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-        self.status = status
-        self.category = category
-        self.type = type
-        self.location = location
-        self.views = views
-        self.timesBorrowed = timesBorrowed
-        self.inventoryAmt = inventoryAmt
-        self.isActive = isActive
-        self.isArchived = isArchived
-        self.images = images
-        self.rating = rating
-    }
-    
-    // Custom encoding to handle date formats
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(id, forKey: .id)
-        try container.encode(listingId, forKey: .listingId)
-        try container.encode(ownerId, forKey: .ownerId)
-        try container.encode(title, forKey: .title)
-        try container.encode(description, forKey: .description)
-        try container.encode(price, forKey: .price)
-        try container.encode(priceType, forKey: .priceType)
-        try container.encodeIfPresent(buyoutValue, forKey: .buyoutValue)
-        try container.encode(status, forKey: .status)
-        try container.encode(category, forKey: .category)
-        try container.encode(type, forKey: .type)
-        try container.encode(location, forKey: .location)
-        try container.encode(views, forKey: .views)
-        try container.encode(timesBorrowed, forKey: .timesBorrowed)
-        try container.encode(inventoryAmt, forKey: .inventoryAmt)
-        try container.encode(isActive, forKey: .isActive)
-        try container.encode(isArchived, forKey: .isArchived)
-        try container.encode(images, forKey: .images)
-        try container.encodeIfPresent(rating, forKey: .rating)
-        
-        // Date encoding
-        let dateFormatter = ISO8601DateFormatter()
-        let createdAtString = dateFormatter.string(from: createdAt)
-        try container.encode(createdAtString, forKey: .createdAt)
-        
-        if let updatedAt = updatedAt {
-            let updatedAtString = dateFormatter.string(from: updatedAt)
-            try container.encode(updatedAtString, forKey: .updatedAt)
-        }
-    }
-    
-    // Custom decoding to handle date formats and missing fields
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        id = try container.decode(Int.self, forKey: .id)
-        listingId = try container.decode(String.self, forKey: .listingId)
-        ownerId = try container.decodeIfPresent(Int.self, forKey: .ownerId) ?? 0
-        title = try container.decode(String.self, forKey: .title)
-        description = try container.decode(String.self, forKey: .description)
-        price = try container.decodeIfPresent(Double.self, forKey: .price) ?? 0.0
-        priceType = try container.decodeIfPresent(PriceType.self, forKey: .priceType) ?? .daily
-        buyoutValue = try container.decodeIfPresent(Double.self, forKey: .buyoutValue)
-        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "active"
-        category = try container.decodeIfPresent(String.self, forKey: .category) ?? "Other"
-        type = try container.decodeIfPresent(String.self, forKey: .type) ?? "borrow"
-        
-        // Handle location - might be string or object
-        if let locationObject = try? container.decode(Location.self, forKey: .location) {
-            location = locationObject
-        } else if let locationString = try? container.decode(String.self, forKey: .location) {
-            location = Location(
-                address: locationString,
-                city: "",
-                state: "",
-                zipCode: "",
-                country: "USA",
-                latitude: 0,
-                longitude: 0
-            )
-        } else {
-            location = Location(
-                address: "Unknown",
-                city: "",
-                state: "",
-                zipCode: "",
-                country: "USA",
-                latitude: 0,
-                longitude: 0
-            )
-        }
-        
-        views = try container.decodeIfPresent(Int.self, forKey: .views) ?? 0
-        timesBorrowed = try container.decodeIfPresent(Int.self, forKey: .timesBorrowed) ?? 0
-        inventoryAmt = try container.decodeIfPresent(Int.self, forKey: .inventoryAmt) ?? 1
-        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
-        isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
-        images = try container.decodeIfPresent([String].self, forKey: .images) ?? []
-        rating = try container.decodeIfPresent(Double.self, forKey: .rating)
-        
-        // Date decoding - handle multiple date formats
-        let createdAtString = try container.decode(String.self, forKey: .createdAt)
-        createdAt = Listing.parseDate(from: createdAtString) ?? Date()
-        
-        if let updatedAtString = try container.decodeIfPresent(String.self, forKey: .updatedAt) {
-            updatedAt = Listing.parseDate(from: updatedAtString)
-        } else {
-            updatedAt = nil
-        }
-        
-        // Additional fields from API response
-        moderationStatus = try container.decodeIfPresent(String.self, forKey: .moderationStatus)
-        isOwner = try container.decodeIfPresent(Bool.self, forKey: .isOwner)
-        ownerUsername = try container.decodeIfPresent(String.self, forKey: .ownerUsername)
-        ownerProfilePicture = try container.decodeIfPresent(String.self, forKey: .ownerProfilePicture)
-        condition = try container.decodeIfPresent(String.self, forKey: .condition) ?? "Good"
-        rentalPeriod = try container.decodeIfPresent(String.self, forKey: .rentalPeriod)
-    }
-    
-    private static func parseDate(from dateString: String) -> Date? {
-        // Try ISO8601 first
-        let iso8601Formatter = ISO8601DateFormatter()
-        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
-        if let date = iso8601Formatter.date(from: dateString) {
-            return date
-        }
-        
-        // Try PostgreSQL format with timezone (e.g., "2025-08-13 05:32:26.456515+00")
-        let postgresFormatter = DateFormatter()
-        postgresFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSSSSZ"
-        postgresFormatter.locale = Locale(identifier: "en_US_POSIX")
-        postgresFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        
-        if let date = postgresFormatter.date(from: dateString) {
-            return date
-        }
-        
-        // Try PostgreSQL format without microseconds
-        postgresFormatter.dateFormat = "yyyy-MM-dd HH:mm:ssZ"
-        
-        if let date = postgresFormatter.date(from: dateString) {
-            return date
-        }
-        
-        // Try without timezone
-        postgresFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSSSS"
-        
-        if let date = postgresFormatter.date(from: dateString) {
-            return date
-        }
-        
-        // Try simple format
-        postgresFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        
-        if let date = postgresFormatter.date(from: dateString) {
-            return date
-        }
-        
-        return nil
+        case id, title, description, categoryId, condition, price
+        case isNegotiable, availabilityStatus, location, userId
+        case viewCount, favoriteCount, isActive, isPremium
+        case premiumExpiresAt, deliveryOptions, tags, metadata
+        case createdAt, updatedAt, user, category, images, videos
+        case isOwner, isFavorite
     }
     
     // Helper methods
     var hasValidImages: Bool {
-        return !images.isEmpty && !images[0].isEmpty
+        return !images.isEmpty
     }
     
     var firstImageUrl: String? {
-        return hasValidImages ? images[0] : nil
+        return imageUrls.first
     }
     
     var isAvailable: Bool { 
-        return isActive && !isArchived && inventoryAmt > 0
+        return isActive && availabilityStatus == .available
     }
     
     var priceDisplay: String {
@@ -402,7 +144,6 @@ struct Listing: Codable, Identifiable, Equatable {
             return String(format: "$%.0f", price)
         }
     }
-    
     
     var latitude: Double {
         return location.latitude
@@ -419,19 +160,14 @@ struct Listing: Codable, Identifiable, Equatable {
     
     // Example for preview
     static let example = Listing(
-        id: 1,
-        listingId: "lst_example_drill",
-        ownerId: 1,
+        id: "lst_example_drill",
         title: "DeWalt 20V Max Cordless Drill",
         description: "Professional-grade cordless drill perfect for home improvement projects. Includes two batteries, charger, and carrying case. Well-maintained and ready to use.",
+        categoryId: "cat_tools",
+        condition: "GOOD",
         price: 25.0,
-        priceType: .daily,
-        buyoutValue: nil,
-        createdAt: Date(),
-        updatedAt: nil,
-        status: "active",
-        category: "Tools",
-        type: "listing",
+        isNegotiable: true,
+        availabilityStatus: ListingStatus.available,
         location: Location(
             address: "123 Main St",
             city: "San Francisco",
@@ -441,17 +177,23 @@ struct Listing: Codable, Identifiable, Equatable {
             latitude: 37.7749,
             longitude: -122.4194
         ),
-        views: 145,
-        timesBorrowed: 12,
-        inventoryAmt: 1,
+        userId: "usr_example",
+        viewCount: 145,
+        favoriteCount: 12,
         isActive: true,
-        isArchived: false,
-        images: [
-            "https://brrow-backend-nodejs-production.up.railway.app/images/drill1.jpg",
-            "https://brrow-backend-nodejs-production.up.railway.app/images/drill2.jpg",
-            "https://brrow-backend-nodejs-production.up.railway.app/images/drill3.jpg"
-        ],
-        rating: 4.8
+        isPremium: false,
+        premiumExpiresAt: nil as Date?,
+        deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+        tags: ["tools", "construction", "dewalt"],
+        metadata: nil as [String: String]?,
+        createdAt: Date(),
+        updatedAt: Date(),
+        user: nil as UserInfo?,
+        category: nil as CategoryModel?,
+        images: [],
+        videos: nil as [ListingVideo]?,
+        isOwner: false,
+        isFavorite: false
     )
 }
 

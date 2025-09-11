@@ -73,7 +73,7 @@ struct ListingInquiryView: View {
         HStack(spacing: 12) {
             // Listing Image
             if !listing.images.isEmpty,
-               let firstImage = listing.images.first,
+               let firstImage = listing.imageUrls.first,
                let url = URL(string: firstImage) {
                 AsyncImage(url: url) { image in
                     image

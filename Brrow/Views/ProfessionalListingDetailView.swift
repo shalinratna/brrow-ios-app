@@ -128,7 +128,7 @@ struct ProfessionalListingDetailView: View {
             }
         }
         .fullScreenCover(isPresented: $showingFullScreenImage) {
-            EnhancedImageGalleryView(images: viewModel.listing.images, selectedIndex: $selectedImageIndex)
+            EnhancedImageGalleryView(images: viewModel.listing.imageUrls, selectedIndex: $selectedImageIndex)
         }
         .alert("Sign In Required", isPresented: $viewModel.showGuestAlert) {
             Button("Sign In") {
@@ -150,7 +150,7 @@ struct ProfessionalListingDetailView: View {
             if !viewModel.listing.images.isEmpty {
                 ZStack(alignment: .bottomTrailing) {
                     TabView(selection: $selectedImageIndex) {
-                        ForEach(Array(viewModel.listing.images.enumerated()), id: \.offset) { index, imageUrl in
+                        ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
                             let fullUrl = imageUrl.hasPrefix("http") ? imageUrl : "https://brrowapp.com\(imageUrl)"
                             
                             SimpleImageView(url: URL(string: fullUrl), contentMode: .fill)
@@ -204,7 +204,7 @@ struct ProfessionalListingDetailView: View {
     private var titlePriceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Pending status badge if applicable
-            if viewModel.listing.moderationStatus == "pending" && viewModel.listing.isOwner == true {
+            if viewModel.listing.isOwner == true {
                 HStack {
                     Image(systemName: "clock.fill")
                         .font(.caption)
@@ -723,7 +723,7 @@ struct SimilarItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
-            AsyncImage(url: URL(string: listing.images.first ?? "")) { image in
+            AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -1043,7 +1043,7 @@ struct BasicUserProfileView: View {
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        if user.isVerified {
+                        if user.isVerified ?? false {
                             Image(systemName: "checkmark.seal.fill")
                                 .foregroundColor(.blue)
                         }

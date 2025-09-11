@@ -355,11 +355,11 @@ class SavedItemsViewModel: ObservableObject {
                 await MainActor.run {
                     self.savedItems = (favoritesResponse.favorites ?? []).map { listing in
                         SavedItem(
-                            id: listing.listingId ?? "\(listing.id)",
+                            id: listing.id,
                             title: listing.title,
                             price: listing.price,
                             location: listing.location.city,
-                            imageUrl: listing.images.first,
+                            imageUrl: listing.imageUrls.first,
                             type: .listing
                         )
                     }
@@ -380,8 +380,9 @@ class SavedItemsViewModel: ObservableObject {
         // Call API to unfavorite
         Task {
             if let listingId = Int(item.id),
-               let userId = AuthManager.shared.currentUser?.id {
-                _ = try? await APIClient.shared.toggleFavorite(listingId: listingId, userId: userId)
+               let userId = AuthManager.shared.currentUser?.id,
+               let userIdInt = Int(userId) {
+                _ = try? await APIClient.shared.toggleFavorite(listingId: listingId, userId: userIdInt)
             }
         }
     }

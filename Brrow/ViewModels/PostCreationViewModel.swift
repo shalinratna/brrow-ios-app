@@ -127,16 +127,30 @@ class PostCreationViewModel: ObservableObject {
             title: title,
             description: description,
             price: isFree ? 0.0 : Double(price) ?? 0.0,
-            category: selectedCategory,
-            location: location,
-            type: "for_sale",
-            images: imageUrls,
-            inventoryAmt: 1,
-            isFree: isFree,
-            pricePerDay: nil,
-            buyoutValue: nil,
-            latitude: locationObj.latitude,
-            longitude: locationObj.longitude
+            categoryId: "cat_general",
+            condition: "GOOD",
+            location: Location(
+                address: location,
+                city: "Unknown",
+                state: "Unknown",
+                zipCode: "00000",
+                country: "US",
+                latitude: locationObj.latitude,
+                longitude: locationObj.longitude
+            ),
+            isNegotiable: true,
+            deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+            tags: [],
+            images: imageUrls.map { url in
+                CreateListingRequest.ImageUpload(
+                    url: url,
+                    thumbnailUrl: nil,
+                    width: nil,
+                    height: nil,
+                    fileSize: nil
+                )
+            },
+            videos: nil
         )
         
         _ = try await apiClient.createListing(listing)

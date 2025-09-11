@@ -112,7 +112,7 @@ class FileUploadService: ObservableObject {
     }
     
     func uploadProfileImage(_ image: UIImage) async throws -> String {
-        let fileName = "profile_\(AuthManager.shared.currentUser?.id ?? 0)_\(UUID().uuidString).jpg"
+        let fileName = "profile_\(AuthManager.shared.currentUser?.id ?? "0")_\(UUID().uuidString).jpg"
         return try await uploadImage(image, fileName: fileName)
     }
     

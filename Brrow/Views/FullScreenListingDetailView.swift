@@ -137,7 +137,7 @@ struct FullScreenListingDetailView: View {
     // MARK: - Image Gallery
     private var imageGallerySection: some View {
         TabView(selection: $selectedImageIndex) {
-            ForEach(Array(listing.images.enumerated()), id: \.offset) { index, imageUrl in
+            ForEach(Array(listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -193,7 +193,7 @@ struct FullScreenListingDetailView: View {
                 
                 Spacer()
                 
-                if listing.type == "rental" {
+                if "listing" == "rental" {
                     Label("For Rent", systemImage: "clock.arrow.circlepath")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
@@ -222,7 +222,7 @@ struct FullScreenListingDetailView: View {
         HStack(spacing: 20) {
             StatItem(icon: "eye", value: "\(listing.views)", label: "Views")
             StatItem(icon: "heart", value: "0", label: "Likes")
-            if listing.type == "rental" {
+            if "listing" == "rental" {
                 StatItem(icon: "clock", value: "\(listing.timesBorrowed)", label: "Rented")
             }
             if let rating = listing.rating {
@@ -411,7 +411,7 @@ struct FullScreenListingDetailView: View {
                 .cornerRadius(25)
             }
             
-            if listing.type == "rental" {
+            if "listing" == "rental" {
                 Button(action: { showingBorrowOptions = true }) {
                     HStack {
                         Image(systemName: "calendar.badge.plus")
@@ -506,7 +506,7 @@ struct InquiryView: View {
             VStack(spacing: 20) {
                 // Listing preview
                 HStack(spacing: 12) {
-                    AsyncImage(url: URL(string: listing.images.first ?? "")) { image in
+                    AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

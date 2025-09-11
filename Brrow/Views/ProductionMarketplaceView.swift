@@ -652,7 +652,7 @@ struct HeroFeaturedCard: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             // Background image
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -857,7 +857,7 @@ struct ProductionListingCard: View {
         VStack(spacing: 0) {
             // Image section
             ZStack(alignment: .topTrailing) {
-                if let imageUrl = listing.images.first {
+                if let imageUrl = listing.imageUrls.first {
                     AsyncImage(url: URL(string: imageUrl)) { image in
                         image
                             .resizable()
@@ -926,9 +926,9 @@ struct ProductionListingCard: View {
                         .multilineTextAlignment(.leading)
                     
                     HStack(spacing: 4) {
-                        Image(systemName: ListingCategory(rawValue: listing.category)?.icon ?? "tag")
+                        Image(systemName: ListingCategory(rawValue: listing.category?.name ?? "")?.icon ?? "tag")
                             .font(.caption2)
-                        Text(listing.category)
+                        Text(listing.category?.name ?? "General")
                             .font(.caption)
                     }
                     .foregroundColor(colors.secondaryText)
@@ -1232,7 +1232,8 @@ class ProductionMarketplaceViewModel: ObservableObject {
                     // Count categories
                     var counts: [String: Int] = [:]
                     for listing in allListings {
-                        counts[listing.category] = (counts[listing.category] ?? 0) + 1
+                        let categoryName = listing.category?.name ?? "General"
+                        counts[categoryName] = (counts[categoryName] ?? 0) + 1
                     }
                     self.categoryCounts = counts
                     
@@ -1411,7 +1412,7 @@ class ProductionMarketplaceViewModel: ObservableObject {
         case .priceHighToLow:
             listings.sort { $0.price > $1.price }
         case .distance:
-            listings.sort { ($0.distance ?? 999) < ($1.distance ?? 999) }
+            listings.sort { ($0.distance ?? Double.infinity) < ($1.distance ?? Double.infinity) }
         case .popularity:
             listings.sort { $0.views > $1.views }
         }

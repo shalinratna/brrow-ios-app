@@ -60,6 +60,7 @@ struct Theme {
         // Card and surface colors
         static let cardBackground = Color(.secondarySystemBackground)
         static let surface = Color(.systemBackground)
+        static let inputBackground = Color(.secondarySystemBackground)
         
         // Text colors (adaptive)
         static let text = Color(.label)

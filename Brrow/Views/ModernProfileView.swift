@@ -64,30 +64,28 @@ struct ModernProfileView: View {
             }
             .navigationBarTitleDisplayMode(.large)
             .navigationTitle("Profile")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button(action: { showEditProfile = true }) {
-                            Image(systemName: "square.and.pencil")
-                                .font(.body)
-                                .foregroundColor(Theme.Colors.primary)
-                        }
-                        
-                        Button(action: { showSettings = true }) {
-                            Image(systemName: "gearshape")
-                                .font(.body)
-                                .foregroundColor(Theme.Colors.primary)
-                        }
+            .navigationBarItems(trailing: 
+                HStack(spacing: 12) {
+                    Button(action: { showEditProfile = true }) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.body)
+                            .foregroundColor(Theme.Colors.primary)
+                    }
+                    
+                    Button(action: { showSettings = true }) {
+                        Image(systemName: "gearshape")
+                            .font(.body)
+                            .foregroundColor(Theme.Colors.primary)
                     }
                 }
-            }
+            )
         }
         .sheet(isPresented: $showEditProfile) {
             if let currentUser = authManager.currentUser {
                 EditProfileView(user: currentUser)
             } else {
                 EditProfileView(user: User(
-                    id: 0,
+                    id: "0",
                     username: "guest",
                     email: "guest@example.com"
                 ))
@@ -1169,7 +1167,7 @@ class ModernProfileViewModel2: ObservableObject {
         guard let userId = AuthManager.shared.currentUser?.id else { return }
         
         do {
-            let activities = try await apiClient.fetchUserActivities(userId: userId, limit: 10)
+            let activities = try await apiClient.fetchUserActivities(userId: Int(userId) ?? 0, limit: 10)
             self.recentActivities = activities
         } catch {
             print("Error fetching activities: \(error)")

@@ -125,7 +125,7 @@ class ModernAuthService: ObservableObject {
         }
     }
     
-    func signUp(email: String, username: String, password: String, birthdate: Date) async throws {
+    func signUp(email: String, username: String, password: String, firstName: String = "", lastName: String = "", birthdate: Date) async throws {
         guard validateEmail(email) else {
             throw AuthError.invalidData
         }
@@ -150,6 +150,8 @@ class ModernAuthService: ObservableObject {
                 email: email,
                 username: username,
                 password: password,
+                firstName: firstName,
+                lastName: lastName,
                 birthdate: birthdate
             )
             

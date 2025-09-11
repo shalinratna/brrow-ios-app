@@ -611,46 +611,36 @@ class APIClient: ObservableObject {
     
     // MARK: - Authentication
     func login(email: String, password: String) async throws -> AuthResponse {
-        let loginRequest = LoginRequest(email: email, password: password)
+        let loginRequest = LoginRequest(username: email, password: password)
         let bodyData = try JSONEncoder().encode(loginRequest)
         
         debugLog("🔐 Login attempt", data: ["email": email])
         
+        // Login endpoint returns direct response, not wrapped
         let response = try await performRequest(
             endpoint: APIEndpoints.Auth.login,
             method: .POST,
             body: bodyData,
-            responseType: APIResponse<AuthResponse>.self
+            responseType: AuthResponse.self,
+            cachePolicy: .ignoreCache  // Never cache auth responses
         )
         
-        // Log the raw response for debugging
-        if let rawResponseData = try? JSONEncoder().encode(response) {
-            let rawResponseString = String(data: rawResponseData, encoding: .utf8) ?? "unable to encode"
-            debugLog("🔐 Raw login response: \(rawResponseString)")
-        }
-        
         debugLog("🔐 Login response received", data: [
-            "success": response.success,
-            "hasData": response.data != nil,
-            "hasToken": response.data?.token != nil,
-            "token": response.data?.token ?? "nil",
-            "tokenLength": response.data?.token?.count ?? 0,
-            "userApiId": response.data?.user.apiId ?? "nil",
-            "userName": response.data?.user.username ?? "nil"
+            "hasToken": response.authToken != nil,
+            "token": response.authToken ?? "nil",
+            "tokenLength": response.authToken?.count ?? 0,
+            "userApiId": response.user.apiId,
+            "userName": response.user.username ?? "nil"
         ])
         
-        guard response.success, let authData = response.data else {
-            throw BrrowAPIError.serverError(response.message ?? "Login failed")
-        }
-        
         // Ensure token is present (support both accessToken and token)
-        guard let token = authData.authToken, !token.isEmpty else {
+        guard let token = response.authToken, !token.isEmpty else {
             debugLog("❌ Token missing or empty in response")
             throw BrrowAPIError.serverError("Authentication token missing from response")
         }
         
         debugLog("✅ Login successful, returning AuthResponse with token")
-        return authData
+        return response
     }
     
     func appleLogin(userIdentifier: String, email: String?, firstName: String?, lastName: String?, identityToken: String) async throws -> AuthResponse {
@@ -700,18 +690,33 @@ class APIClient: ObservableObject {
         
         debugLog("📤 Registration request encoded", data: ["body_size": bodyData.count])
         
-        let response = try await performRequest(
+        // The registration endpoint returns a RegistrationResponse
+        // Backend returns: { success: true, message: "...", user: {...}, accessToken: "...", refreshToken: "...", verificationToken: "..." }
+        let registrationData = try await performRequest(
             endpoint: APIEndpoints.Auth.register,
             method: .POST,
             body: bodyData,
-            responseType: APIResponse<AuthResponse>.self
+            responseType: RegistrationResponse.self,  // Use RegistrationResponse type
+            cachePolicy: .ignoreCache  // Never cache auth responses
         )
         
-        guard response.success, let authData = response.data else {
-            throw BrrowAPIError.serverError(response.message ?? "Registration failed")
-        }
+        // Convert RegistrationResponse to AuthResponse
+        let authResponse = AuthResponse(
+            token: nil,
+            accessToken: registrationData.accessToken,
+            refreshToken: registrationData.refreshToken,
+            user: registrationData.user,
+            expiresAt: nil,
+            isNewUser: true
+        )
         
-        return authData
+        debugLog("✅ Registration successful", data: [
+            "hasToken": authResponse.authToken != nil,
+            "username": authResponse.user.username,
+            "message": registrationData.message ?? ""
+        ])
+        
+        return authResponse
     }
     
     // MARK: - Combine-based Authentication (for legacy support)
@@ -737,8 +742,8 @@ class APIClient: ObservableObject {
         return Future { promise in
             Task {
                 do {
-                    let result = try await self.register(username: username, email: email, password: password, birthdate: birthdate)
-                    promise(.success(result))
+                    let authResponse = try await self.register(username: username, email: email, password: password, firstName: "", lastName: "", birthdate: birthdate)
+                    promise(.success(authResponse))
                 } catch {
                     if let brrowError = error as? BrrowAPIError {
                         promise(.failure(BrrowAPIError.networkError(brrowError.localizedDescription)))
@@ -840,6 +845,23 @@ class APIClient: ObservableObject {
             body: nil,
             responseType: CreatorStripeOnboardingResponse.self
         )
+    }
+    
+    // SHALIN: - Auth from api
+    func testPersonalConnection() async throws -> [String: Any] {
+        debugLog("Starting personal connection test...")
+        
+        let request = await createRequest(for: "api/auth/test-personal-connection", method: .GET)
+        let (data, response) = try await session.data(for: request)
+        
+        guard response is HTTPURLResponse else {
+            throw BrrowAPIError.networkError("Invalid response")
+        }
+        
+        let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] ?? [:]
+        
+        debugLog("Test personal connection has successfully completed")
+        return json
     }
     
     // MARK: - Authentication Testing
@@ -1129,22 +1151,16 @@ class APIClient: ObservableObject {
         // Convert detailed response to Listing object with complete owner info
         var listing = detailResponse.toListing()
         
-        // Ensure owner information is populated
-        if let owner = detailResponse.owner {
-            listing.ownerUsername = owner.username.isEmpty ? owner.display_name : owner.username
-            listing.ownerProfilePicture = owner.profile_picture
-            listing.ownerApiId = owner.id > 0 ? "usr_\(owner.id)" : nil
-            listing.ownerRating = owner.rating
-            listing.reviewCount = owner.review_count
-        }
+        // Owner information is now read-only computed properties
+        // No need to set them manually as they come from the user field
         
         // Check if current user is the owner
         if let currentUser = AuthManager.shared.currentUser {
             // Compare API IDs if available, otherwise compare numeric IDs
-            if let ownerApiId = listing.ownerApiId, !ownerApiId.isEmpty {
+            if let ownerApiId = listing.user?.apiId, !ownerApiId.isEmpty {
                 listing.isOwner = (currentUser.apiId == ownerApiId)
             } else {
-                listing.isOwner = (currentUser.id == listing.ownerId)
+                listing.isOwner = (currentUser.id == listing.userId)
             }
         } else {
             listing.isOwner = false

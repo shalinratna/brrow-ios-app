@@ -350,7 +350,7 @@ struct ChatView: View {
         guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         
         let message = SendMessageRequest(
-            receiverId: conversation.otherUser.apiId,
+            receiverId: conversation.otherUser.apiId ?? "",
             content: messageText,
             messageType: "text",
             conversationId: conversation.id

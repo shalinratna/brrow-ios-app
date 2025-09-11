@@ -670,7 +670,7 @@ struct HoverListingCard: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -689,7 +689,7 @@ struct HoverListingCard: View {
                     .foregroundColor(.white)
                     .lineLimit(1)
                 
-                Text("$\(Int(listing.price))\(listing.type == "rental" ? "/day" : "")")
+                Text("$\(Int(listing.price))\("listing" == "rental" ? "/day" : "")")
                     .font(.caption)
                     .foregroundColor(Theme.Colors.primary)
                 

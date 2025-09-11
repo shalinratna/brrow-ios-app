@@ -174,7 +174,7 @@ struct UltraModernFeaturedCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Image with gradient overlay
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: listing.images.first ?? "")) { image in
+                AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -272,7 +272,7 @@ struct UltraModernListingCard: View {
         VStack(spacing: 0) {
             // Image section with heart button
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: listing.images.first ?? "")) { image in
+                AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

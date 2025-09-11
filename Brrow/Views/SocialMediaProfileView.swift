@@ -586,7 +586,7 @@ struct SocialMediaProfileView: View {
     }
     
     private func createShareText(for listing: Listing) -> String {
-        return "Check out \(listing.title) on Brrow for $\(Int(listing.price))\(listing.type == "rental" ? "/day" : "")! Download the app to rent or buy from your neighbors."
+        return "Check out \(listing.title) on Brrow for $\(Int(listing.price))\("listing" == "rental" ? "/day" : "")! Download the app to rent or buy from your neighbors."
     }
 }
 
@@ -631,7 +631,7 @@ struct ListingGridItem: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // Main image
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()

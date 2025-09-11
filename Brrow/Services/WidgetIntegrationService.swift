@@ -192,7 +192,7 @@ class WidgetIntegrationService: ObservableObject {
             var categoryCount: [String: Int] = [:]
             if let listings = try? await APIClient.shared.fetchListings() {
                 for listing in listings {
-                    categoryCount[listing.category, default: 0] += 1
+                    categoryCount[listing.category?.name ?? "Unknown", default: 0] += 1
                 }
             }
             

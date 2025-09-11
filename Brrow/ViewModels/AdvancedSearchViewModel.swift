@@ -322,7 +322,12 @@ class AdvancedSearchViewModel: ObservableObject {
         
         // Category filter
         if !filters.categories.isEmpty {
-            filtered = filtered.filter { filters.categories.contains($0.category) }
+            filtered = filtered.filter { listing in
+                if let categoryName = listing.category?.name {
+                    return filters.categories.contains(categoryName)
+                }
+                return false
+            }
         }
         
         // Price filter
@@ -375,7 +380,7 @@ class AdvancedSearchViewModel: ObservableObject {
             allResults.append(SearchResult(
                 title: listing.title,
                 type: .listing,
-                imageUrl: listing.images.first,
+                imageUrl: listing.imageUrls.first,
                 price: listing.price,
                 location: listing.location.city,
                 rating: nil

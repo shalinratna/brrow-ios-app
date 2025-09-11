@@ -684,16 +684,30 @@ struct ModernCreateListingView: View {
                         title: title,
                         description: description,
                         price: Double(price) ?? 0,
-                        category: category,
-                        location: "User Location",
-                        type: transactionType == "sale" ? "for_sale" : "for_rent",
-                        images: uploadedImageUrls,
-                        inventoryAmt: 1,
-                        isFree: false,
-                        pricePerDay: transactionType == "rent" ? Double(price) : nil,
-                        buyoutValue: nil,
-                        latitude: viewModel.currentCoordinate?.latitude,
-                        longitude: viewModel.currentCoordinate?.longitude
+                        categoryId: "cat_general",
+                        condition: "GOOD",
+                        location: Location(
+                            address: "User Location",
+                            city: "Unknown",
+                            state: "Unknown",
+                            zipCode: "00000",
+                            country: "US",
+                            latitude: viewModel.currentCoordinate?.latitude ?? 0,
+                            longitude: viewModel.currentCoordinate?.longitude ?? 0
+                        ),
+                        isNegotiable: true,
+                        deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+                        tags: [],
+                        images: uploadedImageUrls.map { url in
+                            CreateListingRequest.ImageUpload(
+                                url: url,
+                                thumbnailUrl: nil,
+                                width: nil,
+                                height: nil,
+                                fileSize: nil
+                            )
+                        },
+                        videos: nil
                     )
                     let promotion = PromotionRequest(
                         type: promotionType.rawValue,
@@ -713,16 +727,30 @@ struct ModernCreateListingView: View {
                         title: title,
                         description: description,
                         price: Double(price) ?? 0,
-                        category: category,
-                        location: "User Location", // You might want to get actual location
-                        type: transactionType == "sale" ? "for_sale" : "for_rent",
-                        images: uploadedImageUrls,
-                        inventoryAmt: 1,
-                        isFree: false,
-                        pricePerDay: transactionType == "rent" ? Double(price) : nil,
-                        buyoutValue: nil,
-                        latitude: viewModel.currentCoordinate?.latitude,
-                        longitude: viewModel.currentCoordinate?.longitude
+                        categoryId: "cat_general",
+                        condition: "GOOD",
+                        location: Location(
+                            address: "User Location",
+                            city: "Unknown",
+                            state: "Unknown",
+                            zipCode: "00000",
+                            country: "US",
+                            latitude: viewModel.currentCoordinate?.latitude ?? 0,
+                            longitude: viewModel.currentCoordinate?.longitude ?? 0
+                        ),
+                        isNegotiable: true,
+                        deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+                        tags: [],
+                        images: uploadedImageUrls.map { url in
+                            CreateListingRequest.ImageUpload(
+                                url: url,
+                                thumbnailUrl: nil,
+                                width: nil,
+                                height: nil,
+                                fileSize: nil
+                            )
+                        },
+                        videos: nil
                     )
                     
                     let listing = try await APIClient.shared.createListing(request)

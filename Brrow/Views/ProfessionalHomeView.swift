@@ -673,7 +673,7 @@ struct FavoriteItemCard: View {
         NavigationLink(destination: ListingDetailView(listing: item)) {
             VStack(alignment: .leading, spacing: 0) {
                 // Image
-                AsyncImage(url: URL(string: item.images.first ?? "")) { image in
+                AsyncImage(url: URL(string: item.imageUrls.first ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -932,8 +932,8 @@ class ProfessionalHomeViewModel: ObservableObject {
                     FeaturedItem(
                         title: listing.title,
                         price: Int(listing.price),
-                        imageURL: listing.images.first ?? "",
-                        rating: listing.rating ?? 0.0,
+                        imageURL: listing.imageUrls.first ?? "",
+                        rating: listing.ownerRating ?? 0.0,
                         listing: listing
                     )
                 } ?? []
@@ -1077,7 +1077,7 @@ struct CalculatorListingCard: View {
             HStack(spacing: 16) {
                 // Image
                 ListingImageView(
-                    imageURLs: listing.images,
+                    imageURLs: listing.imageUrls,
                     aspectRatio: .fill,
                     cornerRadius: 12
                 )
@@ -1090,20 +1090,14 @@ struct CalculatorListingCard: View {
                         .foregroundColor(Theme.Colors.text)
                         .lineLimit(2)
                     
-                    Text(listing.category)
+                    Text(listing.category?.name ?? "Other")
                         .font(.system(size: 14))
                         .foregroundColor(Theme.Colors.secondaryText)
                     
                     HStack {
-                        Text("$\(String(format: "%.2f", listing.price))/day")
+                        Text("$\(String(format: "%.2f", listing.price))")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(Theme.Colors.primary)
-                        
-                        if let buyoutValue = listing.buyoutValue {
-                            Text("• $\(String(format: "%.0f", buyoutValue)) to buy")
-                                .font(.system(size: 14))
-                                .foregroundColor(.orange)
-                        }
                     }
                 }
                 

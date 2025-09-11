@@ -58,7 +58,8 @@ class ModernProfileViewModel: ObservableObject {
     
     private func loadUserListings() {
         guard let userId = user?.id,
-              userId > 0,
+              let userIdInt = Int(userId),
+              userIdInt > 0,
               authManager.isAuthenticated,
               authManager.authToken != nil else { 
             self.userListings = []
@@ -68,10 +69,10 @@ class ModernProfileViewModel: ObservableObject {
         
         Task {
             do {
-                let listings = try await apiClient.fetchUserListings(userId: userId)
+                let response = try await apiClient.fetchUserListings(userId: userIdInt)
                 await MainActor.run {
-                    self.userListings = listings
-                    self.totalListings = listings.count
+                    self.userListings = response
+                    self.totalListings = response.count
                 }
             } catch {
                 await MainActor.run {
@@ -83,7 +84,8 @@ class ModernProfileViewModel: ObservableObject {
     
     private func loadUserRating() {
         guard let userId = user?.id,
-              userId > 0,
+              let userIdInt = Int(userId),
+              userIdInt > 0,
               authManager.isAuthenticated,
               authManager.authToken != nil else { 
             self.rating = 0.0
@@ -93,7 +95,7 @@ class ModernProfileViewModel: ObservableObject {
         
         Task {
             do {
-                let rating = try await apiClient.fetchUserRating(userId: userId)
+                let rating = try await apiClient.fetchUserRating(userId: userIdInt)
                 await MainActor.run {
                     self.rating = rating.rating
                     self.reviewCount = 0 // UserRating doesn't have reviewCount

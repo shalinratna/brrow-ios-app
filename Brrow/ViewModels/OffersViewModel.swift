@@ -128,7 +128,7 @@ class OffersViewModel: ObservableObject {
                     offerId: offer.id,
                     listingId: offer.listingId,
                     borrowerId: offer.borrowerId,
-                    lenderId: offer.listing?.ownerId ?? 0,
+                    lenderId: Int(offer.listing?.userId ?? "0") ?? 0,
                     startDate: Date(),
                     endDate: Calendar.current.date(byAdding: .day, value: offer.duration ?? 1, to: Date()) ?? Date(),
                     actualReturnDate: nil,

@@ -50,7 +50,7 @@ struct ProfileStats: Codable {
 extension ProfileResponse {
     func toUser() -> User {
         return User(
-            id: id,
+            id: String(id),
             username: username,
             email: email ?? "",
             apiId: apiId,

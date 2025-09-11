@@ -45,7 +45,7 @@ class DataCacheManager {
             
             // Also preload images for cached listings
             let imageURLs = listings.compactMap { listing in
-                listing.images.first
+                listing.imageUrls.first
             }
             ImageCacheManager.shared.preloadImages(imageURLs)
         }

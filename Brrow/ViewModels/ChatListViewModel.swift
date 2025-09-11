@@ -150,7 +150,7 @@ class ChatListViewModel: ObservableObject {
                 id: conversations[index].id,
                 otherUser: conversations[index].otherUser,
                 lastMessage: message,
-                unreadCount: message.senderId != String(authManager.currentUser?.id ?? 0) ? 1 : 0,
+                unreadCount: message.senderId != (authManager.currentUser?.id ?? "") ? 1 : 0,
                 updatedAt: message.createdAt
             )
             
@@ -168,8 +168,8 @@ class ChatListViewModel: ObservableObject {
             otherUser: user,
             lastMessage: ChatMessage(
                 id: "",
-                senderId: String(authManager.currentUser?.id ?? 0),
-                receiverId: String(user.id),
+                senderId: authManager.currentUser?.id ?? "0",
+                receiverId: user.id,
                 content: "",
                 messageType: "text",
                 createdAt: ISO8601DateFormatter().string(from: Date()),

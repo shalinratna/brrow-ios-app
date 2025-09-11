@@ -60,7 +60,7 @@ struct ClickableUserProfile: View {
                             .font(size.fontSize.bold())
                             .foregroundColor(Theme.Colors.text)
                         
-                        if user.verified {
+                        if user.verified ?? false {
                             Image(systemName: "checkmark.seal.fill")
                                 .font(.system(size: size.dimension * 0.25))
                                 .foregroundColor(.blue)
@@ -120,7 +120,7 @@ struct InlineUserProfile: View {
                     .font(size.fontSize)
                     .foregroundColor(Theme.Colors.text)
                 
-                if user.verified {
+                if user.verified ?? false {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: size.dimension * 0.25))
                         .foregroundColor(.blue)

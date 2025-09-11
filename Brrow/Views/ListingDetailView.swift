@@ -82,8 +82,8 @@ struct LegacyListingDetailView: View {
         VStack(spacing: 0) {
             if !listing.images.isEmpty {
                 TabView(selection: $selectedImageIndex) {
-                    ForEach(0..<listing.images.count, id: \.self) { index in
-                        AsyncImage(url: URL(string: listing.images[index])) { image in
+                    ForEach(0..<listing.imageUrls.count, id: \.self) { index in
+                        AsyncImage(url: URL(string: listing.imageUrls[index])) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -144,7 +144,7 @@ struct LegacyListingDetailView: View {
                         .fontWeight(.bold)
                         .foregroundColor(listing.isFree ? Theme.Colors.success : Theme.Colors.primary)
                     
-                    if listing.priceType == .daily {
+                    if !listing.isFree {
                         Text("$\(listing.price, specifier: "%.2f")/day")
                             .font(Theme.Typography.callout)
                             .foregroundColor(Theme.Colors.secondaryText)
@@ -154,7 +154,7 @@ struct LegacyListingDetailView: View {
             
             // Category and type
             HStack {
-                Text(listing.category)
+                Text(listing.category?.name ?? "General")
                     .font(Theme.Typography.callout)
                     .foregroundColor(Theme.Colors.primary)
                     .padding(.horizontal, Theme.Spacing.sm)
@@ -162,7 +162,7 @@ struct LegacyListingDetailView: View {
                     .background(Theme.Colors.primary.opacity(0.1))
                     .cornerRadius(Theme.CornerRadius.sm)
                 
-                Text(listing.priceType.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
+                Text(listing.price == 0 ? "Free" : "Daily")
                     .font(Theme.Typography.callout)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .padding(.horizontal, Theme.Spacing.sm)
@@ -355,8 +355,8 @@ struct LegacyListingDetailView: View {
             metadata: [
                 "listing_id": listing.id,
                 "listing_title": listing.title,
-                "category": listing.category,
-                "price_type": listing.priceType.rawValue,
+                "category": listing.category?.name ?? "Unknown",
+                "price_type": listing.isFree ? "free" : "daily",
                 "platform": "ios"
             ]
         )
@@ -372,37 +372,7 @@ struct LegacyListingDetailView: View {
 struct ListingDetailView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            ListingDetailView(listing: Listing(
-                id: 1,
-                listingId: "lst_preview_123",
-                ownerId: 1,
-                title: "Sample Listing",
-                description: "This is a sample listing description",
-                price: 25.0,
-                priceType: .daily,
-                buyoutValue: nil,
-                createdAt: Date(),
-                updatedAt: nil,
-                status: "active",
-                category: "Tools",
-                type: "borrow",
-                location: Location(
-                    address: "123 Main St",
-                    city: "San Francisco",
-                    state: "CA",
-                    zipCode: "94102",
-                    country: "USA",
-                    latitude: 37.7749,
-                    longitude: -122.4194
-                ),
-                views: 42,
-                timesBorrowed: 3,
-                inventoryAmt: 1,
-                isActive: true,
-                isArchived: false,
-                images: [],
-                rating: 4.5
-            ))
+            ListingDetailView(listing: Listing.example)
         }
     }
 }

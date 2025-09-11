@@ -29,7 +29,7 @@ struct RentalOptionsView: View {
                 VStack(spacing: 24) {
                     // Listing info
                     HStack(spacing: 12) {
-                        if let firstImage = listing.images.first {
+                        if let firstImage = listing.imageUrls.first {
                             ListingImageView(
                                 imageURLs: [firstImage],
                                 aspectRatio: .fill,

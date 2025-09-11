@@ -1,13 +1,18 @@
 {
   "name": "brrow",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Brrow platform root",
+  "main": "production-server.js",
   "scripts": {
+    "start": "node production-server.js",
+    "postinstall": "cd brrow-backend && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

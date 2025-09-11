@@ -507,7 +507,7 @@ struct TrendingItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -596,7 +596,7 @@ struct FeaturedItemBanner: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             // Background image
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -663,7 +663,7 @@ struct EnhancedListingCard: View {
             // Image with overlay
             ZStack(alignment: .topTrailing) {
                 // Promoted badge
-                if listing.isPromoted && listing.promotionStatus == .active {
+                if listing.isPromoted {
                     VStack {
                         HStack {
                             Label("Featured", systemImage: "star.fill")
@@ -683,7 +683,7 @@ struct EnhancedListingCard: View {
                     }
                     .zIndex(2)
                 }
-                if let imageUrl = listing.images.first {
+                if let imageUrl = listing.imageUrls.first {
                     AsyncImage(url: URL(string: imageUrl)) { image in
                         image
                             .resizable()
@@ -1039,8 +1039,8 @@ class EnhancedMarketplaceViewModel: ObservableObject {
             // Apply filter logic based on selected quick filter
             switch filter {
             case "Near Me":
-                // Filter by distance
-                listings = listings.sorted { $0.distance ?? 999 < $1.distance ?? 999 }
+                // Filter by distance (assuming distance is calculated elsewhere)
+                listings = listings.sorted { ($0.distance ?? Double.infinity) < ($1.distance ?? Double.infinity) }
             case "Available Now":
                 listings = listings.filter { $0.isAvailable }
             case "Free Items":
@@ -1091,7 +1091,7 @@ class EnhancedMarketplaceViewModel: ObservableObject {
     private func loadCategoryCounts() async throws -> [String: Int] {
         var counts: [String: Int] = [:]
         for category in ListingCategory.allCases {
-            let count = listings.filter { $0.category == category.rawValue }.count
+            let count = listings.filter { $0.category?.name == category.rawValue }.count
             counts[category.rawValue] = count
         }
         return counts

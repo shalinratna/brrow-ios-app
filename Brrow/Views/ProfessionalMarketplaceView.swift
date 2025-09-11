@@ -605,7 +605,7 @@ struct ProfessionalListingCard: View {
             // Image section
             ZStack(alignment: .topTrailing) {
                 // Using CachedAsyncImage for better performance
-                CachedAsyncImage(url: listing.images.first)
+                CachedAsyncImage(url: listing.imageUrls.first)
                     .frame(height: 140)
                     .clipped()
                     .background(Theme.Colors.secondaryBackground)
@@ -887,13 +887,13 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
             filtered = filtered.filter { listing in
                 listing.title.localizedCaseInsensitiveContains(searchQuery) ||
                 listing.description.localizedCaseInsensitiveContains(searchQuery) ||
-                listing.category.localizedCaseInsensitiveContains(searchQuery)
+                (listing.category?.name ?? "").localizedCaseInsensitiveContains(searchQuery)
             }
         }
         
         // Apply category filter
         if let category = selectedCategory {
-            filtered = filtered.filter { $0.category == category }
+            filtered = filtered.filter { $0.category?.name == category }
         }
         
         // Apply price filter

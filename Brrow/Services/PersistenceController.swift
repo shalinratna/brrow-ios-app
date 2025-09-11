@@ -61,16 +61,16 @@ class PersistenceController: ObservableObject {
     // MARK: - User Operations
     func saveUser(_ user: User) {
         let userEntity = UserEntity(context: context)
-        userEntity.id = Int32(user.id)
+        userEntity.id = Int32(Int(user.id) ?? 0)
         userEntity.username = user.username
         userEntity.email = user.email
         userEntity.profilePicture = user.profilePicture
-        userEntity.verified = user.verified
-        userEntity.apiId = user.apiId
+        userEntity.verified = user.verified ?? false
+        userEntity.apiId = user.apiId ?? ""
         userEntity.listerRating = user.listerRating ?? 0
         userEntity.renteeRating = user.renteeRating ?? 0
         userEntity.emailVerified = user.emailVerified ?? false
-        userEntity.isVerified = user.verified
+        userEntity.isVerified = user.verified ?? false
         userEntity.idVerified = user.idVerified ?? false
         userEntity.stripeLinked = user.stripeLinked ?? false
         userEntity.createdAt = ISO8601DateFormatter().date(from: user.createdAt ?? "") ?? Date()
@@ -99,29 +99,29 @@ class PersistenceController: ObservableObject {
             let listingEntity = ListingEntity(context: context)
             listingEntity.id = String(listing.id)
             listingEntity.listingId = String(listing.id) // Use same ID for consistency
-            listingEntity.userId = Int32(listing.ownerId)
-            listingEntity.userApiId = String(listing.ownerId)
+            listingEntity.userId = Int32(Int(listing.userId) ?? 0)
+            listingEntity.userApiId = String(Int(listing.userId) ?? 0)
             listingEntity.title = listing.title
             listingEntity.listingDescription = listing.description
             listingEntity.price = String(listing.price)
             listingEntity.pricePerDay = nil // Will be calculated from price and priceType
-            listingEntity.buyoutValue = listing.buyoutValue != nil ? String(listing.buyoutValue!) : nil
+            listingEntity.buyoutValue = nil // buyoutValue not available in new model
             listingEntity.createdAt = listing.createdAt
             listingEntity.status = listing.status
-            listingEntity.category = listing.category
+            listingEntity.category = listing.category?.name ?? "General"
             listingEntity.location = listing.location.formattedAddress
-            listingEntity.views = Int32(listing.views)
-            listingEntity.timesBorrowed = Int32(listing.timesBorrowed)
+            listingEntity.views = Int32(listing.viewCount)
+            listingEntity.timesBorrowed = 0 // timesBorrowed not available in new model
             listingEntity.inventoryAmt = Int32(listing.inventoryAmt)
-            listingEntity.isFree = listing.priceType == .free
+            listingEntity.isFree = listing.isFree
             listingEntity.isArchived = listing.isArchived
-            listingEntity.type = listing.priceType.rawValue
-            listingEntity.rating = listing.rating != nil ? String(listing.rating!) : nil
+            listingEntity.type = listing.price == 0 ? "free" : "daily"
+            listingEntity.rating = listing.ownerRating != nil ? String(listing.ownerRating!) : nil
             listingEntity.isActive = listing.isActive
             listingEntity.isFavorite = false // Set default value for isFavorite
             
             // Encode image URLs as JSON data
-            if let imageData = try? JSONEncoder().encode(listing.images) {
+            if let imageData = try? JSONEncoder().encode(listing.imageUrls) {
                 listingEntity.images = imageData
             }
         }

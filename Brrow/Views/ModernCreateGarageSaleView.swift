@@ -901,7 +901,7 @@ struct ModernCreateGarageSaleView: View {
     private func listingRow(_ listing: Listing) -> some View {
         HStack(spacing: 12) {
             // Thumbnail
-            if let firstImage = listing.images.first {
+            if let firstImage = listing.imageUrls.first {
                 CachedAsyncImage(url: firstImage) { image in
                     image
                         .resizable()

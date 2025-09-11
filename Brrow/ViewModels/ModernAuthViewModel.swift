@@ -17,6 +17,8 @@ class ModernAuthViewModel: ObservableObject {
     @Published var email = ""
     @Published var username = ""
     @Published var password = ""
+    @Published var firstName = ""
+    @Published var lastName = ""
     @Published var birthdate = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
     @Published var isLoading = false
     @Published var errorMessage = ""
@@ -142,6 +144,8 @@ class ModernAuthViewModel: ObservableObject {
                 email: email,
                 username: username,
                 password: password,
+                firstName: firstName,
+                lastName: lastName,
                 birthdate: birthdate
             )
             

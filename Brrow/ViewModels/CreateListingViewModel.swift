@@ -337,20 +337,40 @@ class CreateListingViewModel: ObservableObject {
                 
                 // Note: The location coordinates are now passed directly in the request
                 
+                // Convert image URLs to ImageUpload structs
+                let imageUploads = uploadedImageUrls.map { url in
+                    CreateListingRequest.ImageUpload(
+                        url: url,
+                        thumbnailUrl: nil,
+                        width: nil,
+                        height: nil,
+                        fileSize: nil
+                    )
+                }
+                
+                // Create location object with coordinates
+                let listingLocation = Location(
+                    address: location,
+                    city: "",
+                    state: "",
+                    zipCode: "",
+                    country: "USA",
+                    latitude: currentCoordinate?.latitude ?? 37.7749,
+                    longitude: currentCoordinate?.longitude ?? -122.4194
+                )
+                
                 let request = CreateListingRequest(
                     title: title,
                     description: description,
                     price: isFree ? 0.0 : Double(price) ?? 0.0,
-                    category: selectedCategory,
-                    location: location,
-                    type: selectedType,
-                    images: uploadedImageUrls,
-                    inventoryAmt: Int(inventoryAmount) ?? 1,
-                    isFree: isFree,
-                    pricePerDay: selectedType == "for_rent" ? Double(price) : nil,
-                    buyoutValue: buyoutValue.isEmpty ? nil : Double(buyoutValue),
-                    latitude: currentCoordinate?.latitude ?? 37.7749,  // Default to SF if no location
-                    longitude: currentCoordinate?.longitude ?? -122.4194
+                    categoryId: selectedCategory,  // Using categoryId instead of category
+                    condition: "GOOD",  // Default condition, you can make this selectable
+                    location: listingLocation,
+                    isNegotiable: true,  // You can make this configurable
+                    deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+                    tags: [],  // You can add tag support later
+                    images: imageUploads.isEmpty ? nil : imageUploads,
+                    videos: nil
                 )
                 
                 let listing = try await APIClient.shared.createListing(request)

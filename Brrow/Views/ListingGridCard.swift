@@ -13,7 +13,7 @@ struct ListingGridCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
-            AsyncImage(url: URL(string: listing.images.first ?? "")) { image in
+            AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -40,7 +40,7 @@ struct ListingGridCard: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(Theme.Colors.primary)
                 
-                if let rating = listing.rating {
+                if let rating = listing.ownerRating {
                     HStack(spacing: 4) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
@@ -50,7 +50,7 @@ struct ListingGridCard: View {
                             .font(.system(size: 10))
                             .foregroundColor(Theme.Colors.secondaryText)
                         
-                        Text("(\(listing.timesBorrowed))")
+                        Text("(0)") // timesBorrowed not in new model
                             .font(.system(size: 10))
                             .foregroundColor(Theme.Colors.secondaryText)
                     }

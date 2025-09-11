@@ -121,7 +121,7 @@ class AuthManager: ObservableObject {
         
         // Create a guest user object
         let guestUser = User(
-            id: 0,
+            id: "0",
             username: "Guest",
             email: "guest@brrowapp.com",
             apiId: "guest_\(UUID().uuidString)",
@@ -151,7 +151,7 @@ class AuthManager: ObservableObject {
     }
     
     var isGuestUser: Bool {
-        return currentUser?.apiId.starts(with: "guest_") ?? false
+        return currentUser?.apiId?.starts(with: "guest_") ?? false
     }
     
     func refreshUserProfile() async {
@@ -503,7 +503,15 @@ class AuthManager: ObservableObject {
         // If we have a token but no user, clear everything (corrupted state)
         if authToken != nil && currentUser == nil {
             print("🔐 Corrupted auth state - token without user, clearing")
-            logout()
+            // Clear the authentication state but don't call logout() during init
+            authToken = nil
+            currentUser = nil
+            isAuthenticated = false
+            
+            // Clear keychain data directly without calling logout()
+            keychain.delete(forKey: tokenKey)
+            keychain.delete(forKey: userKey)
+            keychain.delete(forKey: sessionKey)
             return
         }
         
@@ -512,9 +520,18 @@ class AuthManager: ObservableObject {
             // Check token expiration first
             if let expirationDate = getTokenExpirationDate(from: token) {
                 if expirationDate < Date() {
-                    // Token is expired, clear auth
-                    print("🔐 Auth token expired locally, clearing auth")
-                    logout()
+                    // Token is expired, clear auth - but defer the logout to avoid initialization issues
+                    print("🔐 Auth token expired locally, will clear auth after initialization")
+                    // Clear the authentication state but don't call logout() during init
+                    authToken = nil
+                    currentUser = nil
+                    isAuthenticated = false
+                    
+                    // Clear keychain data directly without calling logout()
+                    keychain.delete(forKey: tokenKey)
+                    keychain.delete(forKey: userKey)
+                    keychain.delete(forKey: sessionKey)
+                    
                     return
                 } else {
                     let timeUntilExpiry = expirationDate.timeIntervalSinceNow
@@ -623,7 +640,7 @@ class AuthManager: ObservableObject {
                        profileResponse.success, let profileData = profileResponse.data {
                         // Update user with real data from server
                         let updatedUser = User(
-                            id: profileData.id,
+                            id: String(profileData.id),  // Convert Int to String
                             username: profileData.username,
                             email: profileData.email ?? user.email,
                             apiId: profileData.api_id,
@@ -684,7 +701,7 @@ class AuthManager: ObservableObject {
         
         // Create mock user "mom" using the simpler initializer
         let mockUser = User(
-            id: 9,
+            id: "9",
             username: "mom",
             email: "mom@brrowapp.com",
             apiId: "usr_687b4d8b25f075.49510878",

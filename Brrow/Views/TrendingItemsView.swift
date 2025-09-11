@@ -125,7 +125,7 @@ struct TrendingItemGridCard: View {
         VStack(spacing: 0) {
             // Image with rank badge
             ZStack(alignment: .topLeading) {
-                if let imageUrl = listing.images.first {
+                if let imageUrl = listing.imageUrls.first {
                     AsyncImage(url: URL(string: imageUrl)) { image in
                         image
                             .resizable()
@@ -280,7 +280,7 @@ class TrendingItemsViewModel: ObservableObject {
     @Published var avgViewTime = 0
     
     private let apiClient = APIClient.shared
-    private var trendData: [Int: TrendData] = [:]
+    private var trendData: [String: TrendData] = [:]
     
     func loadTrendingItems() {
         Task {

@@ -12,8 +12,8 @@ import CoreData
 // MARK: - User Model (Codable for API)
 struct User: Codable, Identifiable {
     // Core Identity
-    let id: Int
-    let apiId: String
+    let id: String  // Changed from Int to String to match backend response
+    let apiId: String?
     let username: String
     let email: String
     let appleUserId: String?
@@ -29,8 +29,9 @@ struct User: Codable, Identifiable {
     let birthdate: String?
     var profilePicture: String?
     
-    // Verification Status
-    let verified: Bool
+    // Verification Status  
+    let verified: Bool?  // Made optional since backend might not always send it
+    let isVerified: Bool?  // Backend sends this as "isVerified"
     let emailVerified: Bool?
     let idVerified: Bool?
     let phoneVerified: Bool?
@@ -106,6 +107,7 @@ struct User: Codable, Identifiable {
         
         // Verification Status
         case verified
+        case isVerified = "isVerified"  // Backend sends camelCase
         case emailVerified = "email_verified"
         case idVerified = "id_verified"
         case phoneVerified = "phone_verified"
@@ -161,17 +163,18 @@ struct User: Codable, Identifiable {
     }
     
     // Custom initializer for creating User instances
-    init(id: Int, username: String, email: String, apiId: String? = nil, profilePicture: String? = nil, 
+    init(id: String, username: String, email: String, apiId: String? = nil, profilePicture: String? = nil, 
          listerRating: Float? = 0.0, renteeRating: Float? = 0.0, bio: String? = nil,
          emailVerified: Bool = false, idVerified: Bool = false, stripeLinked: Bool = false) {
         self.id = id
         self.username = username
         self.email = email
-        self.apiId = apiId ?? "\(id)"
+        self.apiId = apiId ?? id
         self.birthdate = nil
         self.profilePicture = profilePicture
         self.idVerification = nil
         self.verified = false
+        self.isVerified = false
         self.createdAt = ISO8601DateFormatter().string(from: Date())
         self.listerRating = listerRating
         self.renteeRating = renteeRating
@@ -221,8 +224,8 @@ struct User: Codable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         // Core Identity
-        self.id = try container.decode(Int.self, forKey: .id)
-        self.apiId = try container.decode(String.self, forKey: .apiId)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.apiId = try container.decodeIfPresent(String.self, forKey: .apiId)
         self.username = try container.decode(String.self, forKey: .username)
         self.email = try container.decode(String.self, forKey: .email)
         self.appleUserId = try container.decodeIfPresent(String.self, forKey: .appleUserId)
@@ -240,6 +243,7 @@ struct User: Codable, Identifiable {
         
         // Verification Status
         self.verified = try container.decodeIfPresent(Bool.self, forKey: .verified) ?? false
+        self.isVerified = try container.decodeIfPresent(Bool.self, forKey: .isVerified) ?? false
         self.emailVerified = try container.decodeIfPresent(Bool.self, forKey: .emailVerified) ?? false
         self.idVerified = try container.decodeIfPresent(Bool.self, forKey: .idVerified) ?? false
         self.phoneVerified = try container.decodeIfPresent(Bool.self, forKey: .phoneVerified) ?? false
@@ -304,12 +308,12 @@ struct User: Codable, Identifiable {
         return displayName ?? username
     }
     
-    var isVerified: Bool {
-        return verified
+    var isUserVerified: Bool {
+        return isVerified ?? verified ?? false
     }
     
     var isFullyVerified: Bool {
-        return verified && (emailVerified ?? false) && (idVerified ?? false)
+        return (verified ?? false) && (emailVerified ?? false) && (idVerified ?? false)
     }
     
     var rating: Double {
@@ -371,7 +375,7 @@ public class UserEntity: NSManagedObject, Identifiable {
 extension UserEntity {
     func toUser() -> User {
         return User(
-            id: Int(id),
+            id: String(id),  // CoreData id is Int16, convert to String
             username: username,
             email: email,
             apiId: apiId,

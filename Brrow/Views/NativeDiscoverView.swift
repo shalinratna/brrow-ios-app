@@ -221,7 +221,7 @@ struct NativeListingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
-            if let firstImage = listing.images.first {
+            if let firstImage = listing.imageUrls.first {
                 AsyncImage(url: URL(string: firstImage)) { image in
                     image
                         .resizable()
@@ -260,7 +260,7 @@ struct NativeListingCard: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(Theme.Colors.primary)
                     
-                    if listing.type == "borrow" {
+                    if "listing" == "borrow" {
                         Text("/day")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)

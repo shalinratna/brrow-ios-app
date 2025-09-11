@@ -171,7 +171,7 @@ struct StunningProfileView: View {
                     }
                     
                     // Verified badge
-                    if user.verified {
+                    if user.verified ?? false {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.title)
                             .foregroundColor(.white)
@@ -653,7 +653,7 @@ struct MiniListingCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()

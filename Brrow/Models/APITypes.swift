@@ -7,6 +7,16 @@
 
 import Foundation
 
+// MARK: - Registration Response (wrapper for registration endpoint)
+struct RegistrationResponse: Codable {
+    let success: Bool
+    let message: String?
+    let user: User
+    let accessToken: String
+    let refreshToken: String
+    let verificationToken: String?
+}
+
 // MARK: - Authentication Response
 struct AuthResponse: Codable {
     let token: String?
@@ -28,6 +38,15 @@ struct AuthResponse: Codable {
         self.user = user
         self.expiresAt = expiresAt
         self.isNewUser = nil
+    }
+    
+    init(token: String? = nil, accessToken: String? = nil, refreshToken: String? = nil, user: User, expiresAt: String? = nil, isNewUser: Bool? = nil) {
+        self.token = token
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.user = user
+        self.expiresAt = expiresAt
+        self.isNewUser = isNewUser
     }
     
     init(from decoder: Decoder) throws {
@@ -307,7 +326,7 @@ struct KarmaBadges: Codable {
 
 // MARK: - Request Types
 struct LoginRequest: Codable {
-    let email: String
+    let username: String
     let password: String
 }
 

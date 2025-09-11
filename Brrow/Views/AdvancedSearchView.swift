@@ -509,7 +509,7 @@ struct FeaturedResultCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SimpleOptimizedAsyncImage(url: listing.images.first ?? "", targetSize: CGSize(width: 200, height: 150))
+            SimpleOptimizedAsyncImage(url: listing.imageUrls.first ?? "", targetSize: CGSize(width: 200, height: 150))
                 .frame(width: 200, height: 150)
                 .clipped()
                 .cornerRadius(12)
@@ -562,7 +562,7 @@ struct OptimizedListingCard: View {
     
     var body: some View {
         SimpleImageCard(
-            imageUrl: listing.images.first ?? "",
+            imageUrl: listing.imageUrls.first ?? "",
             title: listing.title,
             subtitle: listing.location.city,
             price: listing.price > 0 ? "$\(String(format: "%.0f", listing.price))/day" : "Free",

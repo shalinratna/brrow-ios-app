@@ -524,8 +524,9 @@ struct ListingCard: View {
                     
                     Spacer()
                     
-                    if listing.priceType == .daily {
-                        Text("$\(listing.price, specifier: "%.2f")/day")
+                    // Show price per day for non-free items
+                    if !listing.isFree {
+                        Text("$\(listing.price, specifier: "%.2f")")
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Colors.secondaryText)
                     }

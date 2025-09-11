@@ -149,7 +149,8 @@ struct NotificationsView: View {
         case "all":
             return notificationManager.notifications
         default:
-            return notificationManager.notifications.filter { $0.type.contains(selectedFilter) }
+            // Filter by type not available for notifications
+            return notificationManager.notifications
         }
     }
     

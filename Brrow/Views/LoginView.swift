@@ -269,6 +269,7 @@ struct ModernTextField: View {
     let icon: String
     let keyboardType: UIKeyboardType
     let isValid: Bool
+    var textContentType: UITextContentType? = nil  // Added for autofill support
     
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
@@ -285,6 +286,7 @@ struct ModernTextField: View {
                 TextField(placeholder, text: $text)
                     .font(.system(size: 16, weight: .regular, design: .rounded))
                     .foregroundColor(Theme.Colors.text)
+                    .textContentType(textContentType)  // Apply autofill type
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 15)
@@ -335,8 +337,10 @@ struct ModernSecureField: View {
                 Group {
                     if showPassword {
                         TextField(placeholder, text: $text)
+                            .textContentType(.password)  // Enable password autofill
                     } else {
                         SecureField(placeholder, text: $text)
+                            .textContentType(.password)  // Enable password autofill
                     }
                 }
                 .font(.system(size: 16, weight: .regular, design: .default))

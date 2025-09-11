@@ -140,7 +140,7 @@ class ResetPasswordViewModel: ObservableObject {
                            let userData = response.data?.user {
                             // Create user object using the custom initializer
                             let user = User(
-                                id: 0, // Will be updated from profile
+                                id: "0", // Will be updated from profile
                                 username: userData.username,
                                 email: userData.email,
                                 apiId: String(userData.id)

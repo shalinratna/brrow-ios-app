@@ -395,7 +395,7 @@ class ImageCacheManager: ObservableObject {
         var imageURLs: [String] = []
         
         for listing in listings.prefix(20) { // Preload first 20 listings
-            if let firstImage = listing.images.first {
+            if let firstImage = listing.imageUrls.first {
                 imageURLs.append(firstImage)
             }
         }

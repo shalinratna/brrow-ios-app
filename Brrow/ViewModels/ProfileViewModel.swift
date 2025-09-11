@@ -81,13 +81,14 @@ class ProfileViewModel: ObservableObject {
     }
     
     private func loadUserListingsAsync() async {
-        guard let userId = user?.id, userId > 0 else { 
+        guard let userId = user?.id, let userIdInt = Int(userId), userIdInt > 0 else { 
             self.userListings = []
             return 
         }
         
         do {
-            let listings = try await apiClient.fetchUserListings(userId: userId)
+            guard let userIdInt = Int(userId) else { return }
+            let listings = try await apiClient.fetchUserListings(userId: userIdInt)
             self.userListings = listings
         } catch {
             print("Failed to preload user listings: \(error.localizedDescription)")
@@ -95,14 +96,14 @@ class ProfileViewModel: ObservableObject {
     }
     
     private func loadUserRatingAsync() async {
-        guard let userId = user?.id, userId > 0 else { 
+        guard let userId = user?.id, let userIdInt = Int(userId), userIdInt > 0 else { 
             self.userRating = 0.0
             self.reviewCount = 0
             return 
         }
         
         do {
-            let rating = try await apiClient.fetchUserRating(userId: userId)
+            let rating = try await apiClient.fetchUserRating(userId: userIdInt)
             self.userRating = rating.rating
             self.reviewCount = 0 // UserRating doesn't have reviewCount, will be set elsewhere
         } catch {
@@ -112,7 +113,8 @@ class ProfileViewModel: ObservableObject {
     
     private func loadUserListings() {
         guard let userId = user?.id,
-              userId > 0,
+              let userIdInt = Int(userId),
+              userIdInt > 0,
               authManager.isAuthenticated,
               authManager.authToken != nil else { 
             self.userListings = []
@@ -121,7 +123,7 @@ class ProfileViewModel: ObservableObject {
         
         Task {
             do {
-                let listings = try await apiClient.fetchUserListings(userId: userId)
+                let listings = try await apiClient.fetchUserListings(userId: userIdInt)
                 await MainActor.run {
                     self.userListings = listings
                 }
@@ -135,7 +137,8 @@ class ProfileViewModel: ObservableObject {
     
     private func loadUserRating() {
         guard let userId = user?.id,
-              userId > 0,
+              let userIdInt = Int(userId),
+              userIdInt > 0,
               authManager.isAuthenticated,
               authManager.authToken != nil else { 
             self.userRating = 0.0
@@ -145,7 +148,7 @@ class ProfileViewModel: ObservableObject {
         
         Task {
             do {
-                let rating = try await apiClient.fetchUserRating(userId: userId)
+                let rating = try await apiClient.fetchUserRating(userId: userIdInt)
                 await MainActor.run {
                     self.userRating = rating.rating
                     self.reviewCount = 0 // UserRating doesn't have reviewCount, will be set elsewhere

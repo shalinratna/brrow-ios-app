@@ -25,7 +25,7 @@ struct UniversalListingDetailView: View {
     private var isOwner: Bool {
         guard let currentUser = authManager.currentUser else { return false }
         // Check if current user owns this listing
-        return listing.ownerId == currentUser.id
+        return listing.userId == currentUser.id
     }
     
     var body: some View {

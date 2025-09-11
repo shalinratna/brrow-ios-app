@@ -326,7 +326,7 @@ struct FuturisticListingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Image with parallax effect
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -366,7 +366,7 @@ struct FuturisticListingCard: View {
                         .font(.title3.bold())
                         .foregroundColor(Theme.Colors.primary)
                     
-                    if listing.type == "rental" {
+                    if "listing" == "rental" {
                         Text("/day")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -427,7 +427,7 @@ struct AnimatedListingCard: View {
     var body: some View {
         VStack(spacing: 0) {
             // Image
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()

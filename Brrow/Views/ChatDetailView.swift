@@ -35,7 +35,7 @@ struct ChatDetailView: View {
         .onAppear {
             viewModel.loadMessages(for: conversation.id)
         }
-        .onChange(of: selectedPhotosItem) { newItem in
+        .onChange(of: selectedPhotosItem) { _, newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self) {
                     await uploadMedia(data: data, isVideo: false)
@@ -101,7 +101,7 @@ struct ChatDetailView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(Theme.Colors.text)
                 
-                if conversation.otherUser.isVerified {
+                if conversation.otherUser.isVerified ?? false {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 12))
@@ -143,7 +143,7 @@ struct ChatDetailView: View {
                 .padding(.vertical, Theme.Spacing.sm)
             }
             .background(Theme.Colors.background)
-            .onChange(of: viewModel.messages.count) { _ in
+            .onChange(of: viewModel.messages.count) { _, _ in
                 if let lastMessage = viewModel.messages.last {
                     withAnimation {
                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
@@ -230,7 +230,7 @@ struct ChatDetailView: View {
             try await viewModel.sendMediaMessage(
                 data: data,
                 conversationId: conversation.id,
-                receiverId: conversation.otherUser.apiId,
+                receiverId: conversation.otherUser.apiId ?? "",
                 isVideo: isVideo
             )
             

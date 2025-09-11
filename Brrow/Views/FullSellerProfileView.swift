@@ -138,7 +138,7 @@ struct FullSellerProfileView: View {
                         .fontWeight(.bold)
                         .foregroundColor(Theme.Colors.text)
                     
-                    if user.isVerified {
+                    if user.isVerified ?? false {
                         Image(systemName: "checkmark.seal.fill")
                             .foregroundColor(.blue)
                             .font(.title3)
@@ -253,7 +253,7 @@ struct FullSellerProfileView: View {
                         .foregroundColor(Theme.Colors.text)
                 }
                 
-                if user.isVerified {
+                if user.isVerified ?? false {
                     HStack(spacing: 8) {
                         Image(systemName: "shield.checkered")
                             .foregroundColor(.blue)
@@ -531,7 +531,7 @@ struct FullSellerProfileView: View {
                 VStack(spacing: 8) {
                     verificationRow(title: "Email", verified: true)
                     verificationRow(title: "Phone Number", verified: false) // Phone verification not available in User model
-                    verificationRow(title: "Government ID", verified: user.isVerified)
+                    verificationRow(title: "Government ID", verified: user.isVerified ?? false)
                     verificationRow(title: "Address", verified: viewModel.addressVerified)
                 }
                 .padding()

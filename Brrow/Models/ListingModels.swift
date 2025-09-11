@@ -24,31 +24,19 @@ struct UserInfo: Codable {
 }
 
 // MARK: - Category
-struct Category: Codable {
+struct CategoryModel: Codable {
     let id: String
     let name: String
     let description: String?
     let iconUrl: String?
     let parentId: String?
-    let isActive: Bool
+    let isActive: Bool?
     let sortOrder: Int?
     let createdAt: Date?
     let updatedAt: Date?
 }
 
-// MARK: - Listing Image
-struct ListingImage: Codable {
-    let id: String
-    let listingId: String
-    let imageUrl: String
-    let thumbnailUrl: String?
-    let isPrimary: Bool
-    let displayOrder: Int
-    let width: Int?
-    let height: Int?
-    let fileSize: Int?
-    let uploadedAt: Date?
-}
+// ListingImage is defined in CreateListingResponse.swift - removed duplicate
 
 // MARK: - Listing Video
 struct ListingVideo: Codable {
@@ -102,23 +90,10 @@ struct CreateListingRequest: Codable {
     }
 }
 
-// MARK: - Listings Response
-struct ListingsResponse: Codable {
-    let success: Bool
-    let listings: [Listing]
-    let pagination: PaginationInfo?
-}
+// ListingsResponse and PaginationInfo are defined in APITypes.swift - removed duplicates
 
-// MARK: - Pagination Info
-struct PaginationInfo: Codable {
-    let page: Int
-    let limit: Int
-    let total: Int
-    let totalPages: Int
-}
-
-// MARK: - Search Filters
-struct SearchFilters: Codable {
+// MARK: - API Search Filters
+struct APISearchFilters: Codable {
     let categoryId: String?
     let minPrice: Double?
     let maxPrice: Double?
@@ -130,27 +105,8 @@ struct SearchFilters: Codable {
     let verifiedOnly: Bool?
 }
 
-// MARK: - User Listings Response
-struct UserListingsResponse: Codable {
-    let success: Bool
-    let listings: [Listing]
-    let pagination: PaginationInfo?
-}
+// UserListingsResponse is defined in APITypes.swift - removed duplicate
 
-// MARK: - Marketplace Filters
-struct MarketplaceFilters: Codable {
-    let minPrice: Double?
-    let maxPrice: Double?
-    let condition: String?
-    let distance: Double?
-    let verifiedOnly: Bool?
-}
+// MarketplaceFilters is defined in SharedTypes.swift - removed duplicate
 
-// MARK: - Marketplace Sort Option
-enum MarketplaceSortOption: String, Codable {
-    case recent = "createdAt"
-    case priceLow = "price_asc"
-    case priceHigh = "price_desc"
-    case popular = "viewCount"
-    case distance = "distance"
-}
+// MarketplaceSortOption is defined in SharedTypes.swift - removed duplicate

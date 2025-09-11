@@ -1,907 +1,264 @@
 //
-//  SimplifiedListingDetailView.swift
+//  SimplifiedListingDetailViewFixed.swift
 //  Brrow
 //
-//  Clean, simple listing detail view matching app theme
+//  Fixed version with simplified expressions
 //
 
 import SwiftUI
-import MapKit
-
-// MARK: - User Profile View (Simple)
-struct SimpleUserProfileView: View {
-    let user: User
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            // Profile header
-            VStack(spacing: 12) {
-                if let profilePicture = user.profilePicture {
-                    CachedAsyncImage(
-                        url: profilePicture,
-                        content: { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 100, height: 100)
-                                .clipShape(Circle())
-                        },
-                        placeholder: {
-                            Circle()
-                                .fill(Color.gray.opacity(0.1))
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                )
-                        }
-                    )
-                } else {
-                    Image(systemName: "person.circle.fill")
-                        .font(.system(size: 100))
-                        .foregroundColor(Theme.Colors.secondary)
-                }
-                
-                Text(user.username)
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(Theme.Colors.text)
-                
-                if user.idVerified == true {
-                    Label("Verified", systemImage: "checkmark.seal.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(Theme.Colors.primary)
-                }
-            }
-            .padding(.top, 40)
-            
-            // Stats
-            HStack(spacing: 30) {
-                VStack(spacing: 4) {
-                    Text(String(format: "%.1f", ((user.listerRating ?? 0) + (user.renteeRating ?? 0)) / 2.0))
-                        .font(.system(size: 20, weight: .bold))
-                    Text("Rating")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-                
-                VStack(spacing: 4) {
-                    Text("0")
-                        .font(.system(size: 20, weight: .bold))
-                    Text("Listings")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-                
-                VStack(spacing: 4) {
-                    Text("0")
-                        .font(.system(size: 20, weight: .bold))
-                    Text("Reviews")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-            }
-            .padding()
-            .background(Theme.Colors.secondaryBackground)
-            .cornerRadius(12)
-            
-            // Bio
-            if let bio = user.bio, !bio.isEmpty {
-                Text(bio)
-                    .font(.system(size: 15))
-                    .foregroundColor(Theme.Colors.secondaryText)
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.Colors.secondaryBackground)
-                    .cornerRadius(12)
-            }
-            
-            Spacer()
-        }
-        .padding()
-        .navigationTitle("Profile")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-// MARK: - Similar Item Card
-struct SimpleSimilarItemCard: View {
-    let listing: Listing
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Image
-            CachedAsyncImage(
-                url: listing.images.first,
-                content: { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 150, height: 150)
-                        .clipped()
-                        .cornerRadius(8)
-                },
-                placeholder: {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 150, height: 150)
-                        .cornerRadius(8)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .foregroundColor(.gray.opacity(0.3))
-                        )
-                }
-            )
-            
-            // Title
-            Text(listing.title)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Theme.Colors.text)
-                .lineLimit(2)
-            
-            // Price
-            if listing.priceType == .free {
-                Text("Free")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Theme.Colors.primary)
-            } else {
-                Text("$\(String(format: "%.2f", listing.price))")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Theme.Colors.primary)
-            }
-        }
-        .frame(width: 150)
-    }
-}
 
 struct SimplifiedListingDetailView: View {
-    let listing: Listing
     @StateObject private var viewModel: ListingDetailViewModel
+    @EnvironmentObject var authManager: AuthManager
     @Environment(\.dismiss) private var dismiss
-    @State private var showingBorrowFlow = false
-    @State private var showingSellerProfile = false
-    @State private var selectedImageIndex = 0
-    @State private var showingShareSheet = false
-    @State private var showingEditView = false
     
-    private var isOwner: Bool {
-        guard let currentUser = AuthManager.shared.currentUser else { return false }
-        return viewModel.listing.ownerId == currentUser.id || 
-               viewModel.listing.ownerApiId == currentUser.apiId ||
-               viewModel.listing.ownerUsername == currentUser.username
-    }
+    // State variables
+    @State private var showingBorrowFlow = false
+    @State private var showingOfferFlow = false
+    @State private var isFavorited = false
+    @State private var selectedImageIndex = 0
+    @State private var showingFullScreenImage = false
+    @State private var showingReportSheet = false
+    @State private var showingSellerProfile = false
+    @State private var showingEditView = false
+    @State private var showingShareSheet = false
     
     init(listing: Listing) {
-        self.listing = listing
-        self._viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
+        _viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
+    }
+    
+    private var isOwner: Bool {
+        guard let currentUser = authManager.currentUser else { return false }
+        return viewModel.listing.userId == String(currentUser.id)
     }
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Image Gallery
-                    imageGallerySection
-                    
-                    // Main Info with favorite and share
-                    mainInfoSection
-                        .padding(.horizontal)
-                        .padding(.vertical, 20)
-                    
-                    // Seller Info
-                    sellerSection
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
-                    
-                    // Description
-                    descriptionSection
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
-                    
-                    // Location
-                    locationSection
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
-                    
-                    // Similar Items at the bottom
-                    if !viewModel.similarListings.isEmpty {
-                        similarItemsSection
-                    }
-                    
-                    // Extra padding for bottom bar
-                    Color.clear
-                        .frame(height: 100)
-                }
+        ScrollView {
+            VStack(spacing: 0) {
+                imageCarousel
+                mainContent
             }
-            .ignoresSafeArea(edges: .top)
-            
-            // Bottom action bar
-            bottomActionBar
         }
         .navigationBarHidden(true)
         .overlay(
-            // Show loading or error state
-            Group {
-                if viewModel.isLoading {
-                    VStack {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.primary))
-                            .scaleEffect(1.5)
-                        Text("Loading...")
-                            .font(.system(size: 16))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                            .padding(.top, 16)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.white.opacity(0.9))
-                } else if let errorMessage = viewModel.errorMessage {
-                    VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 50))
-                            .foregroundColor(.orange)
-                        
-                        Text("Error Loading Listing")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Theme.Colors.text)
-                        
-                        Text(errorMessage)
-                            .font(.system(size: 14))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                        
-                        Button("Retry") {
-                            viewModel.loadListingDetails()
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(Theme.Colors.primary)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.white)
-                }
-            }
+            navigationBar,
+            alignment: .top
+        )
+        .overlay(
+            bottomBar,
+            alignment: .bottom
         )
         .sheet(isPresented: $showingBorrowFlow) {
             BorrowFlowView(listing: viewModel.listing)
         }
         .sheet(isPresented: $showingSellerProfile) {
-            if let seller = viewModel.seller {
-                NavigationView {
-                    SimpleUserProfileView(user: seller)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showingSellerProfile = false
-                                }
-                            }
-                        }
-                }
-            }
+            ProfileView()
         }
         .sheet(isPresented: $showingEditView) {
             EditListingView(listing: viewModel.listing)
-                .environmentObject(AuthManager.shared)
+                .environmentObject(authManager)
         }
         .onAppear {
-            // Load similar listings in background
+            viewModel.loadListingDetails()
         }
     }
     
-    // MARK: - Image Gallery
-    
-    private var imageGallerySection: some View {
-        ZStack(alignment: .topLeading) {
-            // Debug output - IMPORTANT: Using viewModel.listing instead of init listing
-            let _ = print("🖼️ SimplifiedListingDetailView - Images count: \(viewModel.listing.images.count) (from viewModel)")
-            let _ = print("🖼️ SimplifiedListingDetailView - Initial images count: \(listing.images.count) (from init)")
-            let _ = print("🖼️ Listing ID: \(viewModel.listing.listingId)")
-            let _ = print("🖼️ Selected image index: \(selectedImageIndex)")
-            let _ = viewModel.listing.images.enumerated().forEach { index, url in
-                print("  ViewMode Image \(index): \(url)")
-            }
-            
-            if !viewModel.listing.images.isEmpty {
-                TabView(selection: $selectedImageIndex) {
-                    ForEach(0..<viewModel.listing.images.count, id: \.self) { index in
-                        ZStack {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.1))
-                            
-                            CachedAsyncImage(
-                                url: viewModel.listing.images[index],
-                                content: { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: UIScreen.main.bounds.width, height: 350)
-                                        .clipped()
-                                },
-                                placeholder: {
-                                    ZStack {
-                                        Color.gray.opacity(0.1)
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                    }
-                                    .frame(width: UIScreen.main.bounds.width, height: 350)
-                                }
-                            )
-                        }
-                        .frame(width: UIScreen.main.bounds.width, height: 350)
-                        .clipped()
-                        .tag(index)
-                        .onAppear {
-                            print("📸 TabView showing image \(index) of \(viewModel.listing.images.count)")
-                        }
-                    }
-                }
-                .tabViewStyle(PageTabViewStyle())
-                .frame(height: 350)
-            } else {
-                // Placeholder if no images
-                Rectangle()
-                    .fill(Theme.Colors.secondaryBackground)
-                    .frame(height: 350)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 50))
-                            .foregroundColor(Theme.Colors.secondary)
-                    )
-            }
-            
-            // Back button
+    private var navigationBar: some View {
+        HStack {
             Button(action: { dismiss() }) {
-                Image(systemName: "arrow.left")
+                Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.black.opacity(0.5))
-                    .clipShape(Circle())
+                    .foregroundColor(Theme.Colors.text)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Theme.Colors.background.opacity(0.9)))
             }
-            .padding(.top, 50)
-            .padding(.leading, 20)
             
-            // Debug button for testing image carousel - using viewModel.listing
-            NavigationLink(destination: DebugImageCarouselView(listing: viewModel.listing)) {
-                Text("DEBUG")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.red.opacity(0.8))
-                    .cornerRadius(15)
-            }
-            .padding(.top, 50)
-            .padding(.trailing, 70)
+            Spacer()
             
-            // Image counter - using viewModel.listing
-            if viewModel.listing.images.count > 1 {
-                Text("\(selectedImageIndex + 1)/\(viewModel.listing.images.count)")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.5))
-                    .cornerRadius(20)
-                    .padding(.top, 50)
-                    .padding(.trailing, 20)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-    }
-    
-    // MARK: - Main Info Section
-    
-    private var mainInfoSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Status badge for owner
-            if isOwner {
-                HStack(spacing: 8) {
-                    // Status badge
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(statusColor)
-                            .frame(width: 8, height: 8)
-                        
-                        Text(statusText)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(Theme.Colors.text)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(statusColor.opacity(0.15))
-                    .cornerRadius(20)
-                    
-                    // Views counter
-                    if viewModel.listing.views > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "eye")
-                                .font(.system(size: 12))
-                            Text("\(viewModel.listing.views) views")
-                                .font(.system(size: 14, weight: .medium))
-                        }
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Theme.Colors.secondaryBackground)
-                        .cornerRadius(20)
-                    }
-                    
-                    Spacer()
+            HStack(spacing: 12) {
+                Button(action: shareItem) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(Theme.Colors.text)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Theme.Colors.background.opacity(0.9)))
+                }
+                
+                Button(action: toggleFavorite) {
+                    Image(systemName: isFavorited ? "heart.fill" : "heart")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(isFavorited ? .red : Theme.Colors.text)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Theme.Colors.background.opacity(0.9)))
                 }
             }
-            
-            // Title with Share and Favorite buttons
-            HStack(alignment: .top) {
+        }
+        .padding(.horizontal)
+        .padding(.top, 50)
+    }
+    
+    private var imageCarousel: some View {
+        TabView(selection: $selectedImageIndex) {
+            ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
+                CachedAsyncImage(url: imageUrl)
+                    .frame(height: 400)
+                    .clipped()
+                    .tag(index)
+            }
+        }
+        .tabViewStyle(PageTabViewStyle())
+        .frame(height: 400)
+        .overlay(
+            imageIndicator,
+            alignment: .bottom
+        )
+    }
+    
+    private var imageIndicator: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<viewModel.listing.imageUrls.count, id: \.self) { index in
+                Circle()
+                    .fill(selectedImageIndex == index ? Color.white : Color.white.opacity(0.5))
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .padding(.bottom, 20)
+    }
+    
+    private var mainContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Title and price
+            VStack(alignment: .leading, spacing: 8) {
                 Text(viewModel.listing.title)
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(Theme.Colors.text)
-                    .lineLimit(2)
                 
-                Spacer(minLength: 16)
-                
-                // Share button
-                Button(action: shareItem) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 22))
-                        .foregroundColor(Theme.Colors.primary)
-                }
-                
-                // Favorite button - hide for owner
-                if !isOwner {
-                    Button(action: { 
-                        withAnimation(.spring(response: 0.3)) {
-                            viewModel.toggleFavorite()
-                        }
-                    }) {
-                        Image(systemName: viewModel.isFavorited ? "heart.fill" : "heart")
-                            .font(.system(size: 24))
-                            .foregroundColor(viewModel.isFavorited ? .red : Theme.Colors.primary)
-                    }
-                }
-            }
-            
-            // Price
-            Group {
-                if viewModel.listing.type == "rent" || viewModel.listing.type == "borrow" {
-                    let period = viewModel.listing.priceType == .hourly ? "hour" : 
-                                viewModel.listing.priceType == .daily ? "day" : 
-                                viewModel.listing.priceType == .weekly ? "week" : 
-                                viewModel.listing.priceType == .monthly ? "month" : "day"
-                    Text("$\(String(format: "%.2f", viewModel.listing.price))/\(period)")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(Theme.Colors.primary)
-                } else if viewModel.listing.type == "sale" || viewModel.listing.type == "buy" {
-                    Text("$\(String(format: "%.2f", viewModel.listing.price))")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(Theme.Colors.primary)
-                } else {
-                    Text("Free to borrow")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(Theme.Colors.primary)
-                }
-            }
-            
-            // Category and Condition
-            HStack(spacing: 16) {
-                Label(viewModel.listing.category, systemImage: "tag")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.secondaryText)
-                
-                Label(viewModel.listing.condition, systemImage: "checkmark.seal")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.secondaryText)
-            }
-            
-            // Owner stats section
-            if isOwner {
-                VStack(spacing: 12) {
-                    Divider()
-                    
-                    HStack(spacing: 20) {
-                        // Times borrowed/sold
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(viewModel.listing.timesBorrowed)")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(Theme.Colors.text)
-                            Text(viewModel.listing.type == "sale" ? "Sold" : "Times Borrowed")
-                                .font(.system(size: 12))
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-                        
-                        // Inventory
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(viewModel.listing.inventoryAmt)")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(Theme.Colors.text)
-                            Text("In Stock")
-                                .font(.system(size: 12))
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-                        
-                        // Rating if available
-                        if let rating = viewModel.listing.rating, rating > 0 {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 2) {
-                                    Text(String(format: "%.1f", rating))
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundColor(Theme.Colors.text)
-                                    Image(systemName: "star.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(Theme.Colors.accentOrange)
-                                }
-                                Text("Rating")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Theme.Colors.secondaryText)
-                            }
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-        }
-    }
-    
-    // Helper computed properties for status display
-    private var statusColor: Color {
-        switch viewModel.listing.status.lowercased() {
-        case "active", "available":
-            return .green
-        case "pending", "pending_review":
-            return .orange
-        case "deleted", "archived", "inactive":
-            return .red
-        case "sold", "completed":
-            return .blue
-        default:
-            return .gray
-        }
-    }
-    
-    private var statusText: String {
-        switch viewModel.listing.status.lowercased() {
-        case "active", "available":
-            return "Active"
-        case "pending", "pending_review":
-            return "Pending Review"
-        case "deleted":
-            return "Deleted"
-        case "archived":
-            return "Archived"
-        case "inactive":
-            return "Inactive"
-        case "sold":
-            return "Sold"
-        case "completed":
-            return "Completed"
-        default:
-            return viewModel.listing.status.capitalized
-        }
-    }
-    
-    // MARK: - Seller Section
-    
-    private var sellerSection: some View {
-        Group {
-            // Don't show seller section if viewing own listing
-            if !isOwner {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Seller")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                    
-                    Button(action: { showingSellerProfile = true }) {
-                        HStack(spacing: 12) {
-                            // Profile picture
-                            Group {
-                                if let profilePictureStr = viewModel.listing.ownerProfilePicture,
-                                   !profilePictureStr.isEmpty {
-                                    CachedAsyncImage(
-                                        url: profilePictureStr,
-                                        content: { image in
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 50, height: 50)
-                                                .clipShape(Circle())
-                                        },
-                                        placeholder: {
-                                            Circle()
-                                                .fill(Color.gray.opacity(0.1))
-                                                .frame(width: 50, height: 50)
-                                        }
-                                    )
-                                } else if let profilePicture = viewModel.seller?.profilePicture {
-                                    CachedAsyncImage(
-                                        url: profilePicture,
-                                        content: { image in
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(width: 50, height: 50)
-                                                .clipShape(Circle())
-                                        },
-                                        placeholder: {
-                                            Circle()
-                                                .fill(Color.gray.opacity(0.1))
-                                                .frame(width: 50, height: 50)
-                                        }
-                                    )
-                                } else {
-                                    Image(systemName: "person.circle.fill")
-                                        .font(.system(size: 50))
-                                        .foregroundColor(Theme.Colors.secondary)
-                                }
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(viewModel.listing.ownerUsername ?? viewModel.seller?.username ?? "Seller")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(Theme.Colors.text)
-                                
-                                HStack(spacing: 8) {
-                                    // Rating - use viewModel's owner rating if available
-                                    if viewModel.ownerRating > 0 {
-                                        HStack(spacing: 2) {
-                                            Image(systemName: "star.fill")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(Theme.Colors.accentOrange)
-                                            Text(String(format: "%.1f", viewModel.ownerRating))
-                                                .font(.system(size: 14))
-                                                .foregroundColor(Theme.Colors.secondaryText)
-                                        }
-                                    } else if let sellerRating = viewModel.seller?.listerRating, sellerRating > 0 {
-                                        HStack(spacing: 2) {
-                                            Image(systemName: "star.fill")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(Theme.Colors.accentOrange)
-                                            Text(String(format: "%.1f", sellerRating))
-                                                .font(.system(size: 14))
-                                                .foregroundColor(Theme.Colors.secondaryText)
-                                        }
-                                    } else {
-                                        Text("No rating yet")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(Theme.Colors.secondaryText)
-                                    }
-                                    
-                                    // Verified badge
-                                    if viewModel.seller?.idVerified == true {
-                                        Label("Verified", systemImage: "checkmark.seal.fill")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(Theme.Colors.primary)
-                                            .labelStyle(.iconOnly)
-                                    }
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14))
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-                        .padding(16)
-                        .background(Theme.Colors.cardBackground)
-                        .cornerRadius(12)
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Description Section
-    
-    private var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Description")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(Theme.Colors.text)
-            
-            Text(viewModel.listing.description)
-                .font(.system(size: 15))
-                .foregroundColor(Theme.Colors.secondaryText)
-                .lineSpacing(4)
-        }
-    }
-    
-    // MARK: - Location Section
-    
-    private var locationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Pickup Location")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(Theme.Colors.text)
-            
-            // Location info
-            VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "location.circle.fill")
-                        .font(.system(size: 20))
+                    Text(viewModel.listing.priceDisplay)
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(Theme.Colors.primary)
                     
-                    Text(viewModel.listing.location.city.isEmpty ? "Location" : "\(viewModel.listing.location.city), \(viewModel.listing.location.state)")
-                        .font(.system(size: 15))
-                        .foregroundColor(Theme.Colors.text)
-                }
-                
-                if let distance = viewModel.distanceFromUser {
-                    Text(distance)
-                        .font(.system(size: 14))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-                
-                Text("Exact address provided after booking")
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.Colors.secondaryText)
-                    .italic()
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.Colors.secondaryBackground)
-            .cornerRadius(12)
-        }
-    }
-    
-    // MARK: - Similar Items Section
-    
-    private var similarItemsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Similar Items")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(Theme.Colors.text)
-                .padding(.horizontal)
-            
-            // Vertical list of similar items
-            VStack(spacing: 12) {
-                ForEach(viewModel.similarListings.prefix(5)) { similarListing in
-                    HStack(spacing: 12) {
-                        // Image
-                        CachedAsyncImage(
-                            url: similarListing.images.first,
-                            content: { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 80, height: 80)
-                                    .clipped()
-                                    .cornerRadius(8)
-                            },
-                            placeholder: {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.1))
-                                    .frame(width: 80, height: 80)
-                                    .cornerRadius(8)
-                            }
-                        )
-                        
-                        // Info
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(similarListing.title)
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(Theme.Colors.text)
-                                .lineLimit(2)
-                            
-                            if similarListing.priceType == .free {
-                                Text("Free")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(Theme.Colors.primary)
-                            } else {
-                                Text("$\(String(format: "%.2f", similarListing.price))/day")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(Theme.Colors.primary)
-                            }
-                            
-                            if let distance = similarListing.distanceText {
-                                Text(distance)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Theme.Colors.secondaryText)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // Arrow
-                        Image(systemName: "chevron.right")
+                    if viewModel.listing.isNegotiable {
+                        Text("• Negotiable")
                             .font(.system(size: 14))
                             .foregroundColor(Theme.Colors.secondaryText)
-                    }
-                    .padding()
-                    .background(Theme.Colors.secondaryBackground)
-                    .cornerRadius(12)
-                    .onTapGesture {
-                        // Navigate to listing
                     }
                 }
             }
             .padding(.horizontal)
+            
+            // Location
+            HStack {
+                Image(systemName: "location")
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                
+                Text(viewModel.listing.locationString)
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+            .padding(.horizontal)
+            
+            Divider()
+            
+            // Description
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Description")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+                
+                Text(viewModel.listing.description)
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.text)
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal)
+            
+            // Owner info
+            if !isOwner {
+                Divider()
+                
+                Button(action: { showingSellerProfile = true }) {
+                    HStack {
+                        // Profile picture
+                        if let profilePic = viewModel.listing.ownerProfilePicture {
+                            CachedAsyncImage(url: profilePic)
+                                .frame(width: 50, height: 50)
+                                .clipShape(Circle())
+                        } else {
+                            Circle()
+                                .fill(Theme.Colors.secondaryBackground)
+                                .frame(width: 50, height: 50)
+                                .overlay(
+                                    Image(systemName: "person.fill")
+                                        .foregroundColor(Theme.Colors.secondaryText)
+                                )
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.listing.ownerUsername ?? "User")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
+                            
+                            if let rating = viewModel.listing.ownerRating {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.yellow)
+                                    
+                                    Text(String(format: "%.1f", rating))
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Theme.Colors.secondaryText)
+                                }
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            
+            // Add some bottom padding for the action bar
+            Color.clear.frame(height: 100)
         }
+        .padding(.top, 20)
     }
     
-    // MARK: - Bottom Action Bar
-    
-    private var bottomActionBar: some View {
+    private var bottomBar: some View {
         HStack(spacing: 12) {
             if isOwner {
-                // Quick action buttons for owner
-                Menu {
-                    Button(action: {
-                        // Mark as sold/completed
-                    }) {
-                        Label("Mark as Sold", systemImage: "checkmark.circle")
-                    }
-                    
-                    Button(action: {
-                        // Pause listing
-                    }) {
-                        Label("Pause Listing", systemImage: "pause.circle")
-                    }
-                    
-                    Button(action: {
-                        // Duplicate listing
-                    }) {
-                        Label("Duplicate", systemImage: "doc.on.doc")
-                    }
-                    
-                    Divider()
-                    
-                    Button(role: .destructive, action: {
-                        // Delete listing
-                    }) {
-                        Label("Delete Listing", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.system(size: 20))
-                        .foregroundColor(Theme.Colors.primary)
-                        .frame(width: 50, height: 50)
-                        .background(Theme.Colors.primary.opacity(0.1))
+                Button(action: { showingEditView = true }) {
+                    Text("Edit Listing")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Theme.Colors.primary)
                         .cornerRadius(25)
-                }
-                
-                // Edit button for owner
-                Button(action: {
-                    showingEditView = true
-                }) {
-                    HStack {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 18, weight: .semibold))
-                        
-                        Text("Edit Listing")
-                            .font(.system(size: 18, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Theme.Colors.primary)
-                    .cornerRadius(25)
                 }
             } else {
-                // Message button for non-owners
-                Button(action: {
-                    // Open chat
-                }) {
+                // Message button
+                Button(action: { /* Open chat */ }) {
                     Image(systemName: "message")
-                        .font(.system(size: 20))
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundColor(Theme.Colors.primary)
                         .frame(width: 50, height: 50)
-                        .background(Theme.Colors.primary.opacity(0.1))
+                        .background(Theme.Colors.primary.opacity(0.15))
                         .cornerRadius(25)
                 }
                 
-                // Main action button for non-owners
-                Button(action: {
-                    showingBorrowFlow = true
-                }) {
+                // Main action button
+                Button(action: { showingBorrowFlow = true }) {
                     HStack {
-                        Image(systemName: viewModel.listing.type == "sale" || viewModel.listing.type == "buy" ? "cart" : "calendar")
+                        Image(systemName: viewModel.listing.type == "sale" ? "cart" : "calendar")
                             .font(.system(size: 18, weight: .semibold))
                         
-                        Text(viewModel.listing.type == "sale" || viewModel.listing.type == "buy" ? "Buy Now" : "Borrow")
+                        Text(viewModel.listing.type == "sale" ? "Buy Now" : "Borrow")
                             .font(.system(size: 18, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -913,19 +270,25 @@ struct SimplifiedListingDetailView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
         .background(
-            Theme.Colors.background
+            Rectangle()
+                .fill(Theme.Colors.background)
+                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -5)
                 .ignoresSafeArea()
-                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: -5)
         )
     }
     
-    // MARK: - Helper Functions
+    private func toggleFavorite() {
+        isFavorited.toggle()
+        Task {
+            await viewModel.toggleFavorite()
+        }
+    }
     
     private func shareItem() {
         // Share functionality
-        let url = URL(string: "https://brrowapp.com/listing/\(viewModel.listing.listingId)")!
+        let url = URL(string: "https://brrowapp.com/listing/\(viewModel.listing.id)")!
         let activityController = UIActivityViewController(
             activityItems: [viewModel.listing.title, url],
             applicationActivities: nil

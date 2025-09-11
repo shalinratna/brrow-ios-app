@@ -86,7 +86,7 @@ struct FavoriteGridItem: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
                 // Image
-                AsyncImage(url: URL(string: listing.images.first ?? "")) { image in
+                AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

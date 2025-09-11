@@ -383,7 +383,7 @@ struct SocialListingCard: View {
                     )
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("User #\(listing.ownerId)")
+                    Text("User #\(Int(listing.userId) ?? 0)")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(Theme.Colors.text)
                     

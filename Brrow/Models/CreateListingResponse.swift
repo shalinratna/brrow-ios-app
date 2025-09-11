@@ -2,10 +2,22 @@ import Foundation
 
 // Structure for image data returned by API
 struct ListingImage: Codable {
-    let id: Int
-    let url: String
-    let thumbnail_url: String
-    let is_primary: Bool
+    let id: String
+    let url: String?
+    let imageUrl: String?  // Alternative field name
+    let thumbnailUrl: String?
+    let isPrimary: Bool?
+    let displayOrder: Int?
+    
+    // Legacy field names
+    let thumbnail_url: String?
+    let is_primary: Bool?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, url, imageUrl, thumbnailUrl, isPrimary, displayOrder
+        case thumbnail_url = "thumbnail_url"
+        case is_primary = "is_primary"
+    }
 }
 
 // Response model for create_listing.php that handles string price values
@@ -70,19 +82,14 @@ struct CreatedListing: Codable {
         let imageUrls = images?.map { $0.url } ?? []
         
         let listing = Listing(
-            id: actualId,
-            listingId: actualListingId,
-            ownerId: userId ?? 0,
+            id: actualListingId,
             title: title ?? "Untitled",
             description: description ?? "",
+            categoryId: category ?? "general",
+            condition: "Good",
             price: Double(price ?? "0") ?? 0.0,
-            priceType: .daily,
-            buyoutValue: buyoutValue.flatMap { Double($0) },
-            createdAt: ISO8601DateFormatter().date(from: createdAt ?? "") ?? Date(),
-            updatedAt: nil,
-            status: status ?? "active",
-            category: category ?? "Other",
-            type: type ?? "listing",
+            isNegotiable: false,
+            availabilityStatus: .available,
             location: Location(
                 address: location ?? "Unknown",
                 city: "",
@@ -92,13 +99,23 @@ struct CreatedListing: Codable {
                 latitude: 0,
                 longitude: 0
             ),
-            views: views ?? 0,
-            timesBorrowed: timesBorrowed ?? 0,
-            inventoryAmt: inventoryAmt ?? 1,
+            userId: String(userId ?? 0),
+            viewCount: views ?? 0,
+            favoriteCount: 0,
             isActive: isActive ?? true,
-            isArchived: isArchived ?? false,
-            images: imageUrls,
-            rating: rating
+            isPremium: false,
+            premiumExpiresAt: nil,
+            deliveryOptions: nil,
+            tags: [],
+            metadata: nil,
+            createdAt: ISO8601DateFormatter().date(from: createdAt ?? "") ?? Date(),
+            updatedAt: Date(),
+            user: nil,
+            category: nil,
+            images: images ?? [],
+            videos: nil,
+            isOwner: true,
+            isFavorite: false
         )
         
         return listing

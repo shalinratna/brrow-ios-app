@@ -45,7 +45,7 @@ struct RentalRequestView: View {
     }
     
     private var securityDeposit: Double {
-        return listing.securityDeposit ?? (subtotal * 0.25)
+        return nil ?? (subtotal * 0.25)
     }
     
     private var totalAmount: Double {
@@ -119,7 +119,7 @@ struct RentalRequestView: View {
     private var listingPreview: some View {
         HStack(spacing: 12) {
             // Image
-            if let firstImage = listing.images.first,
+            if let firstImage = listing.imageUrls.first,
                let url = URL(string: firstImage) {
                 AsyncImage(url: url) { image in
                     image
@@ -139,7 +139,7 @@ struct RentalRequestView: View {
                     .font(.headline)
                     .lineLimit(2)
                 
-                Text(listing.category)
+                Text(listing.category?.name ?? "General")
                     .font(.caption)
                     .foregroundColor(.gray)
                 
@@ -148,7 +148,7 @@ struct RentalRequestView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     
-                    Text("/ \(listing.priceType.rawValue)")
+                    Text("/ day")
                         .font(.caption)
                         .foregroundColor(.gray)
                 }

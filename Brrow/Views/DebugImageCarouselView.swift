@@ -49,7 +49,7 @@ struct DebugImageCarouselView: View {
                                             .foregroundColor(state.contains("✅") ? .green : .orange)
                                     }
                                 }
-                                Text(listing.images[index])
+                                Text(listing.imageUrls[index])
                                     .font(.caption2)
                                     .foregroundColor(.gray)
                                     .lineLimit(2)
@@ -83,7 +83,7 @@ struct DebugImageCarouselView: View {
                                     .font(.caption)
                                     .padding(.bottom, 5)
                                 
-                                CachedAsyncImage(url: listing.images[index])
+                                CachedAsyncImage(url: listing.imageUrls[index])
                                     .frame(height: 200)
                                     .cornerRadius(10)
                                     .onAppear {
@@ -152,7 +152,7 @@ struct DebugImageCarouselView: View {
                         .font(.headline)
                         .padding(.top)
                     
-                    if let firstURL = listing.images.first,
+                    if let firstURL = listing.imageUrls.first,
                        let url = URL(string: firstURL) {
                         AsyncImage(url: url) { phase in
                             switch phase {
@@ -227,7 +227,7 @@ struct DebugImageCarouselView: View {
     }
     
     private func testManualLoad() {
-        guard let firstURL = listing.images.first else {
+        guard let firstURL = listing.imageUrls.first else {
             manualTestResult = "❌ No images to test"
             return
         }
@@ -255,41 +255,7 @@ struct DebugImageCarouselView: View {
 struct DebugImageCarouselView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            DebugImageCarouselView(listing: Listing(
-                id: 31,
-                listingId: "lst_68941a70b2fef7.88546045",
-                ownerId: 1,
-                title: "Test Listing 3",
-                description: "Test listing with multiple images",
-                price: 32.0,
-                priceType: .fixed,
-                buyoutValue: nil,
-                createdAt: Date(),
-                updatedAt: Date(),
-                status: "active",
-                category: "Furniture & Home Decor",
-                type: "for_sale",
-                location: Location(
-                    address: "123 Test St",
-                    city: "San Francisco",
-                    state: "CA",
-                    zipCode: "94102",
-                    country: "USA",
-                    latitude: 37.7749,
-                    longitude: -122.4194
-                ),
-                views: 41,
-                timesBorrowed: 0,
-                inventoryAmt: 1,
-                isActive: true,
-                isArchived: false,
-                images: [
-                    "https://brrowapp.com/brrow/uploads/users/usr_687b4d8b25f075.49510878/brrow_68941a6d1ff411.64343872.jpg",
-                    "https://brrowapp.com/brrow/uploads/users/usr_687b4d8b25f075.49510878/brrow_68941a6e6f2487.22946821.jpg",
-                    "https://brrowapp.com/brrow/uploads/users/usr_687b4d8b25f075.49510878/brrow_68941a6fb9a590.48580476.jpg"
-                ],
-                rating: nil
-            ))
+            DebugImageCarouselView(listing: Listing.example)
         }
     }
 }

@@ -199,27 +199,53 @@ class HomeViewModel: ObservableObject {
             let priceType: PriceType = entity.isFree ? .free : .daily
             
             return Listing(
-                id: Int(entity.id) ?? 0,
-                listingId: entity.listingId,
-                ownerId: Int(entity.userId),
+                id: entity.listingId,
                 title: entity.title,
                 description: entity.listingDescription,
+                categoryId: "cat_general",
+                condition: "GOOD",
                 price: priceValue,
-                priceType: priceType,
-                buyoutValue: entity.buyoutValue != nil ? Double(entity.buyoutValue!) : nil,
-                createdAt: entity.createdAt,
-                updatedAt: nil,
-                status: entity.status,
-                category: entity.category,
-                type: entity.type,
+                isNegotiable: true,
+                availabilityStatus: entity.status == "available" ? .available : .pending,
                 location: location,
-                views: Int(entity.views),
-                timesBorrowed: Int(entity.timesBorrowed),
-                inventoryAmt: Int(entity.inventoryAmt),
+                userId: String(entity.userId),
+                viewCount: Int(entity.views),
+                favoriteCount: 0,
                 isActive: entity.isActive,
-                isArchived: entity.isArchived,
-                images: images,
-                rating: entity.rating != nil ? Double(entity.rating!) : nil
+                isPremium: false,
+                premiumExpiresAt: nil,
+                deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+                tags: [],
+                metadata: nil,
+                createdAt: entity.createdAt,
+                updatedAt: Date(),
+                user: nil,
+                category: CategoryModel(
+                    id: "cat_general",
+                    name: entity.category,
+                    description: nil,
+                    iconUrl: nil,
+                    parentId: nil,
+                    isActive: true,
+                    sortOrder: 0,
+                    createdAt: Date(),
+                    updatedAt: Date()
+                ),
+                images: images.map { url in
+                    ListingImage(
+                        id: UUID().uuidString,
+                        url: url,
+                        imageUrl: url,
+                        thumbnailUrl: nil,
+                        isPrimary: false,
+                        displayOrder: 0,
+                        thumbnail_url: nil,
+                        is_primary: false
+                    )
+                },
+                videos: nil,
+                isOwner: false,
+                isFavorite: entity.isFavorite
             )
         }
         
@@ -273,13 +299,13 @@ class HomeViewModel: ObservableObject {
             filtered = filtered.filter { listing in
                 listing.title.localizedCaseInsensitiveContains(searchQuery) ||
                 listing.description.localizedCaseInsensitiveContains(searchQuery) ||
-                listing.category.localizedCaseInsensitiveContains(searchQuery)
+                (listing.category?.name ?? "").localizedCaseInsensitiveContains(searchQuery)
             }
         }
         
         // Apply category filter
         if selectedCategory != "All" {
-            filtered = filtered.filter { $0.category == selectedCategory }
+            filtered = filtered.filter { $0.category?.name == selectedCategory }
         }
         
         // Apply price filter
@@ -293,7 +319,10 @@ class HomeViewModel: ObservableObject {
         
         // Apply listing type filter (based on price type)
         if listingType != "All" {
-            filtered = filtered.filter { $0.priceType.rawValue == listingType.lowercased() }
+            filtered = filtered.filter { listing in
+                let typeString = listing.price == 0 ? "free" : "daily"
+                return typeString == listingType.lowercased()
+            }
         }
         
         // TODO: Apply distance filter (requires location services)

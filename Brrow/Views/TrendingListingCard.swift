@@ -12,7 +12,7 @@ struct TrendingListingCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: URL(string: listing.images.first ?? "")) { image in
+            AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

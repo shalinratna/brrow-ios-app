@@ -18,7 +18,7 @@ extension ProfessionalHomeViewModel {
     func updateWidgetData() {
         // After loading your data, update the widget
         WidgetDataManager.shared.updateWidgetData(
-            activeListings: myPosts.filter { $0.type == .listing }.count,
+            activeListings: myPosts.filter { ($0.price == 0 ? "free" : "for_rent") == .listing }.count,
             nearbyItems: nearbyGarageSales.count,
             recentActivity: "Last updated: \(Date().formatted(date: .omitted, time: .shortened))"
         )

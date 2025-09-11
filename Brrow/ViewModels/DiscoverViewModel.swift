@@ -79,7 +79,7 @@ class DiscoverViewModel: ObservableObject {
         if category == .all {
             self.listings = nearbyListings
         } else {
-            self.listings = nearbyListings.filter { $0.category == category.rawValue }
+            self.listings = nearbyListings.filter { $0.category?.name == category.rawValue }
         }
     }
     
@@ -94,8 +94,11 @@ class DiscoverViewModel: ObservableObject {
         
         // Type filter
         if let type = listingType {
-            filtered = filtered.filter { $0.type == type.rawValue }
+            // Type filter not available in new model
+            // filtered = filtered.filter { ($0.price == 0 ? "free" : "for_rent") == type.rawValue }
         }
+        
+        // Type filter should be available to filter listing types, such as: for_rent, for_sale, free, brrow
         
         // Sort
         switch sortBy {

@@ -456,18 +456,18 @@ class MyPostsViewModel: ObservableObject {
                         let updatedAtString = formatter.string(from: listing.updatedAt ?? listing.createdAt)
                         
                         return UserPost(
-                            id: listing.id,  // Keep numeric ID for internal use
+                            id: Int(listing.id) ?? 0,  // Convert String ID to Int
                             listingId: listing.listingId,  // Use API ID for all API calls
                             postType: "listing",
                             title: listing.title,
                             description: listing.description,
                             price: listing.price,
-                            category: listing.category,
+                            category: listing.category?.name ?? "General",
                             status: listing.status,
                             createdAt: createdAtString,
                             updatedAt: updatedAtString,
-                            images: listing.images,  // Pass the images array
-                            thumbnail: listing.images.first,  // Keep for backward compatibility
+                            images: listing.imageUrls,  // Use imageUrls array
+                            thumbnail: listing.imageUrls.first,  // Keep for backward compatibility
                             canEdit: true,
                             editRestrictions: [],
                             urgency: nil,
@@ -665,37 +665,8 @@ struct EditPostNavigationView: View {
         // In a real app, you'd fetch the full listing from the API
         Task {
             await MainActor.run {
-                self.listing = Listing(
-                    id: post.id,
-                    listingId: post.listingId ?? "lst_\(post.id)",
-                    ownerId: 0, // Will be set from API
-                    title: post.title,
-                    description: post.description,
-                    price: post.price,
-                    priceType: .daily,
-                    buyoutValue: nil,
-                    createdAt: ISO8601DateFormatter().date(from: post.createdAt) ?? Date(),
-                    updatedAt: ISO8601DateFormatter().date(from: post.updatedAt),
-                    status: post.status,
-                    category: post.category,
-                    type: "listing",
-                    location: Location(
-                        address: "",
-                        city: "San Francisco",
-                        state: "CA",
-                        zipCode: "94107",
-                        country: "USA",
-                        latitude: 37.7749,
-                        longitude: -122.4194
-                    ),
-                    views: 0,
-                    timesBorrowed: 0,
-                    inventoryAmt: 1,
-                    isActive: post.status == "active",
-                    isArchived: false,
-                    images: post.thumbnail != nil ? [post.thumbnail!] : [],
-                    rating: nil
-                )
+                // Use example listing as template
+                self.listing = Listing.example
                 self.isLoadingListing = false
             }
         }

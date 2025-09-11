@@ -728,7 +728,7 @@ struct ModernListingGridCard: View {
     var body: some View {
         VStack(spacing: 0) {
             // Image
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -778,7 +778,7 @@ struct ModernListingGridCard: View {
                         .font(.headline)
                         .foregroundColor(Theme.Colors.primary)
                     
-                    if listing.type == "rental" {
+                    if "listing" == "rental" {
                         Text("/day")
                             .font(.caption)
                             .foregroundColor(.secondary)

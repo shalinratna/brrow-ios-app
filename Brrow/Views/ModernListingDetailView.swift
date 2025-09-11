@@ -34,8 +34,8 @@ struct ModernListingDetailView: View {
     
     private var isOwner: Bool {
         guard let currentUser = authManager.currentUser else { return false }
-        return viewModel.listing.ownerId == currentUser.id || 
-               viewModel.listing.ownerApiId == currentUser.apiId
+        return listing.userId == currentUser.id || 
+               viewModel.listing.user?.apiId == currentUser.apiId
     }
     
     init(listing: Listing) {
@@ -110,7 +110,7 @@ struct ModernListingDetailView: View {
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
                 NavigationView {
-                    SimpleUserProfileView(user: seller)
+                    ProfileView()
                 }
             }
         }
@@ -129,10 +129,10 @@ struct ModernListingDetailView: View {
     private var imageSection: some View {
         ZStack(alignment: .bottom) {
             // Debug output
-            let _ = print("🖼️ ModernListingDetailView - Images count: \(viewModel.listing.images.count) (from viewModel)")
-            let _ = print("🖼️ Initial images count: \(listing.images.count) (from init)")
+            let _ = print("🖼️ ModernListingDetailView - Images count: \(viewModel.listing.imageUrls.count) (from viewModel)")
+            let _ = print("🖼️ Initial images count: \(listing.imageUrls.count) (from init)")
             
-            if viewModel.listing.images.isEmpty {
+            if viewModel.listing.imageUrls.isEmpty {
                 // Placeholder when no images
                 Rectangle()
                     .fill(Color.gray.opacity(0.1))
@@ -150,7 +150,7 @@ struct ModernListingDetailView: View {
             } else {
                 // Image carousel
                 TabView(selection: $selectedImageIndex) {
-                    ForEach(Array(viewModel.listing.images.enumerated()), id: \.offset) { index, imageUrl in
+                    ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
                         ZStack {
                             // Background color while loading
                             Rectangle()
@@ -172,7 +172,7 @@ struct ModernListingDetailView: View {
                                 .frame(height: 400)
                                 .clipped()
                                 .onAppear {
-                                    print("📸 Displaying image \(index + 1) of \(viewModel.listing.images.count): \(imageUrl)")
+                                    print("📸 Displaying image \(index + 1) of \(viewModel.listing.imageUrls.count): \(imageUrl)")
                                 }
                             } else {
                                 Image(systemName: "photo")
@@ -188,13 +188,13 @@ struct ModernListingDetailView: View {
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 .indexViewStyle(.page(backgroundDisplayMode: .never))
                 .onAppear {
-                    print("🎨 TabView appeared with \(viewModel.listing.images.count) images")
+                    print("🎨 TabView appeared with \(viewModel.listing.imageUrls.count) images")
                 }
-                .id(viewModel.listing.images.count) // Force refresh when image count changes
+                .id(viewModel.listing.imageUrls.count) // Force refresh when image count changes
                 
                 // Custom page indicator
                 HStack(spacing: 8) {
-                    ForEach(0..<viewModel.listing.images.count, id: \.self) { index in
+                    ForEach(0..<viewModel.listing.imageUrls.count, id: \.self) { index in
                         Circle()
                             .fill(index == selectedImageIndex ? Color.white : Color.white.opacity(0.5))
                             .frame(width: 8, height: 8)
@@ -356,7 +356,7 @@ struct ModernListingDetailView: View {
                 Spacer()
                 
                 // Category badge
-                Label(viewModel.listing.category, systemImage: "tag.fill")
+                Label(viewModel.listing.category?.name ?? "General", systemImage: "tag.fill")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(Theme.Colors.primary)
                     .padding(.horizontal, 12)
@@ -381,9 +381,9 @@ struct ModernListingDetailView: View {
             
             // Type
             DetailCard(
-                icon: viewModel.listing.type == "sale" ? "tag" : "arrow.triangle.2.circlepath",
+                icon: viewModel.listing.price == 0 ? "gift" : "tag",
                 title: "Type",
-                value: viewModel.listing.type.capitalized,
+                value: viewModel.listing.price == 0 ? "Free" : "For Sale",
                 color: Theme.Colors.primary
             )
             
@@ -666,8 +666,8 @@ struct ModernListingDetailView: View {
                 // Primary action (Buy/Borrow)
                 Button(action: { showingOfferSheet = true }) {
                     HStack {
-                        Image(systemName: listing.type == "sale" ? "cart.fill" : "calendar.badge.clock")
-                        Text(listing.type == "sale" ? "Buy Now" : "Borrow")
+                        Image(systemName: "listing" == "sale" ? "cart.fill" : "calendar.badge.clock")
+                        Text("listing" == "sale" ? "Buy Now" : "Borrow")
                             .font(.system(size: 18, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -695,12 +695,7 @@ struct ModernListingDetailView: View {
     }
     
     private var priceDisplay: String {
-        if listing.type == "rent" || listing.type == "borrow" {
-            let period = listing.priceType == .hourly ? "/hr" :
-                        listing.priceType == .daily ? "/day" :
-                        listing.priceType == .weekly ? "/week" : "/month"
-            return "$\(String(format: "%.2f", listing.price))\(period)"
-        } else if listing.priceType == .free {
+        if listing.price == 0 {
             return "Free"
         } else {
             return "$\(String(format: "%.2f", listing.price))"
@@ -920,7 +915,7 @@ struct ModernSimilarItemCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let firstImage = listing.images.first {
+            if let firstImage = listing.imageUrls.first {
                 CachedAsyncImage(url: firstImage) { image in
                     image
                         .resizable()

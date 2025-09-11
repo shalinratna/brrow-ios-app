@@ -724,16 +724,30 @@ struct FuturisticCreateListingView: View {
                         title: title,
                         description: description,
                         price: Double(price) ?? 0,
-                        category: category,
-                        location: "\(userLocation.city), \(userLocation.state)",
-                        type: isRental ? "for_rent" : "for_sale",
-                        images: uploadedImageUrls,
-                        inventoryAmt: 1,
-                        isFree: false,
-                        pricePerDay: isRental ? Double(price) : nil,
-                        buyoutValue: nil,
-                        latitude: userLocation.latitude,
-                        longitude: userLocation.longitude
+                        categoryId: "cat_\(category.lowercased())",
+                        condition: "GOOD",
+                        location: Location(
+                            address: "\(userLocation.city), \(userLocation.state)",
+                            city: userLocation.city,
+                            state: userLocation.state,
+                            zipCode: userLocation.zipCode,
+                            country: "US",
+                            latitude: userLocation.latitude,
+                            longitude: userLocation.longitude
+                        ),
+                        isNegotiable: true,
+                        deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+                        tags: [],
+                        images: uploadedImageUrls.map { url in
+                            CreateListingRequest.ImageUpload(
+                                url: url,
+                                thumbnailUrl: nil,
+                                width: nil,
+                                height: nil,
+                                fileSize: nil
+                            )
+                        },
+                        videos: nil
                     )
                     let promotion = PromotionRequest(
                         type: selectedPromotion == .featured ? "auto_promote" : "pay_on_sale",
@@ -759,16 +773,30 @@ struct FuturisticCreateListingView: View {
                         title: title,
                         description: description,
                         price: Double(price) ?? 0,
-                        category: category,
-                        location: "123 Main St, San Francisco, CA",
-                        type: isRental ? "for_rent" : "for_sale",
-                        images: uploadedImageUrls,
-                        inventoryAmt: 1,
-                        isFree: false,
-                        pricePerDay: isRental ? Double(price) : nil,
-                        buyoutValue: nil,
-                        latitude: nil,  // TODO: Get actual coordinates
-                        longitude: nil  // TODO: Get actual coordinates
+                        categoryId: "cat_\(category.lowercased())",
+                        condition: "GOOD",
+                        location: Location(
+                            address: "123 Main St",
+                            city: "San Francisco",
+                            state: "CA",
+                            zipCode: "94105",
+                            country: "US",
+                            latitude: 37.7749,
+                            longitude: -122.4194
+                        ),
+                        isNegotiable: true,
+                        deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+                        tags: [],
+                        images: uploadedImageUrls.map { url in
+                            CreateListingRequest.ImageUpload(
+                                url: url,
+                                thumbnailUrl: nil,
+                                width: nil,
+                                height: nil,
+                                fileSize: nil
+                            )
+                        },
+                        videos: nil
                     )
                     
                     _ = try await APIClient.shared.createListing(request)

@@ -88,7 +88,7 @@ struct NativeSettingsView: View {
                             Text(user.email)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            if user.verified {
+                            if user.verified ?? false {
                                 Label("Verified", systemImage: "checkmark.seal.fill")
                                     .font(.caption2)
                                     .foregroundColor(Theme.Colors.primary)

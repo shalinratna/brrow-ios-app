@@ -279,7 +279,7 @@ struct SimpleListingCard: View {
     
     var body: some View {
         SimpleImageCard(
-            imageUrl: listing.images.first ?? "",
+            imageUrl: listing.imageUrls.first ?? "",
             title: listing.title,
             subtitle: listing.location.city,
             price: listing.price > 0 ? "$\(String(format: "%.0f", listing.price))/day" : "Free",
@@ -375,7 +375,7 @@ class SimpleMarketplaceViewModel: ObservableObject {
     
     func filterByCategory(_ category: String?) {
         if let category = category {
-            listings = allListings.filter { $0.category == category }
+            listings = allListings.filter { $0.category?.name == category }
         } else {
             listings = allListings
         }

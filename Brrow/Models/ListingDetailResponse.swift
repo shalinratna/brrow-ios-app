@@ -76,43 +76,65 @@ struct ListingDetailResponse: Codable {
             longitude: location.longitude
         )
         
-        let priceTypeEnum = PriceType(rawValue: price_type ?? "fixed") ?? .fixed
+        // Convert images array to ListingImage objects
+        let listingImages = images.map { imageUrl in
+            ListingImage(
+                id: UUID().uuidString,
+                url: imageUrl,
+                imageUrl: imageUrl,
+                thumbnailUrl: nil,
+                isPrimary: images.first == imageUrl,
+                displayOrder: images.firstIndex(of: imageUrl) ?? 0,
+                thumbnail_url: nil,
+                is_primary: images.first == imageUrl
+            )
+        }
         
-        var listing = Listing(
-            id: id,
-            listingId: listing_id,
-            ownerId: owner_id,
-            title: title,
-            description: description,
-            price: price,
-            priceType: priceTypeEnum,
-            buyoutValue: buyout_value,
-            createdAt: createdDate,
-            updatedAt: updatedDate,
-            status: status,
-            category: category,
-            type: type,
-            location: locationModel,
-            views: views,
-            timesBorrowed: times_borrowed,
-            inventoryAmt: inventory_amt,
-            isActive: is_active,
-            isArchived: is_archived,
-            images: images,
-            rating: rating
+        // Create CategoryModel from category string
+        let categoryModel = CategoryModel(
+            id: "cat_\(category.lowercased())",
+            name: category,
+            description: nil,
+            iconUrl: nil,
+            parentId: nil,
+            isActive: true,
+            sortOrder: 0,
+            createdAt: Date(),
+            updatedAt: Date()
         )
         
-        // Add owner details
-        listing.ownerApiId = owner_api_id ?? (owner?.id != nil ? "usr_\(owner!.id)" : nil)
-        listing.ownerUsername = owner?.username ?? owner?.display_name
-        listing.ownerProfilePicture = owner?.profile_picture
-        listing.ownerRating = owner?.rating
-        listing.reviewCount = owner?.review_count
-        listing.ownerVerified = owner?.verified ?? false
-        listing.ownerBio = owner?.bio
-        listing.ownerLocation = owner?.location
-        listing.ownerMemberSince = owner?.member_since
-        listing.ownerTotalListings = owner?.total_listings
+        var listing = Listing(
+            id: "\(id)",
+            title: title,
+            description: description,
+            categoryId: "cat_general",
+            condition: "GOOD",
+            price: price,
+            isNegotiable: true,
+            availabilityStatus: is_active ? .available : .deleted,
+            location: locationModel,
+            userId: "\(owner_id)",
+            viewCount: views,
+            favoriteCount: 0,
+            isActive: is_active,
+            isPremium: false,
+            premiumExpiresAt: nil,
+            deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+            tags: [],
+            metadata: [:],
+            createdAt: createdDate,
+            updatedAt: updatedDate ?? createdDate,
+            user: nil,
+            category: categoryModel,
+            images: listingImages,
+            videos: [],
+            isOwner: false,
+            isFavorite: false
+        )
+        
+        // Owner details are already handled via the user property
+        // The computed properties ownerUsername, ownerProfilePicture, etc. 
+        // will automatically derive their values from the user object
         
         return listing
     }

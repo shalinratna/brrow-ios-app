@@ -32,11 +32,11 @@ class ListingDetailViewModel: ObservableObject {
             print("  Initial Image \(index): \(url)")
         }
         self.listing = listing
-        self.averageRating = listing.rating ?? 0.0
+        self.averageRating = listing.ownerRating ?? 0.0
         self.similarItems = []
         
         // Only fetch details if we don't have complete data or if listing is not owned by current user
-        let isOwnListing = authManager.currentUser?.apiId == listing.ownerApiId
+        let isOwnListing = authManager.currentUser?.apiId == listing.user?.apiId
         let hasCompleteData = !listing.images.isEmpty && listing.ownerUsername != nil
         
         if !isOwnListing || !hasCompleteData {
@@ -58,9 +58,9 @@ class ListingDetailViewModel: ObservableObject {
                 
                 // Only fetch rating if owner ID is valid
                 var ownerRatingValue = 0.0
-                if listing.ownerId > 0 {
+                if Int(listing.userId) ?? 0 > 0 {
                     do {
-                        let rating = try await apiClient.fetchUserRating(userId: listing.ownerId)
+                        let rating = try await apiClient.fetchUserRating(userId: Int(listing.userId) ?? 0)
                         ownerRatingValue = rating.rating
                     } catch {
                         print("Failed to fetch owner rating: \(error)")
@@ -97,9 +97,9 @@ class ListingDetailViewModel: ObservableObject {
                 
                 // Only fetch rating if owner ID is valid
                 var ownerRatingValue = 0.0
-                if listing.ownerId > 0 {
+                if Int(listing.userId) ?? 0 > 0 {
                     do {
-                        let rating = try await apiClient.fetchUserRating(userId: listing.ownerId)
+                        let rating = try await apiClient.fetchUserRating(userId: Int(listing.userId) ?? 0)
                         ownerRatingValue = rating.rating
                     } catch {
                         print("Failed to fetch owner rating: \(error)")
@@ -139,7 +139,8 @@ class ListingDetailViewModel: ObservableObject {
         
         Task {
             do {
-                let favorited = try await apiClient.checkFavoriteStatus(listingId: listing.id, userId: userId)
+                guard let userIdInt = Int(userId) else { return }
+                let favorited = try await apiClient.checkFavoriteStatus(listingId: Int(listing.id) ?? 0, userId: userIdInt)
                 await MainActor.run {
                     self.isFavorited = favorited
                 }
@@ -155,8 +156,8 @@ class ListingDetailViewModel: ObservableObject {
         Task {
             do {
                 let similar = try await apiClient.fetchSimilarListings(
-                    listingId: listing.id,
-                    category: listing.category,
+                    listingId: Int(listing.id) ?? 0,
+                    category: listing.category?.name ?? "Unknown",
                     limit: 5
                 )
                 await MainActor.run {
@@ -174,10 +175,10 @@ class ListingDetailViewModel: ObservableObject {
         Task {
             // Use listing's owner info to create seller profile with all available data
             let seller = User(
-                id: listing.ownerId,
+                id: listing.userId,
                 username: listing.ownerUsername ?? "Seller",
                 email: "",
-                apiId: listing.ownerApiId ?? String(listing.ownerId),
+                apiId: listing.user?.apiId ?? String(Int(listing.userId) ?? 0),
                 profilePicture: listing.ownerProfilePicture
             )
             
@@ -186,7 +187,7 @@ class ListingDetailViewModel: ObservableObject {
             await MainActor.run {
                 self.seller = seller
                 self.distanceFromUser = listing.distanceText
-                self.reviewCount = listing.reviewCount ?? 0
+                self.reviewCount = 0 // reviewCount not available in new model
             }
         }
     }
@@ -202,7 +203,8 @@ class ListingDetailViewModel: ObservableObject {
         
         Task {
             do {
-                let newStatus = try await apiClient.toggleFavoriteByListingId(listing.listingId, userId: userId)
+                guard let userIdInt = Int(userId) else { return }
+                let newStatus = try await apiClient.toggleFavoriteByListingId(listing.listingId, userId: userIdInt)
                 await MainActor.run {
                     self.isFavorited = newStatus
                 }
@@ -313,7 +315,7 @@ class ListingDetailViewModel: ObservableObject {
         Task {
             do {
                 try await apiClient.reportListing(
-                    listingId: listing.id,
+                    listingId: Int(listing.id) ?? 0,
                     reason: reason,
                     details: details
                 )
@@ -345,14 +347,14 @@ class ListingDetailViewModel: ObservableObject {
     
     var canMakeOffer: Bool {
         guard let currentUser = authManager.currentUser else { return false }
-        return currentUser.id != listing.ownerId && listing.isAvailable
+        return currentUser.id != listing.userId && listing.isAvailable
     }
     
     var formattedPrice: String {
-        if listing.priceType == .free {
+        if listing.price == 0 {
             return "Free"
         } else {
-            return "$\(String(format: "%.2f", listing.price))/\(listing.priceType.rawValue)"
+            return "$\(String(format: "%.2f", listing.price))/day"
         }
     }
     
@@ -369,7 +371,7 @@ class ListingDetailViewModel: ObservableObject {
             name: .navigateToChat,
             object: nil,
             userInfo: [
-                "userId": listing.ownerId,
+                "userId": Int(listing.userId) ?? 0,
                 "listingId": listing.id,
                 "listingTitle": listing.title
             ]

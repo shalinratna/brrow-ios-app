@@ -149,21 +149,15 @@ struct ModernHomeView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
-            .background(
-                NavigationLink(destination: ModernCreateListingView(), isActive: $navigateToCreateListing) {
-                    EmptyView()
-                }
-            )
-            .background(
-                NavigationLink(destination: ModernCreateSeekView(), isActive: $navigateToCreateSeek) {
-                    EmptyView()
-                }
-            )
-            .background(
-                NavigationLink(destination: ModernCreateGarageSaleView(), isActive: $navigateToCreateGarageSale) {
-                    EmptyView()
-                }
-            )
+            .navigationDestination(isPresented: $navigateToCreateListing) {
+                ModernCreateListingView()
+            }
+            .navigationDestination(isPresented: $navigateToCreateSeek) {
+                ModernCreateSeekView()
+            }
+            .navigationDestination(isPresented: $navigateToCreateGarageSale) {
+                ModernCreateGarageSaleView()
+            }
     }
     
     // MARK: - Header Section
@@ -898,7 +892,7 @@ class ModernHomeViewModel: ObservableObject {
                         id: "\(listing.id)",
                         title: listing.title,
                         price: listing.isFree ? "Free" : "$\(listing.price)/day",
-                        distance: "\(listing.distance ?? 0) mi",
+                        distance: "\(0.0) mi",
                         imageName: nil
                     )
                 }
@@ -930,7 +924,8 @@ class ModernHomeViewModel: ObservableObject {
     
     func fetchRecentActivity() async {
         do {
-            let activities = try await APIClient.shared.fetchUserActivities(userId: AuthManager.shared.currentUser?.id ?? 0)
+            guard let userId = AuthManager.shared.currentUser?.id, let userIdInt = Int(userId) else { return }
+            let activities = try await APIClient.shared.fetchUserActivities(userId: userIdInt)
             await MainActor.run {
                 recentActivities = activities.map { activity in
                     HomeRecentActivity(

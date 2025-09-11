@@ -44,7 +44,10 @@ struct SocialProfileView: View {
             }
         }
         .onAppear {
-            viewModel.loadUserProfile(userId: user.id)
+            // Convert String id to Int for the API call
+            if let userId = Int(user.id) {
+                viewModel.loadUserProfile(userId: userId)
+            }
         }
         .sheet(isPresented: $showingEditProfile) {
             EditProfileView(user: user)

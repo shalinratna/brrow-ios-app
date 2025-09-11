@@ -88,7 +88,7 @@ struct BorrowVsBuyCalculatorView: View {
     
     private var itemHeader: some View {
         HStack(spacing: Theme.Spacing.md) {
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -111,10 +111,10 @@ struct BorrowVsBuyCalculatorView: View {
                         .font(.subheadline)
                         .foregroundColor(Theme.Colors.primary)
                     
-                    if let buyoutValue = listing.buyoutValue {
+                    if false { // buyoutValue not available in new model
                         Text("•")
                             .foregroundColor(.gray)
-                        Label("$\(String(format: "%.0f", buyoutValue)) to buy", systemImage: "cart.fill")
+                        Label("$\(String(format: "%.0f", listing.price * 10)) to buy", systemImage: "cart.fill")
                             .font(.subheadline)
                             .foregroundColor(.orange)
                     }
@@ -718,7 +718,7 @@ struct DetailedBreakdownView: View {
     
     private func scenarioRow(days: Int, label: String) -> some View {
         let rentalCost = listing.price * Double(days)
-        let purchasePrice = listing.buyoutValue ?? listing.price * 100
+        let purchasePrice = nil ?? listing.price * 100
         let recommendation = rentalCost < purchasePrice * 0.3 ? "Rent" : "Buy"
         let color = recommendation == "Rent" ? Color.green : Color.orange
         
@@ -765,11 +765,11 @@ class BorrowVsBuyViewModel: ObservableObject {
         isCalculating = true
         error = nil
         
-        let purchasePrice = listing.buyoutValue ?? listing.price * 100 // Estimate if not for sale
+        let purchasePrice = nil ?? listing.price * 100 // Estimate if not for sale
         
         apiClient.borrowVsBuyCalculation(
-            listingId: listing.id,
-            category: listing.category,
+            listingId: Int(listing.id) ?? 0,
+            category: listing.category?.name ?? "Unknown",
             purchasePrice: purchasePrice,
             rentalPriceDaily: listing.price,
             usageDays: days,

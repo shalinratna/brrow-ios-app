@@ -120,7 +120,7 @@ struct BorrowFlowView: View {
             VStack(alignment: .leading, spacing: 24) {
                 // Item info
                 HStack(spacing: 12) {
-                    CachedAsyncImage(url: listing.images.first)
+                    CachedAsyncImage(url: listing.imageUrls.first)
                         .frame(width: 60, height: 60)
                         .cornerRadius(8)
                     
@@ -129,7 +129,7 @@ struct BorrowFlowView: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(Theme.Colors.text)
                         
-                        Text("$\(String(format: "%.2f", listing.price))/\(listing.rentalPeriod ?? "day")")
+                        Text("$\(String(format: "%.2f", listing.price))/day")
                             .font(.system(size: 14))
                             .foregroundColor(Theme.Colors.primary)
                     }
@@ -221,7 +221,7 @@ struct BorrowFlowView: View {
                 }
                 
                 // Make an offer (optional)
-                if listing.type == "rent" {
+                if "listing" == "rent" {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Make an offer (optional)")
                             .font(.system(size: 18, weight: .semibold))

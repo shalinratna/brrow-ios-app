@@ -575,7 +575,7 @@ struct FeaturedCard: View {
                         
                         Spacer()
                         
-                        if listing.isUrgent {
+                        if listing.isPremium {
                             Label("Urgent", systemImage: "bolt.fill")
                                 .font(.caption.bold())
                                 .foregroundColor(.white)
@@ -595,7 +595,7 @@ struct FeaturedCard: View {
                     HStack {
                         Image(systemName: "location")
                             .font(.caption)
-                        Text("\(listing.distance ?? 0, specifier: "%.1f") mi away")
+                        Text("\(0.0 ?? 0, specifier: "%.1f") mi away")
                             .font(.caption)
                         
                         Spacer()
@@ -677,136 +677,191 @@ struct FeedCard: View {
     @State private var isLiked = false
     @State private var showHeartAnimation = false
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                AsyncImage(url: URL(string: listing.ownerProfilePicture ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Color(.systemGray5))
-                }
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(listing.ownerUsername ?? "User")
-                        .font(.subheadline.weight(.semibold))
-                    
-                    Text(formatTime(listing.createdAt))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                Button(action: {}) {
-                    Image(systemName: "ellipsis")
-                        .foregroundColor(.secondary)
-                }
+    private var header: some View {
+        HStack {
+            AsyncImage(url: URL(string: listing.ownerProfilePicture ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Circle()
+                    .fill(Color(.systemGray5))
             }
-            .padding()
+            .frame(width: 40, height: 40)
+            .clipShape(Circle())
             
-            // Images with swipe
-            TabView(selection: $currentImageIndex) {
-                ForEach(0..<max(1, listing.imageUrls?.count ?? 1), id: \.self) { index in
-                    AsyncImage(url: URL(string: listing.imageUrls?[safe: index] ?? listing.firstImageUrl ?? "")) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, maxHeight: 400)
-                            .clipped()
-                    } placeholder: {
-                        Rectangle()
-                            .fill(Color(.systemGray6))
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.secondary)
-                            )
-                            .frame(height: 400)
-                    }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(listing.ownerUsername ?? "User")
+                    .font(.subheadline.weight(.semibold))
+                
+                Text(formatTime(listing.createdAt))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Button(action: {}) {
+                Image(systemName: "ellipsis")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+    }
+    
+    // Header component
+    private var headerView: some View {
+        HStack {
+            AsyncImage(url: URL(string: listing.ownerProfilePicture ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Circle()
+                    .fill(Color(.systemGray5))
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(Circle())
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(listing.ownerUsername ?? "User")
+                    .font(.subheadline.weight(.semibold))
+                
+                Text(formatTime(listing.createdAt))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Button(action: {}) {
+                Image(systemName: "ellipsis")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+    }
+    
+    // Image carousel component
+    private var imageCarousel: some View {
+        TabView(selection: $currentImageIndex) {
+            ForEach(0..<imageCount, id: \.self) { index in
+                imageView(at: index)
                     .tag(index)
                     .onTapGesture(count: 2) {
-                        withAnimation(.spring()) {
-                            isLiked.toggle()
-                            showHeartAnimation = true
-                        }
-                        onLike()
-                        HapticManager.impact(style: .light)
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                            showHeartAnimation = false
-                        }
+                        handleDoubleTap()
                     }
                     .onTapGesture {
                         onTap()
                     }
-                }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 400)
-            .overlay(
-                // Image indicators
-                HStack(spacing: 4) {
-                    ForEach(0..<max(1, listing.imageUrls?.count ?? 1), id: \.self) { index in
-                        Circle()
-                            .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.5))
-                            .frame(width: 6, height: 6)
-                    }
-                }
-                .padding(8)
-                .background(Capsule().fill(Color.black.opacity(0.3)))
-                .padding(.bottom, 16),
-                alignment: .bottom
-            )
-            .overlay(
-                // Heart animation
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.3), radius: 10)
-                    .scaleEffect(showHeartAnimation ? 1 : 0)
-                    .opacity(showHeartAnimation ? 1 : 0)
-                    .animation(.spring(), value: showHeartAnimation)
-            )
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 400)
+        .overlay(imageIndicators, alignment: .bottom)
+        .overlay(heartAnimation)
+    }
+    
+    private var imageCount: Int {
+        max(1, listing.imageUrls.count)
+    }
+    
+    private func imageView(at index: Int) -> some View {
+        AsyncImage(url: URL(string: listing.imageUrls[safe: index] ?? listing.firstImageUrl ?? "")) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: .infinity, maxHeight: 400)
+                .clipped()
+        } placeholder: {
+            Rectangle()
+                .fill(Color(.systemGray6))
+                .overlay(
+                    Image(systemName: "photo")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                )
+                .frame(height: 400)
+        }
+    }
+    
+    private var imageIndicators: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<imageCount, id: \.self) { index in
+                Circle()
+                    .fill(currentImageIndex == index ? Color.white : Color.white.opacity(0.5))
+                    .frame(width: 6, height: 6)
+            }
+        }
+        .padding(8)
+        .background(Capsule().fill(Color.black.opacity(0.3)))
+        .padding(.bottom, 16)
+    }
+    
+    private var heartAnimation: some View {
+        Image(systemName: "heart.fill")
+            .font(.system(size: 80))
+            .foregroundColor(.white)
+            .shadow(color: .black.opacity(0.3), radius: 10)
+            .scaleEffect(showHeartAnimation ? 1 : 0)
+            .opacity(showHeartAnimation ? 1 : 0)
+            .animation(.spring(), value: showHeartAnimation)
+    }
+    
+    private func handleDoubleTap() {
+        withAnimation(.spring()) {
+            isLiked.toggle()
+            showHeartAnimation = true
+        }
+        onLike()
+        HapticManager.impact(style: .light)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            showHeartAnimation = false
+        }
+    }
+    
+    // Actions bar component
+    private var actionsBar: some View {
+        HStack(spacing: 20) {
+            Button(action: {
+                isLiked.toggle()
+                onLike()
+                HapticManager.impact(style: .light)
+            }) {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .font(.title2)
+                    .foregroundColor(isLiked ? .red : .primary)
+                    .scaleEffect(isLiked ? 1.2 : 1.0)
+                    .animation(.spring(), value: isLiked)
+            }
             
-            // Actions
-            HStack(spacing: 20) {
-                Button(action: {
-                    isLiked.toggle()
-                    onLike()
-                    HapticManager.impact(style: .light)
-                }) {
-                    Image(systemName: isLiked ? "heart.fill" : "heart")
-                        .font(.title2)
-                        .foregroundColor(isLiked ? .red : .primary)
-                        .scaleEffect(isLiked ? 1.2 : 1.0)
-                        .animation(.spring(), value: isLiked)
-                }
-                
-                Button(action: {}) {
-                    Image(systemName: "message")
-                        .font(.title2)
-                        .foregroundColor(.primary)
-                }
-                
-                Button(action: onShare) {
-                    Image(systemName: "paperplane")
-                        .font(.title2)
-                        .foregroundColor(.primary)
-                }
-                
-                Spacer()
-                
-                Text(listing.isFree ? "FREE" : "$\(Int(listing.price))/day")
-                    .font(.headline)
-                    .foregroundColor(listing.isFree ? .green : Theme.Colors.primary)
+            Button(action: {}) {
+                Image(systemName: "message")
+                    .font(.title2)
+                    .foregroundColor(.primary)
             }
-            .padding()
+            
+            Button(action: onShare) {
+                Image(systemName: "paperplane")
+                    .font(.title2)
+                    .foregroundColor(.primary)
+            }
+            
+            Spacer()
+            
+            Text(listing.isFree ? "FREE" : "$\(Int(listing.price))/day")
+                .font(.headline)
+                .foregroundColor(listing.isFree ? .green : Theme.Colors.primary)
+        }
+        .padding()
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            headerView
+            imageCarousel
+            actionsBar
             
             // Details
             VStack(alignment: .leading, spacing: 8) {
@@ -823,7 +878,7 @@ struct FeedCard: View {
                     
                     Spacer()
                     
-                    Label("\(listing.distance ?? 0, specifier: "%.1f") mi", systemImage: "location")
+                    Label("\(0.0 ?? 0, specifier: "%.1f") mi", systemImage: "location")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -946,7 +1001,7 @@ struct ListingDetailSheet: View {
                             Label("Location", systemImage: "location.fill")
                                 .font(.headline)
                             
-                            Text("\(listing.distance ?? 0, specifier: "%.1f") miles away")
+                            Text("\(0.0, specifier: "%.1f") miles away")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -1242,7 +1297,7 @@ class ModernMarketplaceViewModel: ObservableObject {
         case .priceHighest:
             feedListings.sort { $0.price > $1.price }
         case .distance:
-            feedListings.sort { ($0.distance ?? 999) < ($1.distance ?? 999) }
+            feedListings.sort { _, _ in true }
         }
     }
     
@@ -1250,7 +1305,7 @@ class ModernMarketplaceViewModel: ObservableObject {
         // Toggle like status
         Task {
             do {
-                try await APIClient.shared.toggleSavedListing(listingId: listing.id)
+                try await APIClient.shared.toggleSavedListing(listingId: Int(listing.id) ?? 0)
             } catch {
                 print("Error toggling like: \(error)")
             }

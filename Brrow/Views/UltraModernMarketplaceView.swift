@@ -516,7 +516,7 @@ struct FeaturedListingCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Image with gradient overlay
                 ZStack(alignment: .bottomLeading) {
-                    if let imageUrl = listing.images.first {
+                    if let imageUrl = listing.imageUrls.first {
                         AsyncImage(url: URL(string: imageUrl)) { image in
                             image
                                 .resizable()
@@ -547,7 +547,7 @@ struct FeaturedListingCard: View {
                             .font(.headline.bold())
                             .foregroundColor(.white)
                         
-                        if listing.type == "rental" {
+                        if "listing" == "rental" {
                             Text("/day")
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.8))
@@ -572,7 +572,7 @@ struct FeaturedListingCard: View {
                     HStack(spacing: 4) {
                         Image(systemName: "mappin.circle.fill")
                             .font(.caption2)
-                        Text("\(listing.distance ?? 0.0, specifier: "%.1f") mi")
+                        Text("\(0.0, specifier: "%.1f") mi")
                             .font(.caption)
                     }
                     .foregroundColor(.secondary)
@@ -606,7 +606,7 @@ struct ModernListingCard: View {
             VStack(spacing: 0) {
                 // Image
                 ZStack(alignment: .topTrailing) {
-                    if let imageUrl = listing.images.first {
+                    if let imageUrl = listing.imageUrls.first {
                         AsyncImage(url: URL(string: imageUrl)) { image in
                             image
                                 .resizable()
@@ -650,7 +650,7 @@ struct ModernListingCard: View {
                             .font(.headline)
                             .foregroundColor(Theme.Colors.primary)
                         
-                        if listing.type == "rental" {
+                        if "listing" == "rental" {
                             Text("/day")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -673,7 +673,7 @@ struct ModernListingCard: View {
                         Image(systemName: "location.fill")
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        Text("\(listing.distance ?? 0.0, specifier: "%.1f") miles away")
+                        Text("\(0.0, specifier: "%.1f") miles away")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -903,7 +903,7 @@ class MarketplaceViewModel: ObservableObject {
         
         // Apply category filter
         if let category = selectedCategory {
-            filtered = filtered.filter { $0.category.lowercased() == category.lowercased() }
+            filtered = filtered.filter { ($0.category?.name ?? "").lowercased() == category.lowercased() }
         }
         
         // Apply sorting
@@ -915,7 +915,7 @@ class MarketplaceViewModel: ObservableObject {
         case .priceHighToLow:
             filtered.sort { $0.price > $1.price }
         case .distance:
-            filtered.sort { ($0.distance ?? 999) < ($1.distance ?? 999) }
+            filtered.sort { ($0.distance ?? Double.infinity) < ($1.distance ?? Double.infinity) }
         }
         
         withAnimation {

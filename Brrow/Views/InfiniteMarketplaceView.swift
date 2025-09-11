@@ -359,7 +359,7 @@ struct InfiniteListingCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Image with badges
             ZStack(alignment: .topLeading) {
-                if let imageUrl = listing.images.first {
+                if let imageUrl = listing.imageUrls.first {
                     AsyncImage(url: URL(string: imageUrl)) { image in
                         image
                             .resizable()
@@ -390,7 +390,7 @@ struct InfiniteListingCard: View {
                             )
                     }
                     
-                    if listing.type == "rental" {
+                    if "listing" == "rental" {
                         Label("Rental", systemImage: "arrow.triangle.2.circlepath")
                             .font(.caption2.bold())
                             .foregroundColor(.white)
@@ -416,7 +416,7 @@ struct InfiniteListingCard: View {
                         .font(.headline)
                         .foregroundColor(Theme.Colors.primary)
                     
-                    if listing.type == "rental" {
+                    if "listing" == "rental" {
                         Text("/day")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -546,7 +546,7 @@ struct InfiniteFeaturedCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Image
-            if let imageUrl = listing.images.first {
+            if let imageUrl = listing.imageUrls.first {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
