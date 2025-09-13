@@ -450,10 +450,9 @@ class MyPostsViewModel: ObservableObject {
                 if listingsResponse.success, let listings = listingsResponse.data?.listings {
                     // Convert listings to UserPost format
                     let listingPosts = listings.map { listing -> UserPost in
-                        // Format dates from listing
-                        let formatter = ISO8601DateFormatter()
-                        let createdAtString = formatter.string(from: listing.createdAt)
-                        let updatedAtString = formatter.string(from: listing.updatedAt ?? listing.createdAt)
+                        // Dates are already strings in the listing model
+                        let createdAtString = listing.createdAt
+                        let updatedAtString = listing.updatedAt
                         
                         return UserPost(
                             id: Int(listing.id) ?? 0,  // Convert String ID to Int

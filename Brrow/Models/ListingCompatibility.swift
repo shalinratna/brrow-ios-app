@@ -66,7 +66,9 @@ extension Listing {
     
     // Updated at compatibility (make it non-optional)
     var updatedAtDate: Date {
-        return updatedAt
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: updatedAt) ?? Date()
     }
     
     // Category string compatibility
@@ -102,7 +104,7 @@ extension Listing {
             id: id ?? "lst_\(UUID().uuidString.prefix(8))",
             title: title,
             description: description,
-            categoryId: "cat_general",
+            categoryId: "default-category",
             condition: "GOOD",
             price: price,
             isNegotiable: true,
@@ -125,19 +127,19 @@ extension Listing {
             deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
             tags: [],
             metadata: nil,
-            createdAt: Date(),
-            updatedAt: Date(),
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
             user: nil,
             category: CategoryModel(
-                id: "cat_general",
+                id: "default-category",
                 name: category,
                 description: nil,
                 iconUrl: nil,
                 parentId: nil,
                 isActive: true,
                 sortOrder: 0,
-                createdAt: Date(),
-                updatedAt: Date()
+                createdAt: ISO8601DateFormatter().string(from: Date()),
+                updatedAt: ISO8601DateFormatter().string(from: Date())
             ),
             images: images.map { url in
                 ListingImage(
@@ -152,6 +154,7 @@ extension Listing {
                 )
             },
             videos: nil,
+            _count: Listing.ListingCount(favorites: 0),
             isOwner: false,
             isFavorite: false
         )

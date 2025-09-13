@@ -62,12 +62,12 @@ struct Listing: Codable, Identifiable, Equatable {
     let favoriteCount: Int
     let isActive: Bool
     let isPremium: Bool
-    let premiumExpiresAt: Date?
+    let premiumExpiresAt: String?  // Changed to String to avoid date decoding issues
     let deliveryOptions: DeliveryOptions?
     let tags: [String]
     let metadata: [String: String]?  // Changed from Any to String for Codable
-    let createdAt: Date
-    let updatedAt: Date
+    let createdAt: String  // Changed to String to avoid date decoding issues
+    let updatedAt: String  // Changed to String to avoid date decoding issues
     
     // Relationships
     let user: UserInfo?
@@ -75,9 +75,16 @@ struct Listing: Codable, Identifiable, Equatable {
     let images: [ListingImage]
     let videos: [ListingVideo]?
     
+    // Backend-provided count data
+    let _count: ListingCount?
+    
     // Client-side properties
     var isOwner: Bool?
     var isFavorite: Bool = false
+    
+    struct ListingCount: Codable {
+        let favorites: Int
+    }
     
     // Legacy support (computed properties for backward compatibility)
     var listingId: String { id }
@@ -121,7 +128,8 @@ struct Listing: Codable, Identifiable, Equatable {
         case viewCount, favoriteCount, isActive, isPremium
         case premiumExpiresAt, deliveryOptions, tags, metadata
         case createdAt, updatedAt, user, category, images, videos
-        case isOwner, isFavorite
+        case _count
+        // NOTE: isOwner and isFavorite are client-side only, not from API
     }
     
     // Helper methods
@@ -182,16 +190,17 @@ struct Listing: Codable, Identifiable, Equatable {
         favoriteCount: 12,
         isActive: true,
         isPremium: false,
-        premiumExpiresAt: nil as Date?,
+        premiumExpiresAt: nil as String?,
         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
         tags: ["tools", "construction", "dewalt"],
         metadata: nil as [String: String]?,
-        createdAt: Date(),
-        updatedAt: Date(),
+        createdAt: ISO8601DateFormatter().string(from: Date()),
+        updatedAt: ISO8601DateFormatter().string(from: Date()),
         user: nil as UserInfo?,
         category: nil as CategoryModel?,
         images: [],
         videos: nil as [ListingVideo]?,
+        _count: ListingCount(favorites: 0),
         isOwner: false,
         isFavorite: false
     )

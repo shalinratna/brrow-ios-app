@@ -127,7 +127,7 @@ class PostCreationViewModel: ObservableObject {
             title: title,
             description: description,
             price: isFree ? 0.0 : Double(price) ?? 0.0,
-            categoryId: "cat_general",
+            categoryId: "default-category",
             condition: "GOOD",
             location: Location(
                 address: location,

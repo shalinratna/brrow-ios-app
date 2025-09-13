@@ -312,8 +312,12 @@ class TrendingItemsViewModel: ObservableObject {
         let calendar = Calendar.current
         
         return listings.filter { listing in
-            // Since createdAt is already a Date type in the Listing model
-            let createdDate = listing.createdAt
+            // Convert createdAt string to Date for calendar comparisons
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            guard let createdDate = formatter.date(from: listing.createdAt) else {
+                return false
+            }
             
             switch selectedTimeFilter {
             case .today:

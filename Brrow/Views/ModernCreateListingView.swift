@@ -684,7 +684,7 @@ struct ModernCreateListingView: View {
                         title: title,
                         description: description,
                         price: Double(price) ?? 0,
-                        categoryId: "cat_general",
+                        categoryId: "default-category",
                         condition: "GOOD",
                         location: Location(
                             address: "User Location",
@@ -727,7 +727,7 @@ struct ModernCreateListingView: View {
                         title: title,
                         description: description,
                         price: Double(price) ?? 0,
-                        categoryId: "cat_general",
+                        categoryId: "default-category",
                         condition: "GOOD",
                         location: Location(
                             address: "User Location",

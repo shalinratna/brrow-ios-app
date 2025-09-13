@@ -615,7 +615,10 @@ class OptimizedMarketplaceViewModel: ObservableObject {
         totalItems = allListings.count
         availableItems = listings.count
         newItemsToday = allListings.filter { listing in
-            Calendar.current.isDateInToday(listing.createdAt)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            guard let date = formatter.date(from: listing.createdAt) else { return false }
+            return Calendar.current.isDateInToday(date)
         }.count
     }
 }

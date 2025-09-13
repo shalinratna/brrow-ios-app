@@ -188,7 +188,51 @@ class NetworkManager {
                             return emptyResponse as! T
                         }
                         
-                        let decoded = try JSONDecoder().decode(responseType, from: data)
+                        // Configure JSONDecoder with proper date strategy
+                        let decoder = JSONDecoder()
+                        // Use ISO8601 formatter that handles dates with or without fractional seconds
+                        let formatter = ISO8601DateFormatter()
+                        formatter.formatOptions = [.withInternetDateTime]
+                        decoder.dateDecodingStrategy = .custom { decoder in
+                            let container = try decoder.singleValueContainer()
+                            let dateString = try container.decode(String.self)
+                            
+                            // First try without fractional seconds
+                            formatter.formatOptions = [.withInternetDateTime]
+                            if let date = formatter.date(from: dateString) {
+                                return date
+                            }
+                            
+                            // Then try with fractional seconds
+                            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                            if let date = formatter.date(from: dateString) {
+                                return date
+                            }
+                            
+                            // Fallback to date formatter for other formats
+                            let dateFormatter = DateFormatter()
+                            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+                            dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+                            
+                            // Try different date formats
+                            let formats = [
+                                "yyyy-MM-dd'T'HH:mm:ssZ",
+                                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                                "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+                            ]
+                            
+                            for format in formats {
+                                dateFormatter.dateFormat = format
+                                if let date = dateFormatter.date(from: dateString) {
+                                    return date
+                                }
+                            }
+                            
+                            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string: \(dateString)")
+                        }
+                        
+                        let decoded = try decoder.decode(responseType, from: data)
                         return decoded
                     } catch {
                         // Log the raw response for debugging

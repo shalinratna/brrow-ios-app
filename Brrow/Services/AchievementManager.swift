@@ -137,14 +137,24 @@ struct AchievementsResponse: Codable {
 struct AchievementUnlockResult: Codable {
     let action: String
     let value: Int
-    let unlockedAchievements: [UnlockedAchievement]
-    let unlockedCount: Int
+    let timestamp: String?
+    let achievementsUnlocked: [UnlockedAchievement]?
+    let progressUpdated: Bool?
     let level: UserLevel?
     
     enum CodingKeys: String, CodingKey {
-        case action, value, level
-        case unlockedAchievements = "unlocked_achievements"
-        case unlockedCount = "unlocked_count"
+        case action, value, level, timestamp
+        case achievementsUnlocked = "achievements_unlocked"
+        case progressUpdated = "progress_updated"
+    }
+    
+    // Computed properties for backward compatibility
+    var unlockedAchievements: [UnlockedAchievement] {
+        return achievementsUnlocked ?? []
+    }
+    
+    var unlockedCount: Int {
+        return unlockedAchievements.count
     }
     
     struct UnlockedAchievement: Codable {

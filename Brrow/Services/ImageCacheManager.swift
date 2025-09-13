@@ -98,8 +98,17 @@ class ImageCacheManager: ObservableObject {
     
     // Async download method
     private func downloadImageAsync(from urlString: String) async throws -> UIImage {
-        guard let url = URL(string: urlString) else {
-            throw NSError(domain: "ImageCache", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        // Add base URL if the path is relative
+        let fullUrlString: String
+        if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
+            // This is a relative path from our backend
+            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
+        } else {
+            fullUrlString = urlString
+        }
+        
+        guard let url = URL(string: fullUrlString) else {
+            throw NSError(domain: "ImageCache", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(urlString)"])
         }
         
         let cacheKey = getCacheKey(for: urlString)
@@ -177,9 +186,18 @@ class ImageCacheManager: ObservableObject {
     // MARK: - Private Methods
     
     private func downloadImage(from urlString: String, cacheKey: String) {
-        print("🌐 Downloading image from: \(urlString)")
-        guard let url = URL(string: urlString) else {
-            print("❌ Invalid URL: \(urlString)")
+        // Add base URL if the path is relative
+        let fullUrlString: String
+        if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
+            // This is a relative path from our backend
+            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
+        } else {
+            fullUrlString = urlString
+        }
+        
+        print("🌐 Downloading image from: \(fullUrlString)")
+        guard let url = URL(string: fullUrlString) else {
+            print("❌ Invalid URL: \(urlString) -> \(fullUrlString)")
             completeDownload(for: cacheKey, with: nil)
             return
         }

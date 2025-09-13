@@ -286,13 +286,20 @@ struct PaginationInfo: Codable {
     let page: Int
     let limit: Int
     let total: Int
-    let hasMore: Bool
+    let hasMore: Bool?
+    let pages: Int?
     
     enum CodingKeys: String, CodingKey {
         case page
         case limit
         case total
         case hasMore = "has_more"
+        case pages
+    }
+    
+    // Computed property for backward compatibility
+    var hasMorePages: Bool {
+        return hasMore ?? false
     }
 }
 
@@ -765,6 +772,52 @@ enum TransactionStatus: String, Codable {
     case completed = "completed"
     case cancelled = "cancelled"
     case disputed = "disputed"
+}
+
+// MARK: - Earnings Response Types
+struct FixedEarningsOverviewResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: EarningsOverviewData
+    let timestamp: String?
+    
+    struct EarningsOverviewData: Codable {
+        let overview: EarningsOverviewInfo
+        let monthlyEarnings: [MonthlyEarning]?
+        let topListings: [TopListing]?
+        let payoutInfo: PayoutInfo
+    }
+    
+    struct EarningsOverviewInfo: Codable {
+        let lifetimeEarnings: Double?
+        let lifetimeSpent: Double?
+        let netEarnings: Double?
+        let platformFees: Double?
+        let pendingEarnings: Double?
+        let activeEarnings: Double?
+        let totalRentals: Int?
+        let totalBorrowings: Int?
+        let averageRentalValue: Double?
+    }
+    
+    struct MonthlyEarning: Codable {
+        let month: String
+        let earnings: Double
+    }
+    
+    struct TopListing: Codable {
+        let id: String
+        let title: String
+        let earnings: Double
+    }
+    
+    struct PayoutInfo: Codable {
+        let nextPayoutDate: String?
+        let minimumPayout: Double?
+        let payoutMethod: String?
+        let isPayoutEnabled: Bool?
+        let availableBalance: Double?
+    }
 }
 
 // MARK: - Email Verification Types

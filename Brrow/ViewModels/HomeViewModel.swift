@@ -202,7 +202,7 @@ class HomeViewModel: ObservableObject {
                 id: entity.listingId,
                 title: entity.title,
                 description: entity.listingDescription,
-                categoryId: "cat_general",
+                categoryId: "default-category",
                 condition: "GOOD",
                 price: priceValue,
                 isNegotiable: true,
@@ -217,19 +217,19 @@ class HomeViewModel: ObservableObject {
                 deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                 tags: [],
                 metadata: nil,
-                createdAt: entity.createdAt,
-                updatedAt: Date(),
+                createdAt: ISO8601DateFormatter().string(from: entity.createdAt),
+                updatedAt: ISO8601DateFormatter().string(from: Date()),
                 user: nil,
                 category: CategoryModel(
-                    id: "cat_general",
+                    id: "default-category",
                     name: entity.category,
                     description: nil,
                     iconUrl: nil,
                     parentId: nil,
                     isActive: true,
                     sortOrder: 0,
-                    createdAt: Date(),
-                    updatedAt: Date()
+                    createdAt: ISO8601DateFormatter().string(from: Date()),
+                    updatedAt: ISO8601DateFormatter().string(from: Date())
                 ),
                 images: images.map { url in
                     ListingImage(
@@ -244,6 +244,7 @@ class HomeViewModel: ObservableObject {
                     )
                 },
                 videos: nil,
+                _count: Listing.ListingCount(favorites: 0),
                 isOwner: false,
                 isFavorite: entity.isFavorite
             )

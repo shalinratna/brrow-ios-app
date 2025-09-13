@@ -694,7 +694,7 @@ struct FeedCard: View {
                 Text(listing.ownerUsername ?? "User")
                     .font(.subheadline.weight(.semibold))
                 
-                Text(formatTime(listing.createdAt))
+                Text(formatTime(ISO8601DateFormatter().date(from: listing.createdAt) ?? Date()))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -727,7 +727,7 @@ struct FeedCard: View {
                 Text(listing.ownerUsername ?? "User")
                     .font(.subheadline.weight(.semibold))
                 
-                Text(formatTime(listing.createdAt))
+                Text(formatTime(ISO8601DateFormatter().date(from: listing.createdAt) ?? Date()))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

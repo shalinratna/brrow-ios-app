@@ -63,8 +63,9 @@ struct ListingDetailResponse: Codable {
     // Convert to Listing model
     func toListing() -> Listing {
         let dateFormatter = ISO8601DateFormatter()
-        let createdDate = created_at.flatMap { dateFormatter.date(from: $0) } ?? Date()
-        let updatedDate = updated_at.flatMap { dateFormatter.date(from: $0) }
+        dateFormatter.formatOptions = [.withInternetDateTime]
+        let createdDateString = created_at ?? dateFormatter.string(from: Date())
+        let updatedDateString = updated_at ?? createdDateString
         
         let locationModel = Location(
             address: location.address,
@@ -99,15 +100,15 @@ struct ListingDetailResponse: Codable {
             parentId: nil,
             isActive: true,
             sortOrder: 0,
-            createdAt: Date(),
-            updatedAt: Date()
+            createdAt: dateFormatter.string(from: Date()),
+            updatedAt: dateFormatter.string(from: Date())
         )
         
         var listing = Listing(
             id: "\(id)",
             title: title,
             description: description,
-            categoryId: "cat_general",
+            categoryId: "default-category",
             condition: "GOOD",
             price: price,
             isNegotiable: true,
@@ -122,12 +123,13 @@ struct ListingDetailResponse: Codable {
             deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
             tags: [],
             metadata: [:],
-            createdAt: createdDate,
-            updatedAt: updatedDate ?? createdDate,
+            createdAt: createdDateString,
+            updatedAt: updatedDateString,
             user: nil,
             category: categoryModel,
             images: listingImages,
             videos: [],
+            _count: Listing.ListingCount(favorites: 0),
             isOwner: false,
             isFavorite: false
         )

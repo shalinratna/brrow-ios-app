@@ -629,7 +629,7 @@ class APIClient: ObservableObject {
             "hasToken": response.authToken != nil,
             "token": response.authToken ?? "nil",
             "tokenLength": response.authToken?.count ?? 0,
-            "userApiId": response.user.apiId,
+            "userApiId": response.user.apiId ?? "nil",
             "userName": response.user.username ?? "nil"
         ])
         
@@ -913,7 +913,7 @@ class APIClient: ObservableObject {
         let uploadRequest = [
             "image": base64String,  // Send raw base64, not data URL
             "entity_type": entityType,  // Entity type (listings, users, seeks, etc.)
-            "entity_id": entityId,      // Entity ID if available
+            "entity_id": entityId ?? "",      // Entity ID if available
             "type": entityType.trimmingCharacters(in: .init(charactersIn: "s")), // Legacy compatibility
             "fileName": fileName,
             "fileType": fileType,
@@ -925,14 +925,18 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: uploadRequest)
         
         struct UploadData: Codable {
-            let imageUrl: String
+            let url: String?  // Backend returns 'url'
+            let imageUrl: String?  // For backward compatibility
+            let publicId: String?  // Backend returns 'public_id'
             let thumbnailUrl: String?
             let width: Int?
             let height: Int?
             let size: Int?
             
             enum CodingKeys: String, CodingKey {
+                case url
                 case imageUrl = "image_url"
+                case publicId = "public_id"
                 case thumbnailUrl = "thumbnail_url"
                 case width, height, size
             }
@@ -956,8 +960,10 @@ class APIClient: ObservableObject {
             throw BrrowAPIError.serverError(response.message)
         }
         
-        // Return the image URL from the response
-        if let imageUrl = response.data?.imageUrl {
+        // Return the image URL from the response (check both url and imageUrl fields)
+        if let url = response.data?.url {
+            return url
+        } else if let imageUrl = response.data?.imageUrl {
             return imageUrl
         } else {
             throw BrrowAPIError.serverError("No image URL in upload response")
@@ -1173,8 +1179,11 @@ class APIClient: ObservableObject {
         let bodyData = try JSONEncoder().encode(listing)
         
         struct CreateListingAPIResponse: Codable {
-            let success: Bool
-            let listing: Listing?
+            let success: Bool?
+            let status: String?
+            let message: String?
+            let data: Listing?  // Backend returns data field
+            let listing: Listing?  // Sometimes also includes listing field
             let error: String?
         }
         
@@ -1185,8 +1194,10 @@ class APIClient: ObservableObject {
             responseType: CreateListingAPIResponse.self
         )
         
-        guard response.success, let createdListing = response.listing else {
-            throw BrrowAPIError.serverError(response.error ?? "Failed to create listing")
+        // Check for success and get listing from either data or listing field
+        let isSuccess = response.success == true || response.status == "success"
+        guard isSuccess, let createdListing = response.data ?? response.listing else {
+            throw BrrowAPIError.serverError(response.error ?? response.message ?? "Failed to create listing")
         }
         
         return createdListing
@@ -2614,17 +2625,20 @@ class APIClient: ObservableObject {
                 responseType: FetchConversationsResponse.self
             )
             return response.data.conversations
-        } catch {
+        } catch let decodingError {
+            // Log the actual error for debugging
+            print("❌ Conversations decoding error: \(decodingError)")
+            
             // If that fails, try the alternative format with count instead of pagination
             struct AlternativeConversationsResponse: Codable {
                 let success: Bool
                 let data: AlternativeConversationsData
-                let message: String
+                let message: String?  // Make message optional
             }
             
             struct AlternativeConversationsData: Codable {
                 let conversations: [Conversation]
-                let count: Int
+                let count: Int?  // Make count optional
             }
             
             do {
@@ -2794,7 +2808,7 @@ class APIClient: ObservableObject {
             }
         }
         
-        let bodyData = try JSONEncoder().encode(event)
+        _ = try JSONEncoder().encode(event)
         
         // Analytics endpoint not yet implemented in Node.js backend
         // Silently skip for now to avoid errors
@@ -3277,7 +3291,7 @@ class APIClient: ObservableObject {
     
     // MARK: - Earnings
     func fetchEarningsOverview() async throws -> EarningsOverview {
-        let response = try await performRequest(
+        let response: FixedEarningsOverviewResponse = try await performRequest(
             endpoint: "api/earnings/overview",
             method: .GET,
             responseType: FixedEarningsOverviewResponse.self
@@ -3286,7 +3300,7 @@ class APIClient: ObservableObject {
         // Convert to EarningsOverview format expected by the app
         return EarningsOverview(
             totalEarnings: response.data.overview.lifetimeEarnings ?? 0,
-            availableBalance: response.data.payoutInfo.availableBalance,
+            availableBalance: response.data.payoutInfo.availableBalance ?? 0,
             monthlyEarnings: 0, // Not provided in API response
             earningsChange: 0, // Not provided in API response
             itemsRented: response.data.overview.totalRentals ?? 0,
@@ -3296,43 +3310,113 @@ class APIClient: ObservableObject {
     }
     
     func fetchRecentEarningsTransactions() async throws -> [EarningsTransaction] {
-        return try await performRequest(
+        struct TransactionsResponse: Codable {
+            let success: Bool
+            let data: TransactionsData
+        }
+        
+        struct TransactionsData: Codable {
+            let transactions: [EarningsTransaction]
+            let pagination: PaginationInfo?
+        }
+        
+        let response = try await performRequest(
             endpoint: "api/earnings/transactions",
             method: .GET,
-            responseType: [EarningsTransaction].self
+            responseType: TransactionsResponse.self
         )
+        
+        return response.data.transactions
     }
     
     func fetchRecentPayouts() async throws -> [EarningsPayout] {
-        return try await performRequest(
+        struct PayoutsResponse: Codable {
+            let success: Bool
+            let data: PayoutsData
+        }
+        
+        struct PayoutsData: Codable {
+            let payouts: [EarningsPayout]
+            let pagination: PaginationInfo?
+        }
+        
+        let response = try await performRequest(
             endpoint: "api/earnings/payouts",
             method: .GET,
-            responseType: [EarningsPayout].self
+            responseType: PayoutsResponse.self
         )
+        
+        return response.data.payouts
     }
     
     func fetchEarningsChartData() async throws -> [EarningsDataPoint] {
-        // The API returns an array directly with date strings
-        struct ChartDataPoint: Codable {
-            let date: String
-            let amount: Double
+        struct ChartResponse: Codable {
+            let success: Bool
+            let message: String?
+            let data: ChartData
+            let timestamp: String?
+        }
+        
+        struct ChartData: Codable {
+            let chart: Chart
+            let summary: ChartSummary?
+            let period_info: PeriodInfo?
+        }
+        
+        struct Chart: Codable {
+            let labels: [String]
+            let datasets: [Dataset]
+        }
+        
+        struct Dataset: Codable {
+            let label: String
+            let data: [Double]
+            let color: String?
+        }
+        
+        struct ChartSummary: Codable {
+            let total_earnings: Double?
+            let total_spending: Double?
+            let net_earnings: Double?
+            let platform_fees: Double?
+            let total_rentals: Int?
+            let average_per_rental: Double?
+        }
+        
+        struct PeriodInfo: Codable {
+            let start_date: String?
+            let end_date: String?
+            let days: Int?
         }
         
         do {
-            let chartData = try await performRequest(
+            let response = try await performRequest(
                 endpoint: "api/earnings/chart",
                 method: .GET,
-                responseType: [ChartDataPoint].self
+                responseType: ChartResponse.self
             )
             
-            // Convert string dates to Date objects
+            // Extract labels and data from the first dataset
+            guard let firstDataset = response.data.chart.datasets.first else {
+                return []
+            }
+            
+            let labels = response.data.chart.labels
+            let amounts = firstDataset.data
+            
+            // Convert to EarningsDataPoint array
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             
-            return chartData.compactMap { point in
-                guard let date = dateFormatter.date(from: point.date) else { return nil }
-                return EarningsDataPoint(date: date, amount: point.amount)
+            var dataPoints: [EarningsDataPoint] = []
+            for (index, label) in labels.enumerated() {
+                if index < amounts.count,
+                   let date = dateFormatter.date(from: label) {
+                    dataPoints.append(EarningsDataPoint(date: date, amount: amounts[index]))
+                }
             }
+            
+            return dataPoints
         } catch {
             // Return empty array if fetch fails
             return []

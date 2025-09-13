@@ -542,12 +542,12 @@ struct EditListingView_Previews: PreviewProvider {
             favoriteCount: 0,
             isActive: true,
             isPremium: false,
-            premiumExpiresAt: nil as Date?,
+            premiumExpiresAt: nil as String?,
             deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
             tags: [],
             metadata: nil as [String: String]?,
-            createdAt: Date(),
-            updatedAt: Date(),
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
             user: nil as UserInfo?,
             category: CategoryModel(
                 id: "cat_electronics",
@@ -557,11 +557,12 @@ struct EditListingView_Previews: PreviewProvider {
                 parentId: nil,
                 isActive: true,
                 sortOrder: 1,
-                createdAt: Date(),
-                updatedAt: Date()
+                createdAt: ISO8601DateFormatter().string(from: Date()),
+                updatedAt: ISO8601DateFormatter().string(from: Date())
             ),
             images: [],
             videos: nil as [ListingVideo]?,
+            _count: Listing.ListingCount(favorites: 0),
             isOwner: true,
             isFavorite: false
         )

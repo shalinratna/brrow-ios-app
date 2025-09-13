@@ -10,17 +10,26 @@ import Foundation
 // MARK: - User Info (for listing owner)
 struct UserInfo: Codable {
     let id: String
-    let apiId: String
-    let firstName: String?
-    let lastName: String?
     let username: String?
     let profilePictureUrl: String?
-    let bio: String?
     let averageRating: Double?
+    
+    // Additional fields only for detailed views
+    let bio: String?
     let totalRatings: Int?
-    let emailVerifiedAt: Date?
-    let idmeVerified: Bool?
-    let createdAt: Date?
+    let isVerified: Bool?
+    let createdAt: String? // Store as String to avoid date decoding issues
+    
+    // Computed properties for compatibility
+    var apiId: String { id }
+    var firstName: String? { nil }
+    var lastName: String? { nil }
+    var emailVerifiedAt: Date? { nil }
+    var idmeVerified: Bool? { isVerified }
+    
+    var displayName: String {
+        return username ?? "User"
+    }
 }
 
 // MARK: - Category
@@ -32,8 +41,8 @@ struct CategoryModel: Codable {
     let parentId: String?
     let isActive: Bool?
     let sortOrder: Int?
-    let createdAt: Date?
-    let updatedAt: Date?
+    let createdAt: String? // Changed to String to avoid date decoding issues
+    let updatedAt: String? // Changed to String to avoid date decoding issues
 }
 
 // ListingImage is defined in CreateListingResponse.swift - removed duplicate
@@ -48,7 +57,7 @@ struct ListingVideo: Codable {
     let width: Int?
     let height: Int?
     let fileSize: Int?
-    let uploadedAt: Date?
+    let uploadedAt: String? // Changed to String to avoid date decoding issues
 }
 
 // MARK: - Delivery Options

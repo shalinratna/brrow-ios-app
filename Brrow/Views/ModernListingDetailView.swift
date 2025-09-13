@@ -419,7 +419,7 @@ struct ModernListingDetailView: View {
             DetailCard(
                 icon: "calendar",
                 title: "Posted",
-                value: formatDate(listing.createdAt),
+                value: formatDate(ISO8601DateFormatter().date(from: listing.createdAt) ?? Date()),
                 color: Theme.Colors.secondary
             )
         }

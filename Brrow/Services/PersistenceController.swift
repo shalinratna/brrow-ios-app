@@ -106,7 +106,10 @@ class PersistenceController: ObservableObject {
             listingEntity.price = String(listing.price)
             listingEntity.pricePerDay = nil // Will be calculated from price and priceType
             listingEntity.buyoutValue = nil // buyoutValue not available in new model
-            listingEntity.createdAt = listing.createdAt
+            // Convert ISO8601 string to Date for Core Data
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withInternetDateTime]
+            listingEntity.createdAt = dateFormatter.date(from: listing.createdAt) ?? Date()
             listingEntity.status = listing.status
             listingEntity.category = listing.category?.name ?? "General"
             listingEntity.location = listing.location.formattedAddress

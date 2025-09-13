@@ -181,6 +181,7 @@ class ImageUploadManager {
             
             struct UploadData: Codable {
                 let url: String
+                let public_id: String?
                 let thumbnail_url: String?
             }
         }

@@ -20,32 +20,39 @@ struct ListingImage: Codable {
     }
 }
 
-// Response model for create_listing.php that handles string price values
+// Response model for create listing endpoint
 struct CreateListingResponse: Codable {
     let status: String?  // API returns "success" as string
     let success: Bool?   // Some endpoints return boolean
-    let message: String
-    let data: CreatedListing?
+    let message: String?  // Made optional for flexibility
+    let data: Listing?  // Backend returns full Listing object
+    let listing: Listing?  // Backend now returns listing directly here
     let timestamp: String?
     
     // Computed property to check if successful
     var isSuccessful: Bool {
         return status == "success" || success == true
     }
+    
+    // Get the listing from either field
+    var actualListing: Listing? {
+        return listing ?? data
+    }
 }
 
+// Legacy structure for backward compatibility
 struct CreatedListing: Codable {
     // Minimal fields that API actually returns
     let listing_id: String?  // API returns as string (e.g., "lst_68aa3dd54a17f8.99928588")
     let numeric_id: Int?     // Numeric ID from API
-    let id: Int?             // Sometimes returned as id
+    let id: String?          // Now returns string ID
     let title: String?
     let message: String?     // Success message from API
     let images: [ListingImage]?  // API returns structured image data
     
     // Legacy fields for backward compatibility
     let listingId: String?
-    let userId: Int?
+    let userId: String?      // Changed to String to match new API
     let userApiId: String?
     let description: String?
     let price: String?
@@ -72,17 +79,14 @@ struct CreatedListing: Codable {
     
     // Convert to standard Listing model
     func toListing() -> Listing {
-        // Get the actual numeric ID (from numeric_id or id field)
-        let actualId = numeric_id ?? id ?? 0
-        
-        // Get listingId string (use listing_id string or listingId)
-        let actualListingId = listing_id ?? listingId ?? "lst_\(actualId)"
+        // Get the actual ID as string
+        let actualId = id ?? listing_id ?? listingId ?? "lst_unknown"
         
         // Extract image URLs from structured image data
         let imageUrls = images?.map { $0.url } ?? []
         
         let listing = Listing(
-            id: actualListingId,
+            id: actualId,
             title: title ?? "Untitled",
             description: description ?? "",
             categoryId: category ?? "general",
@@ -99,7 +103,7 @@ struct CreatedListing: Codable {
                 latitude: 0,
                 longitude: 0
             ),
-            userId: String(userId ?? 0),
+            userId: userId ?? "0",
             viewCount: views ?? 0,
             favoriteCount: 0,
             isActive: isActive ?? true,
@@ -108,12 +112,13 @@ struct CreatedListing: Codable {
             deliveryOptions: nil,
             tags: [],
             metadata: nil,
-            createdAt: ISO8601DateFormatter().date(from: createdAt ?? "") ?? Date(),
-            updatedAt: Date(),
+            createdAt: createdAt ?? ISO8601DateFormatter().string(from: Date()),
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
             user: nil,
             category: nil,
             images: images ?? [],
             videos: nil,
+            _count: Listing.ListingCount(favorites: 0),
             isOwner: true,
             isFavorite: false
         )
