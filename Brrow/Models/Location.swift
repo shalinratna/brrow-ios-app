@@ -34,13 +34,25 @@ struct Location: Codable {
         self.longitude = round(longitude * 1000000) / 1000000
     }
     
-    // Custom decoder to handle coordinate precision issues
+    // Custom decoder to handle coordinate precision issues and field name variations
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         address = try container.decodeIfPresent(String.self, forKey: .address) ?? ""
         city = try container.decodeIfPresent(String.self, forKey: .city) ?? ""
         state = try container.decodeIfPresent(String.self, forKey: .state) ?? ""
-        zipCode = try container.decodeIfPresent(String.self, forKey: .zipCode) ?? ""
+        
+        // Try snake_case first (zip_code), then try camelCase (zipCode) as fallback
+        if let zip = try? container.decodeIfPresent(String.self, forKey: .zipCode) {
+            zipCode = zip ?? ""
+        } else {
+            // Try with a manual container for camelCase
+            enum AlternateCodingKeys: String, CodingKey {
+                case zipCode
+            }
+            let altContainer = try decoder.container(keyedBy: AlternateCodingKeys.self)
+            zipCode = (try? altContainer.decodeIfPresent(String.self, forKey: .zipCode)) ?? ""
+        }
+        
         country = try container.decodeIfPresent(String.self, forKey: .country) ?? "US"
         
         // Handle latitude with precision rounding

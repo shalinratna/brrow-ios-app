@@ -247,10 +247,23 @@ class APIClient: ObservableObject {
         
         // Add user_api_id header if available
         if let user = AuthManager.shared.currentUser {
-            request.setValue(user.apiId, forHTTPHeaderField: "X-User-API-ID")
-            debugLog("Added user API ID", data: ["user_api_id": user.apiId])
+            if let apiId = user.apiId, !apiId.isEmpty {
+                request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
+                debugLog("✅ Added user API ID", data: ["user_api_id": apiId, "username": user.username])
+            } else {
+                debugLog("❌ User exists but apiId is nil or empty!", data: [
+                    "user_id": user.id,
+                    "username": user.username,
+                    "apiId": user.apiId ?? "nil"
+                ])
+                // Try to use the user's main ID as a fallback
+                if !user.id.isEmpty && user.id != "unknown" {
+                    request.setValue(user.id, forHTTPHeaderField: "X-User-API-ID")
+                    debugLog("⚠️ Using user.id as fallback for X-User-API-ID", data: ["fallback_id": user.id])
+                }
+            }
         } else {
-            debugLog("No current user available for API ID")
+            debugLog("❌ No current user available for API ID")
         }
         
         return request
@@ -1147,15 +1160,15 @@ class APIClient: ObservableObject {
         let response = try await performRequest(
             endpoint: "api/listings/\(listingId)",
             method: .GET,
-            responseType: APIResponse<ListingDetailResponse>.self
+            responseType: APIResponse<Listing>.self
         )
         
-        guard response.success, let detailResponse = response.data else {
+        guard response.success, let listing = response.data else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to fetch listing details")
         }
         
-        // Convert detailed response to Listing object with complete owner info
-        var listing = detailResponse.toListing()
+        // Use the listing directly from the response
+        var mutableListing = listing
         
         // Owner information is now read-only computed properties
         // No need to set them manually as they come from the user field
@@ -1163,16 +1176,16 @@ class APIClient: ObservableObject {
         // Check if current user is the owner
         if let currentUser = AuthManager.shared.currentUser {
             // Compare API IDs if available, otherwise compare numeric IDs
-            if let ownerApiId = listing.user?.apiId, !ownerApiId.isEmpty {
-                listing.isOwner = (currentUser.apiId == ownerApiId)
+            if let ownerApiId = mutableListing.user?.apiId, !ownerApiId.isEmpty {
+                mutableListing.isOwner = (currentUser.apiId == ownerApiId)
             } else {
-                listing.isOwner = (currentUser.id == listing.userId)
+                mutableListing.isOwner = (currentUser.id == mutableListing.userId)
             }
         } else {
-            listing.isOwner = false
+            mutableListing.isOwner = false
         }
         
-        return listing
+        return mutableListing
     }
     
     func createListing(_ listing: CreateListingRequest) async throws -> Listing {
@@ -3245,17 +3258,70 @@ class APIClient: ObservableObject {
     }
     
     // MARK: - Search
-    func searchListings(query: String, category: String) async throws -> [Listing] {
-        var endpoint = "api/search?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        if !category.isEmpty {
-            endpoint += "&category=\(category.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        }
+    
+    // Advanced search with filters, sorting, and location
+    func performAdvancedSearch(parameters: SearchParameters) async throws -> SearchResponse {
+        var components = URLComponents(string: "api/search/listings")!
+        components.queryItems = parameters.queryItems
+        
+        let endpoint = components.url?.relativePath ?? "api/search/listings"
+        let query = components.query ?? ""
+        let fullEndpoint = query.isEmpty ? endpoint : "\(endpoint)?\(query)"
         
         return try await performRequest(
+            endpoint: fullEndpoint,
+            method: .GET,
+            responseType: SearchResponse.self
+        )
+    }
+    
+    // Simple search (backward compatible)
+    func searchListings(query: String, category: String) async throws -> [Listing] {
+        let params = SearchParameters(
+            query: query.isEmpty ? nil : query,
+            category: category == "All" || category.isEmpty ? nil : category
+        )
+        
+        let response = try await performAdvancedSearch(parameters: params)
+        return response.data.listings
+    }
+    
+    // Search with all filters
+    func searchWithFilters(
+        query: String? = nil,
+        category: String? = nil,
+        priceRange: (min: Double, max: Double)? = nil,
+        condition: String? = nil,
+        location: (lat: Double, lng: Double, radius: Double)? = nil,
+        sortBy: SearchSortOption = .relevance,
+        page: Int = 1
+    ) async throws -> SearchResponse {
+        let params = SearchParameters(
+            query: query,
+            category: category,
+            minPrice: priceRange?.min,
+            maxPrice: priceRange?.max,
+            condition: condition,
+            location: location,
+            sortBy: sortBy,
+            page: page
+        )
+        
+        return try await performAdvancedSearch(parameters: params)
+    }
+    
+    // Autocomplete for search
+    func fetchAutocomplete(query: String) async throws -> [String] {
+        guard !query.isEmpty else { return [] }
+        
+        let endpoint = "api/search/autocomplete?q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        
+        let response = try await performRequest(
             endpoint: endpoint,
             method: .GET,
-            responseType: [Listing].self
+            responseType: AutocompleteResponse.self
         )
+        return response.data
     }
     
     func fetchSearchSuggestions() async throws -> [String] {
@@ -3264,7 +3330,7 @@ class APIClient: ObservableObject {
             method: .GET,
             responseType: SuggestionsResponse.self
         )
-        return response.suggestions
+        return response.data
     }
     
     // MARK: - Location Services

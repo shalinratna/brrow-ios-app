@@ -49,9 +49,28 @@ extension Listing {
         return nil // Not supported in new model
     }
     
-    // Rental period compatibility
+    // Listing type (rent or sale)
+    var listingType: String {
+        // Check if this is for sale or rent based on metadata
+        // For now, default to rent since most listings are rentals
+        return "rent"
+    }
+    
+    // Rental period
     var rentalPeriod: String? {
-        return "day"
+        // Default to "day" for rental listings
+        return listingType == "rent" ? "day" : nil
+    }
+    
+    // Check if listing is new
+    var isNew: Bool? {
+        // Check if created within last 7 days
+        let formatter = ISO8601DateFormatter()
+        if let created = formatter.date(from: createdAt) {
+            let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 60 * 60)
+            return created > sevenDaysAgo
+        }
+        return false
     }
     
     // Distance compatibility
@@ -146,11 +165,8 @@ extension Listing {
                     id: UUID().uuidString,
                     url: url,
                     imageUrl: url,
-                    thumbnailUrl: nil,
                     isPrimary: false,
-                    displayOrder: 0,
-                    thumbnail_url: nil,
-                    is_primary: false
+                    displayOrder: 0
                 )
             },
             videos: nil,

@@ -224,50 +224,62 @@ struct ZoomableImageView: View {
     @State private var lastOffset: CGSize = .zero
     
     var body: some View {
-        OptimizedImageView(url: URL(string: imageURL), contentMode: .fit)
-            .scaleEffect(scale)
-            .offset(offset)
-            .gesture(
-                MagnificationGesture()
-                    .onChanged { value in
-                        let delta = value / lastScale
-                        lastScale = value
-                        scale = min(max(scale * delta, 1), 4)
-                    }
-                    .onEnded { _ in
-                        lastScale = 1.0
-                        withAnimation(.spring()) {
-                            if scale < 1 {
-                                scale = 1
-                                offset = .zero
+        CachedAsyncImage(url: imageURL) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            let delta = value / lastScale
+                            lastScale = value
+                            scale = min(max(scale * delta, 1), 4)
+                        }
+                        .onEnded { _ in
+                            lastScale = 1.0
+                            withAnimation(.spring()) {
+                                if scale < 1 {
+                                    scale = 1
+                                    offset = .zero
+                                }
                             }
                         }
-                    }
-            )
-            .simultaneousGesture(
-                DragGesture()
-                    .onChanged { value in
+                )
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            if scale > 1 {
+                                offset = CGSize(
+                                    width: lastOffset.width + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
+                            }
+                        }
+                        .onEnded { _ in
+                            lastOffset = offset
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring()) {
                         if scale > 1 {
-                            offset = CGSize(
-                                width: lastOffset.width + value.translation.width,
-                                height: lastOffset.height + value.translation.height
-                            )
+                            scale = 1
+                            offset = .zero
+                            lastOffset = .zero
+                        } else {
+                            scale = 2
                         }
                     }
-                    .onEnded { _ in
-                        lastOffset = offset
-                    }
-            )
-            .onTapGesture(count: 2) {
-                withAnimation(.spring()) {
-                    if scale > 1 {
-                        scale = 1
-                        offset = .zero
-                        lastOffset = .zero
-                    } else {
-                        scale = 2
-                    }
                 }
-            }
+        } placeholder: {
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .overlay(
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                )
+        }
     }
 }

@@ -223,9 +223,27 @@ struct User: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        // Core Identity
-        self.id = try container.decode(String.self, forKey: .id)
-        self.apiId = try container.decodeIfPresent(String.self, forKey: .apiId)
+        // Core Identity - Try multiple field names for ID
+        if let idString = try? container.decode(String.self, forKey: .id) {
+            self.id = idString
+        } else if let idInt = try? container.decode(Int.self, forKey: .id) {
+            self.id = String(idInt)
+        } else {
+            // Fallback to a default if all else fails
+            self.id = "unknown"
+        }
+        
+        // API ID - Try multiple field names and ensure it's not nil
+        if let apiIdValue = try? container.decodeIfPresent(String.self, forKey: .apiId) {
+            self.apiId = apiIdValue
+        } else if let apiIdInt = try? container.decodeIfPresent(Int.self, forKey: .apiId) {
+            self.apiId = String(apiIdInt)
+        } else {
+            // Fallback: use the main id if apiId is missing
+            print("⚠️ WARNING: apiId not found in response, using id as fallback")
+            self.apiId = self.id
+        }
+        
         self.username = try container.decode(String.self, forKey: .username)
         self.email = try container.decode(String.self, forKey: .email)
         self.appleUserId = try container.decodeIfPresent(String.self, forKey: .appleUserId)
@@ -345,6 +363,27 @@ struct User: Codable, Identifiable {
     var totalListings: Int { return stats?.totalListings ?? 5 }
     var completedRentals: Int { return stats?.itemsBorrowed ?? 12 }
     var responseTime: String { return "2 hours" }
+    
+    // Helper method to get the full profile picture URL
+    var fullProfilePictureURL: String? {
+        guard let profilePictureString = profilePicture else { return nil }
+        
+        // If the URL is already complete (starts with http), return as-is
+        if profilePictureString.hasPrefix("http://") || profilePictureString.hasPrefix("https://") {
+            return profilePictureString
+        }
+        
+        // If it's a relative path starting with /uploads/, prepend base URL
+        if profilePictureString.hasPrefix("/uploads/") || profilePictureString.hasPrefix("uploads/") {
+            let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+            let formattedPath = profilePictureString.hasPrefix("/") ? profilePictureString : "/\(profilePictureString)"
+            return "\(baseURL)\(formattedPath)"
+        }
+        
+        // For other relative paths, assume they need the base URL
+        let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+        return "\(baseURL)/\(profilePictureString)"
+    }
 }
 
 // MARK: - Core Data Entity

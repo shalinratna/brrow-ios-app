@@ -441,6 +441,18 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         self.placeholder = placeholder
     }
     
+    // Static method to preload an image into cache
+    static func preloadImage(url: String?) {
+        guard let url = url else { return }
+        Task {
+            do {
+                _ = try await ImageCacheManager.shared.loadImage(from: url)
+            } catch {
+                print("Failed to preload image: \(error)")
+            }
+        }
+    }
+    
     var body: some View {
         Group {
             if let image = image {

@@ -1,6 +1,14 @@
 import SwiftUI
 import MapKit
 
+// MARK: - Scroll Offset Preference Key
+struct ListingScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct ProfessionalListingDetailView: View {
     let initialListing: Listing
     @StateObject private var viewModel: ListingDetailViewModel
@@ -14,8 +22,20 @@ struct ProfessionalListingDetailView: View {
     @State private var showingInquiry = false
     @State private var showingEditView = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingEditListing = false
+    @State private var showingAnalytics = false
+    @State private var showingMarkAsSold = false
+    @State private var showingBuyNow = false
+    @State private var showingInsuranceInfo = false
     @State private var mapRegion = MKCoordinateRegion()
+    @State private var scrollOffset: CGFloat = 0
+    @State private var imageScale: CGFloat = 1.0
+    @State private var buttonScale: CGFloat = 1.0
+    @State private var favoriteScale: CGFloat = 1.0
     @Environment(\.dismiss) private var dismiss
+    
+    private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+    private let selectionFeedback = UISelectionFeedbackGenerator()
     
     init(listing: Listing) {
         self.initialListing = listing
@@ -24,48 +44,114 @@ struct ProfessionalListingDetailView: View {
     
     var body: some View {
         ZStack {
-            Color.white
+            Color(UIColor.systemBackground)
                 .ignoresSafeArea()
             
             ScrollView {
                 VStack(spacing: 0) {
-                    // Image Gallery
+                    // Large image gallery like Facebook Marketplace
                     imageGallerySection
+                        .frame(height: UIScreen.main.bounds.height * 0.5) // Half screen height
                     
-                    VStack(spacing: 20) {
-                        // Title and Price
-                        titlePriceSection
+                    // Simple full-width content
+                    VStack(spacing: 0) {
+                        // Main info section
+                        VStack(alignment: .leading, spacing: 16) {
+                            titlePriceSection
+                            
+                            // Simple stats row
+                            HStack(spacing: 20) {
+                                Label("\(viewModel.listing.views) views", systemImage: "eye")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                                
+                                if viewModel.reviewCount > 0 {
+                                    Label("\(viewModel.averageRating, specifier: "%.1f")", systemImage: "star.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.orange)
+                                }
+                                
+                                Spacer()
+                                
+                                Text(viewModel.distanceFromUser ?? "")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
+                            
+                            quickActionsSection
+                        }
+                        .padding(20)
+                        .background(Color(UIColor.systemBackground))
                         
-                        // Quick Actions
-                        quickActionsSection
+                        Divider()
                         
-                        // Seller Info
-                        sellerInfoSection
+                        // Content sections
+                        VStack(spacing: 0) {
                         
-                        // Description
-                        descriptionSection
+                            // Seller info - full width
+                            sellerInfoSection
+                                .padding(20)
+                                .background(Color(UIColor.systemBackground))
+                            
+                            Divider()
+                            
+                            // Description - full width
+                            VStack(alignment: .leading, spacing: 16) {
+                                descriptionSection
+                                
+                                if !viewModel.listing.specifications.isEmpty {
+                                    Divider()
+                                    specificationsSection
+                                }
+                            }
+                            .padding(20)
+                            .background(Color(UIColor.systemBackground))
+                            
+                            Divider()
+                            
+                            // Location - full width
+                            locationSection
+                                .padding(20)
+                                .background(Color(UIColor.systemBackground))
+                            
+                            Divider()
+                            
+                            // Availability and Protection
+                            VStack(spacing: 16) {
+                                availabilitySection
+                                brrowProtectionSection
+                            }
+                            .padding(20)
+                            .background(Color(UIColor.systemBackground))
                         
-                        // Specifications
-                        if !viewModel.listing.specifications.isEmpty {
-                            specificationsSection
+                            // Similar Items if available
+                            if !viewModel.similarItems.isEmpty {
+                                Divider()
+                                similarItemsSection
+                                    .padding(20)
+                                    .background(Color(UIColor.systemBackground))
+                            }
                         }
                         
-                        // Location Map
-                        locationSection
-                        
-                        // Availability Calendar
-                        availabilitySection
-                        
-                        // Similar Items
-                        similarItemsSection
-                        
-                        // Safety Notice
-                        safetyNoticeSection
+                        // Bottom padding for floating bar
+                        Color.clear
+                            .frame(height: 160)
                     }
-                    .padding()
                 }
             }
             .ignoresSafeArea(edges: .top)
+            .scrollIndicators(.hidden)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: ListingScrollOffsetPreferenceKey.self,
+                        value: proxy.frame(in: .global).minY
+                    )
+                }
+            )
+            .onPreferenceChange(ListingScrollOffsetPreferenceKey.self) { value in
+                scrollOffset = value
+            }
             
             // Sticky Bottom Bar
             VStack {
@@ -77,9 +163,22 @@ struct ProfessionalListingDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
-                    Button(action: { viewModel.toggleFavorite() }) {
+                    Button(action: { 
+                        impactFeedback.impactOccurred()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            favoriteScale = 1.3
+                        }
+                        viewModel.toggleFavorite()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                favoriteScale = 1.0
+                            }
+                        }
+                    }) {
                         Image(systemName: viewModel.isFavorited ? "heart.fill" : "heart")
                             .foregroundColor(viewModel.isFavorited ? .red : Theme.Colors.text)
+                            .scaleEffect(favoriteScale)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.isFavorited)
                     }
                     
                     Button(action: { showingShareSheet = true }) {
@@ -141,98 +240,126 @@ struct ProfessionalListingDetailView: View {
         .onAppear {
             viewModel.loadListingDetails()
             setupMapRegion()
+            impactFeedback.prepare()
+            selectionFeedback.prepare()
         }
     }
     
-    // MARK: - Image Gallery
+    // MARK: - Image Gallery (Facebook Marketplace Style)
     private var imageGallerySection: some View {
         Group {
             if !viewModel.listing.images.isEmpty {
-                ZStack(alignment: .bottomTrailing) {
-                    TabView(selection: $selectedImageIndex) {
-                        ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
-                            let fullUrl = imageUrl.hasPrefix("http") ? imageUrl : "https://brrowapp.com\(imageUrl)"
-                            
-                            SimpleImageView(url: URL(string: fullUrl), contentMode: .fill)
-                                .frame(height: 400)
+                TabView(selection: $selectedImageIndex) {
+                    ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
+                        CachedAsyncImage(url: imageUrl) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity)
                                 .clipped()
-                                .tag(index)
-                                .onTapGesture {
-                                    showingFullScreenImage = true
-                                }
+                        } placeholder: {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.1))
+                                .overlay(
+                                    ProgressView()
+                                        .scaleEffect(1.2)
+                                )
                         }
-                    }
-                    .frame(height: 400)
-                    .tabViewStyle(PageTabViewStyle())
-                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
-                    
-                    // Image Counter
-                    if viewModel.listing.images.count > 1 {
-                        HStack {
-                            Image(systemName: "photo.fill")
-                            Text("\(selectedImageIndex + 1)/\(viewModel.listing.images.count)")
+                        .tag(index)
+                        .onTapGesture {
+                            showingFullScreenImage = true
                         }
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(20)
-                        .padding()
+                        .onAppear {
+                            preloadAdjacentImages(currentIndex: index)
+                        }
                     }
                 }
+                .tabViewStyle(PageTabViewStyle())
+                .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
             } else {
                 // No images placeholder
                 Rectangle()
                     .fill(Color.gray.opacity(0.1))
-                    .frame(height: 400)
                     .overlay(
                         VStack(spacing: 12) {
                             Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 50))
-                                .foregroundColor(.gray.opacity(0.5))
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray.opacity(0.4))
                             Text("No images available")
-                                .font(.caption)
-                                .foregroundColor(.gray.opacity(0.5))
+                                .font(.body)
+                                .foregroundColor(.gray.opacity(0.6))
                         }
                     )
             }
         }
     }
     
-    // MARK: - Title and Price
+    // MARK: - Title and Price (Simple & Clean)
     private var titlePriceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Pending status badge if applicable
-            if viewModel.listing.isOwner == true {
-                HStack {
-                    Image(systemName: "clock.fill")
-                        .font(.caption)
-                    Text("Pending Review")
-                        .font(.caption)
-                        .fontWeight(.semibold)
+            // Price first (like Facebook Marketplace)
+            HStack(alignment: .bottom, spacing: 4) {
+                Text("$\(Int(viewModel.listing.price))")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(Theme.Colors.text)
+                
+                if viewModel.listing.listingType == "rent" {
+                    Text("/\(viewModel.listing.rentalPeriod ?? "day")")
+                        .font(.system(size: 16))
+                        .foregroundColor(Theme.Colors.secondaryText)
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.orange)
-                .cornerRadius(20)
+                
+                Spacer()
+                
+                // Simple badges
+                HStack(spacing: 8) {
+                    if viewModel.listing.listingType == "sale" {
+                        Text("FOR SALE")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.red)
+                            .cornerRadius(4)
+                    } else {
+                        Text("FOR RENT")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Theme.Colors.primary)
+                            .cornerRadius(4)
+                    }
+                    
+                    if viewModel.listing.isNew ?? false {
+                        Text("NEW")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.green)
+                            .cornerRadius(4)
+                    }
+                }
             }
             
+            // Title
             Text(viewModel.listing.title.isEmpty ? "Unnamed Item" : viewModel.listing.title)
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
+                .lineLimit(2)
             
-            HStack(alignment: .bottom, spacing: 4) {
-                Text("$\(viewModel.listing.price, specifier: "%.2f")")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(Theme.Colors.primary)
-                
-                Text("/ \(viewModel.listing.rentalPeriod)")
-                    .font(.body)
+            // Condition and negotiable
+            HStack(spacing: 12) {
+                Text("Condition: \(viewModel.listing.condition.capitalized)")
+                    .font(.system(size: 14))
                     .foregroundColor(Theme.Colors.secondaryText)
+                
+                if viewModel.listing.isNegotiable {
+                    Text("• Negotiable")
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.green)
+                }
             }
             
             // Rating and Reviews
@@ -248,21 +375,34 @@ struct ProfessionalListingDetailView: View {
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
                 
-                Text("(\(viewModel.reviewCount) reviews)")
+                Text(viewModel.reviewCount == 0 ? "No reviews yet" : "(\(viewModel.reviewCount) reviews)")
                     .font(.caption)
                     .foregroundColor(Theme.Colors.secondaryText)
                 
                 Spacer()
                 
-                // Condition Badge
-                Text(viewModel.listing.condition)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(conditionColor.opacity(0.2))
-                    .foregroundColor(conditionColor)
-                    .cornerRadius(12)
+                // Listing Type Badge
+                HStack(spacing: 4) {
+                    if viewModel.listing.isNew ?? false {
+                        Label("NEW", systemImage: "sparkles")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(Color.green.opacity(0.2))
+                            .foregroundColor(.green)
+                            .cornerRadius(12)
+                    } else {
+                        Text(viewModel.listing.listingType == "sale" ? "SALE" : "RENT")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(viewModel.listing.listingType == "sale" ? Color.red.opacity(0.2) : Color.blue.opacity(0.2))
+                            .foregroundColor(viewModel.listing.listingType == "sale" ? .red : .blue)
+                            .cornerRadius(12)
+                    }
+                }
             }
         }
     }
@@ -270,40 +410,126 @@ struct ProfessionalListingDetailView: View {
     // MARK: - Quick Actions
     private var quickActionsSection: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                Button(action: { showingBorrowOptions = true }) {
-                    Label("Borrow Now", systemImage: "calendar.badge.plus")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Theme.Colors.primary)
-                        .cornerRadius(12)
+            // Check if this is the owner's listing (handle both String and Int IDs)
+            let isOwner = viewModel.listing.userId == AuthManager.shared.currentUser?.id || 
+                         viewModel.listing.userId == AuthManager.shared.currentUser?.apiId
+            
+            if isOwner {
+                // Owner actions - Simple design
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Button(action: { 
+                            showingEditView = true 
+                        }) {
+                            HStack {
+                                Image(systemName: "pencil")
+                                Text("Edit Listing")
+                            }
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Theme.Colors.primary)
+                            .cornerRadius(8)
+                        }
+                        
+                        Button(action: { 
+                            showingAnalytics = true 
+                        }) {
+                            HStack {
+                                Image(systemName: "chart.bar")
+                                Text("Analytics")
+                            }
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(Theme.Colors.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Theme.Colors.primary, lineWidth: 1.5)
+                            )
+                        }
+                    }
+                    
+                    Button(action: { 
+                        showingMarkAsSold = true 
+                    }) {
+                        Text("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color.green)
+                            .cornerRadius(8)
+                    }
                 }
-                
-                Button(action: { showingMakeOffer = true }) {
-                    Label("Make Offer", systemImage: "tag")
-                        .font(.headline)
-                        .foregroundColor(Theme.Colors.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Theme.Colors.primary, lineWidth: 2)
-                        )
+            } else {
+                // Simple action buttons
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Button(action: { 
+                            viewModel.messageOwner() 
+                        }) {
+                            HStack {
+                                Image(systemName: "message.fill")
+                                Text("Message")
+                            }
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(Theme.Colors.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Theme.Colors.primary, lineWidth: 1.5)
+                            )
+                        }
+                        
+                        if viewModel.listing.isNegotiable {
+                            Button(action: { 
+                                showingMakeOffer = true 
+                            }) {
+                                HStack {
+                                    Image(systemName: "tag")
+                                    Text("Make Offer")
+                                }
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Theme.Colors.primary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Theme.Colors.primary, lineWidth: 1.5)
+                                )
+                            }
+                        }
+                    }
+                    
+                    Button(action: { 
+                        if viewModel.listing.listingType == "sale" {
+                            showingBuyNow = true
+                        } else {
+                            showingBorrowOptions = true
+                        }
+                    }) {
+                        Text(viewModel.listing.listingType == "sale" ? "Buy Now" : "Rent Now")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(viewModel.listing.listingType == "sale" ? Color.red : Theme.Colors.primary)
+                            .cornerRadius(8)
+                    }
                 }
             }
-            
         }
     }
     
-    // MARK: - Seller Info
+    // MARK: - Seller Info (Simple)
     private var sellerInfoSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("SELLER INFORMATION")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(Theme.Colors.secondaryText)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Seller")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Theme.Colors.text)
             
             Button(action: { showingSellerProfile = true }) {
                 HStack(spacing: 12) {
@@ -313,46 +539,55 @@ struct ProfessionalListingDetailView: View {
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(width: 50, height: 50)
+                                .frame(width: 44, height: 44)
                                 .clipShape(Circle())
                         } placeholder: {
                             Circle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 50, height: 50)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: 44, height: 44)
                         }
                     } else {
                         Circle()
-                            .fill(Theme.Colors.primary.opacity(0.2))
-                            .frame(width: 50, height: 50)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 44, height: 44)
                             .overlay(
-                                Text(viewModel.seller?.name.prefix(1).uppercased() ?? "?")
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(Theme.Colors.primary)
+                                Text(viewModel.listing.ownerUsername?.prefix(1).uppercased() ?? "S")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(Theme.Colors.text)
                             )
                     }
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.seller?.name ?? viewModel.listing.ownerUsername ?? "Seller")
-                            .font(.headline)
-                            .foregroundColor(Theme.Colors.text)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(viewModel.listing.ownerUsername ?? "Seller")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(Theme.Colors.text)
+                            
+                            if viewModel.listing.ownerVerified {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.blue)
+                            }
+                        }
                         
-                        HStack(spacing: 8) {
-                            // Verified Badge
-                            if viewModel.seller?.isVerified ?? false {
+                        HStack(spacing: 12) {
+                            if viewModel.ownerRating > 0 {
                                 HStack(spacing: 2) {
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                    Text("Verified")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange)
+                                    Text("\(viewModel.ownerRating, specifier: "%.1f")")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(Theme.Colors.secondaryText)
                                 }
                             }
                             
-                            // Response Time
-                            Text("Responds in ~\(viewModel.seller?.responseTime ?? "2 hours")")
-                                .font(.caption)
+                            Text("\(viewModel.sellerActiveListings) listings")
+                                .font(.system(size: 13))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                            
+                            Text("Responds quickly")
+                                .font(.system(size: 13))
                                 .foregroundColor(Theme.Colors.secondaryText)
                         }
                     }
@@ -360,61 +595,12 @@ struct ProfessionalListingDetailView: View {
                     Spacer()
                     
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(.system(size: 14))
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
             }
             .buttonStyle(PlainButtonStyle())
-            
-            // Seller Stats
-            HStack(spacing: 20) {
-                VStack(spacing: 4) {
-                    Text("\(viewModel.seller?.totalListings ?? 0)")
-                        .font(.headline)
-                        .foregroundColor(Theme.Colors.text)
-                    Text("Items")
-                        .font(.caption)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-                
-                Divider()
-                    .frame(height: 30)
-                
-                VStack(spacing: 4) {
-                    Text("\(viewModel.seller?.completedRentals ?? 0)")
-                        .font(.headline)
-                        .foregroundColor(Theme.Colors.text)
-                    Text("Rentals")
-                        .font(.caption)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-                
-                Divider()
-                    .frame(height: 30)
-                
-                VStack(spacing: 4) {
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                        Text("\(viewModel.seller?.rating ?? 0.0, specifier: "%.1f")")
-                            .font(.headline)
-                            .foregroundColor(Theme.Colors.text)
-                    }
-                    Text("Rating")
-                        .font(.caption)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-                
-                Spacer()
-            }
         }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
     }
     
     // MARK: - Description
@@ -424,12 +610,15 @@ struct ProfessionalListingDetailView: View {
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(Theme.Colors.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
             Text(viewModel.listing.description.isEmpty ? "No description available for this item." : viewModel.listing.description)
                 .font(.body)
                 .foregroundColor(viewModel.listing.description.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.text)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - Specifications
@@ -476,12 +665,15 @@ struct ProfessionalListingDetailView: View {
                 .foregroundColor(Theme.Colors.secondaryText)
             
             VStack(alignment: .leading, spacing: 8) {
-                // Map Preview
-                Map(coordinateRegion: $mapRegion, annotationItems: [viewModel.listing]) { item in
-                    MapMarker(coordinate: CLLocationCoordinate2D(
-                        latitude: item.latitude,
-                        longitude: item.longitude
-                    ), tint: Theme.Colors.primary)
+                // Map Preview with circular region for privacy (iOS 17+ compatible)
+                Map(position: .constant(.region(mapRegion))) {
+                    // Add a circle annotation for the approximate location
+                    MapCircle(center: CLLocationCoordinate2D(
+                        latitude: viewModel.listing.latitude,
+                        longitude: viewModel.listing.longitude
+                    ), radius: CLLocationDistance(500))
+                    .foregroundStyle(Theme.Colors.primary.opacity(0.2))
+                    .stroke(Theme.Colors.primary, lineWidth: 2)
                 }
                 .frame(height: 200)
                 .cornerRadius(12)
@@ -524,7 +716,9 @@ struct ProfessionalListingDetailView: View {
                     .fill(viewModel.listing.isAvailable ? Color.green : Color.red)
                     .frame(width: 8, height: 8)
                 
-                Text(viewModel.listing.isAvailable ? "Available for rent" : "Currently rented")
+                Text(viewModel.listing.isAvailable ? 
+                     (viewModel.listing.listingType == "sale" ? "Available for purchase" : "Available for rent") : 
+                     (viewModel.listing.listingType == "sale" ? "Sold" : "Currently rented"))
                     .font(.body)
                     .foregroundColor(Theme.Colors.text)
                 
@@ -573,6 +767,75 @@ struct ProfessionalListingDetailView: View {
         }
     }
     
+    // MARK: - Brrow Protection
+    private var brrowProtectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "shield.fill")
+                    .foregroundColor(.blue)
+                
+                Text("Brrow Protection")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+                
+                Spacer()
+                
+                Button(action: { showingInsuranceInfo = true }) {
+                    Text("Learn More")
+                        .font(.system(size: 14))
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 14))
+                    Text("This listing is eligible for Brrow Protection")
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.text)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Basic Protection Plan available:")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Theme.Colors.text)
+                    
+                    HStack(spacing: 4) {
+                        Text("•")
+                        Text("Covers up to $120 in damages")
+                    }
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    
+                    HStack(spacing: 4) {
+                        Text("•")
+                        Text("Only 10% added to rental cost")
+                    }
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    
+                    HStack(spacing: 4) {
+                        Text("•")
+                        Text("Theft protection included")
+                    }
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .padding(.leading, 4)
+                
+                Text("You can opt-in during checkout")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color.green)
+                    .padding(.top, 4)
+            }
+            .padding(12)
+            .background(Color.blue.opacity(0.05))
+            .cornerRadius(8)
+        }
+    }
+    
     // MARK: - Safety Notice
     private var safetyNoticeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -600,83 +863,83 @@ struct ProfessionalListingDetailView: View {
         .cornerRadius(12)
     }
     
-    // MARK: - Bottom Action Bar
+    // MARK: - Bottom Action Bar (Simple)
     private var bottomActionBar: some View {
-        HStack(spacing: 16) {
-            // Price
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Total")
-                    .font(.caption)
-                    .foregroundColor(Theme.Colors.secondaryText)
-                
-                Text("$\(viewModel.listing.price, specifier: "%.2f")")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(Theme.Colors.text)
-            }
+        VStack(spacing: 0) {
+            Divider()
             
-            Spacer()
-            
-            // Show different buttons based on ownership
-            if viewModel.listing.isOwner == true {
-                // Owner actions: Edit and Delete
-                Button(action: { 
-                    // Navigate to edit view
-                    showingEditView = true 
-                }) {
-                    HStack {
-                        Image(systemName: "pencil")
-                        Text("Edit")
+            HStack(spacing: 16) {
+                // Price
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("$\(Int(viewModel.listing.price))")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(Theme.Colors.text)
+                    if viewModel.listing.listingType == "rent" {
+                        Text("per \(viewModel.listing.rentalPeriod ?? "day")")
+                            .font(.system(size: 12))
+                            .foregroundColor(Theme.Colors.secondaryText)
                     }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .frame(height: 50)
-                    .background(Theme.Colors.primary)
-                    .cornerRadius(25)
                 }
                 
-                Button(action: { 
-                    showingDeleteConfirmation = true 
-                }) {
-                    Image(systemName: "trash")
-                        .font(.title3)
-                        .foregroundColor(.red)
-                        .frame(width: 50, height: 50)
-                        .background(
-                            Circle()
-                                .fill(Color.red.opacity(0.1))
-                        )
-                }
-            } else {
-                // Non-owner actions: Message and Borrow
-                Button(action: { viewModel.messageOwner() }) {
-                    Image(systemName: "message.fill")
-                        .font(.title3)
-                        .foregroundColor(Theme.Colors.primary)
-                        .frame(width: 50, height: 50)
-                        .background(
-                            Circle()
-                                .fill(Theme.Colors.primary.opacity(0.1))
-                        )
-                }
+                Spacer()
                 
-                Button(action: { showingBorrowOptions = true }) {
-                    Text("Borrow Now")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .frame(height: 50)
-                        .background(Theme.Colors.primary)
-                        .cornerRadius(25)
+                // Show different buttons based on ownership
+                let isOwner = viewModel.listing.userId == AuthManager.shared.currentUser?.id || 
+                             viewModel.listing.userId == AuthManager.shared.currentUser?.apiId
+                
+                if isOwner {
+                    // Owner actions
+                    Button(action: { showingEditView = true }) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 20))
+                            .foregroundColor(Theme.Colors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Color.gray.opacity(0.1)))
+                    }
+                    
+                    Button(action: { showingDeleteConfirmation = true }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 20))
+                            .foregroundColor(.red)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Color.gray.opacity(0.1)))
+                    }
+                } else {
+                    // Non-owner actions
+                    Button(action: { viewModel.messageOwner() }) {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Theme.Colors.primary))
+                    }
+                    
+                    Button(action: { 
+                        if viewModel.listing.listingType == "sale" {
+                            showingBuyNow = true
+                        } else {
+                            showingBorrowOptions = true
+                        }
+                    }) {
+                        Text(viewModel.listing.listingType == "sale" ? "Buy Now" : "Rent Now")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 24)
+                            .frame(height: 44)
+                            .background(viewModel.listing.listingType == "sale" ? Color.red : Theme.Colors.primary)
+                            .cornerRadius(22)
+                    }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(Color(UIColor.systemBackground))
         }
-        .padding()
         .background(
-            Color.white
-                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -5)
+            Color(UIColor.systemBackground)
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: -5)
         )
+        .ignoresSafeArea(edges: .bottom)
     }
     
     // MARK: - Helper Methods
@@ -701,6 +964,32 @@ struct ProfessionalListingDetailView: View {
             ),
             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
         )
+    }
+    
+    private func preloadAdjacentImages(currentIndex: Int) {
+        let imageUrls = viewModel.listing.imageUrls
+        
+        // Preload previous image
+        if currentIndex > 0 {
+            Task {
+                do {
+                    _ = try await ImageCacheManager.shared.loadImage(from: imageUrls[currentIndex - 1])
+                } catch {
+                    print("Failed to preload previous image: \(error)")
+                }
+            }
+        }
+        
+        // Preload next image
+        if currentIndex < imageUrls.count - 1 {
+            Task {
+                do {
+                    _ = try await ImageCacheManager.shared.loadImage(from: imageUrls[currentIndex + 1])
+                } catch {
+                    print("Failed to preload next image: \(error)")
+                }
+            }
+        }
     }
     
     private func openInMaps() {

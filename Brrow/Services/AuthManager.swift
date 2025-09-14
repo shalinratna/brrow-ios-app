@@ -396,7 +396,15 @@ class AuthManager: ObservableObject {
     func handleAuthSuccess(_ authResponse: AuthResponse) {
         print("🔐 handleAuthSuccess called")
         print("🔐 Token to save: \(authResponse.authToken ?? "nil")")
-        print("🔐 User to save: \(authResponse.user.username) (API ID: \(authResponse.user.apiId))")
+        print("🔐 User to save: \(authResponse.user.username) (API ID: \(authResponse.user.apiId ?? "NIL!"))")
+        print("🔐 User ID: \(authResponse.user.id)")
+        print("🔐 User email: \(authResponse.user.email)")
+        
+        // Critical check: ensure apiId is not nil
+        if authResponse.user.apiId == nil {
+            print("❌ CRITICAL: User apiId is nil! This will cause API failures.")
+            print("🔍 Full user object: \(authResponse.user)")
+        }
         
         // Store in keychain FIRST before updating published properties
         if let token = authResponse.authToken {

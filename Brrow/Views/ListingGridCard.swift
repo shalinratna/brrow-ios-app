@@ -12,20 +12,24 @@ struct ListingGridCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Image
-            AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle()
-                    .fill(Theme.Colors.surface)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.title2)
-                            .foregroundColor(Theme.Colors.secondaryText)
-                    )
-            }
+            // Image - Using CachedAsyncImage for better performance
+            CachedAsyncImage(
+                url: listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first,
+                content: { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                },
+                placeholder: {
+                    Rectangle()
+                        .fill(Theme.Colors.surface)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        )
+                }
+            )
             .frame(height: 120)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .clipped()
@@ -66,6 +70,31 @@ struct ListingGridCard: View {
         .background(Theme.Colors.surface)
         .cornerRadius(Theme.CornerRadius.card)
         .shadow(color: Theme.Shadows.card, radius: 2, x: 0, y: 1)
+        .onAppear {
+            // Preload all images for this listing when card appears
+            preloadListingImages()
+        }
+    }
+    
+    private func preloadListingImages() {
+        // Get all image URLs for preloading
+        let imageURLs = listing.imageUrls.isEmpty ? 
+            listing.images : 
+            listing.imageUrls
+        
+        // Skip if no additional images
+        guard imageURLs.count > 1 else { return }
+        
+        // Preload remaining images (first is already loading)
+        Task.detached(priority: .low) {
+            for url in imageURLs.dropFirst() {
+                do {
+                    _ = try await ImageCacheManager.shared.loadImage(from: url)
+                } catch {
+                    // Silent fail for preloading
+                }
+            }
+        }
     }
 }
 

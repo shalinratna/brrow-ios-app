@@ -17,6 +17,8 @@ struct ModernListingDetailView: View {
     
     // State variables
     @State private var selectedImageIndex = 0
+    @State private var imageRefreshID = UUID()
+    @State private var currentImageUrls: [String] = []
     @State private var showingEditSheet = false
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
@@ -103,6 +105,19 @@ struct ModernListingDetailView: View {
         .navigationBarHidden(true)
         .onAppear {
             setupInitialValues()
+            currentImageUrls = viewModel.listing.imageUrls
+        }
+        .onReceive(viewModel.$listing) { updatedListing in
+            print("📱 View received listing update with \(updatedListing.imageUrls.count) images")
+            if currentImageUrls != updatedListing.imageUrls {
+                print("🔄 Updating image URLs from \(currentImageUrls.count) to \(updatedListing.imageUrls.count)")
+                currentImageUrls = updatedListing.imageUrls
+                imageRefreshID = UUID()
+                // Reset index if out of bounds
+                if selectedImageIndex >= currentImageUrls.count {
+                    selectedImageIndex = 0
+                }
+            }
         }
         .sheet(isPresented: $showingEditSheet) {
             EditListingView(listing: listing)
@@ -129,10 +144,12 @@ struct ModernListingDetailView: View {
     private var imageSection: some View {
         ZStack(alignment: .bottom) {
             // Debug output
-            let _ = print("🖼️ ModernListingDetailView - Images count: \(viewModel.listing.imageUrls.count) (from viewModel)")
-            let _ = print("🖼️ Initial images count: \(listing.imageUrls.count) (from init)")
+            let _ = print("🖼️ ModernListingDetailView rendering - Images count: \(currentImageUrls.count)")
+            let _ = currentImageUrls.enumerated().forEach { index, url in
+                print("  🖼️ Image \(index): \(url)")
+            }
             
-            if viewModel.listing.imageUrls.isEmpty {
+            if currentImageUrls.isEmpty {
                 // Placeholder when no images
                 Rectangle()
                     .fill(Color.gray.opacity(0.1))
@@ -150,35 +167,30 @@ struct ModernListingDetailView: View {
             } else {
                 // Image carousel
                 TabView(selection: $selectedImageIndex) {
-                    ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
-                        ZStack {
-                            // Background color while loading
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.1))
-                            
-                            if let url = URL(string: imageUrl) {
-                                CachedAsyncImage(url: imageUrl) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Rectangle()
-                                        .fill(Theme.Colors.divider.opacity(0.3))
-                                        .overlay(
-                                            ProgressView()
-                                                .scaleEffect(0.8)
-                                        )
-                                }
+                    ForEach(Array(currentImageUrls.enumerated()), id: \.1) { index, imageUrl in
+                        CachedAsyncImage(url: imageUrl) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
                                 .frame(height: 400)
                                 .clipped()
-                                .onAppear {
-                                    print("📸 Displaying image \(index + 1) of \(viewModel.listing.imageUrls.count): \(imageUrl)")
-                                }
-                            } else {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.gray.opacity(0.3))
-                                    .frame(height: 400)
+                        } placeholder: {
+                            Rectangle()
+                                .fill(Theme.Colors.divider.opacity(0.3))
+                                .frame(height: 400)
+                                .overlay(
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                )
+                        }
+                        .onAppear {
+                            print("📸 TabView item \(index + 1) appeared with URL: \(imageUrl)")
+                            // Pre-load adjacent images for smooth scrolling
+                            if index > 0 {
+                                ImageCacheManager.shared.preloadImages([currentImageUrls[index - 1]])
+                            }
+                            if index < currentImageUrls.count - 1 {
+                                ImageCacheManager.shared.preloadImages([currentImageUrls[index + 1]])
                             }
                         }
                         .tag(index)
@@ -188,13 +200,13 @@ struct ModernListingDetailView: View {
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 .indexViewStyle(.page(backgroundDisplayMode: .never))
                 .onAppear {
-                    print("🎨 TabView appeared with \(viewModel.listing.imageUrls.count) images")
+                    print("🎨 TabView appeared with \(currentImageUrls.count) images")
                 }
-                .id(viewModel.listing.imageUrls.count) // Force refresh when image count changes
+                .id(imageRefreshID) // Force refresh when images change
                 
                 // Custom page indicator
                 HStack(spacing: 8) {
-                    ForEach(0..<viewModel.listing.imageUrls.count, id: \.self) { index in
+                    ForEach(0..<currentImageUrls.count, id: \.self) { index in
                         Circle()
                             .fill(index == selectedImageIndex ? Color.white : Color.white.opacity(0.5))
                             .frame(width: 8, height: 8)

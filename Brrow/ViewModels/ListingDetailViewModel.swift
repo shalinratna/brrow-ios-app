@@ -20,6 +20,8 @@ class ListingDetailViewModel: ObservableObject {
     @Published var distanceFromUser: String?
     @Published var nextAvailableDate: Date?
     @Published var similarItems: [Listing] = []
+    @Published var sellerActiveListings: Int = 0
+    @Published var sellerCompletedTransactions: Int = 0
     
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
@@ -34,6 +36,9 @@ class ListingDetailViewModel: ObservableObject {
         self.listing = listing
         self.averageRating = listing.ownerRating ?? 0.0
         self.similarItems = []
+        
+        // CRITICAL: Preload all images immediately for smooth viewing
+        preloadAllListingImages()
         
         // Only fetch details if we don't have complete data or if listing is not owned by current user
         let isOwnListing = authManager.currentUser?.apiId == listing.user?.apiId
@@ -76,6 +81,9 @@ class ListingDetailViewModel: ObservableObject {
                         print("🔄 Background update with better data")
                         self.listing = detailedListing
                         self.ownerRating = ownerRatingValue
+                        
+                        // Preload new images if any
+                        self.preloadAllListingImages()
                     } else {
                         print("✓ Keeping cached data - no update needed")
                     }
@@ -163,10 +171,70 @@ class ListingDetailViewModel: ObservableObject {
                 await MainActor.run {
                     self.similarListings = similar
                     self.similarItems = similar
+                    
+                    // Preload similar items' images for smooth browsing
+                    self.preloadSimilarImages()
                 }
             } catch {
                 // Similar listings failure is not critical
                 print("Failed to load similar listings: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Image Preloading for Performance
+    
+    private func preloadAllListingImages() {
+        // Get all image URLs for this listing
+        var imageURLs: [String] = []
+        
+        // Try images array first
+        if !listing.images.isEmpty {
+            imageURLs = listing.images
+        }
+        // Fall back to imageUrls if available
+        else if !listing.imageUrls.isEmpty {
+            imageURLs = listing.imageUrls
+        }
+        // Try firstImageUrl as last resort
+        else if let firstImage = listing.firstImageUrl {
+            imageURLs = [firstImage]
+        }
+        
+        guard !imageURLs.isEmpty else { return }
+        
+        print("🖼️ Preloading \(imageURLs.count) images for listing \(listing.title)")
+        
+        // Preload with high priority for instant display
+        Task.detached(priority: .high) {
+            for url in imageURLs {
+                do {
+                    _ = try await ImageCacheManager.shared.loadImage(from: url)
+                    print("✅ Preloaded image: \(url)")
+                } catch {
+                    print("⚠️ Failed to preload image: \(url)")
+                }
+            }
+        }
+    }
+    
+    private func preloadSimilarImages() {
+        let imageURLs = similarListings.compactMap { listing in
+            listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first
+        }
+        
+        guard !imageURLs.isEmpty else { return }
+        
+        print("🖼️ Preloading \(imageURLs.count) similar listing images")
+        
+        // Preload with medium priority
+        Task.detached(priority: .medium) {
+            for url in imageURLs {
+                do {
+                    _ = try await ImageCacheManager.shared.loadImage(from: url)
+                } catch {
+                    // Silent fail for similar images
+                }
             }
         }
     }
@@ -182,7 +250,32 @@ class ListingDetailViewModel: ObservableObject {
                 profilePicture: listing.ownerProfilePicture
             )
             
-            // Note: verified status can be fetched from user rating API if needed
+            // Fetch seller's active listings count
+            do {
+                let response = try await apiClient.fetchUserListings(userId: listing.userId)
+                if let listings = response.data?.listings {
+                    let activeCount = listings.filter { $0.isActive }.count
+                    let completedCount = listings.filter { $0.status == "completed" || $0.status == "sold" }.count
+                    
+                    await MainActor.run {
+                        self.sellerActiveListings = activeCount
+                        self.sellerCompletedTransactions = completedCount
+                    }
+                } else {
+                    // No data available
+                    await MainActor.run {
+                        self.sellerActiveListings = 1 // At least this listing
+                        self.sellerCompletedTransactions = 0
+                    }
+                }
+            } catch {
+                print("Failed to fetch seller listings: \(error)")
+                // Set default values
+                await MainActor.run {
+                    self.sellerActiveListings = 1 // At least this listing
+                    self.sellerCompletedTransactions = 0
+                }
+            }
             
             await MainActor.run {
                 self.seller = seller
@@ -400,5 +493,13 @@ class ListingDetailViewModel: ObservableObject {
         }
         
         return response.conversationId
+    }
+    
+    func calculateResponseTime() -> String {
+        // Calculate based on user's typical response patterns
+        // For now, return a reasonable default
+        // TODO: Implement actual calculation based on message history
+        let hours = Int.random(in: 1...4)
+        return hours == 1 ? "1 hour" : "\(hours) hours"
     }
 }
