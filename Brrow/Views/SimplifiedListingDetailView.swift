@@ -22,6 +22,7 @@ struct SimplifiedListingDetailView: View {
     @State private var showingSellerProfile = false
     @State private var showingEditView = false
     @State private var showingShareSheet = false
+    @State private var showingDeleteAlert = false
     
     init(listing: Listing) {
         _viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
@@ -57,6 +58,14 @@ struct SimplifiedListingDetailView: View {
         .sheet(isPresented: $showingEditView) {
             EditListingView(listing: viewModel.listing)
                 .environmentObject(authManager)
+        }
+        .alert("Delete Listing", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteListing()
+            }
+        } message: {
+            Text("Are you sure you want to delete this listing? This action cannot be undone.")
         }
         .onAppear {
             viewModel.loadListingDetails()
@@ -233,13 +242,31 @@ struct SimplifiedListingDetailView: View {
         HStack(spacing: 12) {
             if isOwner {
                 Button(action: { showingEditView = true }) {
-                    Text("Edit Listing")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Theme.Colors.primary)
-                        .cornerRadius(25)
+                    HStack {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Edit")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Theme.Colors.primary)
+                    .cornerRadius(25)
+                }
+                
+                Button(action: { showingDeleteAlert = true }) {
+                    HStack {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Delete")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.red)
+                    .cornerRadius(25)
                 }
             } else {
                 // Message button
@@ -297,6 +324,16 @@ struct SimplifiedListingDetailView: View {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootViewController = windowScene.windows.first?.rootViewController {
             rootViewController.present(activityController, animated: true)
+        }
+    }
+    
+    private func deleteListing() {
+        Task {
+            await viewModel.deleteListing()
+            // Navigate back after successful deletion
+            DispatchQueue.main.async {
+                dismiss()
+            }
         }
     }
 }

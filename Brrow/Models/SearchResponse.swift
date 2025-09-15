@@ -209,7 +209,4 @@ struct AutocompleteResponse: Codable {
 }
 
 // MARK: - Suggestions Response  
-struct SuggestionsResponse: Codable {
-    let success: Bool
-    let data: [String]
-}
+// SuggestionsResponse is defined in APIResponses.swift

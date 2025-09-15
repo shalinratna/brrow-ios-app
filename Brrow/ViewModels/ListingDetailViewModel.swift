@@ -190,7 +190,7 @@ class ListingDetailViewModel: ObservableObject {
         
         // Try images array first
         if !listing.images.isEmpty {
-            imageURLs = listing.images
+            imageURLs = listing.images.compactMap { $0.url }
         }
         // Fall back to imageUrls if available
         else if !listing.imageUrls.isEmpty {
@@ -220,7 +220,7 @@ class ListingDetailViewModel: ObservableObject {
     
     private func preloadSimilarImages() {
         let imageURLs = similarListings.compactMap { listing in
-            listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first
+            listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first?.url
         }
         
         guard !imageURLs.isEmpty else { return }
@@ -326,42 +326,30 @@ class ListingDetailViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        // Since listing properties are immutable, we'll need to refetch after update
-        // For now, just make the API call
+        try await apiClient.updateListingField(listingId: listing.listingId, field: "price", value: newPrice)
         
-        // TODO: Implement API call
-        // try await apiClient.updateListingField(listing.listingId, field: "price", value: newPrice)
-        // Then reload the listing details
-        // loadListingDetails()
-        
-        // Temporary: just log the change
-        print("Would update price to: \(newPrice)")
+        // Reload listing details to get updated data
+        await loadListingDetails()
     }
     
     func updateListingInventory(_ newInventory: Int) async throws {
         isLoading = true
         defer { isLoading = false }
         
-        // TODO: Implement API call
-        // try await apiClient.updateListingField(listing.listingId, field: "inventory_amt", value: newInventory)
-        // Then reload the listing details
-        // loadListingDetails()
+        try await apiClient.updateListingField(listingId: listing.listingId, field: "inventoryAmount", value: newInventory)
         
-        // Temporary: just log the change
-        print("Would update inventory to: \(newInventory)")
+        // Reload listing details to get updated data
+        await loadListingDetails()
     }
     
     func updateListingStatus(_ newStatus: String) async throws {
         isLoading = true
         defer { isLoading = false }
         
-        // TODO: Implement API call
-        // try await apiClient.updateListingField(listing.listingId, field: "status", value: newStatus)
-        // Then reload the listing details
-        // loadListingDetails()
+        try await apiClient.updateListingField(listingId: listing.listingId, field: "availabilityStatus", value: newStatus)
         
-        // Temporary: just log the change
-        print("Would update status to: \(newStatus)")
+        // Reload listing details to get updated data
+        await loadListingDetails()
     }
     
     func submitOffer(amount: Double, message: String, duration: Int) {

@@ -16,7 +16,7 @@ class ProfileViewModel: ObservableObject {
     
     // Additional properties for UltraModernProfileView2
     @Published var activities: [ProfileActivity] = []
-    @Published var reviews: [Review] = []
+    @Published var reviews: [ProfileReview] = []
     @Published var totalEarned: Double = 0.0
     @Published var monthlyEarnings: Double = 0.0
     @Published var monthlyChange: String = "+0%"
@@ -253,9 +253,11 @@ struct ProfileActivity: Identifiable {
     let color: Color
 }
 
-struct Review: Identifiable {
+struct ProfileReview: Identifiable {
     let id = UUID()
     let reviewerName: String
+    let reviewerImage: String?
+    let listingTitle: String
     let rating: Int
     let comment: String
     let date: Date

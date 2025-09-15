@@ -1035,7 +1035,7 @@ class APIClient: ObservableObject {
     
     // MARK: - Search Methods
     
-    func searchListings(query: String, filters: SearchFilters? = nil) async throws -> [Listing] {
+    func searchListings(query: String, filters: AdvancedSearchFilters? = nil) async throws -> [Listing] {
         var parameters: [String: Any] = ["query": query]
         
         if let filters = filters {
@@ -1331,6 +1331,36 @@ class APIClient: ObservableObject {
         
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to delete seek")
+        }
+    }
+    
+    // MARK: - Listing Update Operations
+    
+    func updateListingField(listingId: String, field: String, value: Any) async throws {
+        let body: [String: Any] = [field: value]
+        
+        let response = try await performRequest(
+            endpoint: "api/listings/\(listingId)",
+            method: "PATCH",
+            body: try JSONSerialization.data(withJSONObject: body),
+            responseType: APIResponse<EmptyResponse>.self
+        )
+        
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to update listing")
+        }
+    }
+    
+    func updateListingBulk(listingId: String, updates: [String: Any]) async throws {
+        let response = try await performRequest(
+            endpoint: "api/listings/\(listingId)",
+            method: "PATCH",
+            body: try JSONSerialization.data(withJSONObject: updates),
+            responseType: APIResponse<EmptyResponse>.self
+        )
+        
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to update listing")
         }
     }
     
@@ -3330,7 +3360,7 @@ class APIClient: ObservableObject {
             method: .GET,
             responseType: SuggestionsResponse.self
         )
-        return response.data
+        return response.suggestions
     }
     
     // MARK: - Location Services
@@ -3801,8 +3831,37 @@ class APIClient: ObservableObject {
         )
     }
     
-    // MARK: - Achievements (Combine Support for legacy compatibility)
+    // MARK: - Async versions of performRequest for string method parameter
     func performRequest<T: Decodable>(
+        endpoint: String,
+        method: String,
+        authenticated: Bool = true,
+        responseType: T.Type
+    ) async throws -> T {
+        return try await performRequestNoCaching(
+            endpoint: endpoint,
+            method: HTTPMethod(rawValue: method) ?? .GET,
+            responseType: responseType
+        )
+    }
+    
+    func performRequest<T: Decodable>(
+        endpoint: String,
+        method: String,
+        body: Data?,
+        authenticated: Bool = true,
+        responseType: T.Type
+    ) async throws -> T {
+        return try await performRequestNoCaching(
+            endpoint: endpoint,
+            method: HTTPMethod(rawValue: method) ?? .POST,
+            body: body,
+            responseType: responseType
+        )
+    }
+    
+    // MARK: - Achievements (Combine Support for legacy compatibility)
+    func performRequestCombine<T: Decodable>(
         endpoint: String,
         method: String,
         authenticated: Bool = true,
@@ -3829,7 +3888,7 @@ class APIClient: ObservableObject {
         .eraseToAnyPublisher()
     }
     
-    func performRequest<T: Decodable>(
+    func performRequestCombine<T: Decodable>(
         endpoint: String,
         method: String,
         body: Data?,

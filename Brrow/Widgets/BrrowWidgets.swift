@@ -468,7 +468,7 @@ struct ActivityEntry: TimelineEntry {
     let activities: [RecentActivity]
 }
 
-struct RecentActivity {
+struct RecentActivity: Codable {
     let icon: String
     let title: String
     let subtitle: String

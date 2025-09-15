@@ -9,8 +9,10 @@ import SwiftUI
 import Combine
 
 struct ChatListView: View {
+    @StateObject private var chatService = ChatService.shared
     @StateObject private var viewModel = ChatListViewModel()
     @State private var searchText = ""
+    @State private var selectedChat: Chat?
     @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
@@ -450,21 +452,27 @@ class ChatViewModel: ObservableObject {
         do {
             let sentMessage = try await APIClient.shared.sendMessage(message)
             DispatchQueue.main.async {
-                // Convert ChatMessage to Message
+                // Convert ChatMessage to Message from ChatModels
                 let newMessage = Message(
                     id: sentMessage.id,
-                    conversationId: message.receiverId, // Using receiverId as conversationId
+                    chatId: message.conversationId ?? message.receiverId,
                     senderId: sentMessage.senderId,
                     receiverId: sentMessage.receiverId,
                     content: sentMessage.content,
-                    messageType: sentMessage.messageType,
+                    messageType: MessageType(rawValue: sentMessage.messageType) ?? .text,
+                    mediaUrl: nil,
+                    thumbnailUrl: nil,
+                    listingId: nil,
                     isRead: sentMessage.isRead,
+                    isEdited: false,
+                    editedAt: nil,
+                    deletedAt: nil,
+                    sentAt: sentMessage.createdAt,
                     createdAt: sentMessage.createdAt,
-                    sender: MessageSender(
-                        username: AuthManager.shared.currentUser?.username ?? "",
-                        profilePicture: AuthManager.shared.currentUser?.profilePicture
-                    ),
-                    isOwnMessage: true
+                    sender: AuthManager.shared.currentUser,
+                    reactions: nil,
+                    tempId: nil,
+                    sendStatus: .sent
                 )
                 self.messages.append(newMessage)
             }
@@ -481,29 +489,7 @@ class ChatViewModel: ObservableObject {
 }
 
 // MARK: - Message Model
-struct Message: Codable, Identifiable {
-    let id: String
-    let conversationId: String
-    let senderId: String
-    let receiverId: String
-    let content: String
-    let messageType: String
-    let isRead: Bool
-    let createdAt: String
-    let sender: MessageSender
-    let isOwnMessage: Bool
-    
-    enum CodingKeys: String, CodingKey {
-        case id, content, isRead
-        case conversationId = "conversation_id"
-        case senderId = "sender_id"
-        case receiverId = "receiver_id"
-        case messageType = "message_type"
-        case createdAt = "created_at"
-        case sender
-        case isOwnMessage = "is_own_message"
-    }
-}
+// Using Message from ChatModels.swift
 
 struct MessageSender: Codable {
     let username: String

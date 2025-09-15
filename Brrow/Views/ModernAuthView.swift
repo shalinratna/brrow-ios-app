@@ -28,18 +28,22 @@ struct ModernAuthView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 30) {
-                    logoSection
-                    formFieldsSection
-                    errorMessageSection
-                    actionButtonsSection
-                    dividerSection
-                    socialLoginSection
-                    footerSection
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 20) {
+                        logoSection
+                        formFieldsSection
+                        errorMessageSection
+                        actionButtonsSection
+                        dividerSection
+                        socialLoginSection
+                        Spacer(minLength: 20)
+                        footerSection
+                    }
+                    .frame(minHeight: geometry.size.height)
                 }
+                .background(backgroundGradient)
             }
-            .background(backgroundGradient)
             .navigationBarHidden(true)
             .opacity(animateContent ? 1 : 0.8)
             .animation(.easeOut(duration: 0.3), value: animateContent)
@@ -68,11 +72,11 @@ struct ModernAuthView: View {
     // MARK: - View Components
     
     private var logoSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 15) {
             logoView
             titleView
         }
-        .padding(.top, 50)
+        .padding(.top, 30)
         .onAppear {
             withAnimation(.easeOut(duration: 0.5).delay(0.1)) {
                 animateContent = true
@@ -90,13 +94,13 @@ struct ModernAuthView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: 120, height: 120)
+                .frame(width: 100, height: 100)
                 .blur(radius: 20)
-            
+
             Image("AppIcon")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 100, height: 100)
+                .frame(width: 80, height: 80)
                 .cornerRadius(24)
                 .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 15, x: 0, y: 8)
                 .scaleEffect(logoScale)
@@ -123,7 +127,7 @@ struct ModernAuthView: View {
     }
     
     private var formFieldsSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 15) {
             if isSignUpMode {
                 usernameField
                 emailField
@@ -412,8 +416,9 @@ struct ModernAuthView: View {
     }
     
     private var socialLoginSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             appleSignInButton
+            googleSignInButton
             guestModeButton
         }
         .padding(.horizontal, 24)
@@ -421,16 +426,57 @@ struct ModernAuthView: View {
     
     private var appleSignInButton: some View {
         SignInWithAppleButton(
-            .signIn,
+            isSignUpMode ? .signUp : .signIn,
             onRequest: { request in
                 request.requestedScopes = [.fullName, .email]
+                print("🍎 Apple Sign-In request initiated")
             },
-            onCompletion: handleAppleSignIn
+            onCompletion: { result in
+                print("🍎 Apple Sign-In completion handler called")
+                handleAppleSignIn(result: result)
+            }
         )
         .signInWithAppleButtonStyle(.black)
         .frame(height: 56)
         .cornerRadius(14)
         .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
+    }
+    
+    private var googleSignInButton: some View {
+        Button(action: handleGoogleSignIn) {
+            HStack(spacing: 12) {
+                // Use text "G" as placeholder if image is missing
+                Group {
+                    if UIImage(named: "google-logo") != nil {
+                        Image("google-logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
+                    } else {
+                        Text("G")
+                            .font(.system(size: 20, weight: .bold, design: .serif))
+                            .foregroundColor(Color(red: 0.26, green: 0.52, blue: 0.96))
+                            .frame(width: 20, height: 20)
+                    }
+                }
+                .padding(.leading, 2)
+                
+                Text("Continue with Google")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color(.separator), lineWidth: 1)
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+        }
     }
     
     private var guestModeButton: some View {
@@ -486,7 +532,7 @@ struct ModernAuthView: View {
             .foregroundColor(Theme.Colors.primary)
         }
         .padding(.horizontal, 24)
-        .padding(.bottom, 40)
+        .padding(.bottom, 20)
     }
     
     private var backgroundGradient: some View {
@@ -564,6 +610,15 @@ struct ModernAuthView: View {
     }
     
     // MARK: - Apple Sign In
+    private func handleGoogleSignIn() {
+        print("🔵 Google Sign-In button tapped")
+        Task {
+            print("🔵 Starting Google Sign-In...")
+            await GoogleAuthService.shared.signIn()
+            print("🔵 Google Sign-In completed")
+        }
+    }
+    
     private func handleAppleSignIn(result: Result<ASAuthorization, Error>) {
         switch result {
         case .success(let authorization):

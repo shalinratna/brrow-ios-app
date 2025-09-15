@@ -118,10 +118,40 @@ class FileUploadService: ObservableObject {
     
     func uploadMultipleImages(_ images: [UIImage]) async throws -> [String] {
         var uploadedUrls: [String] = []
+        var failureCount = 0
+        let maxConsecutiveFailures = 2
         
-        for image in images {
-            let url = try await uploadImage(image)
-            uploadedUrls.append(url)
+        for (index, image) in images.enumerated() {
+            do {
+                print("📤 Uploading image \(index + 1) of \(images.count)...")
+                let url = try await uploadImage(image)
+                uploadedUrls.append(url)
+                failureCount = 0 // Reset failure count on success
+                print("✅ Successfully uploaded image \(index + 1)")
+            } catch {
+                failureCount += 1
+                print("❌ Failed to upload image \(index + 1): \(error.localizedDescription)")
+                
+                // Early failure detection: stop after 2 consecutive failures
+                if failureCount >= maxConsecutiveFailures {
+                    print("🚨 Early failure detected after \(failureCount) consecutive failures. Stopping upload process.")
+                    throw FileUploadError.multipleFailures(
+                        message: "Upload failed after \(failureCount) consecutive attempts. Please check your connection and try again.",
+                        failedAttempts: failureCount,
+                        successfulUploads: uploadedUrls.count
+                    )
+                }
+                
+                // Continue trying for non-consecutive failures
+                if index < images.count - 1 {
+                    print("⚠️ Continuing with next image despite failure...")
+                }
+            }
+        }
+        
+        // If we uploaded at least some images, return them
+        if uploadedUrls.isEmpty && images.count > 0 {
+            throw FileUploadError.uploadFailed
         }
         
         return uploadedUrls

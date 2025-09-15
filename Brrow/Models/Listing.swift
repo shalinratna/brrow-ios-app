@@ -90,10 +90,8 @@ struct Listing: Codable, Identifiable, Equatable {
     var listingId: String { id }
     var imageUrls: [String] { 
         images.compactMap { image in
-            if let url = image.url ?? image.imageUrl {
-                return url
-            }
-            return nil
+            // Use the fullURL property to get the complete URL with brrowapp.com base
+            return image.fullURL
         }
     }
     var status: String { availabilityStatus.rawValue }

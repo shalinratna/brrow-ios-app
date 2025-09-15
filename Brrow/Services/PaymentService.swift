@@ -9,19 +9,118 @@ import Foundation
 import Combine
 import UIKit
 import StripePaymentSheet
+import SwiftUI
 
-class PaymentService: NSObject {
+@MainActor
+class PaymentService: NSObject, ObservableObject {
     
     static let shared = PaymentService()
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
+    
+    @Published var isLoading = false
+    @Published var error: String?
+    @Published var connectStatus: ConnectStatus?
+    @Published var paymentMethods: [PaymentMethodInfo] = []
     
     private override init() {
         super.init()
         STPAPIClient.shared.publishableKey = Bundle.main.object(forInfoDictionaryKey: "StripePublishableKey") as? String ?? ""
     }
     
-    // MARK: - Payment Intent Creation
+    // MARK: - Modern Payment Intent Creation (New Backend)
+    
+    /// Create payment intent for marketplace transaction with escrow
+    func createMarketplacePaymentIntent(
+        listingId: String,
+        sellerId: String,
+        transactionType: String = "PURCHASE",
+        rentalStartDate: Date? = nil,
+        rentalEndDate: Date? = nil,
+        deliveryMethod: String = "PICKUP",
+        buyerMessage: String? = nil
+    ) async throws -> MarketplacePaymentIntent {
+        
+        isLoading = true
+        defer { isLoading = false }
+        
+        let request = CreatePaymentIntentRequest(
+            listingId: listingId,
+            sellerId: sellerId,
+            transactionType: transactionType,
+            rentalStartDate: rentalStartDate,
+            rentalEndDate: rentalEndDate,
+            deliveryMethod: deliveryMethod,
+            buyerMessage: buyerMessage
+        )
+        
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/create-payment-intent",
+            method: "POST",
+            body: try JSONEncoder().encode(request),
+            responseType: APIResponse<MarketplacePaymentIntent>.self
+        )
+        
+        guard response.success, let paymentIntent = response.data else {
+            let errorMessage = response.message ?? "Failed to create payment intent"
+            if errorMessage.contains("Seller needs to set up payment account") {
+                throw PaymentError.sellerOnboardingRequired
+            }
+            throw BrrowAPIError.serverError(errorMessage)
+        }
+        
+        // Track analytics
+        let event = AnalyticsEvent(
+            eventName: "marketplace_payment_intent_created",
+            eventType: "payment",
+            metadata: [
+                "amount": String(paymentIntent.amount),
+                "transaction_type": transactionType,
+                "listing_id": listingId
+            ]
+        )
+        
+        // Fire and forget analytics tracking
+        Task {
+            try? await apiClient.trackAnalytics(event: event)
+        }
+        
+        return paymentIntent
+    }
+    
+    /// Confirm payment after successful Stripe payment
+    func confirmPayment(transactionId: String) async throws {
+        let body = ["transactionId": transactionId]
+        
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/confirm-payment",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: body),
+            responseType: APIResponse<TransactionConfirmation>.self
+        )
+        
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to confirm payment")
+        }
+    }
+    
+    /// Release escrow funds after successful delivery
+    func releaseFunds(transactionId: String) async throws {
+        let body = ["transactionId": transactionId]
+        
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/release-funds",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: body),
+            responseType: APIResponse<EmptyResponse>.self
+        )
+        
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to release funds")
+        }
+    }
+    
+    // MARK: - Legacy Payment Intent Creation (Existing)
     func createPaymentIntent(amount: Int, currency: String = "usd", transactionType: String, listingId: String? = nil) async throws -> PaymentIntentResponse {
         // Convert amount to cents
         let amountInCents = amount * 100
@@ -52,7 +151,13 @@ class PaymentService: NSObject {
         
         // Call the actual API
         let endpoint = "stripe/create_payment_intent.php"
-        let response: PaymentIntentResponse = try await apiClient.request(endpoint, method: .POST, parameters: params)
+        let bodyData = try JSONEncoder().encode(params)
+        let response: PaymentIntentResponse = try await apiClient.performRequest(
+            endpoint: endpoint,
+            method: "POST",
+            body: bodyData,
+            responseType: PaymentIntentResponse.self
+        )
         
         return response
     }
@@ -138,9 +243,175 @@ extension PaymentService: STPAuthenticationContext {
         
         return topController
     }
+    
+    // MARK: - Stripe Connect Operations
+    
+    /// Create Stripe Connect account for sellers
+    func createConnectAccount(email: String, businessType: String = "individual") async throws -> ConnectAccount {
+        let body: [String: Any] = [
+            "email": email,
+            "businessType": businessType
+        ]
+        
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/create-connect-account",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: body),
+            responseType: APIResponse<ConnectAccount>.self
+        )
+        
+        guard response.success, let account = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to create Connect account")
+        }
+        
+        return account
+    }
+    
+    /// Check Stripe Connect account status
+    func checkConnectStatus() async throws -> ConnectStatus {
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/connect-status",
+            method: "GET",
+            responseType: APIResponse<ConnectStatus>.self
+        )
+        
+        guard response.success, let status = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to check Connect status")
+        }
+        
+        await MainActor.run {
+            self.connectStatus = status
+        }
+        
+        return status
+    }
+    
+    /// Fetch user's payment methods
+    func fetchPaymentMethods() async throws -> [PaymentMethodInfo] {
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/payment-methods",
+            method: "GET",
+            responseType: APIResponse<PaymentMethodsResponse>.self
+        )
+        
+        guard response.success, let data = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch payment methods")
+        }
+        
+        await MainActor.run {
+            self.paymentMethods = data.paymentMethods
+        }
+        
+        return data.paymentMethods
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Calculate total cost including fees
+    func calculateTotalCost(amount: Double) -> (total: Double, platformFee: Double, stripeFee: Double) {
+        let stripeFee = amount * 0.029 + 0.30 // 2.9% + 30¢
+        let platformFee = amount * 0.05 // 5% platform fee
+        let total = amount + stripeFee + platformFee
+        
+        return (total: total, platformFee: platformFee, stripeFee: stripeFee)
+    }
+    
+    /// Calculate rental cost for date range
+    func calculateRentalCost(dailyRate: Double, startDate: Date, endDate: Date) -> (days: Int, totalCost: Double) {
+        let days = max(1, Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 1)
+        let totalCost = Double(days) * dailyRate
+        
+        return (days: days, totalCost: totalCost)
+    }
+    
+    /// Format currency
+    func formatCurrency(_ amount: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = Locale.current
+        return formatter.string(from: NSNumber(value: amount)) ?? "$\(String(format: "%.2f", amount))"
+    }
 }
 
-// MARK: - Payment Intent Response
+// MARK: - Payment Error Types
+enum PaymentError: LocalizedError {
+    case sellerOnboardingRequired
+    case paymentFailed(String)
+    case insufficientFunds
+    case invalidAmount
+    case networkError
+    
+    var errorDescription: String? {
+        switch self {
+        case .sellerOnboardingRequired:
+            return "Seller needs to complete payment setup"
+        case .paymentFailed(let reason):
+            return "Payment failed: \(reason)"
+        case .insufficientFunds:
+            return "Insufficient funds"
+        case .invalidAmount:
+            return "Invalid payment amount"
+        case .networkError:
+            return "Network connection error"
+        }
+    }
+}
+
+// MARK: - New Payment Models
+struct MarketplacePaymentIntent: Codable {
+    let clientSecret: String
+    let transactionId: String
+    let amount: Double
+    let platformFee: Double
+    let paymentIntentId: String
+}
+
+struct CreatePaymentIntentRequest: Codable {
+    let listingId: String
+    let sellerId: String
+    let transactionType: String
+    let rentalStartDate: Date?
+    let rentalEndDate: Date?
+    let deliveryMethod: String
+    let buyerMessage: String?
+}
+
+struct ConnectAccount: Codable {
+    let accountId: String
+    let onboardingUrl: String
+}
+
+struct ConnectStatus: Codable {
+    let hasAccount: Bool
+    let canReceivePayments: Bool
+    let detailsSubmitted: Bool?
+    let requiresAction: Bool?
+}
+
+struct PaymentMethodInfo: Codable {
+    let id: String
+    let type: String
+    let card: PaymentCard
+    
+    struct PaymentCard: Codable {
+        let brand: String
+        let last4: String
+        let expMonth: Int
+        let expYear: Int
+    }
+}
+
+private struct TransactionConfirmation: Codable {
+    let transactionId: String
+    let status: String
+    let paymentIntentId: String
+}
+
+private struct PaymentMethodsResponse: Codable {
+    let paymentMethods: [PaymentMethodInfo]
+}
+
+// MARK: - Legacy Payment Intent Response (Existing)
 struct PaymentIntentResponse: Codable {
     let clientSecret: String
     let publishableKey: String

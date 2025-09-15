@@ -8,13 +8,15 @@
 import SwiftUI
 import CoreLocation
 
+// Disambiguate SearchFilters - use the one defined in AdvancedSearchView.swift
+
 struct AdvancedFiltersSheet: View {
-    @Binding var filters: SearchFilters
+    @Binding var filters: AdvancedSearchFilters
     @Environment(\.dismiss) private var dismiss
     let onApply: () -> Void
     
     // Local state for editing
-    @State private var localFilters: SearchFilters
+    @State private var localFilters: AdvancedSearchFilters
     @State private var showingLocationPicker = false
     @State private var selectedCategories: Set<String> = []
     
@@ -23,7 +25,7 @@ struct AdvancedFiltersSheet: View {
     @State private var maxPrice: Double = 1000
     @State private var isDraggingPrice = false
     
-    init(filters: Binding<SearchFilters>, onApply: @escaping () -> Void) {
+    init(filters: Binding<AdvancedSearchFilters>, onApply: @escaping () -> Void) {
         self._filters = filters
         self.onApply = onApply
         self._localFilters = State(initialValue: filters.wrappedValue)
@@ -312,7 +314,7 @@ struct AdvancedFiltersSheet: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
             
-            ForEach(SearchFilters.AvailabilityFilter.allCases, id: \.self) { availability in
+            ForEach(AdvancedSearchFilters.AvailabilityFilter.allCases, id: \.self) { availability in
                 RadioButton(
                     title: availability.displayName,
                     subtitle: "",
@@ -365,7 +367,7 @@ struct AdvancedFiltersSheet: View {
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
             
-            ForEach(SearchFilters.SortOption.allCases, id: \.self) { option in
+            ForEach(AdvancedSearchFilters.SortOption.allCases, id: \.self) { option in
                 RadioButton(
                     title: option.displayName,
                     subtitle: "",
@@ -428,7 +430,7 @@ struct AdvancedFiltersSheet: View {
     
     // MARK: - Helper Methods
     private func resetFilters() {
-        localFilters = SearchFilters()
+        localFilters = AdvancedSearchFilters()
         selectedCategories = []
         minPrice = 0
         maxPrice = 1000
@@ -448,13 +450,13 @@ struct AdvancedFiltersSheet: View {
         if localFilters.priceRange != 0...1000 { count += 1 }
         if localFilters.distance != 10.0 { count += 1 }
         if localFilters.condition != nil { count += 1 }
-        if localFilters.availability != .all { count += 1 }
+        if localFilters.availability != AdvancedSearchFilters.AvailabilityFilter.all { count += 1 }
         if localFilters.verifiedSellersOnly { count += 1 }
         if localFilters.freeItemsOnly { count += 1 }
         if localFilters.deliveryAvailable { count += 1 }
         if localFilters.instantBooking { count += 1 }
         if !localFilters.includeGarageSales { count += 1 }
-        if localFilters.sortBy != .relevance { count += 1 }
+        if localFilters.sortBy != AdvancedSearchFilters.SortOption.relevance { count += 1 }
         return count
     }
 }
@@ -607,7 +609,7 @@ enum ItemCategory: String, CaseIterable {
 }
 
 #Preview {
-    AdvancedFiltersSheet(filters: .constant(SearchFilters())) {
+    AdvancedFiltersSheet(filters: .constant(AdvancedSearchFilters())) {
         print("Filters applied")
     }
 }

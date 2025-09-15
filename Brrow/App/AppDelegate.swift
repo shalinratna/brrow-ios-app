@@ -7,6 +7,7 @@
 
 import UIKit
 import UserNotifications
+import GoogleSignIn
 // import OneSignalFramework // Temporarily disabled - install via Xcode
 
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -30,6 +31,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         // Check permission status
         NotificationManager.shared.checkPermissionStatus()
+        
+        // Initialize Google Sign-In
+        configureGoogleSignIn()
         
         // Initialize OneSignal - Uncomment after installing SDK via Xcode
         /*
@@ -133,6 +137,33 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         URLCache.shared.diskCapacity = 200 * 1024 * 1024 // 200 MB
         
         print("✅ Caching system initialized for fast loading")
+    }
+    
+    // MARK: - Google Sign-In Configuration
+    
+    private func configureGoogleSignIn() {
+        // Use the actual Google Client ID provided
+        let clientId = "13144810708-cdf0vg3j0u7krgff4m68pjj6qb6n2dlr.apps.googleusercontent.com"
+
+        let config = GIDConfiguration(clientID: clientId)
+        GIDSignIn.sharedInstance.configuration = config
+        print("✅ Google Sign-In configured with client ID: \(String(clientId.prefix(20)))...")
+    }
+    
+    // MARK: - URL Handling
+    
+    func application(
+        _ app: UIApplication,
+        open url: URL,
+        options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+    ) -> Bool {
+        // Handle Google Sign-In callback
+        if GIDSignIn.sharedInstance.handle(url) {
+            return true
+        }
+        
+        // Handle other URL schemes (existing implementation can be added here)
+        return false
     }
     
     // MARK: - Interface Orientation Support

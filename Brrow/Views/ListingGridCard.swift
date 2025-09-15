@@ -14,7 +14,7 @@ struct ListingGridCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Image - Using CachedAsyncImage for better performance
             CachedAsyncImage(
-                url: listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first,
+                url: listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first?.url,
                 content: { image in
                     image
                         .resizable()
@@ -78,8 +78,8 @@ struct ListingGridCard: View {
     
     private func preloadListingImages() {
         // Get all image URLs for preloading
-        let imageURLs = listing.imageUrls.isEmpty ? 
-            listing.images : 
+        let imageURLs: [String] = listing.imageUrls.isEmpty ? 
+            listing.images.compactMap { $0.url } : 
             listing.imageUrls
         
         // Skip if no additional images

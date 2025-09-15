@@ -523,12 +523,7 @@ struct StunningProfileView: View {
                     .frame(maxWidth: .infinity, minHeight: 100)
             } else {
                 ForEach(viewModel.userReviews.prefix(5)) { profileReview in
-                    SimpleReviewCard(review: Review(
-                        reviewerName: profileReview.reviewerName,
-                        rating: profileReview.rating,
-                        comment: profileReview.comment,
-                        date: profileReview.date
-                    ))
+                    SimpleReviewCard(profileReview: profileReview)
                 }
             }
         }
@@ -769,7 +764,7 @@ struct PerformanceRow: View {
 }
 
 struct SimpleReviewCard: View {
-    let review: Review
+    let profileReview: ProfileReview
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -778,18 +773,18 @@ struct SimpleReviewCard: View {
                     .fill(Theme.Colors.primary.opacity(0.2))
                     .frame(width: 40, height: 40)
                     .overlay(
-                        Text(review.reviewerName.prefix(1))
+                        Text(profileReview.reviewerName.prefix(1))
                             .font(.headline)
                             .foregroundColor(Theme.Colors.primary)
                     )
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(review.reviewerName)
+                    Text(profileReview.reviewerName)
                         .font(.subheadline.bold())
                     
                     HStack(spacing: 2) {
                         ForEach(0..<5) { index in
-                            Image(systemName: index < review.rating ? "star.fill" : "star")
+                            Image(systemName: index < profileReview.rating ? "star.fill" : "star")
                                 .font(.caption2)
                                 .foregroundColor(.orange)
                         }
@@ -798,12 +793,12 @@ struct SimpleReviewCard: View {
                 
                 Spacer()
                 
-                Text(review.date, style: .relative)
+                Text(profileReview.date, style: .relative)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
             
-            Text(review.comment)
+            Text(profileReview.comment)
                 .font(.subheadline)
                 .foregroundColor(.primary)
         }

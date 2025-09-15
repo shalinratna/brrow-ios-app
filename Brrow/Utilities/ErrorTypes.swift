@@ -71,34 +71,7 @@ enum StorageError: Error, LocalizedError {
 }
 
 // MARK: - Payment Error
-enum PaymentError: Error, LocalizedError {
-    case invalidAmount
-    case insufficientFunds
-    case cardDeclined
-    case expiredCard
-    case processingError
-    case stripeError(String)
-    case payoutFailed
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidAmount:
-            return "Invalid payment amount"
-        case .insufficientFunds:
-            return "Insufficient funds"
-        case .cardDeclined:
-            return "Card was declined"
-        case .expiredCard:
-            return "Card has expired"
-        case .processingError:
-            return "Payment processing error"
-        case .stripeError(let message):
-            return "Payment error: \(message)"
-        case .payoutFailed:
-            return "Payout failed"
-        }
-    }
-}
+// PaymentError is defined in PaymentService.swift to avoid duplication
 
 // MARK: - Location Error
 enum LocationError: Error, LocalizedError {
@@ -155,6 +128,7 @@ enum FileUploadError: Error, LocalizedError {
     case unsupportedFormat
     case uploadFailed
     case compressionFailed
+    case multipleFailures(message: String, failedAttempts: Int, successfulUploads: Int)
     
     var errorDescription: String? {
         switch self {
@@ -174,6 +148,8 @@ enum FileUploadError: Error, LocalizedError {
             return "File upload failed"
         case .compressionFailed:
             return "Failed to compress file"
+        case .multipleFailures(let message, _, _):
+            return message
         }
     }
 }

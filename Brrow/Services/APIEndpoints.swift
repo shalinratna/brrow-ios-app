@@ -18,7 +18,7 @@ struct APIEndpoints {
     struct Auth {
         static let login = "api/auth/login"
         static let register = "api/auth/register"
-        static let appleLogin = "api/auth/apple-login"
+        static let appleLogin = "api/auth/apple-signin"
         static let refreshToken = "api/auth/refresh-token"
         static let validateToken = "api/auth/validate-token"
         static let logout = "api/auth/logout"

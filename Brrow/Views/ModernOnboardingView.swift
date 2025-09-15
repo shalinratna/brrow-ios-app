@@ -2,16 +2,15 @@
 //  ModernOnboardingView.swift
 //  Brrow
 //
-//  Modern onboarding experience that leads into authentication
-//  Inspired by Instagram, TikTok, and other social apps
+//  Clean white and green onboarding with liquid animations
 //
 
 import SwiftUI
 
 struct ModernOnboardingView: View {
     @State private var currentPage = 0
-    @State private var showingAuth = false
     @State private var animateContent = false
+    @State private var liquidOffset: CGFloat = 0
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     
     private let onboardingPages = OnboardingData.pages
@@ -19,8 +18,13 @@ struct ModernOnboardingView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Dynamic background based on current page
-                backgroundView
+                // Clean white background
+                Color.white
+                    .ignoresSafeArea()
+                
+                // Liquid green wave animation
+                liquidWaveBackground
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // Skip button
@@ -30,223 +34,279 @@ struct ModernOnboardingView: View {
                             completeOnboarding()
                         }
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                        .foregroundColor(Theme.Colors.primary.opacity(0.7))
                         .padding(.horizontal, 24)
                         .padding(.top, geometry.safeAreaInsets.top + 16)
                     }
                     
-                    Spacer()
-                    
-                    // Main content
-                    VStack(spacing: 40) {
-                        // Page content
-                        pageContentView
-                        
-                        // Page indicator and navigation
-                        VStack(spacing: 32) {
-                            pageIndicator
-                            navigationButtons
+                    // Main content area
+                    TabView(selection: $currentPage) {
+                        ForEach(0..<onboardingPages.count, id: \.self) { index in
+                            OnboardingPageContent(page: onboardingPages[index])
+                                .tag(index)
                         }
                     }
-                    .padding(.horizontal, 32)
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    .animation(.easeInOut(duration: 0.5), value: currentPage)
                     
-                    Spacer()
-                    Spacer()
+                    // Bottom navigation
+                    VStack(spacing: 24) {
+                        // Custom page indicator
+                        pageIndicator
+                        
+                        // Navigation button
+                        navigationButton
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 40)
                 }
             }
         }
-        .ignoresSafeArea()
         .onAppear {
             startAnimations()
         }
-        .fullScreenCover(isPresented: $showingAuth) {
-            ModernAuthView()
-        }
     }
     
-    // MARK: - Background View
-    private var backgroundView: some View {
-        ZStack {
-            // Base gradient that changes based on current page
-            LinearGradient(
-                colors: onboardingPages[currentPage].gradientColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+    // MARK: - Liquid Wave Background
+    private var liquidWaveBackground: some View {
+        VStack {
+            Spacer()
             
-            // Animated particles
-            ForEach(0..<15, id: \.self) { index in
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: CGFloat.random(in: 4...12))
-                    .position(
-                        x: CGFloat.random(in: 0...400),
-                        y: CGFloat.random(in: 0...800)
+            // Liquid wave shape
+            WaveShape(offset: liquidOffset)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Theme.Colors.primary.opacity(0.1),
+                            Theme.Colors.primary.opacity(0.05)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
-                    .scaleEffect(animateContent ? 1.2 : 0.8)
-                    .animation(
-                        .easeInOut(duration: Double.random(in: 2...4))
-                        .repeatForever(autoreverses: true)
-                        .delay(Double(index) * 0.1),
-                        value: animateContent
-                    )
-            }
-            
-            // Overlay texture
-            Rectangle()
-                .fill(Color.white.opacity(0.02))
-                .blendMode(.overlay)
+                )
+                .frame(height: 200)
+                .overlay(
+                    WaveShape(offset: liquidOffset + 50)
+                        .fill(Theme.Colors.primary.opacity(0.05))
+                )
         }
-        .animation(.easeInOut(duration: 0.8), value: currentPage)
-    }
-    
-    // MARK: - Page Content
-    private var pageContentView: some View {
-        let page = onboardingPages[currentPage]
-        
-        return VStack(spacing: 32) {
-            // Icon with animation
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.15))
-                    .frame(width: 140, height: 140)
-                    .blur(radius: 20)
-                
-                Circle()
-                    .fill(Color.white.opacity(0.2))
-                    .frame(width: 120, height: 120)
-                
-                Image(systemName: page.iconName)
-                    .font(.system(size: 50, weight: .light))
-                    .foregroundColor(.white)
-            }
-            .scaleEffect(animateContent ? 1.0 : 0.8)
-            .animation(.spring(response: 0.8, dampingFraction: 0.6).delay(0.2), value: animateContent)
-            .animation(.spring(response: 0.6, dampingFraction: 0.7), value: currentPage)
-            
-            // Text content
-            VStack(spacing: 16) {
-                Text(page.title)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                
-                Text(page.description)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white.opacity(0.9))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-                    .padding(.horizontal, 16)
-            }
-            .opacity(animateContent ? 1 : 0)
-            .offset(y: animateContent ? 0 : 20)
-            .animation(.easeOut(duration: 0.8).delay(0.4), value: animateContent)
-        }
+        .animation(
+            .linear(duration: 3)
+            .repeatForever(autoreverses: false),
+            value: liquidOffset
+        )
     }
     
     // MARK: - Page Indicator
     private var pageIndicator: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             ForEach(0..<onboardingPages.count, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(currentPage == index ? Color.white : Color.white.opacity(0.3))
-                    .frame(width: currentPage == index ? 32 : 8, height: 8)
+                Capsule()
+                    .fill(currentPage == index ? Theme.Colors.primary : Color.gray.opacity(0.3))
+                    .frame(width: currentPage == index ? 24 : 8, height: 8)
                     .animation(.spring(response: 0.5, dampingFraction: 0.7), value: currentPage)
             }
         }
     }
     
-    // MARK: - Navigation Buttons
-    private var navigationButtons: some View {
-        HStack(spacing: 20) {
-            // Back button (hidden on first page)
-            Button(action: goBack) {
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Back")
+    // MARK: - Navigation Button
+    private var navigationButton: some View {
+        Button(action: {
+            if currentPage < onboardingPages.count - 1 {
+                withAnimation(.spring()) {
+                    currentPage += 1
+                }
+            } else {
+                completeOnboarding()
+            }
+        }) {
+            HStack(spacing: 12) {
+                Text(currentPage == onboardingPages.count - 1 ? "Get Started" : "Continue")
+                    .font(.system(size: 17, weight: .semibold))
+                
+                if currentPage < onboardingPages.count - 1 {
+                    Image(systemName: "arrow.right")
                         .font(.system(size: 16, weight: .semibold))
                 }
-                .foregroundColor(.white)
-                .frame(width: 100, height: 50)
-                .background(Color.white.opacity(0.2))
-                .cornerRadius(25)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                )
             }
-            .opacity(currentPage > 0 ? 1 : 0)
-            .animation(.easeInOut(duration: 0.3), value: currentPage)
-            
-            Spacer()
-            
-            // Next/Get Started button
-            Button(action: goNext) {
-                HStack(spacing: 8) {
-                    Text(currentPage == onboardingPages.count - 1 ? "Get Started" : "Continue")
-                        .font(.system(size: 16, weight: .semibold))
-                    
-                    if currentPage < onboardingPages.count - 1 {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 16, weight: .semibold))
-                    }
-                }
-                .foregroundColor(.white)
-                .frame(width: currentPage == onboardingPages.count - 1 ? 140 : 120, height: 50)
-                .background(Color.white.opacity(0.25))
-                .cornerRadius(25)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                )
-                .shadow(color: .white.opacity(0.2), radius: 8, x: 0, y: 4)
-            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Theme.Colors.primary)
+                    .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 10, y: 5)
+            )
+            .scaleEffect(animateContent ? 1.0 : 0.95)
         }
+        .buttonStyle(PlainButtonStyle())
     }
     
-    // MARK: - Actions
+    // MARK: - Helper Functions
     private func startAnimations() {
-        withAnimation(.easeOut(duration: 0.6)) {
+        withAnimation(.easeOut(duration: 0.8)) {
             animateContent = true
         }
-    }
-    
-    private func goBack() {
-        guard currentPage > 0 else { return }
         
-        withAnimation(.easeInOut(duration: 0.5)) {
-            currentPage -= 1
-        }
-        
-        restartContentAnimation()
-    }
-    
-    private func goNext() {
-        if currentPage < onboardingPages.count - 1 {
-            withAnimation(.easeInOut(duration: 0.5)) {
-                currentPage += 1
-            }
-            restartContentAnimation()
-        } else {
-            // Last page - show auth
-            completeOnboarding()
+        withAnimation {
+            liquidOffset = 200
         }
     }
     
     private func completeOnboarding() {
-        hasCompletedOnboarding = true
-        showingAuth = true
+        withAnimation {
+            hasCompletedOnboarding = true
+        }
+        
+        // Track achievement for completing onboarding
+        AchievementManager.shared.trackOnboardingCompleted()
     }
+}
+
+// MARK: - Onboarding Page Content
+struct OnboardingPageContent: View {
+    let page: OnboardingData.Page
+    @State private var isAnimated = false
     
-    private func restartContentAnimation() {
-        animateContent = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.easeOut(duration: 0.6)) {
-                animateContent = true
+    var body: some View {
+        VStack(spacing: 32) {
+            Spacer()
+            
+            // Illustration/Icon container
+            ZStack {
+                // Soft background circle
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Theme.Colors.primary.opacity(0.1),
+                                Theme.Colors.primary.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 180, height: 180)
+                    .blur(radius: 10)
+                
+                // Icon container with border
+                Circle()
+                    .stroke(Theme.Colors.primary.opacity(0.2), lineWidth: 2)
+                    .frame(width: 140, height: 140)
+                    .background(
+                        Circle()
+                            .fill(Color.white)
+                            .shadow(color: Color.black.opacity(0.05), radius: 10, y: 5)
+                    )
+                    .overlay(
+                        Image(systemName: page.iconName)
+                            .font(.system(size: 56, weight: .medium))
+                            .foregroundColor(Theme.Colors.primary)
+                            .symbolRenderingMode(.hierarchical)
+                    )
+            }
+            .scaleEffect(isAnimated ? 1.0 : 0.8)
+            .opacity(isAnimated ? 1.0 : 0)
+            
+            // Text content
+            VStack(spacing: 20) {
+                // Title
+                Text(page.title)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.black)
+                    .multilineTextAlignment(.center)
+                
+                // Description
+                Text(page.description)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 20)
+                
+                // Feature tags
+                if !page.features.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(page.features, id: \.self) { feature in
+                            FeatureTag(text: feature)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .opacity(isAnimated ? 1.0 : 0)
+            .offset(y: isAnimated ? 0 : 20)
+            
+            Spacer()
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .onAppear {
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.7).delay(0.2)) {
+                isAnimated = true
             }
         }
+        .onDisappear {
+            isAnimated = false
+        }
+    }
+}
+
+// MARK: - Feature Tag
+struct FeatureTag: View {
+    let text: String
+    
+    var body: some View {
+        Text(text)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(Theme.Colors.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(Theme.Colors.primary.opacity(0.1))
+                    .overlay(
+                        Capsule()
+                            .stroke(Theme.Colors.primary.opacity(0.2), lineWidth: 1)
+                    )
+            )
+    }
+}
+
+// MARK: - Wave Shape
+struct WaveShape: Shape {
+    var offset: CGFloat
+    
+    var animatableData: CGFloat {
+        get { offset }
+        set { offset = newValue }
+    }
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let width = rect.width
+        let height = rect.height
+        
+        path.move(to: CGPoint(x: 0, y: height * 0.5))
+        
+        // Create smooth wave
+        path.addCurve(
+            to: CGPoint(x: width * 0.5, y: height * 0.3),
+            control1: CGPoint(x: width * 0.25, y: height * 0.5 - offset.truncatingRemainder(dividingBy: 50)),
+            control2: CGPoint(x: width * 0.25, y: height * 0.3)
+        )
+        
+        path.addCurve(
+            to: CGPoint(x: width, y: height * 0.5),
+            control1: CGPoint(x: width * 0.75, y: height * 0.3),
+            control2: CGPoint(x: width * 0.75, y: height * 0.5 + offset.truncatingRemainder(dividingBy: 50))
+        )
+        
+        path.addLine(to: CGPoint(x: width, y: height))
+        path.addLine(to: CGPoint(x: 0, y: height))
+        path.closeSubpath()
+        
+        return path
     }
 }
 
@@ -256,45 +316,33 @@ struct OnboardingData {
         let iconName: String
         let title: String
         let description: String
-        let gradientColors: [Color]
+        let features: [String]
     }
     
     static let pages: [Page] = [
         Page(
-            iconName: "arrow.triangle.2.circlepath",
-            title: "Welcome to Brrow",
-            description: "Share items you don't use every day and borrow what you need from neighbors nearby.",
-            gradientColors: [
-                Color(hexString: "667eea"),
-                Color(hexString: "764ba2")
-            ]
+            iconName: "cube.box.fill",
+            title: "Share Your Items",
+            description: "Turn your unused items into income by sharing them with your community.",
+            features: ["Easy listing", "Set your price", "You're in control"]
         ),
         Page(
-            iconName: "location.circle.fill",
-            title: "Find Items Nearby",
-            description: "Discover amazing items available for borrowing right in your neighborhood.",
-            gradientColors: [
-                Color(hexString: "f093fb"),
-                Color(hexString: "f5576c")
-            ]
+            iconName: "magnifyingglass.circle.fill",
+            title: "Find What You Need",
+            description: "Discover items available for rent in your neighborhood at a fraction of the cost.",
+            features: ["Save money", "Local pickup", "Verified items"]
         ),
         Page(
-            iconName: "person.2.circle.fill",
-            title: "Build Community",
-            description: "Connect with your neighbors, build trust, and create a sharing community.",
-            gradientColors: [
-                Color(hexString: "4facfe"),
-                Color(hexString: "00f2fe")
-            ]
+            iconName: "heart.circle.fill",
+            title: "Community First",
+            description: "We believe in people and fair pricing. Brrow is free to use - no hidden fees or outrageous charges.",
+            features: ["Always free to browse", "No subscription fees", "Fair pricing guaranteed"]
         ),
         Page(
-            iconName: "leaf.circle.fill",
-            title: "Live Sustainably",
-            description: "Reduce waste, save money, and help create a more sustainable future together.",
-            gradientColors: [
-                Color(hexString: "43e97b"),
-                Color(hexString: "38f9d7")
-            ]
+            iconName: "lock.shield.fill",
+            title: "Safe & Secure",
+            description: "Every transaction is protected with insurance and secure payments.",
+            features: ["ID verified", "Insured", "24/7 support"]
         )
     ]
 }

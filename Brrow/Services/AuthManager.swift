@@ -195,6 +195,9 @@ class AuthManager: ObservableObject {
             print("📱 OneSignal user will be logged out")
         }
         
+        // Logout from Google Sign-In
+        GoogleAuthService.shared.signOut()
+        
         // Reset token manager
         TokenManager.shared.resetRefreshAttempts()
         

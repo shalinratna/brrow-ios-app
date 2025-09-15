@@ -98,15 +98,15 @@ struct ListingImage: Codable {
             return urlString
         }
         
-        // If it's a relative path starting with /uploads/, prepend base URL
+        // If it's a relative path starting with /uploads/, prepend brrowapp.com URL
         if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
-            let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+            let baseURL = "https://brrowapp.com"
             let formattedPath = urlString.hasPrefix("/") ? urlString : "/\(urlString)"
             return "\(baseURL)\(formattedPath)"
         }
         
-        // For other relative paths, assume they need the base URL
-        let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+        // For other relative paths, assume they need the brrowapp.com URL
+        let baseURL = "https://brrowapp.com"
         return "\(baseURL)/\(urlString)"
     }
     
@@ -119,15 +119,15 @@ struct ListingImage: Codable {
             return thumbnailUrlString
         }
         
-        // If it's a relative path starting with /uploads/, prepend base URL
+        // If it's a relative path starting with /uploads/, prepend brrowapp.com URL
         if thumbnailUrlString.hasPrefix("/uploads/") || thumbnailUrlString.hasPrefix("uploads/") {
-            let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+            let baseURL = "https://brrowapp.com"
             let formattedPath = thumbnailUrlString.hasPrefix("/") ? thumbnailUrlString : "/\(thumbnailUrlString)"
             return "\(baseURL)\(formattedPath)"
         }
         
-        // For other relative paths, assume they need the base URL
-        let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+        // For other relative paths, assume they need the brrowapp.com URL
+        let baseURL = "https://brrowapp.com"
         return "\(baseURL)/\(thumbnailUrlString)"
     }
 }

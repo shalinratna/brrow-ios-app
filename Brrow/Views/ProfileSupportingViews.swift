@@ -196,12 +196,4 @@ struct ReviewSummaryCard: View {
 }
 
 // MARK: - Review Model
-struct ProfileReview: Identifiable {
-    let id: String
-    let reviewerName: String
-    let reviewerImage: String?
-    let rating: Int
-    let comment: String
-    let date: Date
-    let listingTitle: String
-}
+// ProfileReview is defined in ProfileViewModel.swift

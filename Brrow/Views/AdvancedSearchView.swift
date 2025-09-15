@@ -10,7 +10,7 @@ import SwiftUI
 import CoreLocation
 
 // MARK: - Search Filter Model
-struct SearchFilters: Equatable {
+struct AdvancedSearchFilters: Equatable {
     var categories: Set<String> = []
     var priceRange: ClosedRange<Double> = 0...1000
     var distance: Double = 10.0 // miles

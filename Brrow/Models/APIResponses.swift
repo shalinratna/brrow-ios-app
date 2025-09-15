@@ -116,8 +116,13 @@ struct ImageUploadResponse: Codable {
 
 // MARK: - Messages
 struct MessagesResponse: Codable {
-    let messages: [Message]
+    let success: Bool
+    let data: [Message]
     let hasMore: Bool
+    
+    var messages: [Message] {
+        return data
+    }
 }
 
 // MARK: - Notification Count

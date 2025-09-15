@@ -18,6 +18,25 @@
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.brrow.idme</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>brrowapp</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.brrow.googlesignin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.13144810708-cdf0vg3j0u7krgff4m68pjj6qb6n2dlr</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -84,10 +103,16 @@
 	<string>Brrow can create reminders for your transactions and events.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Brrow may use speech recognition to enhance accessibility features and improve user experience.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>INSendMessageIntent</string>
+	</array>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Brrow sends notifications for new messages, offers, and transaction updates.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Brrow uses this information to provide you with a better experience and relevant content.</string>
+	<key>StripePublishableKey</key>
+	<string>pk_live_51RBObQDZizGZADzcPqHYkTMK22bvLOabxRDrV0iCjF28Fm7kfYldOQePyRCyeAvg1u2xoeyHSdbcJ58ZbWvKsaLw00vPqAVWYg</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -123,22 +148,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>com.brrow.idme</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>brrowapp</string>
-			</array>
-		</dict>
-	</array>
-	<key>StripePublishableKey</key>
-	<string>pk_live_51RBObQDZizGZADzcPqHYkTMK22bvLOabxRDrV0iCjF28Fm7kfYldOQePyRCyeAvg1u2xoeyHSdbcJ58ZbWvKsaLw00vPqAVWYg</string>
-	<key>NSUserActivityTypes</key>
-	<array>
-		<string>INSendMessageIntent</string>
-	</array>
 </dict>
 </plist>

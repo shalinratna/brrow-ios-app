@@ -96,6 +96,9 @@ struct LoginView: View {
             // Submit button
             modernSubmitButton
             
+            // Social login divider and buttons
+            socialLoginSection
+            
             // Toggle mode
             modernToggleSection
             
@@ -253,6 +256,76 @@ struct LoginView: View {
             removal: .opacity
         ))
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.errorMessage)
+    }
+    
+    // MARK: - Social Login Section
+    private var socialLoginSection: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            // Divider with "or" text
+            HStack {
+                Rectangle()
+                    .fill(Theme.Colors.border)
+                    .frame(height: 1)
+                
+                Text("or")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .padding(.horizontal, Theme.Spacing.md)
+                
+                Rectangle()
+                    .fill(Theme.Colors.border)
+                    .frame(height: 1)
+            }
+            .padding(.vertical, Theme.Spacing.sm)
+            
+            // Google Sign-In Button
+            googleSignInButton
+        }
+    }
+    
+    // MARK: - Google Sign-In Button
+    @StateObject private var googleAuthService = GoogleAuthService.shared
+    
+    private var googleSignInButton: some View {
+        Button(action: {
+            Task {
+                await googleAuthService.signIn()
+            }
+        }) {
+            HStack(spacing: Theme.Spacing.sm) {
+                if googleAuthService.isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.text))
+                        .scaleEffect(0.9)
+                } else {
+                    // Google icon
+                    Image(systemName: "globe")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Theme.Colors.text)
+                    
+                    Text("Continue with Google")
+                        .font(.system(size: 16, weight: .medium, design: .default))
+                        .foregroundColor(Theme.Colors.text)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(Theme.Colors.surface)
+            .cornerRadius(Theme.CornerRadius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                    .stroke(Theme.Colors.border, lineWidth: 1.5)
+            )
+            .shadow(
+                color: Theme.Colors.text.opacity(0.05),
+                radius: 4,
+                x: 0,
+                y: 2
+            )
+        }
+        .disabled(googleAuthService.isLoading)
+        .scaleEffect(googleAuthService.isLoading ? 0.98 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: googleAuthService.isLoading)
     }
     
     // MARK: - Helper Methods

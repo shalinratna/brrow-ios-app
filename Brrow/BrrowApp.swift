@@ -29,10 +29,10 @@ struct BrrowApp: App {
             Group {
                 if !splashComplete {
                     EnhancedSplashView(isComplete: $splashComplete)
-                } else if !hasAgreedToTerms {
-                    ComplianceAgreementView(hasAgreedToTerms: $hasAgreedToTerms)
                 } else if !hasCompletedOnboarding {
                     ModernOnboardingView()
+                } else if !hasAgreedToTerms {
+                    ComplianceAgreementView(hasAgreedToTerms: $hasAgreedToTerms)
                 } else if authManager.isValidatingToken {
                     // Show loading while validating token
                     ZStack {

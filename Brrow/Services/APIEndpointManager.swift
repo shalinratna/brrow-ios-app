@@ -8,7 +8,7 @@ class APIEndpointManager: ObservableObject {
     @Published var currentEndpoint: String = ""
     @Published var isUsingBackup = false
     
-    // Use Railway as primary (AwardSpace PHP not executing)
+    // Use Railway as primary
     private let primaryEndpoint = "https://brrow-backend-nodejs-production.up.railway.app"
     private let backupEndpoint = "https://brrowapp.com"
     

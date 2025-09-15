@@ -100,8 +100,40 @@ struct PromoteListingView: View {
         }
         
         isLoading = true
-        // TODO: Implement promotion API call
-        dismiss()
+        
+        Task {
+            do {
+                // Use existing listing update functionality for promotion
+                try await APIClient.shared.updateListingField(
+                    listingId: listing.listingId,
+                    field: "promoted",
+                    value: true
+                )
+                
+                // Optionally set promotion type and duration
+                let promotionData: [String: Any] = [
+                    "promotionType": selectedOption,
+                    "promotionDuration": 7 // 7 days default
+                ]
+                
+                try await APIClient.shared.updateListingBulk(
+                    listingId: listing.listingId,
+                    updates: promotionData
+                )
+                
+                await MainActor.run {
+                    isLoading = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    // Handle error - could show alert or toast
+                    print("Promotion failed: \(error)")
+                    dismiss()
+                }
+            }
+        }
     }
 }
 

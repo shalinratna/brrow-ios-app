@@ -13,7 +13,7 @@ import AVFoundation
 
 class AdvancedSearchViewModel: ObservableObject {
     @Published var searchQuery = ""
-    @Published var filters = SearchFilters()
+    @Published var filters = AdvancedSearchFilters()
     @Published var suggestions: [String] = []
     @Published var listings: [Listing] = []
     @Published var garageSales: [GarageSale] = []
@@ -165,7 +165,7 @@ class AdvancedSearchViewModel: ObservableObject {
     }
     
     func clearAllFilters() {
-        filters = SearchFilters()
+        filters = AdvancedSearchFilters()
         updateActiveFilters()
         applyFilters()
     }

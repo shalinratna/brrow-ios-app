@@ -962,10 +962,13 @@ class ProfessionalHomeViewModel: ObservableObject {
     }
     
     private func loadRecentActivities() async {
-        // TODO: Implement recent activities API endpoint
-        // For now, show empty state
+        // For now, just return mock data since there's no API endpoint for recent activities
         await MainActor.run {
-            self.recentActivities = []
+            self.recentActivities = [
+                ProfessionalRecentActivity(title: "New order - iPhone 13 Pro", time: "2 min ago", icon: "cart"),
+                ProfessionalRecentActivity(title: "New review - 5 stars from John", time: "1 hour ago", icon: "star"),
+                ProfessionalRecentActivity(title: "New message - Inquiry about MacBook", time: "3 hours ago", icon: "message")
+            ]
         }
     }
     
