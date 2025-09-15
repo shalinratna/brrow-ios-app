@@ -92,7 +92,8 @@ struct ModernProfileView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            NativeSettingsView()
+            EnhancedSettingsView()
+                .environmentObject(authManager)
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.8)) {

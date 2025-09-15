@@ -95,7 +95,8 @@ struct SimpleProfessionalProfileView: View {
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showSettings) {
-                SettingsView()
+                ModernSettingsView()
+                    .environmentObject(authManager)
             }
             .sheet(isPresented: $showProfilePictureEdit) {
                 ProfilePictureEditView()
@@ -103,9 +104,9 @@ struct SimpleProfessionalProfileView: View {
             .sheet(isPresented: $showIDmeVerification) {
                 IDmeVerificationView()
             }
-            .sheet(isPresented: $showIDmeTest) {
-                IDmeTestView()
-            }
+            // .sheet(isPresented: $showIDmeTest) {
+            //     IDmeTestView()
+            // }
             .sheet(isPresented: $showBecomeCreator) {
                 BecomeCreatorView()
             }

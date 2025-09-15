@@ -389,7 +389,55 @@ class ListingDetailViewModel: ObservableObject {
     }
     
     func contactOwner() {
-        showingContactSheet = true
+        // Create or get chat with listing owner
+        Task {
+            await MainActor.run {
+                self.isLoading = true
+            }
+
+            let ownerId = listing.userId
+
+            // Check if user is trying to message themselves
+            if ownerId == AuthManager.shared.currentUser?.id {
+                await MainActor.run {
+                    self.errorMessage = "You cannot message yourself"
+                    self.isLoading = false
+                }
+                return
+            }
+
+            do {
+                // Create or get direct chat with the owner
+                let body = ["recipientId": ownerId, "listingId": listing.id]
+                let bodyData = try JSONSerialization.data(withJSONObject: body)
+
+                let response = try await apiClient.performRequest(
+                    endpoint: "api/messages/chats/direct",
+                    method: "POST",
+                    body: bodyData,
+                    responseType: CreateChatResponse.self
+                )
+
+                if let chat = response.data {
+                    await MainActor.run {
+                        self.isLoading = false
+                        // Navigate to chat view
+                        NotificationCenter.default.post(
+                            name: .navigateToChat,
+                            object: nil,
+                            userInfo: ["chatId": chat.id, "listing": listing]
+                        )
+                    }
+                } else {
+                    throw BrrowAPIError.invalidResponse
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to start conversation: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
+            }
+        }
     }
     
     func reportListing(reason: String, details: String) {

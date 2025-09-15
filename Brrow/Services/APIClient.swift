@@ -2808,6 +2808,23 @@ class APIClient: ObservableObject {
         )
     }
     
+    // MARK: - User Account Management
+    func changeUsername(newUsername: String) async throws -> APIResponse<User> {
+        struct UsernameChangeRequest: Codable {
+            let newUsername: String
+        }
+
+        let request = UsernameChangeRequest(newUsername: newUsername)
+        let bodyData = try JSONEncoder().encode(request)
+
+        return try await performRequest(
+            endpoint: "api/users/change-username",
+            method: .POST,
+            body: bodyData,
+            responseType: APIResponse<User>.self
+        )
+    }
+
     // MARK: - User Stats
     func getUserStats() async throws -> APIUserStats {
         return try await request(
@@ -3741,7 +3758,7 @@ class APIClient: ObservableObject {
     // MARK: - Email Verification Methods
     func sendEmailVerification() async throws -> EmailVerificationResponse {
         return try await performRequest(
-            endpoint: "send_email_verification.php",
+            endpoint: "api/auth/resend-verification",
             method: .POST,
             responseType: EmailVerificationResponse.self
         )

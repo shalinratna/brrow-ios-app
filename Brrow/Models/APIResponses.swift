@@ -10,6 +10,12 @@ import Foundation
 // MARK: - Authentication
 // AuthResponse is defined in APIClient.swift
 
+// MARK: - Chat Response
+struct CreateChatResponse: Codable {
+    let success: Bool
+    let data: Chat?
+}
+
 // MARK: - User Stats
 struct APIUserStats: Codable {
     let activeListings: Int

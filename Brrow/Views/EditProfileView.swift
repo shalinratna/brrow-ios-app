@@ -875,7 +875,7 @@ struct ChangePasswordProfileView: View {
     }
 }
 
-struct PrivacySettingsView: View {
+struct LegacyPrivacySettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var profileVisibility = "public"
     @State private var showEmail = false

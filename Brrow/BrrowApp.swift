@@ -119,12 +119,16 @@ struct BrrowApp: App {
     }
     
     private func setupApp() {
+        // Initialize PEST Control System
+        PESTControlSystem.configure()
+        print("🐛 PEST Control System initialized")
+
         // Configure app appearance
         configureAppearance()
-        
+
         // Initialize language settings
         initializeLanguage()
-        
+
         // Initialize Shaiitech systems
         initializeShaiitech()
     }

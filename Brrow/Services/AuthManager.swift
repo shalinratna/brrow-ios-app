@@ -691,6 +691,30 @@ class AuthManager: ObservableObject {
         }
     }
     
+    func updateCurrentUserUsername(_ newUsername: String) {
+        guard let user = currentUser else { return }
+
+        // Create updated user with new username
+        var updatedUserData = try? JSONEncoder().encode(user)
+        if let data = updatedUserData,
+           var userDict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            userDict["username"] = newUsername
+
+            if let updatedData = try? JSONSerialization.data(withJSONObject: userDict),
+               let updatedUser = try? JSONDecoder().decode(User.self, from: updatedData) {
+                // Update in memory
+                self.currentUser = updatedUser
+            }
+        }
+
+        // Update in keychain
+        if let userData = try? JSONEncoder().encode(user) {
+            keychain.save(String(data: userData, encoding: .utf8) ?? "", forKey: userKey)
+        }
+
+        print("✅ Username updated locally to: \(newUsername)")
+    }
+
     private func setupSessionTracking() {
         // Track session start
         trackAuthEvent("session_start")

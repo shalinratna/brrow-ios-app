@@ -15,6 +15,8 @@ struct SimplifiedListingDetailView: View {
     // State variables
     @State private var showingBorrowFlow = false
     @State private var showingOfferFlow = false
+    @State private var showingMakeOffer = false
+    @State private var showingMessageComposer = false
     @State private var isFavorited = false
     @State private var selectedImageIndex = 0
     @State private var showingFullScreenImage = false
@@ -270,7 +272,9 @@ struct SimplifiedListingDetailView: View {
                 }
             } else {
                 // Message button
-                Button(action: { /* Open chat */ }) {
+                Button(action: {
+                    showingMessageComposer = true
+                }) {
                     Image(systemName: "message")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(Theme.Colors.primary)
@@ -278,21 +282,58 @@ struct SimplifiedListingDetailView: View {
                         .background(Theme.Colors.primary.opacity(0.15))
                         .cornerRadius(25)
                 }
-                
-                // Main action button
-                Button(action: { showingBorrowFlow = true }) {
-                    HStack {
-                        Image(systemName: viewModel.listing.type == "sale" ? "cart" : "calendar")
-                            .font(.system(size: 18, weight: .semibold))
-                        
-                        Text(viewModel.listing.type == "sale" ? "Buy Now" : "Borrow")
-                            .font(.system(size: 18, weight: .semibold))
+
+                // Main action button based on listing type
+                if viewModel.listing.type == "rental" {
+                    Button(action: { showingBorrowFlow = true }) {
+                        HStack {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 18, weight: .semibold))
+
+                            Text("Request to Rent")
+                                .font(.system(size: 18, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Theme.Colors.primary)
+                        .cornerRadius(25)
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Theme.Colors.primary)
-                    .cornerRadius(25)
+                } else {
+                    // For sale items - show Make Offer or Buy Now
+                    HStack(spacing: 12) {
+                        // Make Offer button
+                        Button(action: { showingMakeOffer = true }) {
+                            HStack {
+                                Image(systemName: "tag")
+                                    .font(.system(size: 16, weight: .semibold))
+
+                                Text("Make Offer")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(Theme.Colors.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Theme.Colors.primary.opacity(0.15))
+                            .cornerRadius(25)
+                        }
+
+                        // Buy Now button
+                        Button(action: { showingBorrowFlow = true }) {
+                            HStack {
+                                Image(systemName: "cart")
+                                    .font(.system(size: 16, weight: .semibold))
+
+                                Text("Buy Now")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Theme.Colors.primary)
+                            .cornerRadius(25)
+                        }
+                    }
                 }
             }
         }

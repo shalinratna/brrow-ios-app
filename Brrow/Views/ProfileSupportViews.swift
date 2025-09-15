@@ -532,6 +532,8 @@ struct ComprehensiveSettingsView: View {
 }
 
 // MARK: - Placeholder Views for Settings
+// ChangePasswordView moved to EnhancedSettingsView.swift
+/*
 struct ChangePasswordView: View {
     @State private var currentPassword = ""
     @State private var newPassword = ""
@@ -591,6 +593,7 @@ struct ChangePasswordView: View {
         }
     }
 }
+*/
 
 struct ThemeSettingsView: View {
     @StateObject private var colorSchemeManager = ColorSchemeManager.shared

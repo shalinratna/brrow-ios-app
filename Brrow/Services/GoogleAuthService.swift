@@ -51,9 +51,7 @@ class GoogleAuthService: ObservableObject {
             }
 
             // Present sign-in on main thread
-            let result = try await MainActor.run {
-                try await GIDSignIn.sharedInstance.signIn(withPresenting: viewController)
-            }
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: viewController)
             let user = result.user
             
             guard let idToken = user.idToken?.tokenString else {

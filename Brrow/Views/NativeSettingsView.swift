@@ -402,15 +402,17 @@ struct CommunityGuidelinesView: View {
     }
 }
 
+// AboutView moved to EnhancedSettingsView.swift
+/*
 struct AboutView: View {
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.6"
     }
-    
+
     private var buildNumber: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "285"
     }
-    
+
     var body: some View {
         Form {
             Section {
@@ -421,16 +423,16 @@ struct AboutView: View {
                         .frame(width: 80, height: 80)
                         .cornerRadius(16)
                         .shadow(radius: 4)
-                    
+
                     VStack(spacing: 8) {
                         Text("Brrow")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                        
+
                         Text("Borrow, don't buy")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         Text("Version \(appVersion) (\(buildNumber))")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -440,13 +442,13 @@ struct AboutView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
             }
-            
+
             Section("About") {
                 Text("Brrow is a peer-to-peer rental marketplace that connects neighbors to share items they need. Our mission is to promote sustainability and build stronger communities by making it easy to borrow instead of buy.")
                     .font(.body)
                     .padding(.vertical, 8)
             }
-            
+
             Section("Team") {
                 HStack {
                     Text("© 2025 Brrow App")
@@ -461,6 +463,7 @@ struct AboutView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+*/
 
 extension Image {
     func onErrorAction(perform action: @escaping () -> Image) -> some View {

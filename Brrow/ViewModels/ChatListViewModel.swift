@@ -8,7 +8,9 @@ class ChatListViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var unreadCount = 0
-    
+    @Published var selectedChatId: String?
+    @Published var navigatedListing: Listing?
+
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
     private let authManager = AuthManager.shared
@@ -193,5 +195,25 @@ class ChatListViewModel: ObservableObject {
         }
         
         return conversation
+    }
+
+    // Navigate to a specific chat
+    func navigateToChat(chatId: String, listing: Listing?) {
+        selectedChatId = chatId
+        navigatedListing = listing
+
+        // Find the conversation in the list
+        if let conversation = conversations.first(where: { $0.id == chatId }) {
+            // Mark as selected for navigation
+            selectedChatId = conversation.id
+        } else {
+            // If conversation doesn't exist in the list, fetch it
+            Task {
+                await fetchConversations()
+                await MainActor.run {
+                    self.selectedChatId = chatId
+                }
+            }
+        }
     }
 }

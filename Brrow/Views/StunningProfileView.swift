@@ -69,7 +69,8 @@ struct StunningProfileView: View {
                 }
             }
             .sheet(isPresented: $showSettings) {
-                NativeSettingsView()
+                EnhancedSettingsView()
+                    .environmentObject(authManager)
             }
         }
     }

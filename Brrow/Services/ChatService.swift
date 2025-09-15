@@ -72,7 +72,11 @@ class ChatService: ObservableObject {
     }
     
     private func getBaseURL() async -> String {
-        return "https://api.brrowapp.com"
+        // Use the actual backend URL
+        let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+        // Convert https to wss for WebSocket
+        return baseURL.replacingOccurrences(of: "https://", with: "wss://")
+            .replacingOccurrences(of: "http://", with: "ws://")
     }
     
     private func setupSocketHandlers() {

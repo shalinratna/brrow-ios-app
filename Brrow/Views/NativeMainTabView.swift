@@ -153,6 +153,21 @@ struct NativeMainTabView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToChat)) { notification in
+            // Handle navigation to chat
+            if let userInfo = notification.userInfo,
+               let chatId = userInfo["chatId"] as? String {
+                // Switch to messages tab
+                tabSelectionManager.selectedTab = 3
+
+                // Pass the chat ID to the chat view model
+                if let listing = userInfo["listing"] as? Listing {
+                    chatViewModel.navigateToChat(chatId: chatId, listing: listing)
+                } else {
+                    chatViewModel.navigateToChat(chatId: chatId, listing: nil)
+                }
+            }
+        }
         .sheet(isPresented: $listingNavManager.showingListingDetail, onDismiss: {
             print("🔴 Sheet dismissed")
             listingNavManager.clearListing()

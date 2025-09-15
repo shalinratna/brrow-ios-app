@@ -164,51 +164,54 @@ class ModernAuthViewModel: ObservableObject {
     }
     
     // MARK: - Apple Sign In
+    func signInWithApple(userIdentifier: String, email: String?, firstName: String?, lastName: String?, identityToken: String) async {
+        isLoading = true
+        errorMessage = ""
+
+        print("🍎 Apple Sign-In initiated with user: \(userIdentifier)")
+
+        // Use the existing LoginViewModel Apple Sign-In method
+        let loginViewModel = LoginViewModel()
+        await loginViewModel.signInWithApple(
+            userIdentifier: userIdentifier,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            identityToken: identityToken
+        )
+
+        // Check if there was an error
+        if !loginViewModel.errorMessage.isEmpty {
+            errorMessage = loginViewModel.errorMessage
+            trackAuthEvent("apple_login_failure", metadata: ["error": loginViewModel.errorMessage])
+            print("❌ Apple Sign-In failed: \(loginViewModel.errorMessage)")
+        } else {
+            // Track successful Apple Sign In
+            trackAuthEvent("apple_login_success")
+            print("✅ Apple Sign-In successful")
+
+            // Clear form on success
+            clearForm()
+        }
+
+        isLoading = false
+    }
+
+    // Keep the old method for backward compatibility
     func signInWithApple(credential: ASAuthorizationAppleIDCredential) async {
         guard let identityToken = credential.identityToken,
               let tokenString = String(data: identityToken, encoding: .utf8) else {
             errorMessage = "Unable to process Apple Sign In. Please try again."
             return
         }
-        
-        isLoading = true
-        errorMessage = ""
-        
-        do {
-            // Extract user information
-            let userIdentifier = credential.user
-            let email = credential.email
-            let firstName = credential.fullName?.givenName
-            let lastName = credential.fullName?.familyName
-            
-            // Use the existing LoginViewModel Apple Sign-In method
-            let loginViewModel = LoginViewModel()
-            await loginViewModel.signInWithApple(
-                userIdentifier: userIdentifier,
-                email: email,
-                firstName: firstName,
-                lastName: lastName,
-                identityToken: tokenString
-            )
-            
-            // Check if there was an error
-            if !loginViewModel.errorMessage.isEmpty {
-                errorMessage = loginViewModel.errorMessage
-                trackAuthEvent("apple_login_failure", metadata: ["error": loginViewModel.errorMessage])
-            } else {
-                // Track successful Apple Sign In
-                trackAuthEvent("apple_login_success")
-                
-                // Clear form on success
-                clearForm()
-            }
-            
-        } catch {
-            handleAuthError(error)
-            trackAuthEvent("apple_login_failure", metadata: ["error": error.localizedDescription])
-        }
-        
-        isLoading = false
+
+        await signInWithApple(
+            userIdentifier: credential.user,
+            email: credential.email,
+            firstName: credential.fullName?.givenName,
+            lastName: credential.fullName?.familyName,
+            identityToken: tokenString
+        )
     }
     
     // MARK: - Helper Methods

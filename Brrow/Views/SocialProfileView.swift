@@ -53,7 +53,8 @@ struct SocialProfileView: View {
             EditProfileView(user: user)
         }
         .sheet(isPresented: $showingSettings) {
-            NativeSettingsView()
+            EnhancedSettingsView()
+                .environmentObject(AuthManager.shared)
         }
     }
     
