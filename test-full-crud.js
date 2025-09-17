@@ -165,7 +165,7 @@ async function runCompleteCRUDTest() {
         firstName: 'Updated',
         lastName: 'Name',
         bio: 'This is my updated bio',
-        phone: '+1234567890'
+        phone: `+1${timestamp.toString().slice(-10)}`  // Use unique phone number based on timestamp
       })
     });
 
