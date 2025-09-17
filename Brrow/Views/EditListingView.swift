@@ -526,6 +526,7 @@ struct EditListingView_Previews: PreviewProvider {
             categoryId: "cat_electronics",
             condition: "GOOD",
             price: 25.00,
+            dailyRate: nil,
             isNegotiable: true,
             availabilityStatus: .available,
             location: Location(

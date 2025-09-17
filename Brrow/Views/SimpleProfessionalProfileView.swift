@@ -226,9 +226,12 @@ struct SimpleProfessionalProfileView: View {
                 
                 // Rating
                 if let user = viewModel.user {
-                    let averageRating = Double(((user.listerRating ?? 0) + (user.renteeRating ?? 0)) / 2.0)
-                    let fullStars = Int(averageRating)
-                    let hasHalfStar = averageRating - Double(fullStars) >= 0.5
+                    let listerRating = user.listerRating ?? 0
+                    let renteeRating = user.renteeRating ?? 0
+                    let averageRating = listerRating == 0 && renteeRating == 0 ? 0 : Double((listerRating + renteeRating) / 2.0)
+                    let validRating = averageRating.isNaN || averageRating.isInfinite ? 0 : averageRating
+                    let fullStars = Int(validRating)
+                    let hasHalfStar = validRating - Double(fullStars) >= 0.5
                     
                     HStack(spacing: 6) {
                         ForEach(0..<5) { index in

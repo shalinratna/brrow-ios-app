@@ -244,7 +244,7 @@ class AuthManager: ObservableObject {
                 
                 do {
                     // Make a direct API call to refresh token
-                    guard let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/auth/refresh-token") else {
+                    guard let url = URL(string: "https://brrowapp.com/api/auth/refresh-token") else {
                         promise(.failure(.networkError("Invalid URL")))
                         return
                     }
@@ -605,7 +605,7 @@ class AuthManager: ObservableObject {
         // Optional: Perform background validation without aggressive logout
         Task {
             do {
-                guard let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/users/me") else {
+                guard let url = URL(string: "https://brrowapp.com/api/users/me") else {
                     return // Don't logout on URL construction failure
                 }
                 
@@ -704,12 +704,12 @@ class AuthManager: ObservableObject {
                let updatedUser = try? JSONDecoder().decode(User.self, from: updatedData) {
                 // Update in memory
                 self.currentUser = updatedUser
-            }
-        }
 
-        // Update in keychain
-        if let userData = try? JSONEncoder().encode(user) {
-            keychain.save(String(data: userData, encoding: .utf8) ?? "", forKey: userKey)
+                // Update in keychain with the UPDATED user, not the old one
+                if let userData = try? JSONEncoder().encode(updatedUser) {
+                    keychain.save(String(data: userData, encoding: .utf8) ?? "", forKey: userKey)
+                }
+            }
         }
 
         print("✅ Username updated locally to: \(newUsername)")

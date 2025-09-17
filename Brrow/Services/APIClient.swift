@@ -1008,7 +1008,7 @@ class APIClient: ObservableObject {
         let bodyData = try JSONSerialization.data(withJSONObject: uploadRequest)
         
         let response = try await performRequest(
-            endpoint: "api/users/me/profile-image",  // Use dedicated profile picture endpoint
+            endpoint: "api/users/me/profile-picture",  // Use correct backend endpoint
             method: .PUT,
             body: bodyData,
             responseType: ImageUploadResponse.self,
@@ -2238,15 +2238,31 @@ class APIClient: ObservableObject {
     }
     
     func updateProfileImage(imageUrl: String) async throws -> User {
-        let updateRequest = UpdateProfileImageRequest(imageUrl: imageUrl)
+        struct ProfilePictureUpdate: Codable {
+            let profilePictureUrl: String
+        }
+
+        struct ProfilePictureResponse: Codable {
+            let success: Bool
+            let message: String?
+            let user: User
+        }
+
+        let updateRequest = ProfilePictureUpdate(profilePictureUrl: imageUrl)
         let bodyData = try JSONEncoder().encode(updateRequest)
-        
-        return try await performRequest(
-            endpoint: "update_profile_image.php",
-            method: .POST,
+
+        let response = try await performRequest(
+            endpoint: "api/users/me/profile-picture",
+            method: .PUT,
             body: bodyData,
-            responseType: User.self
+            responseType: ProfilePictureResponse.self
         )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to update profile picture")
+        }
+
+        return response.user
     }
     
     // MARK: - Enhanced Profile Methods
@@ -2325,7 +2341,48 @@ class APIClient: ObservableObject {
         let status: String
         let message: String
     }
-    
+
+    // MARK: - Username Change
+    func changeUsername(_ newUsername: String) async throws -> User {
+        struct ChangeUsernameRequest: Codable {
+            let newUsername: String
+        }
+
+        struct ChangeUsernameResponse: Codable {
+            let success: Bool
+            let message: String
+            let oldUsername: String?
+            let newUsername: String?
+            let user: User?
+            let error: String?
+            let daysRemaining: Int?
+        }
+
+        let requestBody = ChangeUsernameRequest(newUsername: newUsername)
+        let bodyData = try JSONEncoder().encode(requestBody)
+
+        let response = try await performRequest(
+            endpoint: "api/users/change-username",
+            method: .POST,
+            body: bodyData,
+            responseType: ChangeUsernameResponse.self
+        )
+
+        guard response.success else {
+            if let daysRemaining = response.daysRemaining {
+                throw BrrowAPIError.serverError("Username can only be changed once every 90 days. \(daysRemaining) days remaining.")
+            }
+            throw BrrowAPIError.serverError(response.error ?? response.message)
+        }
+
+        // Return the updated user object
+        guard let updatedUser = response.user else {
+            throw BrrowAPIError.serverError("Username updated but user data not returned")
+        }
+
+        return updatedUser
+    }
+
     struct UpdateListingResponse: Codable {
         let success: Bool
         let message: String?

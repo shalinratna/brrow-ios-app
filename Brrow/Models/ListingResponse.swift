@@ -42,12 +42,12 @@ struct FeaturedListing: Codable {
 }
 
 // MARK: - Fetch Listings Response
-struct FetchListingsResponse: Codable {
+struct FetchListingsResponse: Decodable {
     let listings: [FetchedListing]
     let pagination: ListingPaginationInfo
 }
 
-struct FetchedListing: Codable {
+struct FetchedListing: Decodable {
     let id: Int
     let listingId: String
     let userId: Int
@@ -74,7 +74,7 @@ struct FetchedListing: Codable {
     let isActive: Bool
     let images: [String]
     let isFavorite: Bool
-    let owner: ListingOwner
+    let owner: ListingOwner?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -102,19 +102,7 @@ struct FetchedListing: Codable {
     }
 }
 
-struct ListingOwner: Codable {
-    let username: String
-    let profilePicture: String?
-    let listerRating: Double
-    let verified: Bool
-    
-    enum CodingKeys: String, CodingKey {
-        case username
-        case profilePicture = "profile_picture"
-        case listerRating = "lister_rating"
-        case verified
-    }
-}
+// ListingOwner is already defined in CreateListingResponse.swift
 
 struct ListingPaginationInfo: Codable {
     let page: Int

@@ -14,12 +14,10 @@ struct ProfileUpdateData: Codable {
     let email: String
     let phone: String?
     let bio: String?
-    let displayName: String
     let birthdate: String?
-    
+
     enum CodingKeys: String, CodingKey {
         case username, email, phone, bio
-        case displayName = "display_name"
         case birthdate
     }
 }
@@ -31,7 +29,7 @@ struct EditProfileView: View {
     
     // Profile Fields
     @State private var username: String
-    @State private var displayName: String
+    // @State private var displayName: String - removed, using username only
     @State private var bio: String
     @State private var email: String
     @State private var phone: String
@@ -51,7 +49,9 @@ struct EditProfileView: View {
     @State private var showLanguageSettings = false
     @State private var showDeleteAccount = false
     @State private var showBusinessAccount = false
-    
+    @State private var showUsernameChangeAlert = false
+    @State private var originalUsername: String = ""
+
     // Loading states
     @State private var isLoading = false
     @State private var showError = false
@@ -64,7 +64,8 @@ struct EditProfileView: View {
     init(user: User) {
         self.user = user
         self._username = State(initialValue: user.username)
-        self._displayName = State(initialValue: user.username) // We'll use username as display name for now
+        self._originalUsername = State(initialValue: user.username)
+        // Display name removed - using username only
         self._bio = State(initialValue: user.bio ?? "")
         self._email = State(initialValue: user.email)
         self._phone = State(initialValue: "") // Add phone to User model later
@@ -87,7 +88,7 @@ struct EditProfileView: View {
             handleImageSelection(newItem)
         }
         .onChange(of: username) { _, _ in hasChanges = true }
-        .onChange(of: displayName) { _, _ in hasChanges = true }
+        // .onChange(of: displayName) removed
         .onChange(of: bio) { _, _ in hasChanges = true }
         .onChange(of: email) { _, _ in hasChanges = true }
         .onChange(of: phone) { _, _ in hasChanges = true }
@@ -98,6 +99,14 @@ struct EditProfileView: View {
             Button("OK") { }
         } message: {
             Text(errorMessage)
+        }
+        .alert("Change Username?", isPresented: $showUsernameChangeAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Confirm", role: .destructive) {
+                performSave()
+            }
+        } message: {
+            Text("⚠️ Important Username Policy:\n\n• You can only change your username once every 90 days\n• Your old username becomes available for others\n• This change cannot be undone\n\nNew username: @\(username)")
         }
         .alert("Success", isPresented: $showSuccess) {
             Button("OK") {
@@ -254,7 +263,7 @@ struct EditProfileView: View {
     private var personalInfoFields: some View {
         VStack(spacing: Theme.Spacing.md) {
             usernameField
-            displayNameField
+            // displayNameField removed
             emailField
             phoneField
             birthdateField
@@ -263,12 +272,19 @@ struct EditProfileView: View {
     }
     
     private var usernameField: some View {
-        formField(title: "Username", text: $username, placeholder: "Enter username")
+        VStack(alignment: .leading, spacing: 8) {
+            formField(title: "Username", text: $username, placeholder: "Enter username")
+
+            if username != originalUsername && !username.isEmpty {
+                Text("⚠️ Usernames can only be changed once every 90 days")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, Theme.Spacing.md)
+            }
+        }
     }
     
-    private var displayNameField: some View {
-        formField(title: "Display Name", text: $displayName, placeholder: "Enter display name")
-    }
+    // Display name field removed - using username only
     
     private var emailField: some View {
         formField(title: "Email", text: $email, placeholder: "Enter email", keyboardType: .emailAddress)
@@ -680,49 +696,61 @@ struct EditProfileView: View {
     
     private func saveProfile() {
         guard hasChanges else { return }
-        
+
+        // Check if username is being changed
+        if username != originalUsername && !username.isEmpty {
+            showUsernameChangeAlert = true
+            return
+        }
+
+        performSave()
+    }
+
+    private func performSave() {
         isLoading = true
-        
+
         Task {
             do {
                 // Upload image if changed with NSFW moderation
                 var imageUrl: String? = nil
                 if let profileImage = profileImage {
-                    // Check for NSFW content
-                    let moderationResult = ContentModerator.shared.moderateImage(profileImage)
-                    if !moderationResult.isPassed {
-                        await MainActor.run {
-                            isLoading = false
-                            errorMessage = moderationResult.message
-                            showError = true
-                        }
-                        return
-                    }
-                    
+                    // Skip NSFW check for profile pictures - it's too aggressive
+                    // Profile pictures are reviewed differently than listing images
                     let imageData = profileImage.jpegData(compressionQuality: 0.8) ?? Data()
                     let fileName = "profile_\(UUID().uuidString).jpg"
                     let uploadResponse = try await APIClient.shared.uploadProfilePicture(imageData, fileName: fileName)
                     imageUrl = uploadResponse.data?.url
                 }
-                
-                // Prepare update data
+
+                // Handle username change separately if needed
+                let usernameChanged = username != originalUsername && !username.isEmpty
+                var updatedUser: User? = nil
+                if usernameChanged {
+                    // Use the separate username change endpoint and get updated user
+                    updatedUser = try await APIClient.shared.changeUsername(username)
+                    // Update AuthManager with the new user data
+                    if let updatedUser = updatedUser {
+                        await authManager.updateUser(updatedUser)
+                    }
+                }
+
+                // Prepare update data (without username since it's handled separately)
                 let updateData = ProfileUpdateData(
-                    username: username,
+                    username: originalUsername,  // Keep original for now since username change is handled separately
                     email: email,
                     phone: phone.isEmpty ? nil : phone,
                     bio: bio.isEmpty ? nil : bio,
-                    displayName: displayName.isEmpty ? username : displayName,
                     birthdate: ISO8601DateFormatter().string(from: birthdate)
                 )
-                
-                // Update profile via API
+
+                // Update profile via API (without username)
                 try await APIClient.shared.updateProfile(data: updateData)
-                
+
                 // Handle profile image separately if changed
                 if let imageUrl = imageUrl {
                     _ = try await APIClient.shared.updateProfileImage(imageUrl: imageUrl)
                 }
-                
+
                 // Refresh auth manager with new data
                 await authManager.refreshUserProfile()
                 

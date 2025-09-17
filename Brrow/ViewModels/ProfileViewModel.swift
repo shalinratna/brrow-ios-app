@@ -164,13 +164,18 @@ class ProfileViewModel: ObservableObject {
     func updateProfile(name: String, bio: String) {
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let updatedUser = try await apiClient.updateProfile(name: name, bio: bio)
                 await MainActor.run {
                     self.user = updatedUser
+                    // Update AuthManager's current user and persist to keychain
                     self.authManager.currentUser = updatedUser
+                    // Force save the updated user to keychain
+                    if let userData = try? JSONEncoder().encode(updatedUser) {
+                        KeychainHelper().save(String(data: userData, encoding: .utf8) ?? "", forKey: "brrow_user_data")
+                    }
                     self.isLoading = false
                     self.showingEditProfile = false
                 }
@@ -186,15 +191,20 @@ class ProfileViewModel: ObservableObject {
     func updateProfileImage(_ image: UIImage) {
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let imageUrl = try await fileUploadService.uploadProfileImage(image)
                 let updatedUser = try await apiClient.updateProfileImage(imageUrl: imageUrl)
-                
+
                 await MainActor.run {
                     self.user = updatedUser
+                    // Update AuthManager's current user and persist to keychain
                     self.authManager.currentUser = updatedUser
+                    // Force save the updated user to keychain
+                    if let userData = try? JSONEncoder().encode(updatedUser) {
+                        KeychainHelper().save(String(data: userData, encoding: .utf8) ?? "", forKey: "brrow_user_data")
+                    }
                     self.isLoading = false
                     self.showingImagePicker = false
                 }

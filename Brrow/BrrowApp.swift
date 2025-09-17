@@ -119,6 +119,11 @@ struct BrrowApp: App {
     }
     
     private func setupApp() {
+        // Clear the crash flag to prevent false positives
+        // This flag persists across debug sessions causing "Oops" alerts
+        UserDefaults.standard.removeObject(forKey: "app_crashed_last_time")
+        UserDefaults.standard.synchronize()
+
         // Initialize PEST Control System
         PESTControlSystem.configure()
         print("🐛 PEST Control System initialized")

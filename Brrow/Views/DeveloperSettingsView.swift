@@ -224,7 +224,7 @@ struct DeveloperSettingsView: View {
         // This would trigger a backend test endpoint
         Task {
             do {
-                let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+                let baseURL = "https://brrowapp.com"
                 let url = URL(string: "\(baseURL)/api/test/pest")!
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"

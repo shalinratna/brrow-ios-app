@@ -359,11 +359,14 @@ class CreateListingViewModel: ObservableObject {
                     longitude: currentCoordinate?.longitude ?? -122.4194
                 )
                 
+                // Get the proper category ID
+                let categoryId = await getCategoryId(for: selectedCategory)
+
                 let request = CreateListingRequest(
                     title: title,
                     description: description,
                     price: isFree ? 0.0 : Double(price) ?? 0.0,
-                    categoryId: selectedCategory,  // Using categoryId instead of category
+                    categoryId: categoryId,  // Using proper category ID
                     condition: "GOOD",  // Default condition, you can make this selectable
                     location: listingLocation,
                     isNegotiable: true,  // You can make this configurable
@@ -393,49 +396,42 @@ class CreateListingViewModel: ObservableObject {
         }
     }
     
-    // Upload images with highest quality processing
+    // Upload images with optimized performance
     private func uploadImagesInParallel() async throws -> [String] {
         guard !selectedImages.isEmpty else { return [] }
-        
-        // Use high-quality image processor
-        let processor = HighQualityImageProcessor.shared
-        
-        print("🖼️ Processing \(selectedImages.count) listing images with highest quality...")
-        
-        // Process all images with high quality settings for listings
-        let processedImages = try await processor.processImages(
-            selectedImages,
-            for: .listing,  // Use listing context for highest resolution
-            progress: { progress in
-                Task { @MainActor in
-                    // Update progress if needed
-                    let percentage = Int(progress * 100)
-                    print("Processing: \(percentage)%")
+
+        print("📤 Uploading \(selectedImages.count) images...")
+
+        // Upload images using the FileUploadService which already handles compression
+        var uploadedUrls: [String] = []
+
+        // Upload images with concurrency for better performance
+        await withTaskGroup(of: (Int, String?).self) { group in
+            for (index, image) in selectedImages.enumerated() {
+                group.addTask {
+                    do {
+                        let url = try await FileUploadService.shared.uploadImage(image)
+                        print("✅ Uploaded image \(index + 1)")
+                        return (index, url)
+                    } catch {
+                        print("❌ Failed to upload image \(index + 1): \(error)")
+                        return (index, nil)
+                    }
                 }
             }
-        )
-        
-        print("📤 Uploading processed images...")
-        
-        // Upload processed images in parallel for maximum speed
-        // Generate a temporary listing ID for organizing uploads
-        let tempListingId = "temp_\(UUID().uuidString.prefix(8))"
-        
-        let uploadedUrls = try await processor.uploadProcessedImages(
-            processedImages,
-            to: "api/upload",  // Use new entity-based upload endpoint
-            entityType: "listings",
-            entityId: tempListingId  // Will be updated with real ID after creation
-        )
-        
-        // Log results
-        print("✅ Successfully uploaded \(uploadedUrls.count) high-quality images")
-        for (index, url) in uploadedUrls.enumerated() {
-            let size = processedImages[index].readableFileSize
-            let dimensions = processedImages[index].dimensions
-            print("  📸 Image \(index + 1): \(Int(dimensions.width))x\(Int(dimensions.height)) (\(size)) -> \(url)")
+
+            // Collect results in order
+            var results: [(Int, String?)] = []
+            for await result in group {
+                results.append(result)
+            }
+
+            // Sort by index and extract URLs
+            results.sort { $0.0 < $1.0 }
+            uploadedUrls = results.compactMap { $0.1 }
         }
-        
+
+        print("✅ Successfully uploaded \(uploadedUrls.count) of \(selectedImages.count) images")
         return uploadedUrls
     }
     

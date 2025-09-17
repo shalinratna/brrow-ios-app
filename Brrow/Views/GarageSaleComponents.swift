@@ -617,7 +617,7 @@ struct GarageSaleDetailView: View {
     
     private func shareGarageSale() {
         let message = "Check out this garage sale: \(sale.title)\n\n\(sale.fullDateString)\n\(sale.address ?? sale.location)\n\nFind more garage sales on Brrow!"
-        let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/garage-sale/\(sale.id)")
+        let url = URL(string: "https://brrowapp.com/garage-sale/\(sale.id)")
         
         var items: [Any] = [message]
         if let url = url {

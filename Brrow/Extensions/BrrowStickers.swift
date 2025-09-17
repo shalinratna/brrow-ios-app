@@ -234,7 +234,7 @@ extension MSMessagesAppViewController {
         
         let message = MSMessage()
         message.layout = layout
-        message.url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/sticker/\(identifier)")
+        message.url = URL(string: "https://brrowapp.com/sticker/\(identifier)")
         
         conversation.insert(message) { error in
             if let error = error {

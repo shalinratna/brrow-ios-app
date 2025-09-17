@@ -99,7 +99,7 @@ class GoogleAuthService: ObservableObject {
         profilePictureUrl: String?,
         idToken: String
     ) async throws {
-        guard let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/auth/google-signin") else {
+        guard let url = URL(string: "https://brrowapp.com/api/auth/google-signin") else {
             throw GoogleSignInError.invalidURL
         }
         

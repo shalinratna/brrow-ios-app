@@ -126,6 +126,7 @@ extension Listing {
             categoryId: "default-category",
             condition: "GOOD",
             price: price,
+            dailyRate: nil,
             isNegotiable: true,
             availabilityStatus: isActive ? .available : .pending,
             location: location ?? Location(

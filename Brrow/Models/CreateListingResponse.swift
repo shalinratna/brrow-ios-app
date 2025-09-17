@@ -1,5 +1,15 @@
 import Foundation
 
+// MARK: - ListingOwner
+struct ListingOwner: Codable {
+    let id: String?
+    let username: String?
+    let email: String?
+    let profilePicture: String?
+    let rating: Double?
+    let verified: Bool?
+}
+
 // Structure for image data returned by API
 struct ListingImage: Codable {
     let id: String
@@ -92,20 +102,20 @@ struct ListingImage: Codable {
     // Helper method to get the full URL with base URL if needed
     var fullURL: String? {
         guard let urlString = url ?? imageUrl else { return nil }
-        
+
         // If the URL is already complete (starts with http), return as-is
         if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
             return urlString
         }
-        
-        // If it's a relative path starting with /uploads/, prepend brrowapp.com URL
+
+        // If it's a relative path starting with /uploads/, prepend Railway backend URL
         if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
             let baseURL = "https://brrowapp.com"
             let formattedPath = urlString.hasPrefix("/") ? urlString : "/\(urlString)"
             return "\(baseURL)\(formattedPath)"
         }
-        
-        // For other relative paths, assume they need the brrowapp.com URL
+
+        // For other relative paths, use Railway backend URL
         let baseURL = "https://brrowapp.com"
         return "\(baseURL)/\(urlString)"
     }
@@ -113,20 +123,20 @@ struct ListingImage: Codable {
     // Helper method to get the full thumbnail URL
     var fullThumbnailURL: String? {
         guard let thumbnailUrlString = thumbnailUrl ?? thumbnail_url else { return nil }
-        
+
         // If the URL is already complete (starts with http), return as-is
         if thumbnailUrlString.hasPrefix("http://") || thumbnailUrlString.hasPrefix("https://") {
             return thumbnailUrlString
         }
-        
-        // If it's a relative path starting with /uploads/, prepend brrowapp.com URL
+
+        // If it's a relative path starting with /uploads/, prepend Railway backend URL
         if thumbnailUrlString.hasPrefix("/uploads/") || thumbnailUrlString.hasPrefix("uploads/") {
             let baseURL = "https://brrowapp.com"
             let formattedPath = thumbnailUrlString.hasPrefix("/") ? thumbnailUrlString : "/\(thumbnailUrlString)"
             return "\(baseURL)\(formattedPath)"
         }
-        
-        // For other relative paths, assume they need the brrowapp.com URL
+
+        // For other relative paths, use Railway backend URL
         let baseURL = "https://brrowapp.com"
         return "\(baseURL)/\(thumbnailUrlString)"
     }
@@ -153,7 +163,7 @@ struct CreateListingResponse: Codable {
 }
 
 // Legacy structure for backward compatibility
-struct CreatedListing: Codable {
+struct CreatedListing: Decodable {
     // Minimal fields that API actually returns
     let listing_id: String?  // API returns as string (e.g., "lst_68aa3dd54a17f8.99928588")
     let numeric_id: Int?     // Numeric ID from API
@@ -204,6 +214,7 @@ struct CreatedListing: Codable {
             categoryId: category ?? "general",
             condition: "Good",
             price: Double(price ?? "0") ?? 0.0,
+            dailyRate: nil,
             isNegotiable: false,
             availabilityStatus: .available,
             location: Location(

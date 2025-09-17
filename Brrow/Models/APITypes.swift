@@ -51,20 +51,30 @@ struct AuthResponse: Codable {
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         // Try to decode both token formats
         self.token = try container.decodeIfPresent(String.self, forKey: .token)
         self.accessToken = try container.decodeIfPresent(String.self, forKey: .accessToken)
         self.refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
-        
+
         // User is required
         self.user = try container.decode(User.self, forKey: .user)
-        
+
         // Optional fields
         self.expiresAt = try container.decodeIfPresent(String.self, forKey: .expiresAt)
         self.isNewUser = try container.decodeIfPresent(Bool.self, forKey: .isNewUser)
     }
-    
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(token, forKey: .token)
+        try container.encodeIfPresent(accessToken, forKey: .accessToken)
+        try container.encodeIfPresent(refreshToken, forKey: .refreshToken)
+        try container.encode(user, forKey: .user)
+        try container.encodeIfPresent(expiresAt, forKey: .expiresAt)
+        try container.encodeIfPresent(isNewUser, forKey: .isNewUser)
+    }
+
     private enum CodingKeys: String, CodingKey {
         case token
         case accessToken
@@ -166,11 +176,11 @@ struct EmptyResponse: Codable {
 struct SuccessResponse: Codable {
     let success: Bool
     let message: String?
-    let data: [String: AnyCodable]?
+    let data: [String: APIAnyCodable]?
 }
 
-// MARK: - AnyCodable for dynamic JSON
-struct AnyCodable: Codable {
+// MARK: - APIAnyCodable for dynamic JSON
+struct APIAnyCodable: Codable {
     let value: Any
     
     init(_ value: Any) {
@@ -188,12 +198,12 @@ struct AnyCodable: Codable {
             value = double
         } else if let string = try? container.decode(String.self) {
             value = string
-        } else if let array = try? container.decode([AnyCodable].self) {
+        } else if let array = try? container.decode([APIAnyCodable].self) {
             value = array.map { $0.value }
-        } else if let dictionary = try? container.decode([String: AnyCodable].self) {
+        } else if let dictionary = try? container.decode([String: APIAnyCodable].self) {
             value = dictionary.mapValues { $0.value }
         } else {
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unable to decode AnyCodable")
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unable to decode APIAnyCodable")
         }
     }
     
@@ -209,11 +219,11 @@ struct AnyCodable: Codable {
         } else if let string = value as? String {
             try container.encode(string)
         } else if let array = value as? [Any] {
-            try container.encode(array.map { AnyCodable($0) })
+            try container.encode(array.map { APIAnyCodable($0) })
         } else if let dictionary = value as? [String: Any] {
-            try container.encode(dictionary.mapValues { AnyCodable($0) })
+            try container.encode(dictionary.mapValues { APIAnyCodable($0) })
         } else {
-            throw EncodingError.invalidValue(value, EncodingError.Context(codingPath: container.codingPath, debugDescription: "Unable to encode AnyCodable"))
+            throw EncodingError.invalidValue(value, EncodingError.Context(codingPath: container.codingPath, debugDescription: "Unable to encode APIAnyCodable"))
         }
     }
 }

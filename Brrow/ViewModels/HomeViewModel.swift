@@ -205,6 +205,7 @@ class HomeViewModel: ObservableObject {
                 categoryId: "default-category",
                 condition: "GOOD",
                 price: priceValue,
+                dailyRate: nil,
                 isNegotiable: true,
                 availabilityStatus: entity.status == "available" ? .available : .pending,
                 location: location,

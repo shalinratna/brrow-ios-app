@@ -17,21 +17,35 @@ class FileUploadService: ObservableObject {
     @Published var error: String?
     
     private var cancellables = Set<AnyCancellable>()
-    private let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+    private let baseURL = "https://brrowapp.com"
     
     func uploadImage(_ image: UIImage, fileName: String = UUID().uuidString + ".jpg") async throws -> String {
         isUploading = true
         progress = 0
         error = nil
-        
-        // Resize image and convert to Data
-        guard let resizedImage = image.resized(to: CGSize(width: 1200, height: 1200)),
-              let imageData = resizedImage.jpegData(compressionQuality: 0.8) else {
+
+        // More aggressive resize to prevent 500 errors from large files
+        // Max dimension 800px to ensure file stays under 1MB after base64 encoding
+        guard let resizedImage = image.resized(to: CGSize(width: 800, height: 800)),
+              let imageData = resizedImage.jpegData(compressionQuality: 0.6) else {
             throw FileUploadError.compressionFailed
         }
+
+        // Check if image data is too large (max 1MB for safety with base64)
+        var finalImageData = imageData
+        if imageData.count > 1024 * 1024 {
+            // Try even more compression
+            guard let moreCompressed = resizedImage.jpegData(compressionQuality: 0.4) else {
+                throw FileUploadError.compressionFailed
+            }
+            if moreCompressed.count > 1024 * 1024 {
+                throw FileUploadError.fileTooLarge
+            }
+            finalImageData = moreCompressed
+        }
         
-        // Convert to base64
-        let base64String = imageData.base64EncodedString()
+        // Convert to base64 using the final compressed data
+        let base64String = finalImageData.base64EncodedString()
         let dataURL = "data:image/jpeg;base64,\(base64String)"
         
         // Create JSON payload

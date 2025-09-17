@@ -987,7 +987,7 @@ struct CalculatorLauncherView: View {
             VStack(spacing: 0) {
                 // Header
                 VStack(spacing: 16) {
-                    Image(systemName: "calculator.fill")
+                    Image(systemName: "number.square.fill")
                         .font(.system(size: 60))
                         .foregroundColor(Theme.Colors.primary)
                     
@@ -1106,7 +1106,7 @@ struct CalculatorListingCard: View {
                 
                 Spacer()
                 
-                Image(systemName: "calculator")
+                Image(systemName: "number.square")
                     .font(.system(size: 20))
                     .foregroundColor(Theme.Colors.primary)
             }

@@ -111,6 +111,7 @@ struct ListingDetailResponse: Codable {
             categoryId: "default-category",
             condition: "GOOD",
             price: price,
+            dailyRate: nil,
             isNegotiable: true,
             availabilityStatus: is_active ? .available : .deleted,
             location: locationModel,

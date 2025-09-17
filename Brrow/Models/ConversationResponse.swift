@@ -10,7 +10,7 @@ import Foundation
 // MARK: - Fetch Conversations Response
 struct FetchConversationsResponse: Codable {
     let success: Bool
-    let message: String
+    let message: String?  // Make optional as API doesn't always return it
     let data: ConversationsData
 }
 

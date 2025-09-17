@@ -8,6 +8,49 @@
 import Foundation
 import CoreData
 
+// MARK: - UserPreferences Struct
+struct UserPreferences: Codable {
+    let notifications: Bool?
+    let emailNotifications: Bool?
+    let pushNotifications: Bool?
+    let smsNotifications: Bool?
+    let marketingEmails: Bool?
+    let theme: String?
+    let language: String?
+    let devices: DevicesInfo?
+
+    struct DevicesInfo: Codable {
+        let ios: IOSDeviceInfo?
+        let android: AndroidDeviceInfo?
+    }
+
+    struct IOSDeviceInfo: Codable {
+        let token: String?
+        let osVersion: String?
+        let updatedAt: String?
+        let appVersion: String?
+        let deviceModel: String?
+    }
+
+    struct AndroidDeviceInfo: Codable {
+        let token: String?
+        let osVersion: String?
+        let updatedAt: String?
+        let appVersion: String?
+        let deviceModel: String?
+    }
+}
+
+// AnyCodable has been moved to APITypes.swift as APIAnyCodable
+
+// MARK: - UserCount Struct
+struct UserCount: Codable {
+    let listings: Int?
+    let favorites: Int?
+    let reviews: Int?
+    let transactions: Int?
+    let messages: Int?
+}
 
 // MARK: - User Model (Codable for API)
 struct User: Codable, Identifiable {
@@ -17,6 +60,9 @@ struct User: Codable, Identifiable {
     let username: String
     let email: String
     let appleUserId: String?
+    let phoneNumber: String?
+    let passwordHash: String?
+    let profilePictureUrl: String?
     
     // Personal Information
     let firstName: String?
@@ -29,10 +75,11 @@ struct User: Codable, Identifiable {
     let birthdate: String?
     var profilePicture: String?
     
-    // Verification Status  
+    // Verification Status
     let verified: Bool?  // Made optional since backend might not always send it
     let isVerified: Bool?  // Backend sends this as "isVerified"
     let emailVerified: Bool?
+    let emailVerifiedAt: String?
     let idVerified: Bool?
     let phoneVerified: Bool?
     let idVerification: String?
@@ -44,12 +91,16 @@ struct User: Codable, Identifiable {
     let hasGreenMembership: Bool?
     let badgeType: String?
     let accountType: String?
+    let deletedAt: String?
+    let lastLoginAt: String?
     
     // Ratings & Scores
     let trustScore: Int?
     let listerRating: Float?
     let borrowerRating: Float?
     let renteeRating: Float?
+    let averageRating: Float?
+    let totalRatings: Int?
     
     // Stripe & Payment
     let stripeLinked: Bool?
@@ -80,6 +131,10 @@ struct User: Codable, Identifiable {
     let lastActive: String?
     let createdAt: String?
     let updatedAt: String?
+    let preferences: UserPreferences?
+    let listings: [Listing]?
+    let favorites: [Listing]?
+    let _count: UserCount?
     
     // Additional
     let stats: UserStats?
@@ -89,10 +144,13 @@ struct User: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         // Core Identity
         case id
-        case apiId = "api_id"
+        case apiId
         case username
         case email
         case appleUserId = "apple_user_id"
+        case phoneNumber
+        case passwordHash
+        case profilePictureUrl
         
         // Personal Information
         case firstName = "first_name"
@@ -107,8 +165,9 @@ struct User: Codable, Identifiable {
         
         // Verification Status
         case verified
-        case isVerified = "isVerified"  // Backend sends camelCase
+        case isVerified
         case emailVerified = "email_verified"
+        case emailVerifiedAt
         case idVerified = "id_verified"
         case phoneVerified = "phone_verified"
         case idVerification = "id_verification"
@@ -156,7 +215,15 @@ struct User: Codable, Identifiable {
         case lastActive = "last_active"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
-        
+        case preferences
+        case listings
+        case favorites
+        case _count
+        case deletedAt
+        case lastLoginAt
+        case averageRating
+        case totalRatings
+
         // Additional
         case stats
         case isOwnProfile = "is_own_profile"
@@ -218,6 +285,18 @@ struct User: Codable, Identifiable {
         self.currentLevel = 1
         self.userAchievementProgress = nil
         self.updatedAt = nil
+        self.phoneNumber = nil
+        self.passwordHash = nil
+        self.profilePictureUrl = nil
+        self.emailVerifiedAt = nil
+        self.deletedAt = nil
+        self.lastLoginAt = nil
+        self.averageRating = nil
+        self.totalRatings = nil
+        self.preferences = nil
+        self.listings = nil
+        self.favorites = nil
+        self._count = nil
     }
     
     init(from decoder: Decoder) throws {
@@ -247,6 +326,9 @@ struct User: Codable, Identifiable {
         self.username = try container.decode(String.self, forKey: .username)
         self.email = try container.decode(String.self, forKey: .email)
         self.appleUserId = try container.decodeIfPresent(String.self, forKey: .appleUserId)
+        self.phoneNumber = try container.decodeIfPresent(String.self, forKey: .phoneNumber)
+        self.passwordHash = try container.decodeIfPresent(String.self, forKey: .passwordHash)
+        self.profilePictureUrl = try container.decodeIfPresent(String.self, forKey: .profilePictureUrl)
         
         // Personal Information
         self.firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
@@ -263,6 +345,7 @@ struct User: Codable, Identifiable {
         self.verified = try container.decodeIfPresent(Bool.self, forKey: .verified) ?? false
         self.isVerified = try container.decodeIfPresent(Bool.self, forKey: .isVerified) ?? false
         self.emailVerified = try container.decodeIfPresent(Bool.self, forKey: .emailVerified) ?? false
+        self.emailVerifiedAt = try container.decodeIfPresent(String.self, forKey: .emailVerifiedAt)
         self.idVerified = try container.decodeIfPresent(Bool.self, forKey: .idVerified) ?? false
         self.phoneVerified = try container.decodeIfPresent(Bool.self, forKey: .phoneVerified) ?? false
         self.idVerification = try container.decodeIfPresent(String.self, forKey: .idVerification)
@@ -274,12 +357,16 @@ struct User: Codable, Identifiable {
         self.hasGreenMembership = try container.decodeIfPresent(Bool.self, forKey: .hasGreenMembership) ?? false
         self.badgeType = try container.decodeIfPresent(String.self, forKey: .badgeType)
         self.accountType = try container.decodeIfPresent(String.self, forKey: .accountType) ?? "personal"
+        self.deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
+        self.lastLoginAt = try container.decodeIfPresent(String.self, forKey: .lastLoginAt)
         
         // Ratings & Scores
         self.trustScore = try container.decodeIfPresent(Int.self, forKey: .trustScore) ?? 50
         self.listerRating = try container.decodeIfPresent(Float.self, forKey: .listerRating) ?? 0.0
         self.borrowerRating = try container.decodeIfPresent(Float.self, forKey: .borrowerRating) ?? 0.0
         self.renteeRating = try container.decodeIfPresent(Float.self, forKey: .renteeRating) ?? 0.0
+        self.averageRating = try container.decodeIfPresent(Float.self, forKey: .averageRating)
+        self.totalRatings = try container.decodeIfPresent(Int.self, forKey: .totalRatings)
         
         // Stripe & Payment
         self.stripeLinked = try container.decodeIfPresent(Bool.self, forKey: .stripeLinked) ?? false
@@ -314,6 +401,10 @@ struct User: Codable, Identifiable {
         self.lastActive = try container.decodeIfPresent(String.self, forKey: .lastActive)
         self.createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         self.updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+        self.preferences = try container.decodeIfPresent(UserPreferences.self, forKey: .preferences)
+        self.listings = try container.decodeIfPresent([Listing].self, forKey: .listings)
+        self.favorites = try container.decodeIfPresent([Listing].self, forKey: .favorites)
+        self._count = try container.decodeIfPresent(UserCount.self, forKey: ._count)
         
         // Additional
         self.stats = try container.decodeIfPresent(UserStats.self, forKey: .stats)
@@ -375,13 +466,13 @@ struct User: Codable, Identifiable {
         
         // If it's a relative path starting with /uploads/, prepend base URL
         if profilePictureString.hasPrefix("/uploads/") || profilePictureString.hasPrefix("uploads/") {
-            let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+            let baseURL = "https://brrowapp.com"
             let formattedPath = profilePictureString.hasPrefix("/") ? profilePictureString : "/\(profilePictureString)"
             return "\(baseURL)\(formattedPath)"
         }
         
         // For other relative paths, assume they need the base URL
-        let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+        let baseURL = "https://brrowapp.com"
         return "\(baseURL)/\(profilePictureString)"
     }
 }

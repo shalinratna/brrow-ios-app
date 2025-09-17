@@ -544,6 +544,7 @@ struct PrimaryButtonStyle: ButtonStyle {
         categoryId: "cat1",
         condition: "good",
         price: 25.0,
+        dailyRate: nil,
         isNegotiable: true,
         availabilityStatus: .available,
         location: Location(address: "Sample Address", city: "Sample City", state: "ST", zipCode: "12345", country: "Country", latitude: 0, longitude: 0),

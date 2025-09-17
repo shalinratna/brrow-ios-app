@@ -102,7 +102,7 @@ class ImageCacheManager: ObservableObject {
         let fullUrlString: String
         if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
             // This is a relative path from our backend
-            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
+            fullUrlString = "https://brrowapp.com\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
         } else {
             fullUrlString = urlString
         }
@@ -190,7 +190,7 @@ class ImageCacheManager: ObservableObject {
         let fullUrlString: String
         if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
             // This is a relative path from our backend
-            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
+            fullUrlString = "https://brrowapp.com\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
         } else {
             fullUrlString = urlString
         }

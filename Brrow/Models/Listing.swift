@@ -54,6 +54,7 @@ struct Listing: Codable, Identifiable, Equatable {
     let categoryId: String
     let condition: String  // Changed from ItemCondition to String
     let price: Double
+    let dailyRate: Double?  // Optional daily rental rate
     let isNegotiable: Bool
     let availabilityStatus: ListingStatus
     let location: Location
@@ -121,7 +122,7 @@ struct Listing: Codable, Identifiable, Equatable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, title, description, categoryId, condition, price
+        case id, title, description, categoryId, condition, price, dailyRate
         case isNegotiable, availabilityStatus, location, userId
         case viewCount, favoriteCount, isActive, isPremium
         case premiumExpiresAt, deliveryOptions, tags, metadata
@@ -172,6 +173,7 @@ struct Listing: Codable, Identifiable, Equatable {
         categoryId: "cat_tools",
         condition: "GOOD",
         price: 25.0,
+        dailyRate: nil,
         isNegotiable: true,
         availabilityStatus: ListingStatus.available,
         location: Location(
