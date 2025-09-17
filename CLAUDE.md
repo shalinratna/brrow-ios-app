@@ -11,7 +11,7 @@
 **Tech Stack**: 
 - iOS (Swift/SwiftUI)
 - Backend (Node.js/Express)
-- Database (PostgreSQL/Supabase)
+- Database (PostgreSQL/Railway)
 - Deployment (Railway)
 
 ## ✅ Completed Features
@@ -48,7 +48,7 @@
 # Backend
 cd /Users/shalin/Documents/Projects/Xcode/Brrow/brrow-backend
 npm start
-DATABASE_URL="postgresql://postgres:brrow2024secure@db.jwgrfyfgekykhhsbgqqj.supabase.co:5432/postgres" JWT_SECRET=brrow-secret-key-2024 PORT=3002 node prisma-server.js
+DATABASE_URL="postgresql://postgres:kciFfaaVBLcfEAlHomvyNFnbMjIxGdOE@yamanote.proxy.rlwy.net:10740/railway" JWT_SECRET=brrow-secret-key-2024 PORT=3002 node prisma-server.js
 
 # iOS Build
 xcodebuild -project Brrow.xcodeproj -scheme Brrow -destination 'platform=iOS Simulator,name=iPhone 15'
@@ -73,7 +73,8 @@ git push
 ```
 
 ## 📊 Database Connection
-- **URL**: postgresql://postgres:brrow2024secure@db.jwgrfyfgekykhhsbgqqj.supabase.co:5432/postgres
+- **URL**: postgresql://postgres:kciFfaaVBLcfEAlHomvyNFnbMjIxGdOE@yamanote.proxy.rlwy.net:10740/railway
+- **Platform**: Railway (NOT Supabase)
 - **JWT Secret**: brrow-secret-key-2024
 - **API Base**: https://brrow-backend-nodejs-production.up.railway.app
 
