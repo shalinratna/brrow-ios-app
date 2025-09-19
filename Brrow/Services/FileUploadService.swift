@@ -28,36 +28,35 @@ class FileUploadService: ObservableObject {
         progress = 0
         error = nil
 
-        // Optimized compression - larger dimensions for better quality
-        // Max dimension 1500px for good quality while keeping reasonable size
-        guard let resizedImage = image.resized(to: CGSize(width: 1500, height: 1500)),
-              let imageData = resizedImage.jpegData(compressionQuality: 0.7) else {
+        // Smart compression based on image size
+        let originalSize = image.size
+        let maxDimension: CGFloat
+        let compressionQuality: CGFloat
+
+        // Determine optimal settings based on original image size
+        if max(originalSize.width, originalSize.height) > 3000 {
+            maxDimension = 1200  // Aggressive resize for very large images
+            compressionQuality = 0.6
+        } else if max(originalSize.width, originalSize.height) > 2000 {
+            maxDimension = 1500  // Moderate resize
+            compressionQuality = 0.7
+        } else {
+            maxDimension = 1800  // Minimal resize for smaller images
+            compressionQuality = 0.8
+        }
+
+        // Resize image proportionally
+        guard let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension),
+              let imageData = resizedImage.jpegData(compressionQuality: compressionQuality) else {
             throw FileUploadError.compressionFailed
         }
 
-        // Check if image data is too large (max 2MB for better quality)
-        var finalImageData = imageData
-        if imageData.count > 2 * 1024 * 1024 {
-            // Try more compression only if really needed
-            guard let moreCompressed = resizedImage.jpegData(compressionQuality: 0.5) else {
-                throw FileUploadError.compressionFailed
-            }
-            if moreCompressed.count > 2 * 1024 * 1024 {
-                // Last resort - smaller dimensions
-                guard let smallerImage = image.resized(to: CGSize(width: 1000, height: 1000)),
-                      let smallerData = smallerImage.jpegData(compressionQuality: 0.6) else {
-                    throw FileUploadError.fileTooLarge
-                }
-                finalImageData = smallerData
-            } else {
-                finalImageData = moreCompressed
-            }
-        }
+        print("📸 Image compressed: \(imageData.count / 1024)KB")
 
-        // Convert to base64 using the final compressed data
-        let base64String = finalImageData.base64EncodedString()
+        // For now, still use JSON but with optimized image
+        // TODO: Switch to multipart when backend supports it
+        let base64String = imageData.base64EncodedString()
 
-        // Create more efficient JSON payload (without data URL prefix to save ~30 bytes)
         let payload: [String: Any] = [
             "image": base64String,
             "type": "listing",
@@ -72,7 +71,7 @@ class FileUploadService: ObservableObject {
         guard let url = URL(string: "\(baseURL)/api/upload") else {
             throw FileUploadError.invalidURL
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -88,7 +87,12 @@ class FileUploadService: ObservableObject {
         }
         
         request.httpBody = jsonData
-        
+
+        // Start progress simulation
+        Task {
+            await simulateUploadProgress()
+        }
+
         do {
             let (responseData, response) = try await URLSession.shared.data(for: request)
             
@@ -134,6 +138,20 @@ class FileUploadService: ObservableObject {
         }
     }
     
+    // Simulate upload progress for better UX
+    private func simulateUploadProgress() async {
+        await MainActor.run {
+            self.progress = 0.1
+        }
+
+        for i in 1...8 {
+            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            await MainActor.run {
+                self.progress = Double(i) * 0.1
+            }
+        }
+    }
+
     func uploadProfileImage(_ image: UIImage) async throws -> String {
         let fileName = "profile_\(AuthManager.shared.currentUser?.id ?? "0")_\(UUID().uuidString).jpg"
         return try await uploadImage(image, fileName: fileName)
@@ -205,6 +223,26 @@ extension UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { _ in
             self.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+
+    func resizedWithAspectRatio(maxDimension: CGFloat) -> UIImage? {
+        let size = self.size
+
+        // If image is already small enough, return original
+        if size.width <= maxDimension && size.height <= maxDimension {
+            return self
+        }
+
+        let widthRatio = maxDimension / size.width
+        let heightRatio = maxDimension / size.height
+        let ratio = min(widthRatio, heightRatio)
+
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }
