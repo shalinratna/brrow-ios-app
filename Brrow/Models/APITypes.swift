@@ -88,26 +88,40 @@ struct AuthResponse: Codable {
 // MARK: - Listings Response
 struct ListingsResponse: Codable {
     let success: Bool
-    let data: ListingsData?
+    let listings: [Listing]?  // Backend returns listings directly
+    let data: ListingsData?  // Sometimes returns nested data
     let message: String?
-    
+    let total: Int?
+    let page: Int?
+    let limit: Int?
+
+    // Handle both response formats
+    var allListings: [Listing] {
+        // First check if listings is directly available
+        if let directListings = listings {
+            return directListings
+        }
+        // Otherwise check for nested data.listings
+        return data?.listings ?? []
+    }
+
     struct ListingsData: Codable {
         let listings: [Listing]
-        let pagination: PaginationData
+        let pagination: PaginationData?
     }
-    
+
     struct PaginationData: Codable {
         let total: Int
         let page: Int?
         let perPage: Int?
         let totalPages: Double?  // API returns as float
         let hasMore: Bool?
-        
+
         // Support both field names for compatibility
         let limit: Int?
         let offset: Int?
         let pages: Int?
-        
+
         enum CodingKeys: String, CodingKey {
             case total
             case page
@@ -118,7 +132,7 @@ struct ListingsResponse: Codable {
             case offset
             case pages
         }
-        
+
         // Computed property for compatibility
         var pageLimit: Int {
             return perPage ?? limit ?? 20
@@ -291,27 +305,7 @@ struct APIImageUploadResponse: Codable {
     }
 }
 
-// MARK: - Pagination Info
-struct PaginationInfo: Codable {
-    let page: Int
-    let limit: Int
-    let total: Int
-    let hasMore: Bool?
-    let pages: Int?
-    
-    enum CodingKeys: String, CodingKey {
-        case page
-        case limit
-        case total
-        case hasMore = "has_more"
-        case pages
-    }
-    
-    // Computed property for backward compatibility
-    var hasMorePages: Bool {
-        return hasMore ?? false
-    }
-}
+// PaginationInfo moved to be the single definition used throughout
 
 // MARK: - Profile Picture Upload Response
 struct ProfilePictureUploadResponse: Codable {
@@ -727,11 +721,7 @@ struct APICategory: Codable {
     }
 }
 
-struct CategoriesResponse: Codable {
-    let success: Bool
-    let categories: [APICategory]
-    let message: String?
-}
+// CategoriesResponse moved to ResponseTypes.swift
 
 // MARK: - ID.me Verification Types
 struct UpdateVerificationStatusRequest: Codable {

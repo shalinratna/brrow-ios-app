@@ -77,7 +77,7 @@ class ListingNavigationManager: ObservableObject {
                 
                 await MainActor.run {
                     if response.success, let listingData = response.data {
-                        self.selectedListing = listingData.toListing()
+                        self.selectedListing = listingData.listing
                         self.pendingListingId = nil
                     }
                     self.isLoadingListing = false

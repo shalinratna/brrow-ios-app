@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct ListingDetailResponse: Codable {
+struct ListingDetail: Codable {
     let id: Int
     let listing_id: String
     let owner_id: Int

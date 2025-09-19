@@ -10,7 +10,7 @@ import MapKit
 
 struct ProfessionalHomeView: View {
     @StateObject private var viewModel = ProfessionalHomeViewModel()
-    @State private var selectedCategory: HomeCategory = .all
+    @State private var selectedCategory: HomeCategoryFilter = .all
     @State private var animateWelcome = false
     @State private var showNotifications = false
     @State private var showAllNews = false
@@ -852,7 +852,7 @@ enum QuickAction: CaseIterable {
     }
 }
 
-enum HomeCategory: String, CaseIterable {
+enum HomeCategoryFilter: String, CaseIterable {
     case all = "All"
     case trending = "Trending"
     case nearby = "Nearby"
@@ -962,13 +962,10 @@ class ProfessionalHomeViewModel: ObservableObject {
     }
     
     private func loadRecentActivities() async {
-        // For now, just return mock data since there's no API endpoint for recent activities
+        // Load real recent activity from API when endpoint is available
+        // For now, show no activity until real data comes from backend
         await MainActor.run {
-            self.recentActivities = [
-                ProfessionalRecentActivity(title: "New order - iPhone 13 Pro", time: "2 min ago", icon: "cart"),
-                ProfessionalRecentActivity(title: "New review - 5 stars from John", time: "1 hour ago", icon: "star"),
-                ProfessionalRecentActivity(title: "New message - Inquiry about MacBook", time: "3 hours ago", icon: "message")
-            ]
+            self.recentActivities = []
         }
     }
     

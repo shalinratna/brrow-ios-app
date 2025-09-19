@@ -116,11 +116,11 @@ class EarningsViewModel: ObservableObject {
     private func updateEarningsData(_ overview: EarningsOverview) {
         totalEarnings = overview.totalEarnings
         availableBalance = overview.availableBalance
-        monthlyEarnings = overview.monthlyEarnings
-        earningsChange = overview.earningsChange
-        itemsRented = overview.itemsRented
-        avgDailyEarnings = overview.avgDailyEarnings
-        pendingPayments = overview.pendingPayments
+        monthlyEarnings = overview.monthlyEarningsValue
+        earningsChange = overview.earningsChangeValue
+        itemsRented = overview.itemsRentedValue
+        avgDailyEarnings = overview.avgDailyEarningsValue
+        pendingPayments = overview.pendingPaymentsValue
     }
     
     private func addNewTransaction(_ transaction: EarningsTransaction) {

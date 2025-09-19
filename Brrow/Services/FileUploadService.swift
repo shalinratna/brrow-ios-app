@@ -17,49 +17,58 @@ class FileUploadService: ObservableObject {
     @Published var error: String?
     
     private var cancellables = Set<AnyCancellable>()
-    private let baseURL = "https://brrowapp.com"
-    
+
+    // Use Railway backend URL
+    private var baseURL: String {
+        return APIEndpointManager.shared.currentEndpoint
+    }
+
     func uploadImage(_ image: UIImage, fileName: String = UUID().uuidString + ".jpg") async throws -> String {
         isUploading = true
         progress = 0
         error = nil
 
-        // More aggressive resize to prevent 500 errors from large files
-        // Max dimension 800px to ensure file stays under 1MB after base64 encoding
-        guard let resizedImage = image.resized(to: CGSize(width: 800, height: 800)),
-              let imageData = resizedImage.jpegData(compressionQuality: 0.6) else {
+        // Optimized compression - larger dimensions for better quality
+        // Max dimension 1500px for good quality while keeping reasonable size
+        guard let resizedImage = image.resized(to: CGSize(width: 1500, height: 1500)),
+              let imageData = resizedImage.jpegData(compressionQuality: 0.7) else {
             throw FileUploadError.compressionFailed
         }
 
-        // Check if image data is too large (max 1MB for safety with base64)
+        // Check if image data is too large (max 2MB for better quality)
         var finalImageData = imageData
-        if imageData.count > 1024 * 1024 {
-            // Try even more compression
-            guard let moreCompressed = resizedImage.jpegData(compressionQuality: 0.4) else {
+        if imageData.count > 2 * 1024 * 1024 {
+            // Try more compression only if really needed
+            guard let moreCompressed = resizedImage.jpegData(compressionQuality: 0.5) else {
                 throw FileUploadError.compressionFailed
             }
-            if moreCompressed.count > 1024 * 1024 {
-                throw FileUploadError.fileTooLarge
+            if moreCompressed.count > 2 * 1024 * 1024 {
+                // Last resort - smaller dimensions
+                guard let smallerImage = image.resized(to: CGSize(width: 1000, height: 1000)),
+                      let smallerData = smallerImage.jpegData(compressionQuality: 0.6) else {
+                    throw FileUploadError.fileTooLarge
+                }
+                finalImageData = smallerData
+            } else {
+                finalImageData = moreCompressed
             }
-            finalImageData = moreCompressed
         }
-        
+
         // Convert to base64 using the final compressed data
         let base64String = finalImageData.base64EncodedString()
-        let dataURL = "data:image/jpeg;base64,\(base64String)"
-        
-        // Create JSON payload
+
+        // Create more efficient JSON payload (without data URL prefix to save ~30 bytes)
         let payload: [String: Any] = [
-            "file": dataURL,
-            "fileName": fileName,
-            "fileType": "image/jpeg"
+            "image": base64String,
+            "type": "listing",
+            "preserve_metadata": true
         ]
-        
+
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
             throw FileUploadError.invalidURL
         }
-        
-        // Create request - use Node.js upload endpoint 
+
+        // Create request - use Railway Node.js upload endpoint
         guard let url = URL(string: "\(baseURL)/api/upload") else {
             throw FileUploadError.invalidURL
         }

@@ -7,14 +7,10 @@
 
 import Foundation
 
-// MARK: - User Profile Response
-struct UserProfileResponse: Codable {
-    let success: Bool
-    let profile: UserProfileData
-    let stats: UserStats
-}
+// UserProfileResponse and UserProfileData moved to ResponseTypes.swift
 
-struct UserProfileData: Codable {
+// Keeping original UserProfileData for reference
+struct LegacyUserProfileData: Codable {
     let id: Int
     let apiId: String
     let username: String

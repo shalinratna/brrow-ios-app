@@ -758,11 +758,31 @@ struct EditProfileView: View {
                     isLoading = false
                     showSuccess = true
                 }
-                
+
             } catch {
                 await MainActor.run {
                     isLoading = false
-                    errorMessage = error.localizedDescription
+
+                    // Extract proper error message
+                    if let apiError = error as? BrrowAPIError {
+                        switch apiError {
+                        case .validationError(let message):
+                            errorMessage = message
+                        case .serverError(let message):
+                            errorMessage = message
+                        case .unauthorized:
+                            errorMessage = "Authentication error. Please log in again."
+                        case .networkError(let message):
+                            errorMessage = message
+                        case .addressConflict(let message):
+                            errorMessage = message
+                        default:
+                            errorMessage = "Failed to update profile. Please try again."
+                        }
+                    } else {
+                        errorMessage = "Failed to update profile. Please try again."
+                    }
+
                     showError = true
                 }
             }

@@ -20,7 +20,7 @@ struct Location: Codable {
     
     enum CodingKeys: String, CodingKey {
         case address, city, state, country, latitude, longitude
-        case zipCode = "zip_code"
+        case zipCode  // Changed to use camelCase for Railway backend
     }
     
     // Regular initializer

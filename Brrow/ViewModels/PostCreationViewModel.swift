@@ -126,7 +126,7 @@ class PostCreationViewModel: ObservableObject {
         let listing = CreateListingRequest(
             title: title,
             description: description,
-            price: isFree ? 0.0 : Double(price) ?? 0.0,
+            dailyRate: isFree ? 0.0 : Double(price) ?? 0.0,  // Changed to dailyRate for Railway backend
             categoryId: "default-category",
             condition: "GOOD",
             location: Location(
@@ -141,15 +141,7 @@ class PostCreationViewModel: ObservableObject {
             isNegotiable: true,
             deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
             tags: [],
-            images: imageUrls.map { url in
-                CreateListingRequest.ImageUpload(
-                    url: url,
-                    thumbnailUrl: nil,
-                    width: nil,
-                    height: nil,
-                    fileSize: nil
-                )
-            },
+            images: imageUrls,  // Use URLs directly as strings
             videos: nil
         )
         

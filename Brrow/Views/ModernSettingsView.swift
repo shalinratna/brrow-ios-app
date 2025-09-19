@@ -15,6 +15,7 @@ struct ModernSettingsView: View {
     @State private var selectedSection: SettingsSection? = nil
     @State private var animateIn = false
     @State private var pulseAnimation = false
+    @State private var showEditProfile = false
 
     // User preferences
     @AppStorage("pushNotifications") private var pushNotifications = true
@@ -95,6 +96,12 @@ struct ModernSettingsView: View {
         }
         .sheet(item: $selectedSection) { section in
             sectionDetailView(for: section)
+        }
+        .sheet(isPresented: $showEditProfile) {
+            if let currentUser = authManager.currentUser {
+                EditProfileView(user: currentUser)
+                    .environmentObject(authManager)
+            }
         }
         .onAppear {
             withAnimation {
@@ -326,6 +333,12 @@ struct ModernSettingsView: View {
 
     // MARK: - Actions
     private func handleItemTap(item: SettingsItem, section: SettingsSection) {
+        // Special handling for Edit Profile
+        if item.title == "Edit Profile" {
+            showEditProfile = true
+            return
+        }
+
         // If item has a custom action, execute it
         if let action = item.action {
             action()
@@ -389,7 +402,7 @@ enum SettingsSection: CaseIterable, Identifiable {
         switch self {
         case .account:
             return [
-                SettingsItem(icon: "person.circle", title: "Profile", subtitle: "View and edit profile", color: .blue),
+                SettingsItem(icon: "person.circle", title: "Edit Profile", subtitle: "Update your profile info", color: .blue),
                 SettingsItem(icon: "at", title: "Username", subtitle: AuthManager.shared.currentUser?.username, color: .purple),
                 SettingsItem(icon: "lock.rotation", title: "Change Password", color: .orange),
                 SettingsItem(icon: "link", title: "Linked Accounts", subtitle: "Google, Apple, Facebook", color: .indigo)
@@ -508,7 +521,23 @@ class SettingsViewModel: ObservableObject {
                 return false
             }
         } catch {
-            errorMessage = error.localizedDescription
+            // Extract the proper error message from BrrowAPIError
+            if let apiError = error as? BrrowAPIError {
+                switch apiError {
+                case .validationError(let message):
+                    errorMessage = message
+                case .serverError(let message):
+                    errorMessage = message
+                case .unauthorized:
+                    errorMessage = "Authentication error. Please log in again."
+                case .networkError(let message):
+                    errorMessage = message
+                default:
+                    errorMessage = error.localizedDescription
+                }
+            } else {
+                errorMessage = error.localizedDescription
+            }
             return false
         }
     }
@@ -778,26 +807,35 @@ struct SimpleUsernameChangeView: View {
 
         Task {
             do {
-                let response = try await APIClient.shared.changeUsername(newUsername: newUsername)
+                // Use the function that properly handles the 90-day policy error
+                let updatedUser = try await APIClient.shared.changeUsername(newUsername)
 
                 await MainActor.run {
-                    if response.success {
-                        // Update local user data
-                        authManager.updateCurrentUserUsername(newUsername)
-                        successMessage = "Username changed successfully!"
+                    // Update local user data with the returned user
+                    authManager.updateUser(updatedUser)
+                    successMessage = "Username changed successfully!"
 
-                        // Dismiss after a short delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            dismiss()
-                        }
-                    } else {
-                        errorMessage = response.message ?? "Failed to change username"
+                    // Dismiss after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        dismiss()
                     }
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    errorMessage = "Error: \(error.localizedDescription)"
+                    // Extract the proper error message
+                    if let apiError = error as? BrrowAPIError {
+                        switch apiError {
+                        case .validationError(let message):
+                            errorMessage = message
+                        case .serverError(let message):
+                            errorMessage = message
+                        default:
+                            errorMessage = error.localizedDescription
+                        }
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
                     isLoading = false
                 }
             }
@@ -814,6 +852,8 @@ struct ModernUsernameChangeView: View {
     @State private var isChecking = false
     @State private var isAvailable = false
     @State private var showSuccess = false
+    @State private var showError = false
+    @State private var errorMessage = ""
 
     var body: some View {
         NavigationView {
@@ -949,6 +989,11 @@ struct ModernUsernameChangeView: View {
             } message: {
                 Text("Your username has been updated to @\(newUsername)")
             }
+            .alert("Unable to Change Username", isPresented: $showError) {
+                Button("OK") { }
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
 
@@ -970,6 +1015,12 @@ struct ModernUsernameChangeView: View {
             if success {
                 await MainActor.run {
                     showSuccess = true
+                }
+            } else {
+                // Show error message in an alert
+                await MainActor.run {
+                    errorMessage = viewModel.errorMessage
+                    showError = true
                 }
             }
         }

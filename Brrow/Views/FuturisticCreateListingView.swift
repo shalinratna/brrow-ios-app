@@ -723,7 +723,7 @@ struct FuturisticCreateListingView: View {
                     let listing = CreateListingRequest(
                         title: title,
                         description: description,
-                        price: Double(price) ?? 0,
+                        dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
                         categoryId: "cat_\(category.lowercased())",
                         condition: "GOOD",
                         location: Location(
@@ -738,15 +738,7 @@ struct FuturisticCreateListingView: View {
                         isNegotiable: true,
                         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                         tags: [],
-                        images: uploadedImageUrls.map { url in
-                            CreateListingRequest.ImageUpload(
-                                url: url,
-                                thumbnailUrl: nil,
-                                width: nil,
-                                height: nil,
-                                fileSize: nil
-                            )
-                        },
+                        images: uploadedImageUrls,  // Use URLs directly as strings
                         videos: nil
                     )
                     let promotion = PromotionRequest(
@@ -772,7 +764,7 @@ struct FuturisticCreateListingView: View {
                     let request = CreateListingRequest(
                         title: title,
                         description: description,
-                        price: Double(price) ?? 0,
+                        dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
                         categoryId: "cat_\(category.lowercased())",
                         condition: "GOOD",
                         location: Location(
@@ -787,15 +779,7 @@ struct FuturisticCreateListingView: View {
                         isNegotiable: true,
                         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                         tags: [],
-                        images: uploadedImageUrls.map { url in
-                            CreateListingRequest.ImageUpload(
-                                url: url,
-                                thumbnailUrl: nil,
-                                width: nil,
-                                height: nil,
-                                fileSize: nil
-                            )
-                        },
+                        images: uploadedImageUrls,  // Use URLs directly as strings
                         videos: nil
                     )
                     

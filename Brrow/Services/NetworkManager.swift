@@ -50,9 +50,9 @@ class NetworkManager {
     static func createURLSession() -> URLSession {
         let config = URLSessionConfiguration.default
         
-        // More aggressive timeout values for better UX
-        config.timeoutIntervalForRequest = 15.0  // 15 seconds for single request
-        config.timeoutIntervalForResource = 30.0  // 30 seconds total
+        // More aggressive timeout values for better UX (except uploads)
+        config.timeoutIntervalForRequest = 30.0  // 30 seconds for single request (increased for uploads)
+        config.timeoutIntervalForResource = 120.0  // 2 minutes total (to support image uploads)
         
         // Connection settings
         config.httpMaximumConnectionsPerHost = 3
@@ -113,7 +113,14 @@ class NetworkManager {
     ) async throws -> T {
         // Add timeout to individual request
         var mutableRequest = request
-        if mutableRequest.timeoutInterval == 60.0 {  // Default timeout
+
+        // Check if this is an upload endpoint and needs longer timeout
+        if let url = mutableRequest.url?.absoluteString,
+           (url.contains("/api/upload") || url.contains("/upload") || url.contains("image")) {
+            // Give uploads 60 seconds timeout
+            mutableRequest.timeoutInterval = 60.0
+            print("📤 Upload endpoint detected - using 60s timeout")
+        } else if mutableRequest.timeoutInterval == 60.0 {  // Default timeout for non-uploads
             mutableRequest.timeoutInterval = 15.0  // Override with shorter timeout
         }
         var lastError: Error?
@@ -213,6 +220,20 @@ class NetworkManager {
                     
                 case 400...499:
                     // Client error - don't retry
+                    // Try to decode the error response
+                    if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        let error = jsonObject["error"] as? String ?? "Client error"
+                        let daysRemaining = jsonObject["daysRemaining"] as? Int
+
+                        // Special handling for username change 90-day policy
+                        if let days = daysRemaining, error.contains("90 days") {
+                            throw BrrowAPIError.validationError("Username can only be changed once every 90 days. \(days) days remaining.")
+                        }
+
+                        throw BrrowAPIError.validationError(error)
+                    }
+
+                    // Fallback to raw error message
                     let errorMessage = String(data: data, encoding: .utf8) ?? "Client error"
                     throw BrrowAPIError.validationError(errorMessage)
                     

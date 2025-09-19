@@ -66,7 +66,7 @@ struct Listing: Codable, Identifiable, Equatable {
     let premiumExpiresAt: String?  // Changed to String to avoid date decoding issues
     let deliveryOptions: DeliveryOptions?
     let tags: [String]
-    let metadata: [String: String]?  // Changed from Any to String for Codable
+    let metadata: [String: AnyCodable]?  // Support any JSON type for metadata
     let createdAt: String  // Changed to String to avoid date decoding issues
     let updatedAt: String  // Changed to String to avoid date decoding issues
     
@@ -193,7 +193,7 @@ struct Listing: Codable, Identifiable, Equatable {
         premiumExpiresAt: nil as String?,
         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
         tags: ["tools", "construction", "dewalt"],
-        metadata: nil as [String: String]?,
+        metadata: nil as [String: AnyCodable]?,
         createdAt: ISO8601DateFormatter().string(from: Date()),
         updatedAt: ISO8601DateFormatter().string(from: Date()),
         user: nil as UserInfo?,

@@ -65,29 +65,36 @@ struct DeliveryOptions: Codable {
     let pickup: Bool
     let delivery: Bool
     let shipping: Bool
+
+    init(pickup: Bool = false, delivery: Bool = false, shipping: Bool = false) {
+        self.pickup = pickup
+        self.delivery = delivery
+        self.shipping = shipping
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Provide defaults for missing fields (handles empty objects from backend)
+        self.pickup = try container.decodeIfPresent(Bool.self, forKey: .pickup) ?? false
+        self.delivery = try container.decodeIfPresent(Bool.self, forKey: .delivery) ?? false
+        self.shipping = try container.decodeIfPresent(Bool.self, forKey: .shipping) ?? false
+    }
 }
 
 // MARK: - Create Listing Request
 struct CreateListingRequest: Codable {
     let title: String
     let description: String
-    let price: Double
+    let dailyRate: Double  // Changed from price to match Railway backend
     let categoryId: String
     let condition: String
     let location: Location
     let isNegotiable: Bool
     let deliveryOptions: DeliveryOptions?
     let tags: [String]?
-    let images: [ImageUpload]?
+    let images: [String]?  // Simplified to array of URL strings for Railway backend
     let videos: [VideoUpload]?
-    
-    struct ImageUpload: Codable {
-        let url: String
-        let thumbnailUrl: String?
-        let width: Int?
-        let height: Int?
-        let fileSize: Int?
-    }
     
     struct VideoUpload: Codable {
         let url: String

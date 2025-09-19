@@ -167,12 +167,4 @@ struct SearchPaginationInfo: Codable {
     }
 }
 
-// MARK: - Conversation Response
-struct ConversationsResponse: Codable {
-    let conversations: [ConversationData]
-    let pagination: PaginationInfo
-}
-
-struct ConversationData: Codable {
-    // Empty for now as API returns empty array
-}
+// ConversationsResponse moved to ResponseTypes.swift

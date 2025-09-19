@@ -546,7 +546,7 @@ struct EditListingView_Previews: PreviewProvider {
             premiumExpiresAt: nil as String?,
             deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
             tags: [],
-            metadata: nil as [String: String]?,
+            metadata: nil as [String: AnyCodable]?,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             updatedAt: ISO8601DateFormatter().string(from: Date()),
             user: nil as UserInfo?,

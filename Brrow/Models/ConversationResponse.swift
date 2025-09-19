@@ -14,7 +14,8 @@ struct FetchConversationsResponse: Codable {
     let data: ConversationsData
 }
 
-struct ConversationsData: Codable {
+// ConversationsData moved to ResponseTypes.swift - using extended version here
+struct ConversationsDetailedData: Codable {
     let conversations: [Conversation]
     let unreadCount: Int?  // Optional for backward compatibility
     let count: Int?         // Alternative field name from API

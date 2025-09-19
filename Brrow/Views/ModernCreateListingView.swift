@@ -683,30 +683,22 @@ struct ModernCreateListingView: View {
                     let listing = CreateListingRequest(
                         title: title,
                         description: description,
-                        price: Double(price) ?? 0,
+                        dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
                         categoryId: "default-category",
                         condition: "GOOD",
                         location: Location(
-                            address: "User Location",
-                            city: "Unknown",
-                            state: "Unknown",
-                            zipCode: "00000",
+                            address: "123 Main Street",
+                            city: "San Francisco",
+                            state: "CA",
+                            zipCode: "94102",
                             country: "US",
-                            latitude: viewModel.currentCoordinate?.latitude ?? 0,
-                            longitude: viewModel.currentCoordinate?.longitude ?? 0
+                            latitude: viewModel.currentCoordinate?.latitude ?? 37.7749,
+                            longitude: viewModel.currentCoordinate?.longitude ?? -122.4194
                         ),
                         isNegotiable: true,
                         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                         tags: [],
-                        images: uploadedImageUrls.map { url in
-                            CreateListingRequest.ImageUpload(
-                                url: url,
-                                thumbnailUrl: nil,
-                                width: nil,
-                                height: nil,
-                                fileSize: nil
-                            )
-                        },
+                        images: uploadedImageUrls,  // Send URLs as simple strings
                         videos: nil
                     )
                     let promotion = PromotionRequest(
@@ -726,30 +718,22 @@ struct ModernCreateListingView: View {
                     let request = CreateListingRequest(
                         title: title,
                         description: description,
-                        price: Double(price) ?? 0,
+                        dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
                         categoryId: "default-category",
                         condition: "GOOD",
                         location: Location(
-                            address: "User Location",
-                            city: "Unknown",
-                            state: "Unknown",
-                            zipCode: "00000",
+                            address: "123 Main Street",
+                            city: "San Francisco",
+                            state: "CA",
+                            zipCode: "94102",
                             country: "US",
-                            latitude: viewModel.currentCoordinate?.latitude ?? 0,
-                            longitude: viewModel.currentCoordinate?.longitude ?? 0
+                            latitude: viewModel.currentCoordinate?.latitude ?? 37.7749,
+                            longitude: viewModel.currentCoordinate?.longitude ?? -122.4194
                         ),
                         isNegotiable: true,
                         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                         tags: [],
-                        images: uploadedImageUrls.map { url in
-                            CreateListingRequest.ImageUpload(
-                                url: url,
-                                thumbnailUrl: nil,
-                                width: nil,
-                                height: nil,
-                                fileSize: nil
-                            )
-                        },
+                        images: uploadedImageUrls,  // Send URLs as simple strings
                         videos: nil
                     )
                     

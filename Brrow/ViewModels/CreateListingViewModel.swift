@@ -337,16 +337,8 @@ class CreateListingViewModel: ObservableObject {
                 
                 // Note: The location coordinates are now passed directly in the request
                 
-                // Convert image URLs to ImageUpload structs
-                let imageUploads = uploadedImageUrls.map { url in
-                    CreateListingRequest.ImageUpload(
-                        url: url,
-                        thumbnailUrl: nil,
-                        width: nil,
-                        height: nil,
-                        fileSize: nil
-                    )
-                }
+                // Use image URLs directly as strings
+                let imageUploads = uploadedImageUrls
                 
                 // Create location object with coordinates
                 let listingLocation = Location(
@@ -365,14 +357,14 @@ class CreateListingViewModel: ObservableObject {
                 let request = CreateListingRequest(
                     title: title,
                     description: description,
-                    price: isFree ? 0.0 : Double(price) ?? 0.0,
+                    dailyRate: isFree ? 0.0 : Double(price) ?? 0.0,  // Changed to dailyRate for Railway backend
                     categoryId: categoryId,  // Using proper category ID
                     condition: "GOOD",  // Default condition, you can make this selectable
                     location: listingLocation,
                     isNegotiable: true,  // You can make this configurable
                     deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                     tags: [],  // You can add tag support later
-                    images: imageUploads.isEmpty ? nil : imageUploads,
+                    images: imageUploads,  // Always send array, even if empty (Railway backend expects array)
                     videos: nil
                 )
                 

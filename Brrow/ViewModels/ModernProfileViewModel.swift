@@ -151,10 +151,12 @@ class ModernProfileViewModel: ObservableObject {
     private func loadEarningsData() {
         // Mock earnings data
         let calendar = Calendar.current
+        let formatter = ISO8601DateFormatter()
         earningsData = (0..<7).map { dayOffset in
             let date = calendar.date(byAdding: .day, value: -dayOffset, to: Date())!
+            let dateString = formatter.string(from: date)
             let amount = Double.random(in: 50...200)
-            return EarningsDataPoint(date: date, amount: amount)
+            return EarningsDataPoint(date: dateString, amount: amount)
         }.reversed()
     }
     

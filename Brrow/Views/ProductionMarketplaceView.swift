@@ -1225,7 +1225,7 @@ class ProductionMarketplaceViewModel: ObservableObject {
                     self.listings = allListings
                     
                     // Calculate stats
-                    self.totalListings = response.data?.pagination.total ?? allListings.count
+                    self.totalListings = response.data?.pagination?.total ?? allListings.count
                     self.activeUsers = Int.random(in: 50...200)
                     self.todayTransactions = Int.random(in: 10...50)
                     
@@ -1353,7 +1353,7 @@ class ProductionMarketplaceViewModel: ObservableObject {
             )
             
             self.listings = response.data?.listings ?? []
-            self.hasMore = response.data?.pagination.hasMore ?? false
+            self.hasMore = response.data?.pagination?.hasMore ?? false
             self.isLoading = false
         } catch {
             self.isLoading = false
@@ -1394,7 +1394,7 @@ class ProductionMarketplaceViewModel: ObservableObject {
                 self.listings.append(contentsOf: newListings)
             }
             
-            self.hasMore = response.data?.pagination.hasMore ?? false
+            self.hasMore = response.data?.pagination?.hasMore ?? false
         } catch {
             print("Error loading more: \(error)")
         }

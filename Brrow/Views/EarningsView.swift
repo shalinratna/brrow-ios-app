@@ -403,11 +403,11 @@ struct PayoutRow: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 2) {
-                Text(payout.status.rawValue)
+                Text(payout.status)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(statusColor)
-                
-                Text(payout.date, style: .date)
+
+                Text(payout.date)
                     .font(.system(size: 12))
                     .foregroundColor(Theme.Colors.secondaryText)
             }
@@ -416,11 +416,12 @@ struct PayoutRow: View {
     }
     
     private var statusColor: Color {
-        switch payout.status {
+        switch payout.payoutStatus {
         case .pending: return .orange
         case .processing: return Theme.Colors.primary
         case .completed: return Theme.Colors.success
         case .failed: return Theme.Colors.error
+        case .none: return Theme.Colors.secondaryText
         }
     }
 }
@@ -459,9 +460,15 @@ struct EarningsTransactionRow: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Theme.Colors.success)
                 
-                Text(transaction.date, style: .relative)
-                    .font(.system(size: 12))
-                    .foregroundColor(Theme.Colors.secondaryText)
+                Group {
+                    if let transactionDate = transaction.transactionDate {
+                        Text(transactionDate, style: .relative)
+                    } else {
+                        Text(transaction.date)
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundColor(Theme.Colors.secondaryText)
             }
         }
         .padding(.vertical, 8)

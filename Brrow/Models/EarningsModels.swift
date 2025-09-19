@@ -7,9 +7,9 @@
 
 import Foundation
 
-// MARK: - Earnings Overview
+// MARK: - Earnings Dashboard Overview
 
-struct EarningsOverview: Codable {
+struct EarningsDashboardOverview: Codable {
     let totalEarnings: Double
     let availableBalance: Double
     let monthlyEarnings: Double
@@ -23,9 +23,15 @@ struct EarningsOverview: Codable {
 
 struct EarningsDataPoint: Identifiable, Codable {
     var id = UUID()
-    let date: Date
+    let date: String  // Changed to String to avoid date decoding issues
     let amount: Double
-    
+
+    // Computed property for Date if needed
+    var dataDate: Date? {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: date)
+    }
+
     enum CodingKeys: String, CodingKey {
         case date, amount
     }
@@ -39,9 +45,19 @@ struct EarningsTransaction: Identifiable, Codable {
     let itemImageUrl: String?
     let renterName: String
     let amount: Double
-    let date: Date
-    let type: TransactionType
-    
+    let date: String  // Changed to String to avoid date decoding issues
+    let type: String  // Changed to String to accept any type from backend
+
+    // Computed properties for compatibility
+    var transactionDate: Date? {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: date)
+    }
+
+    var transactionType: TransactionType? {
+        return TransactionType(rawValue: type.lowercased())
+    }
+
     enum TransactionType: String, Codable {
         case rental = "rental"
         case sale = "sale"
@@ -56,9 +72,20 @@ struct EarningsPayout: Identifiable, Codable {
     let id: String
     let amount: Double
     let method: String
-    let status: PayoutStatus
-    let date: Date
-    
+    let status: String  // Changed to String to accept any status from backend
+    let date: String  // Changed to String to avoid date decoding issues
+
+    // Computed property for status enum if needed
+    var payoutStatus: PayoutStatus? {
+        return PayoutStatus(rawValue: status)
+    }
+
+    // Computed property for Date if needed
+    var payoutDate: Date? {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: date)
+    }
+
     enum PayoutStatus: String, Codable, CaseIterable {
         case pending = "Pending"
         case processing = "Processing"

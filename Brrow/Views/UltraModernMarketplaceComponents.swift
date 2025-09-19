@@ -552,7 +552,7 @@ class UltraModernMarketplaceViewModel: ObservableObject {
                     self.activeUsers = Int.random(in: 50...200)
                     self.todaysDeals = allListings.filter { $0.price < 50 }.count
                     
-                    self.hasMore = response.data?.pagination.hasMore ?? false
+                    self.hasMore = response.data?.pagination?.hasMore ?? false
                     self.isLoading = false
                 }
             } catch {

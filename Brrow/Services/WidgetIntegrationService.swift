@@ -95,15 +95,15 @@ class WidgetIntegrationService: ObservableObject {
             // Fetch earnings data
             if let earnings = try? await APIClient.shared.fetchEarningsOverview() {
                 WidgetDataManager.shared.updateWidgetData(
-                    todaysEarnings: earnings.avgDailyEarnings
+                    todaysEarnings: earnings.avgDailyEarningsValue
                 )
-                
+
                 // Update detailed earnings for specialized widget
                 WidgetDataManager.shared.updateEarningsData(
-                    today: earnings.avgDailyEarnings,
-                    week: earnings.avgDailyEarnings * 7,
-                    month: earnings.monthlyEarnings,
-                    goalProgress: min(1.0, earnings.monthlyEarnings / 1000.0) // Goal of $1000/month
+                    today: earnings.avgDailyEarningsValue,
+                    week: earnings.avgDailyEarningsValue * 7,
+                    month: earnings.monthlyEarningsValue,
+                    goalProgress: min(1.0, earnings.monthlyEarningsValue / 1000.0) // Goal of $1000/month
                 )
             }
             

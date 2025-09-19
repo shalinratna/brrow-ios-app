@@ -94,22 +94,15 @@ extension PESTControlSystem {
     }
 
     private static func checkForPreviousCrash() {
-        // Disabled crash recovery check to prevent false positives
-        // This was causing "Oops something went wrong" alerts on normal app starts
-        // The flag persists through debug terminations, causing false crash reports
+        // Completely disabled crash recovery check
+        // This feature was causing false positives on normal app starts
+        // The app_crashed_last_time flag persists through normal terminations
+        // causing "Oops something went wrong" alerts on every app launch
 
-        // Only enable this in production builds where real crashes need tracking
-        #if !DEBUG
-        let crashedLastTime = UserDefaults.standard.bool(forKey: "app_crashed_last_time")
-        if crashedLastTime {
-            PESTControlSystem.shared.captureError(
-                NSError(domain: "AppCrash", code: 0),
-                context: "App recovered from previous crash",
-                severity: .critical
-            )
-            UserDefaults.standard.set(false, forKey: "app_crashed_last_time")
-        }
-        UserDefaults.standard.set(true, forKey: "app_crashed_last_time")
-        #endif
+        // TODO: Implement proper crash detection using a crash reporting SDK
+        // like Crashlytics or Sentry that can distinguish real crashes
+
+        // Clear any existing crash flag to prevent false positives
+        UserDefaults.standard.removeObject(forKey: "app_crashed_last_time")
     }
 }

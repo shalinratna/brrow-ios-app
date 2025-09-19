@@ -28,7 +28,7 @@ struct HomeNearbyItem: Identifiable {
     let imageName: String?
 }
 
-struct Category: Identifiable {
+struct HomeCategory: Identifiable {
     let id: String
     let name: String
     let icon: String
@@ -326,10 +326,10 @@ struct ModernHomeView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Browse Categories")
                 .font(.headline)
-            
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
-                    ForEach(viewModel.categories) { category in
+                    ForEach(Array(viewModel.categories.enumerated()), id: \.element.id) { index, category in
                         HomeCategoryCard(
                             category: category,
                             isSelected: selectedCategory == category.id
@@ -344,7 +344,7 @@ struct ModernHomeView: View {
                         .opacity(animateCards ? 1 : 0)
                         .animation(
                             .spring()
-                            .delay(Double(viewModel.categories.firstIndex(where: { $0.id == category.id }) ?? 0) * 0.05),
+                            .delay(Double(index) * 0.05),
                             value: animateCards
                         )
                     }
@@ -682,7 +682,7 @@ struct HomeNearbyItemCard: View {
 }
 
 struct HomeCategoryCard: View {
-    let category: Category
+    let category: HomeCategory
     let isSelected: Bool
     let action: () -> Void
     
@@ -825,20 +825,24 @@ class ModernHomeViewModel: ObservableObject {
     @Published var quickStats: [QuickStat] = []
     @Published var notifications: [HomeUserNotification] = []
     @Published var nearbyItems: [HomeNearbyItem] = []
-    @Published var categories: [Category] = []
+    @Published var categories: [HomeCategory] = []
     @Published var newsItems: [NewsItem] = []
     @Published var recentActivities: [HomeRecentActivity] = []
     @Published var nearbyDistance = 5
     
     init() {
         // Initialize with empty data - will be loaded from API
+        setupDefaultCategories()
+    }
+
+    private func setupDefaultCategories() {
         categories = [
-            Category(id: "1", name: "Tools", icon: "wrench.fill", color: .orange),
-            Category(id: "2", name: "Electronics", icon: "tv.fill", color: .blue),
-            Category(id: "3", name: "Sports", icon: "sportscourt.fill", color: .green),
-            Category(id: "4", name: "Home", icon: "house.fill", color: .purple),
-            Category(id: "5", name: "Events", icon: "calendar", color: .red),
-            Category(id: "6", name: "More", icon: "ellipsis", color: .gray)
+            HomeCategory(id: "1", name: "Tools", icon: "wrench.fill", color: .orange),
+            HomeCategory(id: "2", name: "Electronics", icon: "tv.fill", color: .blue),
+            HomeCategory(id: "3", name: "Sports", icon: "sportscourt.fill", color: .green),
+            HomeCategory(id: "4", name: "Home", icon: "house.fill", color: .purple),
+            HomeCategory(id: "5", name: "Events", icon: "calendar", color: .red),
+            HomeCategory(id: "6", name: "More", icon: "ellipsis", color: .gray)
         ]
     }
     

@@ -17,7 +17,7 @@ enum HTTPMethod: String {
 }
 
 // MARK: - API Errors
-enum BrrowAPIError: Error {
+enum BrrowAPIError: Error, LocalizedError {
     case networkError(String)
     case serverError(String)
     case serverErrorCode(Int)
@@ -26,6 +26,27 @@ enum BrrowAPIError: Error {
     case invalidResponse
     case unauthorized
     case addressConflict(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .networkError(let message):
+            return message.isEmpty ? "Network connection error. Please check your internet." : message
+        case .serverError(let message):
+            return message.isEmpty ? "Server error. Please try again." : message
+        case .serverErrorCode(let code):
+            return "Server error (Code: \(code)). Please try again."
+        case .validationError(let message):
+            return message.isEmpty ? "Please check your information and try again." : message
+        case .decodingError:
+            return "Unable to process server response. Please try again."
+        case .invalidResponse:
+            return "Invalid server response. Please try again."
+        case .unauthorized:
+            return "Authentication required. Please log in again."
+        case .addressConflict(let message):
+            return message.isEmpty ? "Address conflict detected." : message
+        }
+    }
 }
 
 // MARK: - API Client
@@ -1960,7 +1981,7 @@ class APIClient: ObservableObject {
         let (data, _) = try await session.data(for: request)
         
         let response = try JSONDecoder().decode(ListingsResponse.self, from: data)
-        return response.data?.listings ?? []
+        return response.allListings
     }
     
     // MARK: - Fetch Listings from Server  
@@ -1978,7 +1999,7 @@ class APIClient: ObservableObject {
             method: .GET,
             responseType: ListingsResponse.self
         )
-        return response.data?.listings ?? []
+        return response.allListings
     }
     
     func fetchFilteredListings(category: String? = nil, filters: MarketplaceFilters? = nil, page: Int = 1) async throws -> [Listing] {
@@ -2019,7 +2040,7 @@ class APIClient: ObservableObject {
         let (data, _) = try await session.data(for: request)
         
         let response = try JSONDecoder().decode(ListingsResponse.self, from: data)
-        return response.data?.listings ?? []
+        return response.allListings
     }
     
     private func sortParameterValue(for sort: MarketplaceSortOption) -> String {
@@ -2155,20 +2176,20 @@ class APIClient: ObservableObject {
     func fetchProfile() async throws -> User {
         struct ProfileResponse: Codable {
             let success: Bool
-            let data: User
+            let user: User  // Backend returns 'user', not 'data'
         }
-        
+
         let response = try await performRequest(
             endpoint: "api/users/me",
             method: .GET,
             responseType: ProfileResponse.self
         )
-        
+
         guard response.success else {
             throw BrrowAPIError.serverError("Failed to fetch profile")
         }
-        
-        return response.data
+
+        return response.user
     }
     
     func updateProfile(name: String, bio: String) async throws -> User {
@@ -2185,26 +2206,33 @@ class APIClient: ObservableObject {
     
     func updateProfile(data: ProfileUpdateData) async throws {
         let bodyData = try JSONEncoder().encode(data)
-        
+
         struct ProfileUpdateAPIResponse: Codable {
             let success: Bool
             let message: String?
-            let data: ProfileUpdateResponseData?
+            let user: User?  // Backend returns user directly, not nested in data
         }
-        
-        struct ProfileUpdateResponseData: Codable {
-            let user: User
-        }
-        
+
         let response = try await performRequest(
             endpoint: "api/users/me",
             method: .PUT,
             body: bodyData,
             responseType: ProfileUpdateAPIResponse.self
         )
-        
+
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to update profile")
+        }
+
+        // Update AuthManager with the new user data if available
+        if let updatedUser = response.user {
+            await MainActor.run {
+                AuthManager.shared.currentUser = updatedUser
+                // Force save the updated user to keychain
+                if let userData = try? JSONEncoder().encode(updatedUser) {
+                    KeychainHelper().save(String(data: userData, encoding: .utf8) ?? "", forKey: "brrow_user_data")
+                }
+            }
         }
     }
     
@@ -3470,7 +3498,9 @@ class APIClient: ObservableObject {
         // Convert to EarningsOverview format expected by the app
         return EarningsOverview(
             totalEarnings: response.data.overview.lifetimeEarnings ?? 0,
+            pendingEarnings: response.data.overview.pendingEarnings ?? 0,
             availableBalance: response.data.payoutInfo.availableBalance ?? 0,
+            lastPayout: nil,
             monthlyEarnings: 0, // Not provided in API response
             earningsChange: 0, // Not provided in API response
             itemsRented: response.data.overview.totalRentals ?? 0,
@@ -3580,9 +3610,9 @@ class APIClient: ObservableObject {
             
             var dataPoints: [EarningsDataPoint] = []
             for (index, label) in labels.enumerated() {
-                if index < amounts.count,
-                   let date = dateFormatter.date(from: label) {
-                    dataPoints.append(EarningsDataPoint(date: date, amount: amounts[index]))
+                if index < amounts.count {
+                    // EarningsDataPoint now expects a String for the date field
+                    dataPoints.append(EarningsDataPoint(date: label, amount: amounts[index]))
                 }
             }
             
