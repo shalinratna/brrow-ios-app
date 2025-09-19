@@ -28,40 +28,52 @@ class FileUploadService: ObservableObject {
         progress = 0
         error = nil
 
+        print("🚀 [UPLOAD START] Beginning image upload")
+        print("📐 Original image size: \(image.size.width)x\(image.size.height)")
+
         // AGGRESSIVE compression to prevent timeouts
         let originalSize = image.size
         let maxDimension: CGFloat = 800  // Much smaller max size
         var compressionQuality: CGFloat = 0.5  // Start with 50% quality
 
+        print("📏 Resizing to max dimension: \(maxDimension)px")
+
         // Resize first
         let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension)
+        print("✅ Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
 
         // Try progressively lower quality until we get under 100KB
         var imageData: Data?
-        let targetSize = 100 * 1024  // 100KB target for base64 (becomes ~133KB)
+        let targetSize = 50 * 1024  // 50KB target - VERY AGGRESSIVE
+
+        print("🎯 Target size: \(targetSize / 1024)KB")
 
         for quality in stride(from: compressionQuality, to: 0.1, by: -0.1) {
             if let data = resizedImage.jpegData(compressionQuality: quality) {
+                print("  📊 Quality \(Int(quality * 100))%: \(data.count / 1024)KB")
                 if data.count <= targetSize {
                     imageData = data
-                    print("📸 Image compressed to \(data.count / 1024)KB at \(Int(quality * 100))% quality")
+                    print("✅ SUCCESS: Image compressed to \(data.count / 1024)KB at \(Int(quality * 100))% quality")
                     break
                 } else if quality <= 0.2 {
                     // Last resort - use this even if too big
                     imageData = data
-                    print("⚠️ Image still \(data.count / 1024)KB at minimum quality")
+                    print("⚠️ WARNING: Image still \(data.count / 1024)KB at minimum quality")
                     break
                 }
             }
         }
 
         guard let finalImageData = imageData else {
+            print("❌ ERROR: Failed to compress image")
             throw FileUploadError.compressionFailed
         }
 
         // For now, still use JSON but with optimized image
         // TODO: Switch to multipart when backend supports it
         let base64String = finalImageData.base64EncodedString()
+
+        print("📦 Base64 size: \(base64String.count / 1024)KB")
 
         let payload: [String: Any] = [
             "image": base64String,
@@ -70,8 +82,11 @@ class FileUploadService: ObservableObject {
         ]
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
+            print("❌ ERROR: Failed to create JSON payload")
             throw FileUploadError.invalidURL
         }
+
+        print("📤 Final payload size: \(jsonData.count / 1024)KB")
 
         // Create request - use Railway Node.js upload endpoint
         guard let url = URL(string: "\(baseURL)/api/upload") else {

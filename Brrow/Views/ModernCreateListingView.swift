@@ -435,8 +435,10 @@ struct ModernCreateListingView: View {
                                        let uiImage = UIImage(data: data),
                                        loadedImages.count < 10 {
                                         // Resize image immediately after loading to save memory
-                                        let optimizedImage = uiImage.resizedWithAspectRatio(maxDimension: 1200)
+                                        print("📸 [LOAD] Resizing image to 600px max")
+                                        let optimizedImage = uiImage.resizedWithAspectRatio(maxDimension: 600)
                                         loadedImages.append(optimizedImage)
+                                        print("✅ [LOAD] Image resized and added")
                                     }
                                 }
                                 selectedPhotos.removeAll()
@@ -641,12 +643,16 @@ struct ModernCreateListingView: View {
                         uploadStatusText = "Uploading image \(index + 1) of \(totalImages)..."
                     }
                     
-                    // Use optimized compression (already resized when loaded)
-                    if let imageData = image.optimizedForUpload(maxDimension: 1200, compressionQuality: 0.7) {
+                    // Use AGGRESSIVE compression to prevent timeouts
+                    print("🚀 [UPLOAD] Starting image \(index + 1)/\(totalImages)")
+                    if let imageData = image.optimizedForUpload(maxDimension: 600, compressionQuality: 0.3) {
+                        print("📦 [UPLOAD] Image compressed to \(imageData.count / 1024)KB")
                         let fileName = "listing_\(Date().timeIntervalSince1970)_\(index).jpg"
-                        
+
                         do {
+                            print("📤 [UPLOAD] Sending to server...")
                             let url = try await APIClient.shared.uploadFile(imageData, fileName: fileName)
+                            print("✅ [UPLOAD] Success!")
                             uploadedImageUrls.append(url)
                             
                             // Update progress on main thread
