@@ -46,8 +46,8 @@ class FileUploadService: ObservableObject {
         }
 
         // Resize image proportionally
-        guard let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension),
-              let imageData = resizedImage.jpegData(compressionQuality: compressionQuality) else {
+        let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension)
+        guard let imageData = resizedImage.jpegData(compressionQuality: compressionQuality) else {
             throw FileUploadError.compressionFailed
         }
 
@@ -223,26 +223,6 @@ extension UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { _ in
             self.draw(in: CGRect(origin: .zero, size: size))
-        }
-    }
-
-    func resizedWithAspectRatio(maxDimension: CGFloat) -> UIImage? {
-        let size = self.size
-
-        // If image is already small enough, return original
-        if size.width <= maxDimension && size.height <= maxDimension {
-            return self
-        }
-
-        let widthRatio = maxDimension / size.width
-        let heightRatio = maxDimension / size.height
-        let ratio = min(widthRatio, heightRatio)
-
-        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        return renderer.image { _ in
-            self.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }
