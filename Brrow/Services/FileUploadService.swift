@@ -28,34 +28,40 @@ class FileUploadService: ObservableObject {
         progress = 0
         error = nil
 
-        // Smart compression based on image size
+        // AGGRESSIVE compression to prevent timeouts
         let originalSize = image.size
-        let maxDimension: CGFloat
-        let compressionQuality: CGFloat
+        let maxDimension: CGFloat = 800  // Much smaller max size
+        var compressionQuality: CGFloat = 0.5  // Start with 50% quality
 
-        // Determine optimal settings based on original image size
-        if max(originalSize.width, originalSize.height) > 3000 {
-            maxDimension = 1200  // Aggressive resize for very large images
-            compressionQuality = 0.6
-        } else if max(originalSize.width, originalSize.height) > 2000 {
-            maxDimension = 1500  // Moderate resize
-            compressionQuality = 0.7
-        } else {
-            maxDimension = 1800  // Minimal resize for smaller images
-            compressionQuality = 0.8
+        // Resize first
+        let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension)
+
+        // Try progressively lower quality until we get under 100KB
+        var imageData: Data?
+        let targetSize = 100 * 1024  // 100KB target for base64 (becomes ~133KB)
+
+        for quality in stride(from: compressionQuality, to: 0.1, by: -0.1) {
+            if let data = resizedImage.jpegData(compressionQuality: quality) {
+                if data.count <= targetSize {
+                    imageData = data
+                    print("📸 Image compressed to \(data.count / 1024)KB at \(Int(quality * 100))% quality")
+                    break
+                } else if quality <= 0.2 {
+                    // Last resort - use this even if too big
+                    imageData = data
+                    print("⚠️ Image still \(data.count / 1024)KB at minimum quality")
+                    break
+                }
+            }
         }
 
-        // Resize image proportionally
-        let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension)
-        guard let imageData = resizedImage.jpegData(compressionQuality: compressionQuality) else {
+        guard let finalImageData = imageData else {
             throw FileUploadError.compressionFailed
         }
 
-        print("📸 Image compressed: \(imageData.count / 1024)KB")
-
         // For now, still use JSON but with optimized image
         // TODO: Switch to multipart when backend supports it
-        let base64String = imageData.base64EncodedString()
+        let base64String = finalImageData.base64EncodedString()
 
         let payload: [String: Any] = [
             "image": base64String,

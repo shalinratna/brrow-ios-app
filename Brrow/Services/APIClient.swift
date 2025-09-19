@@ -7,6 +7,7 @@
 import Foundation
 import Combine
 import CoreLocation
+import UIKit
 
 // MARK: - HTTP Method
 enum HTTPMethod: String {
@@ -1020,10 +1021,44 @@ class APIClient: ObservableObject {
     func uploadProfilePicture(imageData: Data) async throws -> String {
         // Get current user's API ID for organization
         let userApiId = authManager.currentUser?.apiId ?? "unknown_user"
-        
+
+        // AGGRESSIVE compression to prevent timeouts
+        var compressedData = imageData
+        let maxSize = 50 * 1024  // 50KB max for profile pictures
+
+        // If data is too large, compress it
+        if imageData.count > maxSize {
+            guard let image = UIImage(data: imageData) else {
+                throw BrrowAPIError.validationError("Invalid image data")
+            }
+
+            // Resize to small profile picture size
+            let maxDimension: CGFloat = 400  // Small for profile pics
+            let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension)
+
+            // Try different compression levels
+            for quality in stride(from: 0.5, to: 0.1, by: -0.1) {
+                if let data = resizedImage.jpegData(compressionQuality: quality) {
+                    if data.count <= maxSize {
+                        compressedData = data
+                        print("📸 Profile pic compressed to \(data.count / 1024)KB")
+                        break
+                    }
+                }
+            }
+
+            // Last resort - use minimum quality
+            if compressedData.count > maxSize {
+                if let minData = resizedImage.jpegData(compressionQuality: 0.1) {
+                    compressedData = minData
+                    print("⚠️ Profile pic still \(compressedData.count / 1024)KB at min quality")
+                }
+            }
+        }
+
         // Use dedicated profile picture endpoint
         let uploadRequest = [
-            "image": imageData.base64EncodedString()
+            "image": compressedData.base64EncodedString()
         ] as [String: Any]
         
         let bodyData = try JSONSerialization.data(withJSONObject: uploadRequest)
