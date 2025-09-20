@@ -563,6 +563,7 @@ struct PrimaryButtonStyle: ButtonStyle {
         category: nil,
         images: [],
         videos: nil,
+        imageUrl: nil,
         _count: nil
     ))
 }

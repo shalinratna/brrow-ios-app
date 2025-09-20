@@ -668,6 +668,7 @@ struct ChangePasswordView: View {
 
 struct LinkedAccountsView: View {
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var authManager: AuthManager
     @State private var googleLinked = false
     @State private var appleLinked = false
     @State private var facebookLinked = false
@@ -712,6 +713,30 @@ struct LinkedAccountsView: View {
                         dismiss()
                     }
                 }
+            }
+            .onAppear {
+                loadLinkedAccountStatus()
+            }
+        }
+    }
+
+    private func loadLinkedAccountStatus() {
+        // Check auth method to determine which accounts are linked
+        if let authMethod = authManager.currentUser?.authMethod {
+            switch authMethod {
+            case "GOOGLE":
+                googleLinked = true
+            case "APPLE":
+                appleLinked = true
+            default:
+                break
+            }
+        }
+
+        // Check if user has Apple ID (for users who have linked Apple)
+        if let user = authManager.currentUser {
+            if let appleId = user.appleUserId, !appleId.isEmpty {
+                appleLinked = true
             }
         }
     }
@@ -890,37 +915,6 @@ struct NotificationPreferencesView: View {
     }
 }
 
-struct AppearanceSettingsView: View {
-    @EnvironmentObject var authManager: AuthManager
-    @Environment(\.dismiss) var dismiss
-    @AppStorage("darkMode") private var darkMode = false
-    @AppStorage("autoPlayVideos") private var autoPlayVideos = true
-    @AppStorage("highQualityImages") private var highQualityImages = true
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section("Theme") {
-                    Toggle("Dark Mode", isOn: $darkMode)
-                }
-
-                Section("Media") {
-                    Toggle("Auto-Play Videos", isOn: $autoPlayVideos)
-                    Toggle("High Quality Images", isOn: $highQualityImages)
-                }
-            }
-            .navigationTitle("Appearance")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
 
 struct HelpCenterView: View {
     @Environment(\.dismiss) var dismiss

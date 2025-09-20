@@ -99,23 +99,17 @@ class GoogleAuthService: ObservableObject {
         profilePictureUrl: String?,
         idToken: String
     ) async throws {
-        guard let url = URL(string: "https://brrowapp.com/api/auth/google-signin") else {
+        guard let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/auth/google") else {
             throw GoogleSignInError.invalidURL
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let requestBody = GoogleSignInRequest(
-            googleId: googleId,
-            email: email,
-            firstName: firstName,
-            lastName: lastName,
-            profilePictureUrl: profilePictureUrl,
-            idToken: idToken
-        )
-        
+
+        // Send the idToken which will be decoded by the backend for account linking
+        let requestBody = ["idToken": idToken]
+
         request.httpBody = try JSONEncoder().encode(requestBody)
         
         let (data, response) = try await URLSession.shared.data(for: request)

@@ -130,6 +130,7 @@ struct ListingDetail: Codable {
             category: categoryModel,
             images: listingImages,
             videos: [],
+            imageUrl: nil,
             _count: Listing.ListingCount(favorites: 0),
             isOwner: false,
             isFavorite: false

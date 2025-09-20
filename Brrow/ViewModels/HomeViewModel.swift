@@ -245,6 +245,7 @@ class HomeViewModel: ObservableObject {
                     )
                 },
                 videos: nil,
+                imageUrl: nil,
                 _count: Listing.ListingCount(favorites: 0),
                 isOwner: false,
                 isFavorite: entity.isFavorite

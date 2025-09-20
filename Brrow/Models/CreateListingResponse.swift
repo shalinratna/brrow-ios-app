@@ -241,6 +241,7 @@ struct CreatedListing: Decodable {
             category: nil,
             images: images ?? [],
             videos: nil,
+            imageUrl: nil,
             _count: Listing.ListingCount(favorites: 0),
             isOwner: true,
             isFavorite: false

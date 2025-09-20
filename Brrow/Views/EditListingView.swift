@@ -563,6 +563,7 @@ struct EditListingView_Previews: PreviewProvider {
             ),
             images: [],
             videos: nil as [ListingVideo]?,
+            imageUrl: nil,
             _count: Listing.ListingCount(favorites: 0),
             isOwner: true,
             isFavorite: false

@@ -50,7 +50,7 @@ struct BrrowWidgetsLiveActivity: Widget {
             } minimal: {
                 Text(context.state.emoji)
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
+            .widgetURL(URL(string: "brrow://"))
             .keylineTint(Color.red)
         }
     }

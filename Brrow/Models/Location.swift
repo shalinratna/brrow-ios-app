@@ -36,11 +36,26 @@ struct Location: Codable {
     
     // Custom decoder to handle coordinate precision issues and field name variations
     init(from decoder: Decoder) throws {
+        // First try to decode as a string (for API responses like "SF" or "San Francisco")
+        if let container = try? decoder.singleValueContainer(),
+           let locationString = try? container.decode(String.self) {
+            // Handle string format like "SF" or "San Francisco"
+            self.address = locationString
+            self.city = locationString
+            self.state = ""
+            self.zipCode = ""
+            self.country = "US"
+            self.latitude = 0.0
+            self.longitude = 0.0
+            return
+        }
+
+        // Otherwise decode as object
         let container = try decoder.container(keyedBy: CodingKeys.self)
         address = try container.decodeIfPresent(String.self, forKey: .address) ?? ""
         city = try container.decodeIfPresent(String.self, forKey: .city) ?? ""
         state = try container.decodeIfPresent(String.self, forKey: .state) ?? ""
-        
+
         // Try snake_case first (zip_code), then try camelCase (zipCode) as fallback
         if let zip = try? container.decodeIfPresent(String.self, forKey: .zipCode) {
             zipCode = zip ?? ""
@@ -52,14 +67,14 @@ struct Location: Codable {
             let altContainer = try decoder.container(keyedBy: AlternateCodingKeys.self)
             zipCode = (try? altContainer.decodeIfPresent(String.self, forKey: .zipCode)) ?? ""
         }
-        
+
         country = try container.decodeIfPresent(String.self, forKey: .country) ?? "US"
-        
+
         // Handle latitude with precision rounding
         let latValue = try container.decode(Double.self, forKey: .latitude)
         latitude = round(latValue * 1000000) / 1000000  // Round to 6 decimal places
-        
-        // Handle longitude with precision rounding  
+
+        // Handle longitude with precision rounding
         let lonValue = try container.decode(Double.self, forKey: .longitude)
         longitude = round(lonValue * 1000000) / 1000000  // Round to 6 decimal places
     }

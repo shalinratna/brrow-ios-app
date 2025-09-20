@@ -36,6 +36,12 @@
 10. Offers & Negotiations
 
 ## 📝 Development Rules
+- **ALWAYS BE HONEST** - Never claim something works without testing
+- **FACT-CHECK EVERYTHING** - Test every fix before reporting success
+- **NO FALSE ASSESSMENTS** - If only 2/6 things work, say exactly that
+- **SIMULATE REAL APP USAGE** - Test full user flows, not just individual endpoints
+- **VERIFY CRUD OPERATIONS** - Ensure Create, Read, Update, Delete all work
+- **CHECK ENCODING/DECODING** - Verify data transfers correctly between iOS and backend
 - Complete each feature fully before moving to the next
 - Ask Shalin for clarification on big decisions
 - Test everything thoroughly

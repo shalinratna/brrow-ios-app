@@ -297,6 +297,11 @@ class CreateListingViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // MARK: - Stripe Connect State
+    @Published var showStripeConnectRequirement = false
+    @Published var stripeConnectOnboardingUrl: String?
+    @Published var isCheckingStripeConnect = false
+
     // MARK: - API Methods
     func createListing() {
         // Check price validation first
@@ -304,87 +309,102 @@ class CreateListingViewModel: ObservableObject {
             errorMessage = priceError
             return
         }
-        
-        guard canSubmit else { 
+
+        guard canSubmit else {
             errorMessage = "Please fill in all required fields correctly"
-            return 
+            return
         }
-        
+
         // Perform local content moderation
         let moderationResult = ContentModerator.shared.moderateListingContent(
             title: title,
             description: description,
             category: selectedCategory
         )
-        
+
         if !moderationResult.isPassed {
             errorMessage = moderationResult.message
             return
         }
-        
+
         isLoading = true
         errorMessage = ""
-        
-        Task { @MainActor in
-            do {
-                // Upload images with proper error handling and parallel execution
-                let uploadedImageUrls = try await uploadImagesInParallel()
-                
-                // If no images uploaded successfully, show error
-                if selectedImages.count > 0 && uploadedImageUrls.isEmpty {
-                    throw BrrowAPIError.networkError("Failed to upload images. Please try again.")
-                }
-                
-                // Note: The location coordinates are now passed directly in the request
-                
-                // Use image URLs directly as strings
-                let imageUploads = uploadedImageUrls
-                
-                // Create location object with coordinates
-                let listingLocation = Location(
-                    address: location,
-                    city: "",
-                    state: "",
-                    zipCode: "",
-                    country: "USA",
-                    latitude: currentCoordinate?.latitude ?? 37.7749,
-                    longitude: currentCoordinate?.longitude ?? -122.4194
-                )
-                
-                // Get the proper category ID
-                let categoryId = await getCategoryId(for: selectedCategory)
 
-                let request = CreateListingRequest(
-                    title: title,
-                    description: description,
-                    dailyRate: isFree ? 0.0 : Double(price) ?? 0.0,  // Changed to dailyRate for Railway backend
-                    categoryId: categoryId,  // Using proper category ID
-                    condition: "GOOD",  // Default condition, you can make this selectable
-                    location: listingLocation,
-                    isNegotiable: true,  // You can make this configurable
-                    deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
-                    tags: [],  // You can add tag support later
-                    images: imageUploads,  // Always send array, even if empty (Railway backend expects array)
-                    videos: nil
-                )
-                
-                let listing = try await APIClient.shared.createListing(request)
-                
-                isLoading = false
-                trackListingCreationSuccess(listing)
-                // Update widget data
-                WidgetDataManager.shared.handleNewListingCreated()
-                WidgetIntegrationService.shared.notifyListingCreated(listing)
-                // Post notification for other observers
-                NotificationCenter.default.post(name: .listingCreated, object: listing)
-                // Show success alert last to avoid any UI conflicts
-                showSuccessAlert = true
-                
+        Task { @MainActor in
+            // Proceed directly with listing creation - Stripe Connect will be required later for payments
+            do {
+                try await performListingCreation()
             } catch {
                 isLoading = false
-                errorMessage = error.localizedDescription
-                trackListingCreationError(error.localizedDescription)
+                errorMessage = "Failed to create listing: \(error.localizedDescription)"
             }
+        }
+    }
+
+    @MainActor
+    private func performListingCreation() async throws {
+        do {
+            // Upload images with proper error handling and parallel execution
+            let uploadedImageUrls = try await uploadImagesInParallel()
+                
+
+            // If no images uploaded successfully, show error
+            if selectedImages.count > 0 && uploadedImageUrls.isEmpty {
+                throw BrrowAPIError.networkError("Failed to upload images. Please try again.")
+            }
+                
+
+            // Note: The location coordinates are now passed directly in the request
+
+            // Use image URLs directly as strings
+            let imageUploads = uploadedImageUrls
+                
+
+            // Create location object with coordinates
+            let listingLocation = Location(
+                address: location,
+                city: "",
+                state: "",
+                zipCode: "",
+                country: "USA",
+                latitude: currentCoordinate?.latitude ?? 37.7749,
+                longitude: currentCoordinate?.longitude ?? -122.4194
+            )
+                
+
+            // Get the proper category ID
+            let categoryId = await getCategoryId(for: selectedCategory)
+
+            let request = CreateListingRequest(
+                title: title,
+                description: description,
+                dailyRate: isFree ? 0.0 : Double(price) ?? 0.0,  // Changed to dailyRate for Railway backend
+                categoryId: categoryId,  // Using proper category ID
+                condition: "GOOD",  // Default condition, you can make this selectable
+                location: listingLocation,
+                isNegotiable: true,  // You can make this configurable
+                deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
+                tags: [],  // You can add tag support later
+                images: imageUploads,  // Always send array, even if empty (Railway backend expects array)
+                videos: nil
+            )
+                
+            let listing = try await APIClient.shared.createListing(request)
+
+            isLoading = false
+            trackListingCreationSuccess(listing)
+            // Update widget data
+            WidgetDataManager.shared.handleNewListingCreated()
+            WidgetIntegrationService.shared.notifyListingCreated(listing)
+            // Post notification for other observers
+            NotificationCenter.default.post(name: .listingCreated, object: listing)
+            // Show success alert last to avoid any UI conflicts
+            showSuccessAlert = true
+
+        } catch {
+            isLoading = false
+            errorMessage = error.localizedDescription
+            trackListingCreationError(error.localizedDescription)
         }
     }
     
@@ -441,7 +461,50 @@ class CreateListingViewModel: ObservableObject {
         selectedPhotos.removeAll()
         selectedImages.removeAll()
     }
-    
+
+    // MARK: - Stripe Connect Methods
+    func openStripeConnectOnboarding() {
+        guard let urlString = stripeConnectOnboardingUrl,
+              let url = URL(string: urlString) else {
+            errorMessage = "Unable to open Stripe Connect onboarding"
+            return
+        }
+
+        UIApplication.shared.open(url)
+    }
+
+    func dismissStripeConnectRequirement() {
+        showStripeConnectRequirement = false
+        stripeConnectOnboardingUrl = nil
+    }
+
+    // Check Stripe Connect status for payment processing (called when user needs to receive payments)
+    func checkStripeConnectForPayments() async -> Bool {
+        do {
+            let stripeStatus = try await APIClient.shared.getStripeConnectStatus()
+            return stripeStatus.canReceivePayments
+        } catch {
+            print("Failed to check Stripe Connect status: \(error)")
+            return false
+        }
+    }
+
+    // Prompt user to set up Stripe Connect for payments
+    func promptStripeConnectForPayments() {
+        Task { @MainActor in
+            showStripeConnectRequirement = true
+
+            // Get onboarding URL
+            do {
+                let onboardingResponse = try await APIClient.shared.getStripeConnectOnboardingUrl()
+                stripeConnectOnboardingUrl = onboardingResponse.onboardingUrl
+            } catch {
+                print("Failed to get Stripe onboarding URL: \(error)")
+                errorMessage = "Unable to set up payments. Please try again."
+            }
+        }
+    }
+
     // MARK: - Analytics
     private func trackListingCreationSuccess(_ listing: Listing) {
         let event = AnalyticsEvent(

@@ -4231,4 +4231,95 @@ class APIClient: ObservableObject {
         
         return response
     }
+
+    // MARK: - Stripe Connect Methods
+
+    struct StripeConnectStatusResponse: Codable {
+        let connected: Bool
+        let canReceivePayments: Bool
+        let accountId: String?
+        let detailsSubmitted: Bool?
+        let chargesEnabled: Bool?
+        let payoutsEnabled: Bool?
+        let requiresOnboarding: Bool?
+    }
+
+    struct StripeConnectOnboardingResponse: Codable {
+        let success: Bool
+        let onboardingUrl: String
+        let accountId: String
+    }
+
+    func getStripeConnectStatus() async throws -> StripeConnectStatusResponse {
+        return try await performRequest(
+            endpoint: "api/stripe/connect/status",
+            method: .GET,
+            responseType: StripeConnectStatusResponse.self
+        )
+    }
+
+    func getStripeConnectOnboardingUrl() async throws -> StripeConnectOnboardingResponse {
+        return try await performRequest(
+            endpoint: "api/stripe/connect/onboarding",
+            method: .GET,
+            responseType: StripeConnectOnboardingResponse.self
+        )
+    }
+
+    // MARK: - User Preferences Methods
+
+    struct UserPreferences: Codable {
+        let isDarkMode: Bool
+        let textSize: String
+        let language: String
+    }
+
+    struct UserPreferencesResponse: Codable {
+        let success: Bool
+        let message: String?
+    }
+
+    func saveUserPreferences(_ preferences: UserPreferences) async throws {
+        let requestBody: [String: Any] = [
+            "isDarkMode": preferences.isDarkMode,
+            "textSize": preferences.textSize,
+            "language": preferences.language
+        ]
+
+        let bodyData = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let _ = try await performRequest(
+            endpoint: "api/user/preferences",
+            method: .POST,
+            body: bodyData,
+            responseType: UserPreferencesResponse.self
+        )
+    }
+
+    func getUserPreferences() async throws -> UserPreferences? {
+        struct UserPreferencesAPIResponse: Codable {
+            let success: Bool
+            let data: UserPreferencesData?
+
+            struct UserPreferencesData: Codable {
+                let isDarkMode: Bool?
+                let textSize: String?
+                let language: String?
+            }
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/user/preferences",
+            method: .GET,
+            responseType: UserPreferencesAPIResponse.self
+        )
+
+        guard let data = response.data else { return nil }
+
+        return UserPreferences(
+            isDarkMode: data.isDarkMode ?? false,
+            textSize: data.textSize ?? "medium",
+            language: data.language ?? "en"
+        )
+    }
 }

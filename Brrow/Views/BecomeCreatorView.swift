@@ -8,30 +8,63 @@ struct BecomeCreatorView: View {
     var body: some View {
         NavigationView {
             Form {
+                // Header Section
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "star.circle.fill")
                                 .font(.largeTitle)
                                 .foregroundColor(Color(hex: "#2ABF5A"))
-                            
+
                             VStack(alignment: .leading) {
                                 Text("Become a Creator")
                                     .font(.title2)
                                     .fontWeight(.bold)
-                                
+
                                 Text("Earn 1% on all referrals")
                                     .font(.caption)
                                     .foregroundColor(.gray)
                             }
                         }
                         .padding(.vertical, 8)
-                        
+
                         Text("Join our creator program and earn commission when people sign up using your unique code!")
                             .font(.callout)
                             .foregroundColor(.gray)
                     }
                 }
+
+                // Application Status Section (if exists)
+                if viewModel.hasExistingApplication {
+                    Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: viewModel.applicationStatus == "APPROVED" ? "checkmark.circle.fill" :
+                                     viewModel.applicationStatus == "PENDING" ? "clock.circle.fill" : "x.circle.fill")
+                                    .foregroundColor(viewModel.applicationStatus == "APPROVED" ? .green :
+                                                   viewModel.applicationStatus == "PENDING" ? .orange : .red)
+
+                                VStack(alignment: .leading) {
+                                    Text("Application Status")
+                                        .font(.headline)
+                                    Text(viewModel.applicationStatus.capitalized)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+
+                            if let errorMessage = viewModel.error, !errorMessage.isEmpty {
+                                Text(errorMessage)
+                                    .font(.callout)
+                                    .foregroundColor(viewModel.applicationStatus == "APPROVED" ? .green : .primary)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+
+                // Only show application form if user can apply
+                if viewModel.canApply {
                 
                 Section(header: Text("PREFERRED CREATOR CODE")) {
                     TextField("Enter your desired code", text: $viewModel.preferredCode)
@@ -116,6 +149,8 @@ struct BecomeCreatorView: View {
                     .listRowBackground(Color(hex: "#2ABF5A"))
                     .disabled(viewModel.isLoading || !viewModel.isValid)
                 }
+
+                } // End of canApply conditional
             }
             .navigationTitle("Creator Application")
             .navigationBarTitleDisplayMode(.inline)
@@ -160,38 +195,93 @@ class BecomeCreatorViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
     @Published var applicationSubmitted = false
-    
-    var isValid: Bool {
-        !preferredCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !introduction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        preferredCode.count >= 3 &&
-        preferredCode.count <= 20 &&
-        introduction.count >= 50
+
+    // Application status tracking (one per account limit)
+    @Published var hasExistingApplication = false
+    @Published var applicationStatus = ""
+    @Published var canApply = true
+
+    private let apiClient = APIClient.shared
+
+    init() {
+        Task {
+            await checkExistingApplication()
+        }
     }
-    
-    func submitApplication() async {
-        guard isValid else { return }
-        
+
+    var isValid: Bool {
+        !introduction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        introduction.count >= 50 &&
+        canApply
+    }
+
+    // Check if user already has an application (one per account limit)
+    func checkExistingApplication() async {
         isLoading = true
         error = nil
-        
+
         do {
-            let response = try await APIClient.shared.submitCreatorApplication(
-                preferredCode: preferredCode.trimmingCharacters(in: .whitespacesAndNewlines),
-                introduction: introduction.trimmingCharacters(in: .whitespacesAndNewlines),
-                socialMediaLinks: socialMediaLinks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : socialMediaLinks,
-                promotionStrategy: promotionStrategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : promotionStrategy
+            let response = try await apiClient.getCreatorStatus()
+
+            hasExistingApplication = response.hasApplication
+            canApply = response.canApply
+            applicationStatus = response.status ?? ""
+
+            // Show status-specific messages
+            if !canApply {
+                if applicationStatus == "PENDING" {
+                    error = "You already have a pending creator application. Please wait for our review."
+                } else if applicationStatus == "APPROVED" {
+                    error = "Congratulations! You're already a Brrow creator."
+                } else if applicationStatus == "REJECTED" {
+                    error = "Previous application was rejected. Please contact support to reapply."
+                }
+            }
+        } catch {
+            print("Failed to check application status: \(error)")
+        }
+
+        isLoading = false
+    }
+
+    func submitApplication() async {
+        guard isValid else { return }
+        guard canApply else {
+            error = "You already have an application submitted."
+            return
+        }
+
+        isLoading = true
+        error = nil
+
+        let applicationData: [String: Any] = [
+            "motivation": introduction.trimmingCharacters(in: .whitespacesAndNewlines),
+            "experience": introduction.trimmingCharacters(in: .whitespacesAndNewlines),
+            "platform": socialMediaLinks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : socialMediaLinks,
+            "referral_strategy": promotionStrategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : promotionStrategy,
+            "agreement_accepted": true
+        ].compactMapValues { $0 }
+
+        do {
+            let response: CreatorApplicationResponse = try await apiClient.request(
+                "/api/creators/apply",
+                method: .POST,
+                parameters: applicationData,
+                responseType: CreatorApplicationResponse.self
             )
-            
+
             if response.success {
                 applicationSubmitted = true
+                hasExistingApplication = true
+                canApply = false
+                applicationStatus = "PENDING"
             } else {
                 error = response.message
             }
         } catch {
             self.error = error.localizedDescription
         }
-        
+
         isLoading = false
     }
 }

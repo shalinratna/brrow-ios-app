@@ -13,7 +13,6 @@ struct QuickActionsButton: View {
     @Binding var showCreateListing: Bool
     @Binding var showGarageSale: Bool
     @Binding var showSeek: Bool
-    @Binding var showCalculator: Bool
     
     // Animation states
     @State private var animateButtons = false
@@ -117,8 +116,6 @@ struct QuickActionsButton: View {
                 showGarageSale = true
             case .seek:
                 showSeek = true
-            case .calculator:
-                showCalculator = true
             }
         }
     }
@@ -130,7 +127,6 @@ enum QuickActionItem: String, CaseIterable {
     case search = "Search"
     case garageSale = "Garage Sale"
     case seek = "Create Seek"
-    case calculator = "Calculator"
     
     var icon: String {
         switch self {
@@ -138,17 +134,15 @@ enum QuickActionItem: String, CaseIterable {
         case .search: return "magnifyingglass.circle.fill"
         case .garageSale: return "house.circle.fill"
         case .seek: return "eye.circle.fill"
-        case .calculator: return "number.circle.fill"
         }
     }
     
     var color: Color {
         switch self {
-        case .createListing: return Theme.Colors.primary
-        case .search: return Color.blue
-        case .garageSale: return Color.orange
-        case .seek: return Color.purple
-        case .calculator: return Color.pink
+        case .createListing: return Color(red: 0.2, green: 0.8, blue: 0.4) // Vibrant green
+        case .search: return Color(red: 0.1, green: 0.5, blue: 0.9) // Vibrant blue
+        case .garageSale: return Color(red: 1.0, green: 0.6, blue: 0.1) // Vibrant orange
+        case .seek: return Color(red: 0.7, green: 0.3, blue: 0.9) // Vibrant purple
         }
     }
     
@@ -172,12 +166,19 @@ struct QuickActionButtonItem: View {
             if isExpanded && animateButtons {
                 Text(item.rawValue)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Theme.Colors.text)
+                    .foregroundColor(.white)
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.white)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: [item.color.opacity(0.95), item.color.opacity(0.85)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     .cornerRadius(20)
-                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    .shadow(color: item.color.opacity(0.4), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
             
@@ -186,12 +187,14 @@ struct QuickActionButtonItem: View {
                 ZStack {
                     Circle()
                         .fill(item.color)
-                        .frame(width: 50, height: 50)
-                        .shadow(color: item.color.opacity(0.3), radius: 6, x: 0, y: 3)
-                    
+                        .frame(width: 55, height: 55) // Slightly larger
+                        .shadow(color: item.color.opacity(0.6), radius: 12, x: 0, y: 6) // More prominent shadow
+                        .shadow(color: item.color.opacity(0.3), radius: 20, x: 0, y: 10) // Additional glow effect
+
                     Image(systemName: item.icon)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 22, weight: .bold)) // Slightly larger and bolder
                         .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1) // Icon shadow for contrast
                 }
             }
             .scaleEffect(isPressed ? 0.9 : 1.0)
@@ -209,7 +212,6 @@ struct QuickActionsOverlay: ViewModifier {
     @State private var showCreateListing = false
     @State private var showGarageSale = false
     @State private var showSeek = false
-    @State private var showCalculator = false
     
     func body(content: Content) -> some View {
         ZStack {
@@ -222,8 +224,7 @@ struct QuickActionsOverlay: ViewModifier {
                     QuickActionsButton(
                         showCreateListing: $showCreateListing,
                         showGarageSale: $showGarageSale,
-                        showSeek: $showSeek,
-                        showCalculator: $showCalculator
+                        showSeek: $showSeek
                     )
                     .padding(.trailing, 20)
                     .padding(.bottom, 90) // Above tab bar
@@ -247,11 +248,6 @@ struct QuickActionsOverlay: ViewModifier {
             NavigationView {
                 CreateSeekView()
             }
-        }
-        .sheet(isPresented: $showCalculator) {
-            Text("Calculator Coming Soon!")
-                .font(.title)
-                .padding()
         }
     }
 }

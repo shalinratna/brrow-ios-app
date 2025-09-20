@@ -16,11 +16,93 @@ struct ModernSettingsView: View {
     @State private var animateIn = false
     @State private var pulseAnimation = false
     @State private var showEditProfile = false
+    @State private var showLinkedAccounts = false
 
     // User preferences
     @AppStorage("pushNotifications") private var pushNotifications = true
-    @AppStorage("darkMode") private var darkMode = false
+    @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("textSizeIndex") private var textSizeIndex = 1 // 0=Small, 1=Medium, 2=Large
+    @AppStorage("selectedLanguage") private var selectedLanguage = "en"
     @AppStorage("highQualityImages") private var highQualityImages = true
+
+    private let textSizes = ["Small", "Medium", "Large"]
+    private let languages = [
+        ("en", "English"),
+        ("es", "Español"),
+        ("fr", "Français"),
+        ("de", "Deutsch"),
+        ("zh", "中文"),
+        ("ja", "日本語")
+    ]
+
+    private var currentLanguageName: String {
+        languages.first { $0.0 == selectedLanguage }?.1 ?? "English"
+    }
+
+    private func itemsForSection(_ section: SettingsSection) -> [SettingsItem] {
+        switch section {
+        case .account:
+            return [
+                SettingsItem(icon: "person.circle", title: "Edit Profile", subtitle: "Update your profile info", color: .blue),
+                SettingsItem(icon: "at", title: "Username", subtitle: AuthManager.shared.currentUser?.username, color: .purple),
+                SettingsItem(icon: "lock.rotation", title: "Change Password", color: .orange),
+                SettingsItem(icon: "link", title: "Linked Accounts", subtitle: "Google, Apple, Facebook", color: .indigo)
+            ]
+        case .privacy:
+            return [
+                SettingsItem(icon: "hand.raised.shield", title: "Privacy Settings", subtitle: "Control your data", color: .green),
+                SettingsItem(icon: "eye.slash", title: "Blocked Users", color: .red),
+                SettingsItem(icon: "location.slash", title: "Location Services", toggle: .constant(true), color: .blue)
+            ]
+        case .notifications:
+            return [
+                SettingsItem(icon: "bell", title: "Push Notifications", toggle: $pushNotifications, color: .red),
+                SettingsItem(icon: "envelope", title: "Email Preferences", color: .blue),
+                SettingsItem(icon: "message", title: "SMS Alerts", toggle: .constant(false), color: .green)
+            ]
+        case .appearance:
+            return [
+                SettingsItem(icon: "moon.circle", title: "Dark Mode", toggle: $isDarkMode, color: .purple),
+                SettingsItem(icon: "textformat", title: "Text Size", value: textSizes[textSizeIndex], color: .orange),
+                SettingsItem(icon: "globe", title: "Language", value: currentLanguageName, color: .blue)
+            ]
+        case .support:
+            return [
+                SettingsItem(icon: "questionmark.circle", title: "Help Center", color: .blue),
+                SettingsItem(icon: "envelope", title: "Contact Support", color: .green),
+                SettingsItem(icon: "doc.text", title: "Report a Problem", color: .orange)
+            ]
+        case .about:
+            return [
+                SettingsItem(icon: "doc.text", title: "Terms of Service", color: .blue),
+                SettingsItem(icon: "hand.raised", title: "Privacy Policy", color: .green),
+                SettingsItem(icon: "building.2", title: "Licenses", color: .purple)
+            ]
+        #if DEBUG
+        case .developer:
+            return [
+                SettingsItem(icon: "ladybug.fill", title: "Test PEST Webhooks", subtitle: "Send test messages to Discord", color: .green, action: {
+                    // Test all webhooks
+                    PESTWebhooks.testAllWebhooks()
+
+                    // Send a test error
+                    PESTControlSystem.shared.captureError(
+                        NSError(domain: "TestError", code: 0, userInfo: [
+                            NSLocalizedDescriptionKey: "Manual test from Settings"
+                        ]),
+                        context: "PEST Test Button",
+                        severity: .medium,
+                        userInfo: [
+                            "source": "settings",
+                            "test": true
+                        ]
+                    )
+                }),
+                SettingsItem(icon: "hammer.fill", title: "Developer Options", color: .orange)
+            ]
+        #endif
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -48,7 +130,7 @@ struct ModernSettingsView: View {
 
                         // Settings Sections
                         ForEach(SettingsSection.allCases, id: \.self) { section in
-                            settingsCard(for: section)
+                            settingsCard(for: section, items: itemsForSection(section))
                                 .scaleEffect(animateIn ? 1 : 0.9)
                                 .opacity(animateIn ? 1 : 0)
                                 .animation(
@@ -102,6 +184,10 @@ struct ModernSettingsView: View {
                 EditProfileView(user: currentUser)
                     .environmentObject(authManager)
             }
+        }
+        .sheet(isPresented: $showLinkedAccounts) {
+            LinkedAccountsView()
+                .environmentObject(authManager)
         }
         .onAppear {
             withAnimation {
@@ -203,9 +289,9 @@ struct ModernSettingsView: View {
     }
 
     // MARK: - Settings Card
-    private func settingsCard(for section: SettingsSection) -> some View {
+    private func settingsCard(for section: SettingsSection, items: [SettingsItem]) -> some View {
         VStack(spacing: 0) {
-            ForEach(section.items, id: \.title) { item in
+            ForEach(items, id: \.title) { item in
                 Button(action: {
                     handleItemTap(item: item, section: section)
                 }) {
@@ -265,7 +351,7 @@ struct ModernSettingsView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                if item != section.items.last {
+                if item != items.last {
                     Divider()
                         .padding(.leading, 71)
                 }
@@ -339,6 +425,12 @@ struct ModernSettingsView: View {
             return
         }
 
+        // Special handling for Linked Accounts
+        if item.title == "Linked Accounts" {
+            showLinkedAccounts = true
+            return
+        }
+
         // If item has a custom action, execute it
         if let action = item.action {
             action()
@@ -396,71 +488,6 @@ enum SettingsSection: CaseIterable, Identifiable {
 
     var index: Int {
         Self.allCases.firstIndex(of: self) ?? 0
-    }
-
-    var items: [SettingsItem] {
-        switch self {
-        case .account:
-            return [
-                SettingsItem(icon: "person.circle", title: "Edit Profile", subtitle: "Update your profile info", color: .blue),
-                SettingsItem(icon: "at", title: "Username", subtitle: AuthManager.shared.currentUser?.username, color: .purple),
-                SettingsItem(icon: "lock.rotation", title: "Change Password", color: .orange),
-                SettingsItem(icon: "link", title: "Linked Accounts", subtitle: "Google, Apple, Facebook", color: .indigo)
-            ]
-        case .privacy:
-            return [
-                SettingsItem(icon: "hand.raised.shield", title: "Privacy Settings", subtitle: "Control your data", color: .green),
-                SettingsItem(icon: "eye.slash", title: "Blocked Users", color: .red),
-                SettingsItem(icon: "location.slash", title: "Location Services", toggle: .constant(true), color: .blue)
-            ]
-        case .notifications:
-            return [
-                SettingsItem(icon: "bell", title: "Push Notifications", toggle: .constant(true), color: .red),
-                SettingsItem(icon: "envelope", title: "Email Preferences", color: .blue),
-                SettingsItem(icon: "message", title: "SMS Alerts", toggle: .constant(false), color: .green)
-            ]
-        case .appearance:
-            return [
-                SettingsItem(icon: "moon.circle", title: "Dark Mode", toggle: .constant(false), color: .purple),
-                SettingsItem(icon: "textformat", title: "Text Size", value: "Medium", color: .orange),
-                SettingsItem(icon: "globe", title: "Language", value: "English", color: .blue)
-            ]
-        case .support:
-            return [
-                SettingsItem(icon: "questionmark.circle", title: "Help Center", color: .blue),
-                SettingsItem(icon: "envelope", title: "Contact Support", color: .green),
-                SettingsItem(icon: "doc.text", title: "Report a Problem", color: .orange)
-            ]
-        case .about:
-            return [
-                SettingsItem(icon: "doc.text", title: "Terms of Service", color: .blue),
-                SettingsItem(icon: "hand.raised", title: "Privacy Policy", color: .green),
-                SettingsItem(icon: "building.2", title: "Licenses", color: .purple)
-            ]
-        #if DEBUG
-        case .developer:
-            return [
-                SettingsItem(icon: "ladybug.fill", title: "Test PEST Webhooks", subtitle: "Send test messages to Discord", color: .green, action: {
-                    // Test all webhooks
-                    PESTWebhooks.testAllWebhooks()
-
-                    // Send a test error
-                    PESTControlSystem.shared.captureError(
-                        NSError(domain: "TestError", code: 0, userInfo: [
-                            NSLocalizedDescriptionKey: "Manual test from Settings"
-                        ]),
-                        context: "PEST Test Button",
-                        severity: .medium,
-                        userInfo: [
-                            "source": "settings",
-                            "test": true
-                        ]
-                    )
-                }),
-                SettingsItem(icon: "hammer.fill", title: "Developer Options", color: .orange)
-            ]
-        #endif
-        }
     }
 }
 

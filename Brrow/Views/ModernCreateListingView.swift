@@ -154,6 +154,9 @@ struct ModernCreateListingView: View {
                     )
                 }
             }
+            .sheet(isPresented: $viewModel.showStripeConnectRequirement) {
+                StripeConnectOnboardingView()
+            }
         }
     }
     

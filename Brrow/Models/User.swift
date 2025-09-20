@@ -17,6 +17,7 @@ struct User: Codable, Identifiable {
     let username: String
     let email: String
     let appleUserId: String?
+    let authMethod: String?
     
     // Personal Information
     let firstName: String?
@@ -93,6 +94,7 @@ struct User: Codable, Identifiable {
         case username
         case email
         case appleUserId = "apple_user_id"
+        case authMethod = "auth_method"
         
         // Personal Information
         case firstName = "first_name"
@@ -203,6 +205,7 @@ struct User: Codable, Identifiable {
         self.usernameChangeCount = 0
         self.previousUsername = nil
         self.appleUserId = nil
+        self.authMethod = nil
         self.phoneVerified = false
         self.verificationStatus = nil
         self.isActive = true
@@ -255,6 +258,7 @@ struct User: Codable, Identifiable {
         self.username = try container.decode(String.self, forKey: .username)
         self.email = try container.decode(String.self, forKey: .email)
         self.appleUserId = try container.decodeIfPresent(String.self, forKey: .appleUserId)
+        self.authMethod = try container.decodeIfPresent(String.self, forKey: .authMethod)
         
         // Personal Information
         self.firstName = try container.decodeIfPresent(String.self, forKey: .firstName)

@@ -8,6 +8,7 @@
 import Foundation
 import CoreData
 
+
 // MARK: - PriceType Enum
 enum PriceType: String, Codable, CaseIterable {
     case free = "free"
@@ -75,6 +76,9 @@ struct Listing: Codable, Identifiable, Equatable {
     let category: CategoryModel?
     let images: [ListingImage]
     let videos: [ListingVideo]?
+
+    // Backend compatibility field
+    let imageUrl: String?
     
     // Backend-provided count data
     let _count: ListingCount?
@@ -127,7 +131,7 @@ struct Listing: Codable, Identifiable, Equatable {
         case viewCount, favoriteCount, isActive, isPremium
         case premiumExpiresAt, deliveryOptions, tags, metadata
         case createdAt, updatedAt, user, category, images, videos
-        case _count
+        case imageUrl, _count
         // NOTE: isOwner and isFavorite are client-side only, not from API
     }
     
@@ -137,7 +141,7 @@ struct Listing: Codable, Identifiable, Equatable {
     }
     
     var firstImageUrl: String? {
-        return imageUrls.first
+        return imageUrls.first ?? imageUrl
     }
     
     var isAvailable: Bool { 
@@ -200,6 +204,7 @@ struct Listing: Codable, Identifiable, Equatable {
         category: nil as CategoryModel?,
         images: [],
         videos: nil as [ListingVideo]?,
+        imageUrl: nil,
         _count: ListingCount(favorites: 0),
         isOwner: false,
         isFavorite: false

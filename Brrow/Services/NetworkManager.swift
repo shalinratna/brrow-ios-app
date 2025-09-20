@@ -212,18 +212,42 @@ class NetworkManager {
                     
                 case 401:
                     throw BrrowAPIError.unauthorized
-                    
+
+                case 403:
+                    // Parse 403 response to check for token expiration
+                    let errorMessage = String(data: data, encoding: .utf8) ?? "Forbidden"
+                    if errorMessage.contains("Invalid or expired token") {
+                        print("🔐 Token expired - forcing logout")
+                        // Force logout on main thread
+                        DispatchQueue.main.async {
+                            AuthManager.shared.logout()
+                        }
+                        throw BrrowAPIError.unauthorized
+                    }
+                    // Other 403 errors
+                    throw BrrowAPIError.validationError(errorMessage)
+
                 case 409:
                     // Conflict error - parse the response for address conflict details
                     let errorMessage = String(data: data, encoding: .utf8) ?? "Conflict error"
                     throw BrrowAPIError.addressConflict(errorMessage)
-                    
+
                 case 400...499:
                     // Client error - don't retry
                     // Try to decode the error response
                     if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         let error = jsonObject["error"] as? String ?? "Client error"
                         let daysRemaining = jsonObject["daysRemaining"] as? Int
+
+                        // Check for token expiration in JSON response
+                        if error.contains("Invalid or expired token") {
+                            print("🔐 Token expired - forcing logout")
+                            // Force logout on main thread
+                            DispatchQueue.main.async {
+                                AuthManager.shared.logout()
+                            }
+                            throw BrrowAPIError.unauthorized
+                        }
 
                         // Special handling for username change 90-day policy
                         if let days = daysRemaining, error.contains("90 days") {
@@ -235,6 +259,15 @@ class NetworkManager {
 
                     // Fallback to raw error message
                     let errorMessage = String(data: data, encoding: .utf8) ?? "Client error"
+                    // Check for token expiration in raw response
+                    if errorMessage.contains("Invalid or expired token") {
+                        print("🔐 Token expired - forcing logout")
+                        // Force logout on main thread
+                        DispatchQueue.main.async {
+                            AuthManager.shared.logout()
+                        }
+                        throw BrrowAPIError.unauthorized
+                    }
                     throw BrrowAPIError.validationError(errorMessage)
                     
                 case 500...599:
