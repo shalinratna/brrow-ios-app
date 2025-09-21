@@ -127,14 +127,18 @@ struct NativeMainTabView: View {
         }
             .sheet(isPresented: $showingPostSheet) {
                 ModernPostCreationView(onListingCreated: { listingId in
+                    print("🎯 NativeMainTabView: Received listing creation callback with ID: \(listingId)")
+
                     // Navigate to the marketplace tab
                     tabSelectionManager.selectedTab = 1 // Marketplace tab
-                    
+
                     // Trigger marketplace refresh
                     NotificationCenter.default.post(name: Notification.Name("RefreshMarketplace"), object: nil)
-                    
+
                     // Show the listing detail using the navigation manager
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Increased delay to ensure marketplace tab loads completely
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        print("🚀 NativeMainTabView: Attempting to show listing with ID: \(listingId)")
                         listingNavManager.showListingById(listingId)
                     }
                 })
@@ -200,6 +204,7 @@ struct NativeMainTabView: View {
             Text("Guest users can only browse the marketplace. Sign in to access all features including posting items, messaging, and your profile.")
         }
         .toastOverlay()
+        .withUniversalListingDetail()  // Enable universal listing navigation
         // CRITICAL: Preload marketplace content when app launches
         // This ensures marketplace is populated BEFORE user taps on it
         .task {

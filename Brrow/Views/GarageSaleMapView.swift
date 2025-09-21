@@ -3,7 +3,7 @@ import MapKit
 
 struct GarageSaleMapView: View {
     let garageSales: [GarageSale]
-    @StateObject private var locationManager = LocationService.shared
+    @StateObject private var locationManager = LocationManager.shared
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
@@ -71,17 +71,19 @@ struct GarageSaleMapView: View {
                     
                     Spacer()
                     
-                    // Current location button
-                    Button(action: centerOnUserLocation) {
-                        Image(systemName: "location.fill")
-                            .font(.title3)
-                            .foregroundColor(showUserLocation ? Theme.Colors.primary : .gray)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(Color(.systemBackground))
-                                    .shadow(radius: 4)
-                            )
+                    // Current location button - only show if location is available
+                    if locationManager.canUseCurrentLocation {
+                        Button(action: centerOnUserLocation) {
+                            Image(systemName: "location.fill")
+                                .font(.title3)
+                                .foregroundColor(showUserLocation ? Theme.Colors.primary : .gray)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(Color(.systemBackground))
+                                        .shadow(radius: 4)
+                                )
+                        }
                     }
                 }
                 .padding(.horizontal)

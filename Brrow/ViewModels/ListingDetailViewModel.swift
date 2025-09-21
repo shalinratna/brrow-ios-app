@@ -164,7 +164,7 @@ class ListingDetailViewModel: ObservableObject {
         Task {
             do {
                 let similar = try await apiClient.fetchSimilarListings(
-                    listingId: Int(listing.id) ?? 0,
+                    listingId: listing.id,
                     category: listing.category?.name ?? "Unknown",
                     limit: 5
                 )

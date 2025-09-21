@@ -33,14 +33,19 @@ struct MultiImagePicker: View {
             }
             .onChange(of: selectedItems) { items in
                 Task {
-                    selectedImages = []
+                    var newImages: [UIImage] = []
                     for item in items {
                         if let data = try? await item.loadTransferable(type: Data.self),
                            let image = UIImage(data: data) {
-                            selectedImages.append(image)
+                            newImages.append(image)
                         }
                     }
-                    dismiss()
+
+                    // Update on main thread and dismiss
+                    await MainActor.run {
+                        selectedImages = newImages
+                        dismiss()
+                    }
                 }
             }
             .navigationTitle("Select Photos")

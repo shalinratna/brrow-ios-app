@@ -614,7 +614,7 @@ struct EnhancedEditProfileView: View {
     
     private func uploadProfileImage(_ image: UIImage) async throws -> String {
         // Use industry standard compression for profile images (smaller size for profiles)
-        guard let imageData = image.optimizedForUpload(maxDimension: 1024, compressionQuality: 0.85, targetMaxSize: 512 * 1024) else {
+        guard let imageData = image.optimizedForUpload(maxDimension: 1024, compressionQuality: 0.85) else {
             throw BrrowAPIError.validationError("Failed to process image")
         }
 

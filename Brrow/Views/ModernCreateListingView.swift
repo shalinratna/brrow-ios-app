@@ -9,6 +9,7 @@ struct ModernCreateListingView: View {
     @State private var showSuccessAnimation = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var loadedImages: [UIImage] = []
+    @State private var showPhotosPicker = false
     @State private var showCamera = false
     @State private var showError = false
     @State private var errorMessage = ""
@@ -137,9 +138,15 @@ struct ModernCreateListingView: View {
                                 
                                 // Wait for dismissal to complete before navigating
                                 if let listingId = savedListingId, let callback = onViewListing {
+                                    print("🏗️ ModernCreateListingView: Preparing to call onViewListing with ID: \(listingId)")
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                        print("🏗️ ModernCreateListingView: Calling onViewListing callback with ID: \(listingId)")
                                         callback(listingId)
                                     }
+                                } else if savedListingId == nil {
+                                    print("❌ ModernCreateListingView: savedListingId is nil!")
+                                } else if onViewListing == nil {
+                                    print("❌ ModernCreateListingView: onViewListing callback is nil!")
                                 }
                             }
                         }
@@ -445,6 +452,11 @@ struct ModernCreateListingView: View {
                                     }
                                 }
                                 selectedPhotos.removeAll()
+
+                                // Auto-dismiss the photos picker sheet
+                                await MainActor.run {
+                                    showPhotosPicker = false
+                                }
                             }
                         }
                     }
@@ -721,7 +733,10 @@ struct ModernCreateListingView: View {
                     
                     let response = try await APIClient.shared.createListingWithPromotion(request)
                     if let listing = response.listing {
-                        createdListingId = listing.listingId
+                        createdListingId = listing.id  // Use the proper id field
+                        print("✅ Listing created with promotion. ID: \(listing.id)")
+                    } else {
+                        print("❌ createListingWithPromotion returned no listing")
                     }
                 } else {
                     let request = CreateListingRequest(
@@ -747,7 +762,8 @@ struct ModernCreateListingView: View {
                     )
                     
                     let listing = try await APIClient.shared.createListing(request)
-                    createdListingId = listing.listingId
+                    createdListingId = listing.id  // Use the proper id field
+                    print("✅ Listing created successfully. ID: \(listing.id)")
                 }
                 
                 await MainActor.run {

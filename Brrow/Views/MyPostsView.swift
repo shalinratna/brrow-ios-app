@@ -438,16 +438,54 @@ class MyPostsViewModel: ObservableObject {
             do {
                 // Debug: Check authentication status
                 let currentUser = AuthManager.shared.currentUser
+                let authToken = AuthManager.shared.authToken
                 let apiId = currentUser?.apiId ?? ""
-                print("🔍 MyPostsView - Loading posts for user: \(apiId.isEmpty ? "NO USER" : apiId)")
-                
+                let userEmail = currentUser?.email ?? "NO EMAIL"
+
+                print("🔍 MyPostsView - Authentication Check:")
+                print("   📧 User Email: \(userEmail)")
+                print("   🔑 API ID: \(apiId.isEmpty ? "EMPTY" : apiId)")
+                print("   🎫 Auth Token: \(authToken?.isEmpty == false ? "PRESENT" : "MISSING")")
+
+                guard !apiId.isEmpty else {
+                    print("❌ MyPostsView - No user ID found, cannot fetch posts")
+                    await MainActor.run {
+                        self.posts = []
+                        self.isLoading = false
+                    }
+                    return
+                }
+
                 var allPosts: [UserPost] = []
-                
-                // Fetch user listings
-                let listingsResponse = try await APIClient.shared.fetchUserListings(userId: apiId)
-                print("📦 MyPostsView - Listings Response: success=\(listingsResponse.success), listings=\(listingsResponse.data?.listings.count ?? 0)")
-                
-                if listingsResponse.success, let listings = listingsResponse.data?.listings {
+
+                // Try multiple approaches to fetch user listings
+                var listingsResponse: UserListingsResponse?
+
+                // Method 1: Try JWT-based authentication (Railway backend)
+                do {
+                    print("🚀 MyPostsView - Method 1: Fetching user listings using JWT authentication")
+                    listingsResponse = try await APIClient.shared.fetchUserListings() // No userId parameter
+                    print("📦 MyPostsView - JWT Response: success=\(listingsResponse?.success ?? false)")
+                    print("   📊 Listings count: \(listingsResponse?.data?.listings.count ?? 0)")
+                } catch {
+                    print("⚠️ MyPostsView - JWT method failed: \(error)")
+                }
+
+                // Method 2: Fallback to explicit user ID if JWT method failed or returned no listings
+                if listingsResponse?.success != true || listingsResponse?.data?.listings.isEmpty == true {
+                    do {
+                        print("🔄 MyPostsView - Method 2: Fallback to explicit user ID method")
+                        listingsResponse = try await APIClient.shared.fetchUserListings(userId: apiId)
+                        print("📦 MyPostsView - User ID Response: success=\(listingsResponse?.success ?? false)")
+                        print("   📊 Listings count: \(listingsResponse?.data?.listings.count ?? 0)")
+                    } catch {
+                        print("⚠️ MyPostsView - User ID method also failed: \(error)")
+                    }
+                }
+
+                print("📝 Final Response Message: \(listingsResponse?.message ?? "No message")")
+
+                if listingsResponse?.success == true, let listings = listingsResponse?.data?.listings {
                     // Convert listings to UserPost format
                     let listingPosts = listings.map { listing -> UserPost in
                         // Dates are already strings in the listing model
@@ -478,8 +516,19 @@ class MyPostsViewModel: ObservableObject {
                         )
                     }
                     allPosts.append(contentsOf: listingPosts)
+                    print("✅ MyPostsView - Added \(listingPosts.count) listings to allPosts")
+                } else {
+                    print("🔍 MyPostsView - No listings found or response failed")
+                    if let response = listingsResponse {
+                        print("   🔍 Success: \(response.success)")
+                        print("   🔍 Data: \(response.data?.listings.count ?? 0) listings")
+                        print("   🔍 Error: \(response.message ?? "No error message")")
+                    }
                 }
-                
+
+                // TEMP: Debug total listings before other post types
+                print("📊 MyPostsView - Total posts after listings: \(allPosts.count)")
+
                 // Fetch user seeks
                 do {
                     let seeksResponse = try await APIClient.shared.fetchUserSeeks(userId: apiId)

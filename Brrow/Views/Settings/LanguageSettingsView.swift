@@ -5,18 +5,17 @@ struct LanguageSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedLanguage: LocalizationManager.Language
     @State private var showingRestartAlert = false
-    
+
     init() {
         _selectedLanguage = State(initialValue: LocalizationManager.shared.currentLanguage)
     }
-    
+
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 // Background
-                Color.white
+                Theme.Colors.background
                     .ignoresSafeArea()
-                
+
                 ScrollView {
                     VStack(spacing: 0) {
                         // Header Info
@@ -24,36 +23,36 @@ struct LanguageSettingsView: View {
                             Image(systemName: "globe")
                                 .font(.system(size: 60))
                                 .foregroundColor(Theme.Colors.primary)
-                            
-                            Text("language_settings".localizedString)
+
+                            Text("Language Settings")
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(Theme.Colors.text)
-                            
-                            Text("choose_preferred_language".localizedString)
+
+                            Text("Choose your preferred language")
                                 .font(.system(size: 16))
                                 .foregroundColor(Theme.Colors.secondaryText)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
                         }
                         .padding(.vertical, 30)
-                        
+
                         // Current Language
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("current_language".localizedString)
+                            Text("Current Language")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(Theme.Colors.secondaryText)
                                 .padding(.horizontal)
-                            
+
                             HStack {
                                 Text(localizationManager.currentLanguage.flag)
                                     .font(.system(size: 24))
-                                
+
                                 Text(localizationManager.currentLanguage.displayName)
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(Theme.Colors.text)
-                                
+
                                 Spacer()
-                                
+
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(Theme.Colors.primary)
                                     .font(.system(size: 20))
@@ -66,14 +65,14 @@ struct LanguageSettingsView: View {
                             .padding(.horizontal)
                         }
                         .padding(.bottom, 30)
-                        
+
                         // Language List
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("available_languages".localizedString)
+                            Text("Available Languages")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(Theme.Colors.secondaryText)
                                 .padding(.horizontal)
-                            
+
                             VStack(spacing: 0) {
                                 ForEach(LocalizationManager.Language.allCases, id: \.self) { language in
                                     LanguageRow(
@@ -85,7 +84,7 @@ struct LanguageSettingsView: View {
                                             }
                                         }
                                     )
-                                    
+
                                     if language != LocalizationManager.Language.allCases.last {
                                         Divider()
                                             .padding(.horizontal)
@@ -94,16 +93,16 @@ struct LanguageSettingsView: View {
                             }
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "#F5F5F5"))
+                                    .fill(Theme.Colors.secondaryBackground)
                             )
                             .padding(.horizontal)
                         }
-                        
+
                         // Apply Button
                         Button(action: applyLanguageChange) {
                             HStack {
                                 Image(systemName: "checkmark.circle")
-                                Text("apply_changes".localizedString)
+                                Text("Apply Changes")
                                     .fontWeight(.semibold)
                             }
                             .foregroundColor(.white)
@@ -111,16 +110,16 @@ struct LanguageSettingsView: View {
                             .padding()
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(selectedLanguage != localizationManager.currentLanguage ? 
+                                    .fill(selectedLanguage != localizationManager.currentLanguage ?
                                           Theme.Colors.primary : Color.gray.opacity(0.3))
                             )
                         }
                         .disabled(selectedLanguage == localizationManager.currentLanguage)
                         .padding(.horizontal)
                         .padding(.top, 30)
-                        
+
                         // Info Text
-                        Text("language_change_info".localizedString)
+                        Text("Language changes will be applied immediately")
                             .font(.system(size: 12))
                             .foregroundColor(Theme.Colors.secondaryText)
                             .multilineTextAlignment(.center)
@@ -129,28 +128,28 @@ struct LanguageSettingsView: View {
                     }
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("back".localizedString)
-                        }
-                        .foregroundColor(Theme.Colors.primary)
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
                     }
+                    .foregroundColor(Theme.Colors.primary)
                 }
             }
         }
-        .alert("language_changed".localizedString, isPresented: $showingRestartAlert) {
-            Button("ok".localizedString) {
+        .alert("Language Changed", isPresented: $showingRestartAlert) {
+            Button("OK") {
                 dismiss()
             }
         } message: {
-            Text("language_changed_message".localizedString)
+            Text("Your language preference has been updated")
         }
     }
-    
+
     private func applyLanguageChange() {
         if selectedLanguage != localizationManager.currentLanguage {
             localizationManager.setLanguage(selectedLanguage)
@@ -163,25 +162,25 @@ struct LanguageRow: View {
     let language: LocalizationManager.Language
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
                 Text(language.flag)
                     .font(.system(size: 28))
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(language.displayName)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(Theme.Colors.text)
-                    
+
                     Text(getLanguageNameInEnglish(language))
                         .font(.system(size: 12))
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
-                
+
                 Spacer()
-                
+
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(Theme.Colors.primary)
@@ -198,7 +197,7 @@ struct LanguageRow: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
+
     private func getLanguageNameInEnglish(_ language: LocalizationManager.Language) -> String {
         switch language {
         case .english: return "English"

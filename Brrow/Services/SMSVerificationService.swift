@@ -128,7 +128,7 @@ extension APIClient {
 
         return try await performRequest(
             endpoint: "api/verify/send-sms",
-            method: .POST,
+            method: "POST",
             body: bodyData,
             responseType: SMSVerificationResponse.self
         )
@@ -144,7 +144,7 @@ extension APIClient {
 
         return try await performRequest(
             endpoint: "api/verify/verify-sms",
-            method: .POST,
+            method: "POST",
             body: bodyData,
             responseType: SMSVerificationResponse.self
         )

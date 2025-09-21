@@ -118,24 +118,49 @@ class LocalizationManager: ObservableObject {
     
     /// Change the app language
     func setLanguage(_ language: Language) {
+        // Only proceed if language is actually changing
+        guard currentLanguage != language else { return }
+
+        let previousLanguage = currentLanguage
+
+        // Update current language first
         currentLanguage = language
+
+        // Save to UserDefaults with error handling
         UserDefaults.standard.set(language.code, forKey: "AppLanguage")
         UserDefaults.standard.set([language.code], forKey: "AppleLanguages")
-        UserDefaults.standard.synchronize()
-        Bundle.setLanguage(language.code)
-        
-        // Update layout direction for RTL languages
-        if language.isRTL {
-            UIView.appearance().semanticContentAttribute = .forceRightToLeft
-        } else {
-            UIView.appearance().semanticContentAttribute = .forceLeftToRight
+
+        // Synchronize immediately
+        let success = UserDefaults.standard.synchronize()
+        if !success {
+            print("⚠️ Failed to synchronize UserDefaults for language change")
         }
-        
-        // Post notification for UI refresh
-        NotificationCenter.postLanguageChangeNotification()
-        
+
+        // Update bundle language safely
+        DispatchQueue.main.async {
+            Bundle.setLanguage(language.code)
+        }
+
+        // Update layout direction for RTL languages with animation
+        DispatchQueue.main.async {
+            UIView.animate(withDuration: 0.3) {
+                if language.isRTL {
+                    UIView.appearance().semanticContentAttribute = .forceRightToLeft
+                } else {
+                    UIView.appearance().semanticContentAttribute = .forceLeftToRight
+                }
+            }
+        }
+
+        // Post notification for UI refresh with delay to ensure settings are applied
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.postLanguageChangeNotification()
+        }
+
         // Update user preference on server if logged in
         updateUserLanguagePreference()
+
+        print("✅ Language changed from \(previousLanguage.displayName) to \(language.displayName)")
     }
     
     func setLanguage(_ languageCode: String) {

@@ -58,35 +58,25 @@ class ListingNavigationManager: ObservableObject {
     
     private func loadListing(id: String) {
         isLoadingListing = true
-        
+
         Task {
             do {
-                let baseURL = await APIEndpointManager.shared.getBestEndpoint()
-                let url = URL(string: "\(baseURL)/get_listing.php?listing_id=\(id)")!
-                
-                var request = URLRequest(url: url)
-                request.httpMethod = "GET"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                
-                if let token = await AuthManager.shared.authToken {
-                    request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                }
-                
-                let (data, _) = try await URLSession.shared.data(for: request)
-                let response = try JSONDecoder().decode(APIResponse<ListingDetailResponse>.self, from: data)
-                
+                print("🔍 ListingNavigationManager: Loading listing with ID: \(id)")
+
+                // Use the proper APIClient method
+                let listing = try await APIClient.shared.fetchListingDetailsByListingId(id)
+
                 await MainActor.run {
-                    if response.success, let listingData = response.data {
-                        self.selectedListing = listingData.listing
-                        self.pendingListingId = nil
-                    }
+                    print("✅ ListingNavigationManager: Successfully loaded listing: \(listing.title)")
+                    self.selectedListing = listing
+                    self.pendingListingId = nil
                     self.isLoadingListing = false
                 }
             } catch {
                 await MainActor.run {
+                    print("❌ ListingNavigationManager: Failed to load listing \(id): \(error)")
                     self.isLoadingListing = false
                     self.showingListingDetail = false
-                    print("Failed to load listing: \(error)")
                 }
             }
         }

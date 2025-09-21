@@ -20,8 +20,7 @@ struct NativeSettingsView: View {
     @State private var mailResult: Result<MFMailComposeResult, Error>? = nil
     
     var body: some View {
-        NavigationView {
-            List {
+        List {
                 // Profile Section
                 profileSection
                 
@@ -45,11 +44,10 @@ struct NativeSettingsView: View {
                 
                 // Danger Zone
                 dangerSection
-            }
-            .listStyle(InsetGroupedListStyle())
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
         }
+        .listStyle(InsetGroupedListStyle())
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.large)
         .alert("Sign Out", isPresented: $showingLogoutAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Sign Out", role: .destructive) {

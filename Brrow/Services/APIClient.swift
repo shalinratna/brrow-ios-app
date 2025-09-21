@@ -1077,7 +1077,7 @@ class APIClient: ObservableObject {
         }
 
         // The backend returns profilePictureUrl in the response
-        let url = response.profilePictureUrl ?? response.url ?? response.data?.user?.profilePictureUrl ?? ""
+        let url = response.profilePictureUrl ?? response.url ?? response.data?.user.profilePicture ?? ""
 
         // Update local user data if available
         if let userData = response.data?.user {
@@ -2647,10 +2647,10 @@ class APIClient: ObservableObject {
         return response.isFavorited
     }
     
-    func fetchSimilarListings(listingId: Int, category: String, limit: Int) async throws -> [Listing] {
+    func fetchSimilarListings(listingId: String, category: String, limit: Int) async throws -> [Listing] {
         let encodedCategory = category.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? category
         let response = try await performRequest(
-            endpoint: "fetch_similar_listings.php?listing_id=\(listingId)&category=\(encodedCategory)&limit=\(limit)",
+            endpoint: "api/listings/\(listingId)/similar?category=\(encodedCategory)&limit=\(limit)",
             method: .GET,
             responseType: APIResponse<[Listing]>.self
         )
@@ -3854,7 +3854,7 @@ class APIClient: ObservableObject {
     // MARK: - Achievement Methods (Legacy)
     func getUserAchievementsLegacy() async throws -> UserAchievementsResponse {
         return try await performRequest(
-            endpoint: "user_achievements.php",
+            endpoint: "api/users/me/achievements",
             method: .GET,
             responseType: UserAchievementsResponse.self
         )

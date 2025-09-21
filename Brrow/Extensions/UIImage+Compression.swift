@@ -26,12 +26,17 @@ extension UIImage {
     /// - Returns: Resized image
     func resizedWithAspectRatio(maxDimension: CGFloat) -> UIImage {
         let size = self.size
-        
+
+        // Guard against zero or invalid dimensions to prevent NaN
+        guard size.width > 0 && size.height > 0 && maxDimension > 0 else {
+            return self
+        }
+
         // If image is already small enough, return original
         if size.width <= maxDimension && size.height <= maxDimension {
             return self
         }
-        
+
         let widthRatio = maxDimension / size.width
         let heightRatio = maxDimension / size.height
         let ratio = min(widthRatio, heightRatio)

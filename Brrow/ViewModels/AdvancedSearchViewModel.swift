@@ -405,7 +405,12 @@ class AdvancedSearchViewModel: ObservableObject {
                 imageUrl: user.profilePicture,
                 price: nil,
                 location: nil,
-                rating: Double(((user.listerRating ?? 0) + (user.renteeRating ?? 0)) / 2)
+                rating: {
+                    let lister = user.listerRating ?? 0
+                    let rentee = user.renteeRating ?? 0
+                    let average = lister == 0 && rentee == 0 ? 0.0 : Double((lister + rentee)) / 2.0
+                    return average.isNaN || average.isInfinite ? 0.0 : average
+                }()
             ))
         }
     }

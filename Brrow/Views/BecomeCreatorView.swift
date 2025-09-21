@@ -223,8 +223,8 @@ class BecomeCreatorViewModel: ObservableObject {
         do {
             let response = try await apiClient.getCreatorStatus()
 
-            hasExistingApplication = response.hasApplication
-            canApply = response.canApply
+            hasExistingApplication = response.status != nil && !response.status!.isEmpty
+            canApply = !response.isCreator && (response.status == nil || response.status!.isEmpty)
             applicationStatus = response.status ?? ""
 
             // Show status-specific messages

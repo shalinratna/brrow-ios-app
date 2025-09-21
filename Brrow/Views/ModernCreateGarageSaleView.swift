@@ -14,6 +14,7 @@ import Combine
 struct ModernCreateGarageSaleView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = CreateGarageSaleViewModel()
+    @StateObject private var locationManager = LocationManager.shared
     @State private var currentStep = 0
     @State private var showPhotosPicker = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
@@ -68,6 +69,10 @@ struct ModernCreateGarageSaleView: View {
                 .onChange(of: selectedPhotos) { newValue in
                     Task {
                         await loadPhotos(from: newValue)
+                        // Auto-dismiss the sheet after photos are loaded
+                        await MainActor.run {
+                            showPhotosPicker = false
+                        }
                     }
                 }
             }
@@ -480,12 +485,13 @@ struct ModernCreateGarageSaleView: View {
     // MARK: - Location Step - FIXED ADDRESS INPUT
     private var locationStep: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Use Current Location button
-            Button(action: {
-                Task {
-                    await viewModel.useCurrentLocation()
-                }
-            }) {
+            // Use Current Location button - only show if location services are available
+            if locationManager.canUseCurrentLocation {
+                Button(action: {
+                    Task {
+                        await viewModel.useCurrentLocation()
+                    }
+                }) {
                 HStack {
                     Image(systemName: "location.circle.fill")
                     Text("Use Current Location")
@@ -501,9 +507,15 @@ struct ModernCreateGarageSaleView: View {
                 .padding()
                 .background(Theme.Colors.primary)
                 .cornerRadius(12)
+                }
+                .disabled(viewModel.isLoadingLocation)
             }
-            .disabled(viewModel.isLoadingLocation)
-            
+
+            // Show location permission prompt if needed
+            if !locationManager.canUseCurrentLocation {
+                LocationPermissionPrompt(locationManager: locationManager)
+            }
+
             // Address input with manual control
             VStack(alignment: .leading, spacing: 8) {
                 Label("Address", systemImage: "location.fill")
@@ -1366,15 +1378,12 @@ class CreateGarageSaleViewModel: ObservableObject {
         await MainActor.run {
             isLoadingLocation = true
         }
-        
-        // Request location permission if needed
-        await locationManager.requestLocationPermission()
-        
-        // Get current location
-        guard let currentLocation = locationManager.currentLocation else {
+
+        // Get current location with automatic permission request
+        guard let currentLocation = await locationManager.getCurrentLocationAsync() else {
             await MainActor.run {
                 self.isLoadingLocation = false
-                self.createError = "Unable to get current location. Please check location permissions."
+                self.createError = "Unable to get current location. Please check location permissions in Settings."
             }
             return
         }
@@ -1578,7 +1587,14 @@ class CreateGarageSaleViewModel: ObservableObject {
             )
             
             // Create garage sale via API
+            print("🏠 CreateGarageSaleViewModel: Attempting to create garage sale")
+            print("   📝 Title: \(createRequest.title)")
+            print("   📍 Address: \(createRequest.address)")
+            print("   📅 Start Date: \(createRequest.startDate)")
+            print("   📅 End Date: \(createRequest.endDate)")
+
             let createdGarageSale = try await apiClient.createGarageSale(createRequest)
+            print("✅ CreateGarageSaleViewModel: Garage sale created successfully with ID: \(createdGarageSale.id)")
             
             await MainActor.run {
                 self.createdGarageSale = createdGarageSale
@@ -1592,9 +1608,17 @@ class CreateGarageSaleViewModel: ObservableObject {
                 self.trackCreationEvent()
             }
         } catch {
+            print("❌ CreateGarageSaleViewModel: Failed to create garage sale")
+            print("   🔍 Error: \(error)")
+            if let urlError = error as? URLError {
+                print("   🌐 URL Error Code: \(urlError.code.rawValue)")
+                print("   🌐 URL Error Description: \(urlError.localizedDescription)")
+            }
+
             await MainActor.run {
                 self.isCreating = false
                 if let apiError = error as? BrrowAPIError {
+                    print("   🔍 BrrowAPIError: \(apiError)")
                     switch apiError {
                     case .addressConflict(let jsonString):
                         // Parse the conflict response
@@ -1934,6 +1958,48 @@ struct GarageSaleSuccessView: View {
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
         }
+    }
+}
+
+// MARK: - Location Permission Prompt
+struct LocationPermissionPrompt: View {
+    @ObservedObject var locationManager: LocationManager
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "location.slash")
+                    .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Location Services Required")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.primary)
+                    Text("Enable location access to auto-fill your address")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+
+            Button(action: {
+                if locationManager.authorizationStatus == .notDetermined {
+                    locationManager.requestLocationPermission()
+                } else {
+                    LocationManager.openSettings()
+                }
+            }) {
+                Text(locationManager.authorizationStatus == .notDetermined ? "Enable Location" : "Open Settings")
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Theme.Colors.primary)
+                    .cornerRadius(16)
+            }
+        }
+        .padding(12)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
 }
 

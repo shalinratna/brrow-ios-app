@@ -87,6 +87,32 @@ class LocationManager: NSObject, ObservableObject {
             locationError = .unknown
         }
     }
+
+    // Async version that waits for permission result
+    func requestLocationPermissionAsync() async -> Bool {
+        return await withCheckedContinuation { continuation in
+            // If already authorized, return immediately
+            if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+                continuation.resume(returning: true)
+                return
+            }
+
+            // If already denied/restricted, return false
+            if authorizationStatus == .denied || authorizationStatus == .restricted {
+                continuation.resume(returning: false)
+                return
+            }
+
+            // Store continuation to resume when permission changes
+            permissionContinuation = continuation
+
+            // Request permission
+            locationManager.requestWhenInUseAuthorization()
+        }
+    }
+
+    // Helper property to track async permission requests
+    private var permissionContinuation: CheckedContinuation<Bool, Never>?
     
     func startLocationUpdates() {
         guard authorizationStatus == .authorizedWhenInUse || 
@@ -111,6 +137,27 @@ class LocationManager: NSObject, ObservableObject {
     func requestSingleLocation() {
         locationManager.requestLocation()
     }
+
+    // Get current location with automatic permission request
+    func getCurrentLocationAsync() async -> CLLocation? {
+        // First check if we have permission
+        let hasPermission = await requestLocationPermissionAsync()
+        guard hasPermission else { return nil }
+
+        // If we already have a current location, return it
+        if let location = currentLocation {
+            return location
+        }
+
+        // Otherwise request a new location update
+        return await withCheckedContinuation { continuation in
+            locationContinuation = continuation
+            locationManager.requestLocation()
+        }
+    }
+
+    // Helper property to track async location requests
+    private var locationContinuation: CheckedContinuation<CLLocation?, Never>?
     
     // MARK: - Server Updates
     private func startPeriodicUpdates() {
@@ -235,44 +282,60 @@ class LocationManager: NSObject, ObservableObject {
 extension LocationManager: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
-        
+
         switch authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             startLocationUpdates()
             locationError = nil
+            // Resume async permission request with success
+            permissionContinuation?.resume(returning: true)
+            permissionContinuation = nil
         case .denied:
             locationError = .denied
             isLocationAvailable = false
+            // Resume async permission request with failure
+            permissionContinuation?.resume(returning: false)
+            permissionContinuation = nil
         case .restricted:
             locationError = .restricted
             isLocationAvailable = false
+            // Resume async permission request with failure
+            permissionContinuation?.resume(returning: false)
+            permissionContinuation = nil
         case .notDetermined:
             break
         @unknown default:
             locationError = .unknown
+            // Resume async permission request with failure
+            permissionContinuation?.resume(returning: false)
+            permissionContinuation = nil
         }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        
+
         // Filter out invalid or old locations
         let howRecent = location.timestamp.timeIntervalSinceNow
         guard abs(howRecent) < 5.0 else { return }
-        
+
         // Check if location is accurate enough
         guard location.horizontalAccuracy > 0 && location.horizontalAccuracy < 100 else { return }
-        
+
         currentLocation = location
         reverseGeocode(location: location)
-        
+
+        // Resume async location request if waiting
+        locationContinuation?.resume(returning: location)
+        locationContinuation = nil
+
         // Update server with new location
         updateLocationOnServer()
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("Location manager error: \(error)")
-        
+
         if let clError = error as? CLError {
             switch clError.code {
             case .denied:
@@ -283,6 +346,10 @@ extension LocationManager: CLLocationManagerDelegate {
                 locationError = .unknown
             }
         }
+
+        // Resume async location request with failure
+        locationContinuation?.resume(returning: nil)
+        locationContinuation = nil
     }
 }
 
@@ -293,7 +360,7 @@ extension LocationManager {
             UIApplication.shared.open(url)
         }
     }
-    
+
     var permissionStatusText: String {
         switch authorizationStatus {
         case .notDetermined:
@@ -309,5 +376,17 @@ extension LocationManager {
         @unknown default:
             return "Unknown location status"
         }
+    }
+
+    // Check if we can show "Use Current Location" button
+    var canUseCurrentLocation: Bool {
+        return CLLocationManager.locationServicesEnabled() &&
+               authorizationStatus != .denied &&
+               authorizationStatus != .restricted
+    }
+
+    // Check if location is authorized and ready
+    var isLocationAuthorized: Bool {
+        return authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways
     }
 }

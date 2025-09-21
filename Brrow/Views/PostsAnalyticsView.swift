@@ -12,10 +12,9 @@ struct PostsAnalyticsView: View {
     let posts: [UserPost] // Keep for fallback compatibility
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = PostsAnalyticsViewModel()
-    
+
     var body: some View {
-        NavigationView {
-            ZStack {
+        ZStack {
                 Theme.Colors.background
                     .ignoresSafeArea()
 
@@ -69,13 +68,13 @@ struct PostsAnalyticsView: View {
                     }
                 }
             }
-            .navigationTitle("Posts Analytics")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+        }
+        .navigationTitle("Posts Analytics")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
         }
@@ -85,7 +84,7 @@ struct PostsAnalyticsView: View {
             }
         }
     }
-    
+
     // MARK: - Summary Section
     private var summarySection: some View {
         VStack(spacing: 16) {
@@ -122,7 +121,7 @@ struct PostsAnalyticsView: View {
             }
         }
     }
-    
+
     // MARK: - Timeframe Selector
     private var timeframeSelector: some View {
         Picker("Timeframe", selection: $viewModel.selectedTimeframe) {
@@ -138,13 +137,13 @@ struct PostsAnalyticsView: View {
             }
         }
     }
-    
+
     // MARK: - Posts Timeline Chart
     private var postsTimelineChart: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Posts Over Time")
                 .font(.headline)
-            
+
             if #available(iOS 16.0, *) {
                 Chart(viewModel.postsOverTimeData) { item in
                     BarMark(
@@ -181,26 +180,26 @@ struct PostsAnalyticsView: View {
         .background(Theme.Colors.secondaryBackground)
         .cornerRadius(12)
     }
-    
+
     // MARK: - Category Distribution Chart
     private var categoryDistributionChart: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Category Distribution")
                 .font(.headline)
-            
+
             ForEach(viewModel.categoryData, id: \.category) { item in
                 HStack {
                     Text(item.category)
                         .font(.caption)
                         .frame(width: 100, alignment: .leading)
-                    
+
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             Rectangle()
                                 .fill(Color.gray.opacity(0.2))
                                 .frame(height: 20)
                                 .cornerRadius(4)
-                            
+
                             Rectangle()
                                 .fill(Theme.Colors.primary)
                                 .frame(width: geometry.size.width * item.percentage, height: 20)
@@ -208,7 +207,7 @@ struct PostsAnalyticsView: View {
                         }
                     }
                     .frame(height: 20)
-                    
+
                     Text("\(item.count)")
                         .font(.caption)
                         .frame(width: 30)
@@ -219,13 +218,13 @@ struct PostsAnalyticsView: View {
         .background(Theme.Colors.secondaryBackground)
         .cornerRadius(12)
     }
-    
+
     // MARK: - Status Breakdown
     private var statusBreakdownChart: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Status Breakdown")
                 .font(.headline)
-            
+
             HStack(spacing: 20) {
                 ForEach(viewModel.statusData, id: \.status) { statusItem in
                     StatusIndicator(
@@ -240,28 +239,28 @@ struct PostsAnalyticsView: View {
         .background(Theme.Colors.secondaryBackground)
         .cornerRadius(12)
     }
-    
+
     // MARK: - Performance Metrics
     private var performanceMetrics: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Performance Metrics")
                 .font(.headline)
-            
+
             HStack(spacing: 20) {
                 AnalyticsMetricCard(
                     title: "Response Rate",
                     value: "\(viewModel.summary?.responseRate ?? 0)%",
-                    trend: responseRateTrend
+                    trend: getResponseRateTrend()
                 )
                 AnalyticsMetricCard(
                     title: "Avg Views",
                     value: "\(viewModel.summary?.averageViews ?? 0)",
-                    trend: averageViewsTrend
+                    trend: getAverageViewsTrend()
                 )
                 AnalyticsMetricCard(
                     title: "Conversion",
                     value: String(format: "%.1f%%", viewModel.summary?.conversionRate ?? 0),
-                    trend: conversionTrend
+                    trend: getConversionTrend()
                 )
             }
         }
@@ -269,27 +268,24 @@ struct PostsAnalyticsView: View {
         .background(Theme.Colors.secondaryBackground)
         .cornerRadius(12)
     }
-    
-    // MARK: - Computed Properties for Trends
-    private var responseRateTrend: AnalyticsMetricCard.Trend {
+
+    // MARK: - Helper Functions for Trends
+    private func getResponseRateTrend() -> AnalyticsMetricCard.Trend {
         guard let responseRate = viewModel.summary?.responseRate else { return .neutral }
-        // Simple trend logic based on performance thresholds
         if responseRate >= 80 { return .up }
         if responseRate <= 50 { return .down }
         return .neutral
     }
 
-    private var averageViewsTrend: AnalyticsMetricCard.Trend {
+    private func getAverageViewsTrend() -> AnalyticsMetricCard.Trend {
         guard let avgViews = viewModel.summary?.averageViews else { return .neutral }
-        // Simple trend logic based on view thresholds
         if avgViews >= 50 { return .up }
         if avgViews <= 10 { return .down }
         return .neutral
     }
 
-    private var conversionTrend: AnalyticsMetricCard.Trend {
+    private func getConversionTrend() -> AnalyticsMetricCard.Trend {
         guard let conversion = viewModel.summary?.conversionRate else { return .neutral }
-        // Simple trend logic based on conversion thresholds
         if conversion >= 10 { return .up }
         if conversion <= 3 { return .down }
         return .neutral
@@ -302,24 +298,24 @@ struct AnalyticsStatCard: View {
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         HStack {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundColor(color)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.caption)
                     .foregroundColor(Theme.Colors.secondaryText)
-                
+
                 Text(value)
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(Theme.Colors.text)
             }
-            
+
             Spacer()
         }
         .padding()
@@ -332,16 +328,16 @@ struct StatusIndicator: View {
     let label: String
     let count: Int
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Circle()
                 .fill(color)
                 .frame(width: 12, height: 12)
-            
+
             Text("\(count)")
                 .font(.headline)
-            
+
             Text(label)
                 .font(.caption)
                 .foregroundColor(Theme.Colors.secondaryText)
@@ -353,10 +349,10 @@ struct AnalyticsMetricCard: View {
     let title: String
     let value: String
     let trend: Trend
-    
+
     enum Trend {
         case up, down, neutral
-        
+
         var icon: String {
             switch self {
             case .up: return "arrow.up.right"
@@ -364,7 +360,7 @@ struct AnalyticsMetricCard: View {
             case .neutral: return "minus"
             }
         }
-        
+
         var color: Color {
             switch self {
             case .up: return .green
@@ -373,18 +369,18 @@ struct AnalyticsMetricCard: View {
             }
         }
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.caption)
                 .foregroundColor(Theme.Colors.secondaryText)
-            
+
             HStack {
                 Text(value)
                     .font(.title3)
                     .fontWeight(.semibold)
-                
+
                 Image(systemName: trend.icon)
                     .font(.caption)
                     .foregroundColor(trend.color)
@@ -393,5 +389,3 @@ struct AnalyticsMetricCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-
-// MARK: - Data Models now defined in PostsAnalyticsViewModel

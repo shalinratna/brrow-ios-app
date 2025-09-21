@@ -151,8 +151,10 @@ struct ModernPostCreationView: View {
         }
         .fullScreenCover(isPresented: $showCreateListing) {
             ModernCreateListingView(onViewListing: { listingId in
+                print("📋 ModernPostCreationView: Received onViewListing callback with ID: \(listingId)")
                 // Dismiss the post creation modal and call the parent callback
                 dismiss()
+                print("📋 ModernPostCreationView: Calling parent onListingCreated with ID: \(listingId)")
                 onListingCreated?(listingId)
             })
         }

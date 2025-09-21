@@ -35,40 +35,38 @@ struct EnhancedSettingsView: View {
     @AppStorage("highQualityImages") private var highQualityImages = true
 
     var body: some View {
-        NavigationView {
-            List {
-                // Profile Section
-                profileSection
+        List {
+            // Profile Section
+            profileSection
 
-                // Account Settings
-                accountSection
+            // Account Settings
+            accountSection
 
-                // Privacy & Security
-                privacySection
+            // Privacy & Security
+            privacySection
 
-                // Notifications
-                notificationSection
+            // Notifications
+            notificationSection
 
-                // App Settings
-                appSettingsSection
+            // App Settings
+            appSettingsSection
 
-                // Support & About
-                supportSection
+            // Support & About
+            supportSection
 
-                // Legal
-                legalSection
+            // Legal
+            legalSection
 
-                // Sign Out
-                signOutSection
-            }
-            .listStyle(InsetGroupedListStyle())
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+            // Sign Out
+            signOutSection
+        }
+        .listStyle(InsetGroupedListStyle())
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
         }

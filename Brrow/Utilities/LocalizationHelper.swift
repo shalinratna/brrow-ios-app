@@ -93,7 +93,11 @@ extension String {
     var localized: String {
         return LocalizationHelper.localizedString(self)
     }
-    
+
+    var localizedString: String {
+        return LocalizationManager.localizedString(self)
+    }
+
     func localized(with arguments: CVarArg...) -> String {
         return LocalizationHelper.localizedString(self, arguments: arguments)
     }
