@@ -2414,6 +2414,68 @@ class APIClient: ObservableObject {
         let message: String
     }
 
+    // MARK: - Analytics Methods
+    func fetchPostsAnalytics(timeframe: String = "month") async throws -> PostsAnalyticsResponse {
+        return try await performRequest(
+            endpoint: "api/analytics/posts?timeframe=\(timeframe)",
+            method: .GET,
+            responseType: PostsAnalyticsResponse.self
+        )
+    }
+
+    func trackListingView(listingId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/listings/\(listingId)/view",
+            method: .POST,
+            responseType: BasicResponse.self
+        )
+
+        if !response.success {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to track view")
+        }
+    }
+
+    func trackListingInterest(listingId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/listings/\(listingId)/interested",
+            method: .POST,
+            responseType: BasicResponse.self
+        )
+
+        if !response.success {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to track interest")
+        }
+    }
+
+    struct PostsAnalyticsResponse: Codable {
+        let success: Bool
+        let data: AnalyticsData?
+
+        struct AnalyticsData: Codable {
+            let summary: AnalyticsSummary
+            let postsOverTime: [String: Int]
+            let categoryDistribution: [String: Int]
+            let statusBreakdown: [String: Int]
+            let timeframe: String
+        }
+
+        struct AnalyticsSummary: Codable {
+            let totalPosts: Int
+            let activePosts: Int
+            let totalViews: Int
+            let totalInterested: Int
+            let averagePrice: Int
+            let responseRate: Int
+            let averageViews: Int
+            let conversionRate: Double
+        }
+    }
+
+    struct BasicResponse: Codable {
+        let success: Bool
+        let message: String?
+    }
+
     // MARK: - Username Change
     func changeUsername(_ newUsername: String) async throws -> User {
         struct ChangeUsernameRequest: Codable {

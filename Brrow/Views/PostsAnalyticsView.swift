@@ -9,35 +9,66 @@ import SwiftUI
 import Charts
 
 struct PostsAnalyticsView: View {
-    let posts: [UserPost]
+    let posts: [UserPost] // Keep for fallback compatibility
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedTimeframe: AnalyticsTimeframe = .month
+    @StateObject private var viewModel = PostsAnalyticsViewModel()
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Summary Cards
-                    summarySection
-                    
-                    // Time Filter
-                    timeframeSelector
-                    
-                    // Posts Over Time Chart
-                    postsTimelineChart
-                    
-                    // Category Distribution
-                    categoryDistributionChart
-                    
-                    // Status Breakdown
-                    statusBreakdownChart
-                    
-                    // Performance Metrics
-                    performanceMetrics
+            ZStack {
+                Theme.Colors.background
+                    .ignoresSafeArea()
+
+                if viewModel.isLoading {
+                    ProgressView("Loading analytics...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let errorMessage = viewModel.errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "chart.bar.xaxis")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+
+                        Text("Analytics Unavailable")
+                            .font(.headline)
+
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        Button("Retry") {
+                            Task {
+                                await viewModel.refreshAnalytics()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Summary Cards
+                            summarySection
+
+                            // Time Filter
+                            timeframeSelector
+
+                            // Posts Over Time Chart
+                            postsTimelineChart
+
+                            // Category Distribution
+                            categoryDistributionChart
+
+                            // Status Breakdown
+                            statusBreakdownChart
+
+                            // Performance Metrics (now with real data)
+                            performanceMetrics
+                        }
+                        .padding()
+                    }
                 }
-                .padding()
             }
-            .background(Theme.Colors.background)
             .navigationTitle("Posts Analytics")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -48,6 +79,11 @@ struct PostsAnalyticsView: View {
                 }
             }
         }
+        .onAppear {
+            Task {
+                await viewModel.fetchAnalytics()
+            }
+        }
     }
     
     // MARK: - Summary Section
@@ -56,30 +92,30 @@ struct PostsAnalyticsView: View {
             HStack(spacing: 16) {
                 AnalyticsStatCard(
                     title: "Total Posts",
-                    value: "\(posts.count)",
+                    value: "\(viewModel.summary?.totalPosts ?? 0)",
                     icon: "doc.text.fill",
                     color: Theme.Colors.primary
                 )
-                
+
                 AnalyticsStatCard(
                     title: "Active",
-                    value: "\(activePostsCount)",
+                    value: "\(viewModel.summary?.activePosts ?? 0)",
                     icon: "checkmark.circle.fill",
                     color: .green
                 )
             }
-            
+
             HStack(spacing: 16) {
                 AnalyticsStatCard(
-                    title: "Listings",
-                    value: "\(listingsCount)",
-                    icon: "tag.fill",
+                    title: "Total Views",
+                    value: "\(viewModel.summary?.totalViews ?? 0)",
+                    icon: "eye.fill",
                     color: Theme.Colors.accentBlue
                 )
-                
+
                 AnalyticsStatCard(
                     title: "Avg Price",
-                    value: "$\(Int(averagePrice))",
+                    value: "$\(viewModel.summary?.averagePrice ?? 0)",
                     icon: "dollarsign.circle.fill",
                     color: Theme.Colors.accentOrange
                 )
@@ -89,13 +125,18 @@ struct PostsAnalyticsView: View {
     
     // MARK: - Timeframe Selector
     private var timeframeSelector: some View {
-        Picker("Timeframe", selection: $selectedTimeframe) {
+        Picker("Timeframe", selection: $viewModel.selectedTimeframe) {
             ForEach(AnalyticsTimeframe.allCases, id: \.self) { timeframe in
                 Text(timeframe.rawValue).tag(timeframe)
             }
         }
         .pickerStyle(SegmentedPickerStyle())
         .padding(.horizontal)
+        .onChange(of: viewModel.selectedTimeframe) { _, newTimeframe in
+            Task {
+                await viewModel.selectTimeframe(newTimeframe)
+            }
+        }
     }
     
     // MARK: - Posts Timeline Chart
@@ -105,7 +146,7 @@ struct PostsAnalyticsView: View {
                 .font(.headline)
             
             if #available(iOS 16.0, *) {
-                Chart(postsOverTime) { item in
+                Chart(viewModel.postsOverTimeData) { item in
                     BarMark(
                         x: .value("Date", item.date),
                         y: .value("Count", item.count)
@@ -117,15 +158,15 @@ struct PostsAnalyticsView: View {
             } else {
                 // Fallback for iOS 15
                 HStack(alignment: .bottom, spacing: 4) {
-                    ForEach(postsOverTime) { item in
+                    ForEach(viewModel.postsOverTimeData) { item in
                         VStack {
                             Text("\(item.count)")
                                 .font(.caption2)
-                            
+
                             Rectangle()
                                 .fill(Theme.Colors.primary)
                                 .frame(width: 30, height: CGFloat(item.count) * 20)
-                            
+
                             Text(item.label)
                                 .font(.caption2)
                                 .rotationEffect(.degrees(-45))
@@ -147,7 +188,7 @@ struct PostsAnalyticsView: View {
             Text("Category Distribution")
                 .font(.headline)
             
-            ForEach(categoryData, id: \.category) { item in
+            ForEach(viewModel.categoryData, id: \.category) { item in
                 HStack {
                     Text(item.category)
                         .font(.caption)
@@ -186,10 +227,13 @@ struct PostsAnalyticsView: View {
                 .font(.headline)
             
             HStack(spacing: 20) {
-                StatusIndicator(label: "Active", count: activePostsCount, color: .green)
-                StatusIndicator(label: "Pending", count: pendingPostsCount, color: .orange)
-                StatusIndicator(label: "Completed", count: completedPostsCount, color: .blue)
-                StatusIndicator(label: "Inactive", count: inactivePostsCount, color: .gray)
+                ForEach(viewModel.statusData, id: \.status) { statusItem in
+                    StatusIndicator(
+                        label: statusItem.status.capitalized,
+                        count: statusItem.count,
+                        color: statusItem.color
+                    )
+                }
             }
         }
         .padding()
@@ -204,9 +248,21 @@ struct PostsAnalyticsView: View {
                 .font(.headline)
             
             HStack(spacing: 20) {
-                AnalyticsMetricCard(title: "Response Rate", value: "95%", trend: .up)
-                AnalyticsMetricCard(title: "Avg Views", value: "124", trend: .up)
-                AnalyticsMetricCard(title: "Conversion", value: "12%", trend: .down)
+                AnalyticsMetricCard(
+                    title: "Response Rate",
+                    value: "\(viewModel.summary?.responseRate ?? 0)%",
+                    trend: responseRateTrend
+                )
+                AnalyticsMetricCard(
+                    title: "Avg Views",
+                    value: "\(viewModel.summary?.averageViews ?? 0)",
+                    trend: averageViewsTrend
+                )
+                AnalyticsMetricCard(
+                    title: "Conversion",
+                    value: String(format: "%.1f%%", viewModel.summary?.conversionRate ?? 0),
+                    trend: conversionTrend
+                )
             }
         }
         .padding()
@@ -214,73 +270,29 @@ struct PostsAnalyticsView: View {
         .cornerRadius(12)
     }
     
-    // MARK: - Computed Properties
-    private var activePostsCount: Int {
-        posts.filter { $0.status == "active" }.count
+    // MARK: - Computed Properties for Trends
+    private var responseRateTrend: AnalyticsMetricCard.Trend {
+        guard let responseRate = viewModel.summary?.responseRate else { return .neutral }
+        // Simple trend logic based on performance thresholds
+        if responseRate >= 80 { return .up }
+        if responseRate <= 50 { return .down }
+        return .neutral
     }
-    
-    private var pendingPostsCount: Int {
-        posts.filter { $0.status == "pending" }.count
+
+    private var averageViewsTrend: AnalyticsMetricCard.Trend {
+        guard let avgViews = viewModel.summary?.averageViews else { return .neutral }
+        // Simple trend logic based on view thresholds
+        if avgViews >= 50 { return .up }
+        if avgViews <= 10 { return .down }
+        return .neutral
     }
-    
-    private var completedPostsCount: Int {
-        posts.filter { $0.status == "completed" || $0.status == "fulfilled" }.count
-    }
-    
-    private var inactivePostsCount: Int {
-        posts.filter { $0.status != "active" && $0.status != "pending" && $0.status != "completed" && $0.status != "fulfilled" }.count
-    }
-    
-    private var listingsCount: Int {
-        posts.filter { $0.postType == "listing" }.count
-    }
-    
-    private var averagePrice: Double {
-        let prices = posts.map { $0.price }
-        guard !prices.isEmpty else { return 0 }
-        return prices.reduce(0, +) / Double(prices.count)
-    }
-    
-    private var postsOverTime: [TimelineData] {
-        // Group posts by date
-        let calendar = Calendar.current
-        let grouped = Dictionary(grouping: posts) { post -> Date in
-            let date = ISO8601DateFormatter().date(from: post.createdAt) ?? Date()
-            return calendar.startOfDay(for: date)
-        }
-        
-        // Create timeline data
-        return grouped.map { date, posts in
-            TimelineData(
-                date: date,
-                count: posts.count,
-                label: formatDate(date)
-            )
-        }
-        .sorted { $0.date < $1.date }
-        .suffix(7) // Show last 7 days
-    }
-    
-    private var categoryData: [CategoryData] {
-        let grouped = Dictionary(grouping: posts) { $0.category }
-        let total = Double(posts.count)
-        
-        return grouped.map { category, posts in
-            CategoryData(
-                category: category,
-                count: posts.count,
-                percentage: Double(posts.count) / total
-            )
-        }
-        .sorted { $0.count > $1.count }
-        .prefix(5) // Top 5 categories
-        .map { $0 }
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+
+    private var conversionTrend: AnalyticsMetricCard.Trend {
+        guard let conversion = viewModel.summary?.conversionRate else { return .neutral }
+        // Simple trend logic based on conversion thresholds
+        if conversion >= 10 { return .up }
+        if conversion <= 3 { return .down }
+        return .neutral
     }
 }
 
@@ -382,23 +394,4 @@ struct AnalyticsMetricCard: View {
     }
 }
 
-// MARK: - Data Models
-struct TimelineData: Identifiable {
-    let id = UUID()
-    let date: Date
-    let count: Int
-    let label: String
-}
-
-struct CategoryData {
-    let category: String
-    let count: Int
-    let percentage: Double
-}
-
-enum AnalyticsTimeframe: String, CaseIterable {
-    case week = "Week"
-    case month = "Month"
-    case year = "Year"
-    case all = "All Time"
-}
+// MARK: - Data Models now defined in PostsAnalyticsViewModel
