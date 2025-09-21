@@ -1056,30 +1056,34 @@ class APIClient: ObservableObject {
             }
         }
 
-        // Use dedicated profile picture endpoint
+        // Use enhanced profile picture upload endpoint
         let uploadRequest = [
-            "image": compressedData.base64EncodedString()
+            "imageData": "data:image/jpeg;base64,\(compressedData.base64EncodedString())",
+            "fileName": "profile_picture.jpg"
         ] as [String: Any]
-        
+
         let bodyData = try JSONSerialization.data(withJSONObject: uploadRequest)
-        
+
         let response = try await performRequest(
-            endpoint: "api/users/me/profile-picture",  // Use correct backend endpoint
-            method: .PUT,
+            endpoint: "api/profile/upload-picture",
+            method: .POST,
             body: bodyData,
             responseType: ImageUploadResponse.self,
             cachePolicy: .ignoreCache
         )
         
-        guard response.success, let url = response.url else {
+        guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to upload profile picture")
         }
-        
+
+        // The backend returns profilePictureUrl in the response
+        let url = response.profilePictureUrl ?? response.url ?? response.data?.user?.profilePictureUrl ?? ""
+
         // Update local user data if available
         if let userData = response.data?.user {
             authManager.updateUser(userData)
         }
-        
+
         return url
     }
     
@@ -2331,23 +2335,27 @@ class APIClient: ObservableObject {
     // MARK: - Enhanced Profile Methods
     func updateProfileEnhanced(data: [String: Any]) async throws {
         let bodyData = try JSONSerialization.data(withJSONObject: data)
-        
+
         let response = try await performRequest(
-            endpoint: "api/users/me",
+            endpoint: "api/profile/enhanced",
             method: .PUT,
             body: bodyData,
             responseType: ProfileUpdateResponse.self
         )
-        
+
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to update profile")
         }
     }
     
     func checkUsernameAvailability(username: String) async throws -> UsernameAvailabilityResponse {
+        let requestData = ["username": username]
+        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
+
         return try await performRequest(
-            endpoint: "api/users/username-available?username=\(username)",
-            method: .GET,
+            endpoint: "api/profile/check-username",
+            method: .POST,
+            body: bodyData,
             responseType: UsernameAvailabilityResponse.self
         )
     }
@@ -2362,11 +2370,12 @@ class APIClient: ObservableObject {
         let success: Bool
         let message: String?
         let url: String?
+        let profilePictureUrl: String?
         let data: ProfileUpdateData?
-        
+
         struct ProfileUpdateData: Codable {
             let user: User
-            let usernameChangeInfo: UsernameChangeInfo
+            let usernameChangeInfo: UsernameChangeInfo?
         }
         
         struct UsernameChangeInfo: Codable {
