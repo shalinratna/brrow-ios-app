@@ -45,7 +45,10 @@ struct EnhancedEditProfileView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showSuccess = false
-    
+
+    // SMS Verification
+    @State private var showingSMSVerification = false
+
     // Debounce timer for username checking
     @State private var usernameCheckTimer: Timer?
     
@@ -119,6 +122,12 @@ struct EnhancedEditProfileView: View {
             }
         } message: {
             Text("You can only change your username once every 90 days. Your current username will be reserved for you for 90 days. Are you sure you want to change it?")
+        }
+        .sheet(isPresented: $showingSMSVerification) {
+            SMSVerificationView(initialPhoneNumber: phone) { updatedUser in
+                // Update the local state when verification completes
+                loadUserData()
+            }
         }
     }
     
@@ -368,13 +377,64 @@ struct EnhancedEditProfileView: View {
             }
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("Phone")
-                    .font(.system(size: 14, weight: .medium))
-                TextField("Phone number", text: $phone)
-                    .keyboardType(.phonePad)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
+                HStack {
+                    Text("Phone")
+                        .font(.system(size: 14, weight: .medium))
+
+                    Spacer()
+
+                    if let user = authManager.currentUser,
+                       let userPhone = user.phone, !userPhone.isEmpty,
+                       user.phoneVerified == true {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.system(size: 12))
+                            Text("Verified")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    } else if let user = authManager.currentUser,
+                              let userPhone = user.phone, !userPhone.isEmpty {
+                        Button("Verify") {
+                            showingSMSVerification = true
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    }
+                }
+
+                HStack {
+                    TextField("Phone number", text: $phone)
+                        .keyboardType(.phonePad)
+                        .disabled(authManager.currentUser?.phoneVerified == true)
+                        .opacity(authManager.currentUser?.phoneVerified == true ? 0.7 : 1.0)
+
+                    if authManager.currentUser?.phoneVerified != true && !phone.isEmpty {
+                        Button("Verify") {
+                            showingSMSVerification = true
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(6)
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+
+                if authManager.currentUser?.phoneVerified == true {
+                    Text("Phone number is verified and secured")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                } else {
+                    Text("Verify your phone number for security and account recovery")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -553,10 +613,11 @@ struct EnhancedEditProfileView: View {
     }
     
     private func uploadProfileImage(_ image: UIImage) async throws -> String {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        // Use industry standard compression for profile images (smaller size for profiles)
+        guard let imageData = image.optimizedForUpload(maxDimension: 1024, compressionQuality: 0.85, targetMaxSize: 512 * 1024) else {
             throw BrrowAPIError.validationError("Failed to process image")
         }
-        
+
         // This would call the image upload API
         return try await APIClient.shared.uploadProfilePicture(imageData: imageData)
     }
