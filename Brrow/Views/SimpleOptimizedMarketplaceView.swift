@@ -83,7 +83,7 @@ struct SimpleOptimizedMarketplaceView: View {
     // MARK: - Header Section
     private var headerSection: some View {
         HStack {
-            Text("marketplace".localizedString)
+            Text(LocalizationHelper.localizedString("marketplace"))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.Colors.text)
             
@@ -93,7 +93,7 @@ struct SimpleOptimizedMarketplaceView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 16, weight: .medium))
-                    Text("filters".localizedString)
+                    Text(LocalizationHelper.localizedString("filters"))
                         .font(.system(size: 15, weight: .medium))
                 }
                 .foregroundColor(Theme.Colors.primary)
@@ -113,7 +113,7 @@ struct SimpleOptimizedMarketplaceView: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Theme.Colors.secondaryText)
                 
-                TextField("search_items".localizedString, text: $searchText)
+                TextField(LocalizationHelper.localizedString("search_items"), text: $searchText)
                     .font(.system(size: 16))
                     .foregroundColor(Theme.Colors.text)
                     .focused($isSearchFieldFocused)
@@ -146,7 +146,7 @@ struct SimpleOptimizedMarketplaceView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 12) {
                 SimpleCategoryPill(
-                    title: "all".localizedString,
+                    title: LocalizationHelper.localizedString("all"),
                     icon: "square.grid.2x2",
                     isSelected: selectedCategory == nil,
                     action: {
@@ -189,12 +189,12 @@ struct SimpleOptimizedMarketplaceView: View {
                         .font(.system(size: 50))
                         .foregroundColor(.gray)
                     
-                    Text("no_items_found".localizedString)
+                    Text(LocalizationHelper.localizedString("no_items_found"))
                         .font(.title2)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                     
-                    Text("try_different_search".localizedString)
+                    Text(LocalizationHelper.localizedString("try_different_search"))
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -298,7 +298,7 @@ enum SimpleMarketplaceCategory: String, CaseIterable {
     case kitchen = "Kitchen"
     
     var title: String {
-        return rawValue.localizedString
+        return LocalizationHelper.localizedString(rawValue)
     }
     
     var icon: String {

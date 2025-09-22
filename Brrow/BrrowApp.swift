@@ -44,7 +44,7 @@ struct BrrowApp: App {
                                 .progressViewStyle(CircularProgressViewStyle())
                                 .scaleEffect(1.2)
                             
-                            Text("authenticating".localizedString)
+                            Text(LocalizationHelper.localizedString("authenticating"))
                                 .font(.headline)
                                 .foregroundColor(.secondary)
                         }

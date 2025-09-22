@@ -493,16 +493,30 @@ class ListingDetailViewModel: ObservableObject {
             showGuestAlert = true
             return
         }
-        
+
+        // Get current user ID
+        guard let currentUser = authManager.currentUser else {
+            print("❌ No current user found")
+            return
+        }
+
+        // Create chat ID based on user IDs and listing
+        let currentUserId = Int(currentUser.id) ?? 0
+        let ownerUserId = Int(listing.userId) ?? 0
+        let chatId = "listing_\(String(listing.id))_\(min(currentUserId, ownerUserId))_\(max(currentUserId, ownerUserId))"
+
+        print("🔔 Posting navigateToChat notification with chatId: \(chatId)")
+
         // Navigate to chat with the listing owner
-        // This would typically post a notification to open chat
         NotificationCenter.default.post(
             name: .navigateToChat,
             object: nil,
             userInfo: [
-                "userId": Int(listing.userId) ?? 0,
+                "chatId": chatId,
+                "userId": ownerUserId,
                 "listingId": listing.id,
-                "listingTitle": listing.title
+                "listingTitle": listing.title,
+                "listing": listing
             ]
         )
     }

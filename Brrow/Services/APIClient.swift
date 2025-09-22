@@ -59,6 +59,11 @@ class APIClient: ObservableObject {
             return await APIEndpointManager.shared.getBestEndpoint()
         }
     }
+
+    // Public method to get base URL
+    func getBaseURL() async -> String {
+        return await baseURL
+    }
     private var primaryURL = "https://brrowapp.com"
     private let session: URLSession = NetworkManager.createURLSession()
     private var cancellables = Set<AnyCancellable>()
@@ -821,26 +826,51 @@ class APIClient: ObservableObject {
     
     // MARK: - Creator System
     
-    func submitCreatorApplication(preferredCode: String, introduction: String, socialMediaLinks: String? = nil, promotionStrategy: String? = nil) async throws -> CreatorApplicationResponse {
-        var requestData: [String: Any] = [
-            "preferred_code": preferredCode,
-            "introduction": introduction
-        ]
-        
-        if let socialMedia = socialMediaLinks {
-            requestData["social_media_links"] = socialMedia
-        }
-        
-        if let strategy = promotionStrategy {
-            requestData["promotion_strategy"] = strategy
-        }
-        
-        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
-        
+    // MARK: - Enhanced Creator Application System
+
+    func submitCreatorApplication(
+        motivation: String,
+        experience: String,
+        businessName: String? = nil,
+        businessDescription: String? = nil,
+        experienceYears: Int? = nil,
+        portfolioLinks: String? = nil,
+        expectedMonthlyRevenue: Double? = nil,
+        platform: String? = nil,
+        followers: Int? = nil,
+        contentType: String? = nil,
+        referralStrategy: String? = nil
+    ) async throws -> CreatorApplicationResponse {
+
+        let requestData = CreatorApplicationRequest(
+            motivation: motivation,
+            experience: experience,
+            businessName: businessName,
+            businessDescription: businessDescription,
+            experienceYears: experienceYears,
+            portfolioLinks: portfolioLinks,
+            expectedMonthlyRevenue: expectedMonthlyRevenue,
+            platform: platform,
+            followers: followers,
+            contentType: contentType,
+            referralStrategy: referralStrategy,
+            agreementAccepted: true
+        )
+
+        let bodyData = try JSONEncoder().encode(requestData)
+
         return try await performRequest(
-            endpoint: "api/creators/applications",
+            endpoint: "api/creators/apply",
             method: .POST,
             body: bodyData,
+            responseType: CreatorApplicationResponse.self
+        )
+    }
+
+    func getCreatorApplicationStatus() async throws -> CreatorApplicationResponse {
+        return try await performRequest(
+            endpoint: "api/creators/application",
+            method: .GET,
             responseType: CreatorApplicationResponse.self
         )
     }
@@ -1091,6 +1121,37 @@ class APIClient: ObservableObject {
         // Legacy method for compatibility
         let url = try await uploadProfilePicture(imageData: imageData)
         return ProfilePictureUploadResponse(success: true, message: "Upload successful", data: ProfilePictureUploadResponse.ProfilePictureData(url: url, thumbnailUrl: nil))
+    }
+
+    // MARK: - Profile Picture Upload with User Data
+    func uploadProfilePictureWithUserData(imageData: String) async throws -> User {
+        struct ProfilePictureRequest: Codable {
+            let imageData: String
+            let fileName: String
+        }
+
+        struct ProfilePictureResponse: Codable {
+            let success: Bool
+            let message: String
+            let profilePictureUrl: String?
+            let user: User
+        }
+
+        let request = ProfilePictureRequest(imageData: imageData, fileName: "profile.jpg")
+        let bodyData = try JSONEncoder().encode(request)
+
+        let response = try await performRequest(
+            endpoint: "api/profile/upload-picture",
+            method: .POST,
+            body: bodyData,
+            responseType: ProfilePictureResponse.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message)
+        }
+
+        return response.user
     }
     
     // MARK: - Search Methods
@@ -2665,7 +2726,7 @@ class APIClient: ObservableObject {
     // MARK: - Offers
     func fetchOffers(type: String = "all") async throws -> [Offer] {
         let response = try await performRequest(
-            endpoint: "fetch_offers.php?type=\(type)",
+            endpoint: "api/offers?type=\(type)",
             method: .GET,
             responseType: APIResponse<[Offer]>.self
         )
@@ -2687,9 +2748,9 @@ class APIClient: ObservableObject {
     
     func createOffer(_ offer: CreateOfferRequest) async throws -> Offer {
         let bodyData = try JSONEncoder().encode(offer)
-        
+
         let response = try await performRequest(
-            endpoint: "create_offer.php",
+            endpoint: "api/offers",
             method: .POST,
             body: bodyData,
             responseType: APIResponse<Offer>.self
@@ -2704,33 +2765,51 @@ class APIClient: ObservableObject {
     
     func submitOffer(_ offer: Offer) async throws -> Offer {
         let bodyData = try JSONEncoder().encode(offer)
-        
-        return try await performRequest(
-            endpoint: "create_offer.php",
+
+        let response = try await performRequest(
+            endpoint: "api/offers",
             method: .POST,
             body: bodyData,
-            responseType: Offer.self
+            responseType: APIResponse<Offer>.self
         )
+
+        guard response.success, let offer = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to submit offer")
+        }
+
+        return offer
     }
     
     func updateOfferStatus(offerId: Int, status: OfferStatus) async throws -> Offer {
         let request = UpdateOfferStatusRequest(offerId: String(offerId), status: status.rawValue)
         let bodyData = try JSONEncoder().encode(request)
-        
-        return try await performRequest(
-            endpoint: "update_offer_status.php",
-            method: .POST,
+
+        let response = try await performRequest(
+            endpoint: "api/offers/\(offerId)/status",
+            method: .PUT,
             body: bodyData,
-            responseType: Offer.self
+            responseType: APIResponse<Offer>.self
         )
+
+        guard response.success, let offer = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to update offer status")
+        }
+
+        return offer
     }
     
     func fetchOfferDetails(id: Int) async throws -> Offer {
-        return try await performRequest(
-            endpoint: "fetch_offer_details.php?id=\(id)",
+        let response = try await performRequest(
+            endpoint: "api/offers/\(id)",
             method: .GET,
-            responseType: Offer.self
+            responseType: APIResponse<Offer>.self
         )
+
+        guard response.success, let offer = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch offer details")
+        }
+
+        return offer
     }
     
     // MARK: - Transactions

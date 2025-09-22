@@ -28,7 +28,7 @@ class ProfileViewModel: ObservableObject {
     @Published var savesTrend: ProfileInsightCard.Trend = .neutral
     @Published var messagesTrend: ProfileInsightCard.Trend = .neutral
     @Published var rentalsTrend: ProfileInsightCard.Trend = .neutral
-    @Published var analyticsData: [ChartDataPoint] = []
+    @Published var analyticsData: [ProfileChartDataPoint] = []
     @Published var ratingDistribution: [Double] = [0.0, 0.0, 0.0, 0.0, 0.0]
     
     private var cancellables = Set<AnyCancellable>()
@@ -194,8 +194,17 @@ class ProfileViewModel: ObservableObject {
 
         Task {
             do {
-                let imageUrl = try await fileUploadService.uploadProfileImage(image)
-                let updatedUser = try await apiClient.updateProfileImage(imageUrl: imageUrl)
+                // Compress and convert image to base64 data for direct upload
+                guard let imageData = image.jpegData(compressionQuality: 0.7) else {
+                    throw BrrowAPIError.validationError("Failed to convert image to data")
+                }
+
+                // Convert to base64 data URL format expected by backend
+                let base64String = imageData.base64EncodedString()
+                let dataURL = "data:image/jpeg;base64,\(base64String)"
+
+                // Use the correct endpoint that properly stores profile pictures
+                let updatedUser = try await apiClient.uploadProfilePictureWithUserData(imageData: dataURL)
 
                 await MainActor.run {
                     self.user = updatedUser

@@ -190,10 +190,6 @@ class APIEndpointManager: ObservableObject {
 
 // MARK: - Updated APIClient Integration
 extension APIClient {
-    /// Get base URL with automatic failover
-    func getBaseURL() async -> String {
-        return await APIEndpointManager.shared.getBestEndpoint()
-    }
     
     /// Make request with automatic failover
     func makeRequest<T: Decodable>(_ endpoint: String, 

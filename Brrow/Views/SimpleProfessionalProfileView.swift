@@ -17,13 +17,9 @@ struct SimpleProfessionalProfileView: View {
     @State private var showIDmeVerification = false
     @State private var showEmailVerificationBanner = true
     @State private var showIDmeTest = false
-    @State private var showBecomeCreator = false
-    @State private var showCreatorDashboard = false
-    @State private var showEnterCreatorCode = false
     @State private var showingMyPosts = false
     @State private var showingOffers = false
     @State private var showingSavedItems = false
-    @StateObject private var creatorViewModel = CreatorStatusViewModel()
     
     // Show email verification banner if user is not verified and banner hasn't been dismissed
     private var shouldShowEmailBanner: Bool {
@@ -107,15 +103,6 @@ struct SimpleProfessionalProfileView: View {
             // .sheet(isPresented: $showIDmeTest) {
             //     IDmeTestView()
             // }
-            .sheet(isPresented: $showBecomeCreator) {
-                BecomeCreatorView()
-            }
-            .sheet(isPresented: $showCreatorDashboard) {
-                CreatorDashboardView()
-            }
-            .sheet(isPresented: $showEnterCreatorCode) {
-                EnterCreatorCodeView()
-            }
             .sheet(isPresented: $showingMyPosts) {
                 EnhancedMyPostsView()
             }
@@ -135,10 +122,6 @@ struct SimpleProfessionalProfileView: View {
                     AchievementManager.shared.trackProfileCompleted()
                 }
                 
-                // Load creator status
-                Task {
-                    await creatorViewModel.loadCreatorStatus()
-                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .navigateToMyPosts)) { _ in
                 showingMyPosts = true
@@ -148,7 +131,7 @@ struct SimpleProfessionalProfileView: View {
     // MARK: - Header Section
     private var headerSection: some View {
         HStack {
-            Text("profile".localizedString)
+            Text(LocalizationHelper.localizedString("profile"))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.Colors.text)
             
@@ -270,7 +253,7 @@ struct SimpleProfessionalProfileView: View {
             Group {
                 if let user = viewModel.user {
                     NavigationLink(destination: EditProfileView(user: user)) {
-                        Text("edit_profile".localizedString)
+                        Text(LocalizationHelper.localizedString("edit_profile"))
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -280,7 +263,7 @@ struct SimpleProfessionalProfileView: View {
                     }
                 } else {
                     Button(action: {}) {
-                        Text("edit_profile".localizedString)
+                        Text(LocalizationHelper.localizedString("edit_profile"))
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -301,7 +284,7 @@ struct SimpleProfessionalProfileView: View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             Button(action: { showingMyPosts = true }) {
                 ProfileStatBox(
-                    title: "active_listings".localizedString,
+                    title: LocalizationHelper.localizedString("active_listings"),
                     value: "\(viewModel.userListings.filter { $0.status == "active" }.count)",
                     icon: "tag.fill",
                     color: Theme.Colors.primary
@@ -313,7 +296,7 @@ struct SimpleProfessionalProfileView: View {
             .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3), value: animateContent)
             
             ProfileStatBox(
-                title: "total_reviews".localizedString,
+                title: LocalizationHelper.localizedString("total_reviews"),
                 value: "\(viewModel.reviewCount)",
                 icon: "star.fill",
                 color: Theme.Colors.accentOrange
@@ -323,7 +306,7 @@ struct SimpleProfessionalProfileView: View {
             .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.35), value: animateContent)
             
             ProfileStatBox(
-                title: "lister_rating".localizedString,
+                title: LocalizationHelper.localizedString("lister_rating"),
                 value: String(format: "%.1f", viewModel.user?.listerRating ?? 0.0),
                 icon: "star.fill",
                 color: Theme.Colors.accentBlue
@@ -333,7 +316,7 @@ struct SimpleProfessionalProfileView: View {
             .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.4), value: animateContent)
             
             ProfileStatBox(
-                title: "rentee_rating".localizedString,
+                title: LocalizationHelper.localizedString("rentee_rating"),
                 value: String(format: "%.1f", viewModel.user?.renteeRating ?? 0.0),
                 icon: "person.fill",
                 color: Theme.Colors.success
@@ -408,7 +391,7 @@ struct SimpleProfessionalProfileView: View {
             Button(action: { showingOffers = true }) {
                 ProfileMenuRow(
                     icon: "clock.fill",
-                    title: "rental_history".localizedString
+                    title: LocalizationHelper.localizedString("rental_history")
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -416,7 +399,7 @@ struct SimpleProfessionalProfileView: View {
             NavigationLink(destination: UltraModernProfileView2()) {
                 ProfileMenuRow(
                     icon: "chart.line.uptrend.xyaxis",
-                    title: "analytics".localizedString
+                    title: LocalizationHelper.localizedString("analytics")
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -424,7 +407,7 @@ struct SimpleProfessionalProfileView: View {
             Button(action: { showingSavedItems = true }) {
                 ProfileMenuRow(
                     icon: "heart.fill",
-                    title: "saved_items".localizedString
+                    title: LocalizationHelper.localizedString("saved_items")
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -432,7 +415,7 @@ struct SimpleProfessionalProfileView: View {
             NavigationLink(destination: PushNotificationSettingsView()) {
                 ProfileMenuRow(
                     icon: "bell.fill",
-                    title: "notifications".localizedString
+                    title: LocalizationHelper.localizedString("notifications")
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -447,64 +430,14 @@ struct SimpleProfessionalProfileView: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            // Subscription Management
-            NavigationLink(destination: StripeSubscriptionView()) {
-                ProfileMenuRow(
-                    icon: "crown.fill",
-                    title: "subscription".localizedString
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
             
-            // Creator Options
-            if creatorViewModel.isCreator {
-                // Creator Dashboard
-                Button(action: { showCreatorDashboard = true }) {
-                    ProfileMenuRow(
-                        icon: "star.circle.fill",
-                        title: "Creator Dashboard",
-                        badge: creatorViewModel.creatorCode
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
-            } else if creatorViewModel.applicationPending {
-                // Application Pending
-                ProfileMenuRow(
-                    icon: "hourglass",
-                    title: "Creator Application",
-                    badge: "Pending"
-                )
-                .opacity(0.7)
-            } else {
-                // Become a Creator
-                Button(action: { showBecomeCreator = true }) {
-                    ProfileMenuRow(
-                        icon: "star.circle",
-                        title: "Become a Creator",
-                        badge: "Earn 1%"
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            
-            // Enter Creator Code (if user hasn't been referred)
-            if authManager.currentUser?.referredByCreatorCode == nil {
-                Button(action: { showEnterCreatorCode = true }) {
-                    ProfileMenuRow(
-                        icon: "gift.fill",
-                        title: "Have a Creator Code?",
-                        badge: "Support"
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            
-            // Business Account (if business user)
+            // Business Account (if business user) - TEMPORARILY HIDDEN
+            /*
             if authManager.currentUser?.accountType == "business" {
                 NavigationLink(destination: BusinessAccountView()) {
                     ProfileMenuRow(
                         icon: "building.2.fill",
-                        title: "business_account".localizedString
+                        title: LocalizationHelper.localizedString("business_account")
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -519,22 +452,25 @@ struct SimpleProfessionalProfileView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            
-            // Achievements
+            */
+
+            // Achievements - TEMPORARILY HIDDEN
+            /*
             NavigationLink(destination: AchievementsView()) {
                 ProfileMenuRow(
                     icon: "trophy.fill",
-                    title: "achievements".localizedString
+                    title: LocalizationHelper.localizedString("achievements")
                 )
             }
             .buttonStyle(PlainButtonStyle())
+            */
             
             // Borrow vs Buy Calculator - Removed (requires listing context)
             
             NavigationLink(destination: LanguageSettingsView()) {
                 ProfileMenuRow(
                     icon: "globe",
-                    title: "language".localizedString
+                    title: LocalizationHelper.localizedString("language")
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -542,7 +478,7 @@ struct SimpleProfessionalProfileView: View {
             NavigationLink(destination: AboutView()) {
                 ProfileMenuRow(
                     icon: "questionmark.circle.fill",
-                    title: "help_support".localizedString
+                    title: LocalizationHelper.localizedString("help_support")
                 )
             }
             .buttonStyle(PlainButtonStyle())

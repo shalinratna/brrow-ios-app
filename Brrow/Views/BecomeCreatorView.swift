@@ -1,5 +1,24 @@
 import SwiftUI
 
+/*
+ * CREATOR SYSTEM STATUS: HIDDEN BUT FUNCTIONAL
+ *
+ * This Creator Application System is fully implemented and functional but intentionally hidden from the main UI.
+ * The system includes:
+ * - Complete database schema (creator_applications table)
+ * - Full backend API endpoints (/api/creators/apply, /api/creators/application, etc.)
+ * - Discord webhook integration for notifications
+ * - iOS models and services with proper encoding/decoding
+ * - Caching and preloading functionality
+ *
+ * To re-enable the Creator system in the future:
+ * 1. Add navigation to BecomeCreatorView in settings or profile
+ * 2. Add Creator dashboard access for approved creators
+ * 3. Uncomment any Creator-related navigation code
+ *
+ * All functionality remains intact and ready for production use.
+ */
+
 struct BecomeCreatorView: View {
     @StateObject private var viewModel = BecomeCreatorViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -221,20 +240,30 @@ class BecomeCreatorViewModel: ObservableObject {
         error = nil
 
         do {
-            let response = try await apiClient.getCreatorStatus()
+            let response = try await apiClient.getCreatorApplicationStatus()
 
-            hasExistingApplication = response.status != nil && !response.status!.isEmpty
-            canApply = !response.isCreator && (response.status == nil || response.status!.isEmpty)
-            applicationStatus = response.status ?? ""
+            hasExistingApplication = response.hasApplication
+            canApply = response.canApply
 
-            // Show status-specific messages
-            if !canApply {
-                if applicationStatus == "PENDING" {
-                    error = "You already have a pending creator application. Please wait for our review."
-                } else if applicationStatus == "APPROVED" {
-                    error = "Congratulations! You're already a Brrow creator."
-                } else if applicationStatus == "REJECTED" {
-                    error = "Previous application was rejected. Please contact support to reapply."
+            if let application = response.application {
+                applicationStatus = application.status.rawValue
+
+                // Show status-specific messages
+                if !canApply {
+                    switch application.status {
+                    case .pending:
+                        error = "You already have a pending creator application. Please wait for our review."
+                    case .approved:
+                        error = "Congratulations! You're already a Brrow creator."
+                    case .rejected:
+                        if let reason = application.rejectionReason {
+                            error = "Previous application was rejected: \(reason). Please contact support to reapply."
+                        } else {
+                            error = "Previous application was rejected. Please contact support to reapply."
+                        }
+                    case .underReview:
+                        error = "Your application is under review. Please wait for our response."
+                    }
                 }
             }
         } catch {
@@ -254,48 +283,29 @@ class BecomeCreatorViewModel: ObservableObject {
         isLoading = true
         error = nil
 
-        let applicationData: [String: Any] = [
-            "motivation": introduction.trimmingCharacters(in: .whitespacesAndNewlines),
-            "experience": introduction.trimmingCharacters(in: .whitespacesAndNewlines),
-            "platform": socialMediaLinks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : socialMediaLinks,
-            "referral_strategy": promotionStrategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : promotionStrategy,
-            "agreement_accepted": true
-        ].compactMapValues { $0 }
-
         do {
-            let response: CreatorApplicationResponse = try await apiClient.request(
-                "/api/creators/apply",
-                method: .POST,
-                parameters: applicationData,
-                responseType: CreatorApplicationResponse.self
+            let response = try await apiClient.submitCreatorApplication(
+                motivation: introduction.trimmingCharacters(in: .whitespacesAndNewlines),
+                experience: introduction.trimmingCharacters(in: .whitespacesAndNewlines),
+                businessName: nil,
+                businessDescription: nil,
+                experienceYears: nil,
+                portfolioLinks: socialMediaLinks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : socialMediaLinks,
+                expectedMonthlyRevenue: nil,
+                platform: socialMediaLinks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : socialMediaLinks,
+                followers: nil,
+                contentType: nil,
+                referralStrategy: promotionStrategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : promotionStrategy
             )
 
-            if response.success {
-                applicationSubmitted = true
-                hasExistingApplication = true
-                canApply = false
-                applicationStatus = "PENDING"
-            } else {
-                error = response.message
-            }
+            applicationSubmitted = true
+            hasExistingApplication = true
+            canApply = false
+            applicationStatus = "PENDING"
         } catch {
             self.error = error.localizedDescription
         }
 
         isLoading = false
-    }
-}
-
-// MARK: - API Response
-
-struct CreatorApplicationResponse: Codable {
-    let success: Bool
-    let message: String
-    let applicationId: Int?
-    
-    private enum CodingKeys: String, CodingKey {
-        case success
-        case message
-        case applicationId = "application_id"
     }
 }

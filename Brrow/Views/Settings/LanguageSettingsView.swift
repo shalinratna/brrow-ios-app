@@ -128,19 +128,8 @@ struct LanguageSettingsView: View {
                     }
                 }
             }
-        }
+        .navigationTitle("Language Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Back")
-                    }
-                    .foregroundColor(Theme.Colors.primary)
-                }
-            }
-        }
         .alert("Language Changed", isPresented: $showingRestartAlert) {
             Button("OK") {
                 dismiss()

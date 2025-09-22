@@ -119,7 +119,7 @@ struct OptimizedProfessionalMarketplaceView: View {
     // MARK: - Professional Header
     private var professionalHeader: some View {
         HStack {
-            Text("marketplace".localizedString)
+            Text(LocalizationHelper.localizedString("marketplace"))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.Colors.text)
             
@@ -135,7 +135,7 @@ struct OptimizedProfessionalMarketplaceView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 16, weight: .medium))
-                    Text("filters".localizedString)
+                    Text(LocalizationHelper.localizedString("filters"))
                         .font(.system(size: 15, weight: .medium))
                 }
                 .foregroundColor(Theme.Colors.primary)
@@ -180,7 +180,7 @@ struct OptimizedProfessionalMarketplaceView: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Theme.Colors.secondaryText)
                 
-                TextField("search_items".localizedString, text: $searchText)
+                TextField(LocalizationHelper.localizedString("search_items"), text: $searchText)
                     .font(.system(size: 16))
                     .foregroundColor(Theme.Colors.text)
                     .focused($isSearchFieldFocused)
@@ -213,7 +213,7 @@ struct OptimizedProfessionalMarketplaceView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 12) {
                 OptimizedCategoryPill(
-                    title: "all".localizedString,
+                    title: LocalizationHelper.localizedString("all"),
                     icon: "square.grid.2x2",
                     isSelected: selectedCategory == nil,
                     action: {
@@ -245,21 +245,21 @@ struct OptimizedProfessionalMarketplaceView: View {
     private var statsSection: some View {
         HStack(spacing: 12) {
             OptimizedStatCard(
-                title: "total_items".localizedString,
+                title: LocalizationHelper.localizedString("total_items"),
                 value: "\(viewModel.totalItems)",
                 icon: "bag.fill",
                 color: Theme.Colors.primary
             )
             
             OptimizedStatCard(
-                title: "new_today".localizedString,
+                title: LocalizationHelper.localizedString("new_today"),
                 value: "\(viewModel.newItemsToday)",
                 icon: "plus.circle.fill",
                 color: Theme.Colors.success
             )
             
             OptimizedStatCard(
-                title: "available_now".localizedString,
+                title: LocalizationHelper.localizedString("available_now"),
                 value: "\(viewModel.availableItems)",
                 icon: "checkmark.circle.fill",
                 color: Theme.Colors.accentBlue
@@ -287,12 +287,12 @@ struct OptimizedProfessionalMarketplaceView: View {
                         .font(.system(size: 50))
                         .foregroundColor(.gray)
                     
-                    Text("no_items_found".localizedString)
+                    Text(LocalizationHelper.localizedString("no_items_found"))
                         .font(.title2)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                     
-                    Text("try_different_search".localizedString)
+                    Text(LocalizationHelper.localizedString("try_different_search"))
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

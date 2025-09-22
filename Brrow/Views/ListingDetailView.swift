@@ -139,7 +139,7 @@ struct LegacyListingDetailView: View {
                 Spacer()
                 
                 VStack(alignment: .trailing) {
-                    Text(listing.isFree ? "free".localizedString : "$\(Int(listing.price))")
+                    Text(listing.isFree ? LocalizationHelper.localizedString("free") : "$\(Int(listing.price))")
                         .font(Theme.Typography.headline)
                         .fontWeight(.bold)
                         .foregroundColor(listing.isFree ? Theme.Colors.success : Theme.Colors.primary)
@@ -195,7 +195,7 @@ struct LegacyListingDetailView: View {
     // MARK: - Owner Info Section
     private var ownerInfoSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("listed_by".localizedString)
+            Text(LocalizationHelper.localizedString("listed_by"))
                 .font(Theme.Typography.headline)
                 .fontWeight(.semibold)
                 .foregroundColor(Theme.Colors.text)
@@ -238,7 +238,7 @@ struct LegacyListingDetailView: View {
                 Button(action: {
                     // TODO: Navigate to owner profile
                 }) {
-                    Text("view_profile".localizedString)
+                    Text(LocalizationHelper.localizedString("view_profile"))
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Colors.primary)
                 }
@@ -253,7 +253,7 @@ struct LegacyListingDetailView: View {
     // MARK: - Description Section
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("description".localizedString)
+            Text(LocalizationHelper.localizedString("description"))
                 .font(Theme.Typography.headline)
                 .fontWeight(.semibold)
                 .foregroundColor(Theme.Colors.text)
@@ -298,14 +298,14 @@ struct LegacyListingDetailView: View {
             Button(action: {
                 showingOfferSheet = true
             }) {
-                Text(listing.isFree ? "request_item".localizedString : "make_offer".localizedString)
+                Text(listing.isFree ? LocalizationHelper.localizedString("request_item") : LocalizationHelper.localizedString("make_offer"))
             }
             .primaryButtonStyle()
             
             Button(action: {
                 showingContactSheet = true
             }) {
-                Text("contact_owner".localizedString)
+                Text(LocalizationHelper.localizedString("contact_owner"))
             }
             .secondaryButtonStyle()
         }

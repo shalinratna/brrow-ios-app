@@ -214,7 +214,7 @@ struct ProfessionalMarketplaceView: View {
     // MARK: - Professional Header
     private var professionalHeader: some View {
         HStack {
-            Text("marketplace".localizedString)
+            Text(LocalizationHelper.localizedString("marketplace"))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.Colors.text)
             
@@ -225,7 +225,7 @@ struct ProfessionalMarketplaceView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 16, weight: .medium))
-                    Text("filters".localizedString)
+                    Text(LocalizationHelper.localizedString("filters"))
                         .font(.system(size: 15, weight: .medium))
                 }
                 .foregroundColor(Theme.Colors.primary)
@@ -245,7 +245,7 @@ struct ProfessionalMarketplaceView: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Theme.Colors.secondaryText)
                 
-                TextField("search_items".localizedString, text: $searchText)
+                TextField(LocalizationHelper.localizedString("search_items"), text: $searchText)
                     .font(.system(size: 16))
                     .foregroundColor(Theme.Colors.text)
                     .focused($isSearchFieldFocused)
@@ -289,7 +289,7 @@ struct ProfessionalMarketplaceView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ProfessionalCategoryPill(
-                    title: "all".localizedString,
+                    title: LocalizationHelper.localizedString("all"),
                     icon: "square.grid.2x2",
                     isSelected: selectedCategory == nil,
                     action: {
@@ -325,7 +325,7 @@ struct ProfessionalMarketplaceView: View {
                 showingInfoPopup = true
             }) {
                 ProfessionalStatCard(
-                    title: "available".localizedString,
+                    title: LocalizationHelper.localizedString("available"),
                     value: "\(viewModel.totalListings)",
                     icon: "cube.box.fill",
                     color: Theme.Colors.primary
@@ -338,7 +338,7 @@ struct ProfessionalMarketplaceView: View {
                 showingInfoPopup = true
             }) {
                 ProfessionalStatCard(
-                    title: "near_you".localizedString,
+                    title: LocalizationHelper.localizedString("near_you"),
                     value: "\(viewModel.nearbyListings)",
                     icon: "location.fill",
                     color: Theme.Colors.accentBlue
@@ -351,7 +351,7 @@ struct ProfessionalMarketplaceView: View {
                 showingInfoPopup = true
             }) {
                 ProfessionalStatCard(
-                    title: "todays_deals".localizedString,
+                    title: LocalizationHelper.localizedString("todays_deals"),
                     value: "\(viewModel.todaysDeals)",
                     icon: "tag.fill",
                     color: Theme.Colors.accentOrange
@@ -369,7 +369,7 @@ struct ProfessionalMarketplaceView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Section header
             HStack {
-                Text("all_items".localizedString)
+                Text(LocalizationHelper.localizedString("all_items"))
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(Theme.Colors.text)
                 
@@ -377,13 +377,13 @@ struct ProfessionalMarketplaceView: View {
                 
                 // Sort menu
                 Menu {
-                    Button("newest_first".localizedString) { viewModel.sortBy(.newest) }
-                    Button("price_low_to_high".localizedString) { viewModel.sortBy(.priceLowToHigh) }
-                    Button("price_high_to_low".localizedString) { viewModel.sortBy(.priceHighToLow) }
-                    Button("distance".localizedString) { viewModel.sortBy(.distance) }
+                    Button(LocalizationHelper.localizedString("newest_first")) { viewModel.sortBy(.newest) }
+                    Button(LocalizationHelper.localizedString("price_low_to_high")) { viewModel.sortBy(.priceLowToHigh) }
+                    Button(LocalizationHelper.localizedString("price_high_to_low")) { viewModel.sortBy(.priceHighToLow) }
+                    Button(LocalizationHelper.localizedString("distance")) { viewModel.sortBy(.distance) }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("sort".localizedString)
+                        Text(LocalizationHelper.localizedString("sort"))
                             .font(.system(size: 14, weight: .medium))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 12, weight: .medium))
@@ -397,8 +397,8 @@ struct ProfessionalMarketplaceView: View {
                 ProfessionalLoadingGrid()
             } else if viewModel.listings.isEmpty {
                 EmptyStateView(
-                    title: "no_items_found".localizedString,
-                    message: "try_adjusting_filters".localizedString,
+                    title: LocalizationHelper.localizedString("no_items_found"),
+                    message: LocalizationHelper.localizedString("try_adjusting_filters"),
                     systemImage: "cube.box"
                 )
                 .frame(height: 300)
@@ -643,7 +643,7 @@ struct ProfessionalListingCard: View {
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(Theme.Colors.primary)
                     
-                    Text("/" + "day".localizedString)
+                    Text("/" + LocalizationHelper.localizedString("day"))
                         .font(.system(size: 13))
                         .foregroundColor(Theme.Colors.secondaryText)
                     
@@ -751,7 +751,7 @@ struct LoadMoreButton: View {
                         .font(.system(size: 16, weight: .medium))
                 }
                 
-                Text(isLoading ? "loading".localizedString : "load_more".localizedString)
+                Text(isLoading ? LocalizationHelper.localizedString("loading") : LocalizationHelper.localizedString("load_more"))
                     .font(.system(size: 15, weight: .medium))
             }
             .foregroundColor(Theme.Colors.primary)
@@ -773,7 +773,7 @@ enum ProfessionalMarketplaceCategory: String, CaseIterable {
     case books = "Books"
     case clothing = "Clothing"
     
-    var title: String { rawValue.lowercased().localizedString }
+    var title: String { LocalizationHelper.localizedString(rawValue.lowercased()) }
     
     var icon: String {
         switch self {

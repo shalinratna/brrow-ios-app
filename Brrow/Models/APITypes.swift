@@ -358,57 +358,30 @@ struct AppleLoginRequest: Codable {
     let identityToken: String
 }
 
-// MARK: - User Achievements Response
+// MARK: - User Achievements Response (matches backend actual response)
 struct UserAchievementsResponse: Codable {
     let success: Bool
-    let message: String?
-    let data: UserAchievementsData?
-    
-    struct UserAchievementsData: Codable {
-        let achievements: [Achievement]
-        let totalPoints: Int
-        let level: Int
-        let nextLevelPoints: Int
-        
-        enum CodingKeys: String, CodingKey {
-            case achievements
-            case totalPoints = "total_points"
-            case level
-            case nextLevelPoints = "next_level_points"
-        }
+    let achievements: [Achievement]
+    let points: Int
+    let totalAchievements: Int
+    let unlockedAchievements: Int
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case achievements
+        case points
+        case totalAchievements = "total_achievements"
+        case unlockedAchievements = "unlocked_achievements"
     }
 }
 
-// MARK: - Achievement Model
+// MARK: - Achievement Model (matches backend response)
 struct Achievement: Codable, Identifiable {
     let id: Int
-    let title: String
+    let name: String
     let description: String
-    let category: String
-    let pointsReward: Int
-    let icon: String
-    let targetValue: Int
-    let currentProgress: Int
-    let isUnlocked: Bool
-    let unlockedAt: String?
-    
-    // For API compatibility
-    var points: Int { pointsReward }
-    var progress: Double { Double(currentProgress) }
-    var maxProgress: Double { Double(targetValue) }
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case title
-        case description
-        case category
-        case pointsReward = "points_reward"
-        case icon
-        case targetValue = "target_value"
-        case currentProgress = "current_progress"
-        case isUnlocked = "is_unlocked"
-        case unlockedAt = "unlocked_at"
-    }
+    let unlocked: Bool
+    let points: Int
 }
 
 // MARK: - Create Listing Request

@@ -71,6 +71,12 @@ struct ProfilePictureEditView: View {
             } message: {
                 Text(viewModel.errorMessage)
             }
+            .fullScreenCover(isPresented: $viewModel.showFullscreenPreview) {
+                FullscreenImagePreview(
+                    image: viewModel.selectedImage,
+                    imageUrl: viewModel.currentProfilePicture
+                )
+            }
         }
     }
     
@@ -92,6 +98,9 @@ struct ProfilePictureEditView: View {
                             Circle()
                                 .stroke(Theme.Colors.primary, lineWidth: 3)
                         )
+                        .onTapGesture {
+                            viewModel.showFullscreenPreview = true
+                        }
                 } else if let currentPicture = viewModel.currentProfilePicture {
                     AsyncImage(url: URL(string: currentPicture)) { image in
                         image
@@ -106,6 +115,9 @@ struct ProfilePictureEditView: View {
                         Circle()
                             .stroke(Theme.Colors.border, lineWidth: 2)
                     )
+                    .onTapGesture {
+                        viewModel.showFullscreenPreview = true
+                    }
                 } else {
                     Image(systemName: "person.circle.fill")
                         .resizable()
@@ -252,6 +264,7 @@ class ProfilePictureEditViewModel: ObservableObject {
     @Published var uploadSuccess = false
     @Published var showError = false
     @Published var errorMessage = ""
+    @Published var showFullscreenPreview = false
     
     private let apiClient = APIClient.shared
     private let authManager = AuthManager.shared
@@ -301,12 +314,14 @@ class ProfilePictureEditViewModel: ObservableObject {
             let response = try await apiClient.uploadProfilePicture(imageData, fileName: fileName)
             
             // Update the current user with the new profile picture URL
-            if var currentUser = authManager.currentUser {
-                currentUser.profilePicture = response.data?.url ?? response.data?.thumbnailUrl
-                authManager.updateUser(currentUser)
-                
-                // Clear all image cache to ensure the new profile picture is shown
-                ImageCacheManager.shared.clearCache()
+            await MainActor.run {
+                if var currentUser = authManager.currentUser {
+                    currentUser.profilePicture = response.data?.url ?? response.data?.thumbnailUrl
+                    authManager.updateUser(currentUser)
+
+                    // Clear all image cache to ensure the new profile picture is shown
+                    ImageCacheManager.shared.clearCache()
+                }
             }
             
             await MainActor.run {
@@ -371,6 +386,85 @@ struct CameraView: UIViewControllerRepresentable {
     }
 }
 
+
+// MARK: - Fullscreen Image Preview
+struct FullscreenImagePreview: View {
+    let image: UIImage?
+    let imageUrl: String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+
+    var body: some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+
+            Group {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                } else if let imageUrl = imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFit()
+                    } placeholder: {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                }
+            }
+            .scaleEffect(scale)
+            .offset(offset)
+            .gesture(
+                SimultaneousGesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            scale = max(1.0, min(value, 4.0))
+                        },
+                    DragGesture()
+                        .onChanged { value in
+                            offset = value.translation
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring()) {
+                                offset = .zero
+                            }
+                        }
+                )
+            )
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())
+                    }
+                    .padding()
+                }
+                Spacer()
+            }
+        }
+        .onTapGesture(count: 2) {
+            withAnimation(.spring()) {
+                if scale > 1.0 {
+                    scale = 1.0
+                    offset = .zero
+                } else {
+                    scale = 2.0
+                }
+            }
+        }
+    }
+}
 
 // MARK: - Preview
 struct ProfilePictureEditView_Previews: PreviewProvider {

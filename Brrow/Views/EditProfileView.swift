@@ -150,6 +150,10 @@ struct EditProfileView: View {
             toolbarContent
         }
         .toolbarColorScheme(.light, for: .navigationBar)
+        .onTapGesture {
+            // Dismiss keyboard when tapping outside
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
     }
     
     // MARK: - Profile Content
@@ -352,7 +356,7 @@ struct EditProfileView: View {
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.top, Theme.Spacing.md + 8)
             }
-            
+
             TextEditor(text: $bio)
                 .frame(minHeight: 100)
                 .padding(Theme.Spacing.md)
@@ -365,6 +369,9 @@ struct EditProfileView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Theme.Colors.border, lineWidth: 1)
         )
+        .onTapGesture {
+            // Allow TextEditor to gain focus
+        }
     }
     
     private var locationField: some View {

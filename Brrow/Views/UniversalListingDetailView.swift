@@ -24,8 +24,20 @@ struct UniversalListingDetailView: View {
     
     private var isOwner: Bool {
         guard let currentUser = authManager.currentUser else { return false }
-        // Check if current user owns this listing
-        return listing.userId == currentUser.id
+        // Check if current user owns this listing using multiple comparison methods
+        let isOwnerByUserId = listing.userId == currentUser.id
+        let isOwnerByApiId = listing.user?.apiId == currentUser.apiId
+
+        // Debug logging to help identify ownership detection issues
+        print("🔍 Ownership Check:")
+        print("  Current User ID: \(currentUser.id)")
+        print("  Current User ApiId: \(currentUser.apiId)")
+        print("  Listing User ID: \(listing.userId)")
+        print("  Listing User ApiId: \(listing.user?.apiId ?? "nil")")
+        print("  IsOwner by UserId: \(isOwnerByUserId)")
+        print("  IsOwner by ApiId: \(isOwnerByApiId)")
+
+        return isOwnerByUserId || isOwnerByApiId
     }
     
     var body: some View {

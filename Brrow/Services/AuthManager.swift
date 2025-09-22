@@ -603,9 +603,10 @@ class AuthManager: ObservableObject {
         }
         
         // Optional: Perform background validation without aggressive logout
-        Task {
+        Task<Void, Never> {
             do {
-                guard let url = URL(string: "https://brrowapp.com/api/users/me") else {
+                let baseURL = await APIClient.shared.getBaseURL()
+                guard let url = URL(string: "\(baseURL)/api/users/me") else {
                     return // Don't logout on URL construction failure
                 }
                 

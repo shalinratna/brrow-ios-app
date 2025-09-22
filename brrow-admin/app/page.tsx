@@ -30,18 +30,40 @@ export default function Dashboard() {
     responseTime: 0
   });
 
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stats`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTodayStats({
+          activeUsers: data.users?.active || 0,
+          newListings: data.listings?.today || 0,
+          transactions: data.transactions?.total || 0,
+          revenue: data.transactions?.revenue || 0,
+          serverLoad: Math.random() * 100, // Server load simulation
+          responseTime: Math.random() * 200 + 50 // Response time simulation
+        });
+      } else {
+        console.error('Failed to fetch stats:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
   useEffect(() => {
-    // Simulate real-time data updates
+    fetchStats();
+
+    // Refresh stats every 30 seconds
     const interval = setInterval(() => {
-      setTodayStats(prev => ({
-        activeUsers: Math.floor(Math.random() * 100) + 50,
-        newListings: Math.floor(Math.random() * 50) + 10,
-        transactions: Math.floor(Math.random() * 30) + 5,
-        revenue: Math.random() * 5000 + 1000,
-        serverLoad: Math.random() * 100,
-        responseTime: Math.random() * 200 + 50
-      }));
-    }, 5000);
+      fetchStats();
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);

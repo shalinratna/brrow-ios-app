@@ -33,7 +33,7 @@ struct SocialChatView: View {
     // MARK: - Chat Header
     private var chatHeader: some View {
         HStack {
-            Text("messages".localizedString)
+            Text(LocalizationHelper.localizedString("messages"))
                 .font(.system(size: 32, weight: .bold))
                 .foregroundColor(Theme.Colors.text)
             
@@ -55,7 +55,7 @@ struct SocialChatView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(Theme.Colors.secondaryText)
             
-            TextField("search_conversations".localizedString, text: $searchText)
+            TextField(LocalizationHelper.localizedString("search_conversations"), text: $searchText)
                 .font(.system(size: 16))
         }
         .padding(Theme.Spacing.md)
@@ -91,11 +91,11 @@ struct SocialChatView: View {
                 .font(.system(size: 64))
                 .foregroundColor(Theme.Colors.primary.opacity(0.6))
             
-            Text("no_messages_yet".localizedString)
+            Text(LocalizationHelper.localizedString("no_messages_yet"))
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
             
-            Text("messages_from_inquiries_appear_here".localizedString)
+            Text(LocalizationHelper.localizedString("messages_from_inquiries_appear_here"))
                 .font(.system(size: 16))
                 .foregroundColor(Theme.Colors.secondaryText)
                 .multilineTextAlignment(.center)
@@ -107,7 +107,7 @@ struct SocialChatView: View {
                 }) {
                     HStack {
                         Image(systemName: "bag.fill")
-                        Text("browse_marketplace".localizedString)
+                        Text(LocalizationHelper.localizedString("browse_marketplace"))
                     }
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
@@ -117,7 +117,7 @@ struct SocialChatView: View {
                     .cornerRadius(24)
                 }
                 
-                Text("find_items_connect_lenders".localizedString)
+                Text(LocalizationHelper.localizedString("find_items_connect_lenders"))
                     .font(.system(size: 14))
                     .foregroundColor(Theme.Colors.secondaryText)
             }
@@ -239,7 +239,7 @@ struct NewChatView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(Theme.Colors.secondaryText)
                     
-                    TextField("search_users".localizedString, text: $searchText)
+                    TextField(LocalizationHelper.localizedString("search_users"), text: $searchText)
                         .font(.system(size: 16))
                 }
                 .padding(Theme.Spacing.md)
@@ -281,11 +281,11 @@ struct NewChatView: View {
                 
                 Spacer()
             }
-            .navigationTitle("new_message".localizedString)
+            .navigationTitle(LocalizationHelper.localizedString("new_message"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("cancel".localizedString) {
+                    Button(LocalizationHelper.localizedString("cancel")) {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }

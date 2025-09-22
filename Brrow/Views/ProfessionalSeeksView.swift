@@ -77,7 +77,7 @@ struct ProfessionalSeeksView: View {
     // MARK: - Professional Header
     private var professionalHeader: some View {
         HStack {
-            Text("seeks".localizedString)
+            Text(LocalizationHelper.localizedString("seeks"))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.Colors.text)
             
@@ -88,7 +88,7 @@ struct ProfessionalSeeksView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "person.circle")
                         .font(.system(size: 16, weight: .medium))
-                    Text("my_seeks".localizedString)
+                    Text(LocalizationHelper.localizedString("my_seeks"))
                         .font(.system(size: 15, weight: .medium))
                 }
                 .foregroundColor(Theme.Colors.primary)
@@ -108,7 +108,7 @@ struct ProfessionalSeeksView: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Theme.Colors.secondaryText)
                 
-                TextField("search_seeks".localizedString, text: $searchText)
+                TextField(LocalizationHelper.localizedString("search_seeks"), text: $searchText)
                     .font(.system(size: 16))
                     .foregroundColor(Theme.Colors.text)
                     .onSubmit {
@@ -141,7 +141,7 @@ struct ProfessionalSeeksView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 SeekCategoryPill(
-                    title: "all".localizedString,
+                    title: LocalizationHelper.localizedString("all"),
                     icon: "square.grid.2x2",
                     isSelected: selectedCategory == nil,
                     action: {
@@ -173,21 +173,21 @@ struct ProfessionalSeeksView: View {
     private var statsSection: some View {
         HStack(spacing: 12) {
             ProfessionalSeekStatCard(
-                title: "active_seeks".localizedString,
+                title: LocalizationHelper.localizedString("active_seeks"),
                 value: "\(viewModel.seeks.filter { $0.isActive }.count)",
                 icon: "magnifyingglass.circle.fill",
                 color: Theme.Colors.primary
             )
             
             ProfessionalSeekStatCard(
-                title: "with_matches".localizedString,
+                title: LocalizationHelper.localizedString("with_matches"),
                 value: "\(viewModel.seeks.filter { $0.hasMatches }.count)",
                 icon: "checkmark.circle.fill",
                 color: Theme.Colors.success
             )
             
             ProfessionalSeekStatCard(
-                title: "urgent".localizedString,
+                title: LocalizationHelper.localizedString("urgent"),
                 value: "\(viewModel.seeks.filter { $0.urgency == "high" }.count)",
                 icon: "exclamationmark.circle.fill",
                 color: Theme.Colors.error
@@ -203,7 +203,7 @@ struct ProfessionalSeeksView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Section header
             HStack {
-                Text("community_seeks".localizedString)
+                Text(LocalizationHelper.localizedString("community_seeks"))
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(Theme.Colors.text)
                 
@@ -211,13 +211,13 @@ struct ProfessionalSeeksView: View {
                 
                 // Sort menu
                 Menu {
-                    Button("newest_first".localizedString) { /* Sort by newest */ }
-                    Button("highest_budget".localizedString) { /* Sort by budget */ }
-                    Button("most_urgent".localizedString) { /* Sort by urgency */ }
-                    Button("nearest".localizedString) { /* Sort by distance */ }
+                    Button(LocalizationHelper.localizedString("newest_first")) { /* Sort by newest */ }
+                    Button(LocalizationHelper.localizedString("highest_budget")) { /* Sort by budget */ }
+                    Button(LocalizationHelper.localizedString("most_urgent")) { /* Sort by urgency */ }
+                    Button(LocalizationHelper.localizedString("nearest")) { /* Sort by distance */ }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("sort".localizedString)
+                        Text(LocalizationHelper.localizedString("sort"))
                             .font(.system(size: 14, weight: .medium))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 12, weight: .medium))
@@ -231,8 +231,8 @@ struct ProfessionalSeeksView: View {
                 ProfessionalSeeksLoadingView()
             } else if viewModel.seeks.isEmpty {
                 EmptyStateView(
-                    title: "no_seeks_found".localizedString,
-                    message: "be_first_to_post".localizedString,
+                    title: LocalizationHelper.localizedString("no_seeks_found"),
+                    message: LocalizationHelper.localizedString("be_first_to_post"),
                     systemImage: "magnifyingglass"
                 )
                 .frame(height: 300)
@@ -296,7 +296,7 @@ struct ProfessionalSeekCard: View {
                         .foregroundColor(Theme.Colors.text)
                         .lineLimit(2)
                     
-                    Text(seek.category.localizedString)
+                    Text(LocalizationHelper.localizedString(seek.category))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(Theme.Colors.primary)
                         .padding(.horizontal, 10)
@@ -551,7 +551,7 @@ enum ProfessionalSeekCategory: String, CaseIterable {
     case home = "home"
     case other = "other"
     
-    var title: String { rawValue.localizedString }
+    var title: String { LocalizationHelper.localizedString(rawValue) }
     
     var icon: String {
         switch self {

@@ -56,7 +56,7 @@ struct NativeMainTabView: View {
                         .environmentObject(discoverViewModel)
                 }
                 .tabItem {
-                    Label("home".localizedString, systemImage: "house.fill")
+                    Label(LocalizationHelper.localizedString("home"), systemImage: "house.fill")
                 }
                 .tag(0)
             }
@@ -66,14 +66,14 @@ struct NativeMainTabView: View {
                 ProfessionalMarketplaceView()
             }
             .tabItem {
-                Label("marketplace".localizedString, systemImage: "bag.fill")
+                Label(LocalizationHelper.localizedString("marketplace"), systemImage: "bag.fill")
             }
             .tag(1)
             
             // Post Tab - Opens sheet instead of navigating (Plus icon in middle)
             Color.clear
                 .tabItem {
-                    Label("post".localizedString, systemImage: "plus.app.fill")
+                    Label(LocalizationHelper.localizedString("post"), systemImage: "plus.app.fill")
                 }
                 .tag(2)
             
@@ -83,7 +83,7 @@ struct NativeMainTabView: View {
                     .environmentObject(chatViewModel)
             }
             .tabItem {
-                Label("messages".localizedString, systemImage: "message.fill")
+                Label(LocalizationHelper.localizedString("messages"), systemImage: "message.fill")
             }
             .badge(chatViewModel.unreadCount > 0 ? "\(chatViewModel.unreadCount)" : nil)
             .tag(3)
@@ -95,7 +95,7 @@ struct NativeMainTabView: View {
                     .environmentObject(authManager)
             }
             .tabItem {
-                Label("profile".localizedString, systemImage: "person.fill")
+                Label(LocalizationHelper.localizedString("profile"), systemImage: "person.fill")
             }
             .tag(4)
             }

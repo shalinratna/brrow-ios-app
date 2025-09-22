@@ -45,11 +45,11 @@ struct ModernPostCreationView: View {
                             .rotationEffect(.degrees(floatingAnimation ? 5 : -5))
                             .scaleEffect(floatingAnimation ? 1.1 : 1.0)
                         
-                        Text("what_would_you_like_to_do".localizedString)
+                        Text(LocalizationHelper.localizedString("what_would_you_like_to_do"))
                             .font(.largeTitle.bold())
                             .multilineTextAlignment(.center)
                         
-                        Text("choose_option_to_get_started".localizedString)
+                        Text(LocalizationHelper.localizedString("choose_option_to_get_started"))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -60,8 +60,8 @@ struct ModernPostCreationView: View {
                         // List Something card
                         OptionCard(
                             icon: "bag.fill",
-                            title: "list_something".localizedString,
-                            subtitle: "share_items_services_community".localizedString,
+                            title: LocalizationHelper.localizedString("list_something"),
+                            subtitle: LocalizationHelper.localizedString("share_items_services_community"),
                             gradientColors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.7)],
                             isSelected: selectedOption == .listing
                         ) {
@@ -85,8 +85,8 @@ struct ModernPostCreationView: View {
                         // Find Something card
                         OptionCard(
                             icon: "magnifyingglass",
-                            title: "find_something".localizedString,
-                            subtitle: "post_what_looking_for".localizedString,
+                            title: LocalizationHelper.localizedString("find_something"),
+                            subtitle: LocalizationHelper.localizedString("post_what_looking_for"),
                             gradientColors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.7)],
                             isSelected: selectedOption == .seek
                         ) {
@@ -106,8 +106,8 @@ struct ModernPostCreationView: View {
                         // Garage Sale card
                         OptionCard(
                             icon: "house.fill",
-                            title: "host_garage_sale".localizedString,
-                            subtitle: "organize_sale_event".localizedString,
+                            title: LocalizationHelper.localizedString("host_garage_sale"),
+                            subtitle: LocalizationHelper.localizedString("organize_sale_event"),
                             gradientColors: [Color(hex: "FF9500"), Color(hex: "FF9500").opacity(0.7)],
                             isSelected: selectedOption == .garageSale
                         ) {
@@ -164,14 +164,14 @@ struct ModernPostCreationView: View {
         .fullScreenCover(isPresented: $showCreateGarageSale) {
             ModernCreateGarageSaleView()
         }
-        .alert("login_required".localizedString, isPresented: $showLoginAlert) {
-            Button("cancel".localizedString, role: .cancel) { }
-            Button("login".localizedString) {
+        .alert(LocalizationHelper.localizedString("login_required"), isPresented: $showLoginAlert) {
+            Button(LocalizationHelper.localizedString("cancel"), role: .cancel) { }
+            Button(LocalizationHelper.localizedString("login")) {
                 dismiss()
                 // The user will need to login from the main screen
             }
         } message: {
-            Text("login_required_message".localizedString)
+            Text(LocalizationHelper.localizedString("login_required_message"))
         }
     }
 }
@@ -275,7 +275,7 @@ struct ModernPostCreationAlternativeView: View {
                         
                         Spacer()
                         
-                        Text("create".localizedString)
+                        Text(LocalizationHelper.localizedString("create"))
                             .font(.headline)
                         
                         Spacer()
@@ -321,10 +321,10 @@ struct ModernPostCreationAlternativeView: View {
                     
                     // Instructions
                     VStack(spacing: 8) {
-                        Text("tap_to_select".localizedString)
+                        Text(LocalizationHelper.localizedString("tap_to_select"))
                             .font(.subheadline.weight(.medium))
                         
-                        Text("choose_how_to_contribute".localizedString)
+                        Text(LocalizationHelper.localizedString("choose_how_to_contribute"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -365,15 +365,15 @@ struct InteractiveCard: View {
         
         var title: String {
             switch self {
-            case .listing: return "list_something".localizedString
-            case .seek: return "find_something".localizedString
+            case .listing: return LocalizationHelper.localizedString("list_something")
+            case .seek: return LocalizationHelper.localizedString("find_something")
             }
         }
         
         var description: String {
             switch self {
-            case .listing: return "share_items_description".localizedString
-            case .seek: return "post_needs_description".localizedString
+            case .listing: return LocalizationHelper.localizedString("share_items_description")
+            case .seek: return LocalizationHelper.localizedString("post_needs_description")
             }
         }
         
@@ -424,7 +424,7 @@ struct InteractiveCard: View {
                 
                 // Action hint
                 HStack {
-                    Text("tap_to_continue".localizedString)
+                    Text(LocalizationHelper.localizedString("tap_to_continue"))
                         .font(.subheadline.weight(.medium))
                         .foregroundColor(.white.opacity(0.8))
                     

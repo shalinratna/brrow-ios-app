@@ -226,6 +226,9 @@ struct ProfessionalListingDetailView: View {
                 ShareSheet(activityItems: [url])
             }
         }
+        .sheet(isPresented: $showingAnalytics) {
+            PostsAnalyticsView(posts: [])
+        }
         .fullScreenCover(isPresented: $showingFullScreenImage) {
             EnhancedImageGalleryView(images: viewModel.listing.imageUrls, selectedIndex: $selectedImageIndex)
         }

@@ -503,49 +503,47 @@ struct EditPersonalInfoView: View {
     @State private var isLoading = false
 
     var body: some View {
-        NavigationView {
-            Form {
-                Section("Personal Information") {
-                    TextField("First Name", text: $firstName)
-                    TextField("Last Name", text: $lastName)
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                    TextField("Phone", text: $phone)
-                        .keyboardType(.phonePad)
-                    DatePicker("Birthdate", selection: $birthdate, displayedComponents: .date)
-                }
+        Form {
+            Section("Personal Information") {
+                TextField("First Name", text: $firstName)
+                TextField("Last Name", text: $lastName)
+                TextField("Email", text: $email)
+                    .keyboardType(.emailAddress)
+                    .autocapitalization(.none)
+                TextField("Phone", text: $phone)
+                    .keyboardType(.phonePad)
+                DatePicker("Birthdate", selection: $birthdate, displayedComponents: .date)
+            }
 
-                Section("Bio") {
-                    TextEditor(text: $bio)
-                        .frame(minHeight: 100)
-                }
+            Section("Bio") {
+                TextEditor(text: $bio)
+                    .frame(minHeight: 100)
+            }
 
-                Section("Display Name") {
-                    TextField("Display Name", text: .constant(authManager.currentUser?.displayName ?? ""))
-                    Text("This is how your name appears on your profile")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            Section("Display Name") {
+                TextField("Display Name", text: .constant(authManager.currentUser?.displayName ?? ""))
+                Text("This is how your name appears on your profile")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .navigationTitle("Edit Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    dismiss()
                 }
             }
-            .navigationTitle("Edit Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Save") {
+                    saveProfile()
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveProfile()
-                    }
-                    .disabled(isLoading)
-                }
+                .disabled(isLoading)
             }
-            .onAppear {
-                loadUserData()
-            }
+        }
+        .onAppear {
+            loadUserData()
         }
     }
 
@@ -573,39 +571,37 @@ struct ChangeUsernameView: View {
     @State private var errorMessage = ""
 
     var body: some View {
-        NavigationView {
-            Form {
-                Section {
-                    TextField("New Username", text: $newUsername)
-                        .autocapitalization(.none)
-                } header: {
-                    Text("Choose a new username")
-                } footer: {
-                    Text("You can only change your username once every 90 days")
-                        .foregroundColor(.secondary)
-                }
+        Form {
+            Section {
+                TextField("New Username", text: $newUsername)
+                    .autocapitalization(.none)
+            } header: {
+                Text("Choose a new username")
+            } footer: {
+                Text("You can only change your username once every 90 days")
+                    .foregroundColor(.secondary)
+            }
 
-                if !errorMessage.isEmpty {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                    }
+            if !errorMessage.isEmpty {
+                Section {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
                 }
             }
-            .navigationTitle("Change Username")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+        }
+        .navigationTitle("Change Username")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    dismiss()
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        changeUsername()
-                    }
-                    .disabled(isLoading || newUsername.isEmpty)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Save") {
+                    changeUsername()
                 }
+                .disabled(isLoading || newUsername.isEmpty)
             }
         }
     }
@@ -629,31 +625,29 @@ struct ChangePasswordView: View {
     @State private var isLoading = false
 
     var body: some View {
-        NavigationView {
-            Form {
-                Section("Current Password") {
-                    SecureField("Current Password", text: $currentPassword)
-                }
+        Form {
+            Section("Current Password") {
+                SecureField("Current Password", text: $currentPassword)
+            }
 
-                Section("New Password") {
-                    SecureField("New Password", text: $newPassword)
-                    SecureField("Confirm New Password", text: $confirmPassword)
+            Section("New Password") {
+                SecureField("New Password", text: $newPassword)
+                SecureField("Confirm New Password", text: $confirmPassword)
+            }
+        }
+        .navigationTitle("Change Password")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    dismiss()
                 }
             }
-            .navigationTitle("Change Password")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Save") {
+                    changePassword()
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        changePassword()
-                    }
-                    .disabled(isLoading || currentPassword.isEmpty || newPassword.isEmpty)
-                }
+                .disabled(isLoading || currentPassword.isEmpty || newPassword.isEmpty)
             }
         }
     }
@@ -672,49 +666,47 @@ struct LinkedAccountsView: View {
     @State private var facebookLinked = false
 
     var body: some View {
-        NavigationView {
-            List {
-                Section("Linked Accounts") {
-                    LinkedAccountRow(
-                        provider: "Google",
-                        icon: "G",
-                        iconColor: .red,
-                        isLinked: $googleLinked
-                    )
+        List {
+            Section("Linked Accounts") {
+                LinkedAccountRow(
+                    provider: "Google",
+                    icon: "G",
+                    iconColor: .red,
+                    isLinked: $googleLinked
+                )
 
-                    LinkedAccountRow(
-                        provider: "Apple",
-                        icon: "applelogo",
-                        iconColor: .black,
-                        isLinked: $appleLinked
-                    )
+                LinkedAccountRow(
+                    provider: "Apple",
+                    icon: "applelogo",
+                    iconColor: .black,
+                    isLinked: $appleLinked
+                )
 
-                    LinkedAccountRow(
-                        provider: "Facebook",
-                        icon: "f.circle.fill",
-                        iconColor: .blue,
-                        isLinked: $facebookLinked
-                    )
-                }
-
-                Section {
-                    Text("Link your social accounts to sign in faster and recover your account more easily")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                LinkedAccountRow(
+                    provider: "Facebook",
+                    icon: "f.circle.fill",
+                    iconColor: .blue,
+                    isLinked: $facebookLinked
+                )
             }
-            .navigationTitle("Linked Accounts")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+
+            Section {
+                Text("Link your social accounts to sign in faster and recover your account more easily")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .navigationTitle("Linked Accounts")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
-            .onAppear {
-                loadLinkedAccountStatus()
-            }
+        }
+        .onAppear {
+            loadLinkedAccountStatus()
         }
     }
 
@@ -779,29 +771,27 @@ struct PrivacySettingsView: View {
     @State private var allowMessages = true
 
     var body: some View {
-        NavigationView {
-            Form {
-                Section("Profile Visibility") {
-                    Picker("Who can see your profile", selection: $profileVisibility) {
-                        Text("Everyone").tag("Everyone")
-                        Text("Registered Users").tag("Registered")
-                        Text("Nobody").tag("Nobody")
-                    }
-                }
-
-                Section("Activity") {
-                    Toggle("Show my activity", isOn: $showActivity)
-                    Toggle("Show my listings", isOn: $showListings)
-                    Toggle("Allow messages", isOn: $allowMessages)
+        Form {
+            Section("Profile Visibility") {
+                Picker("Who can see your profile", selection: $profileVisibility) {
+                    Text("Everyone").tag("Everyone")
+                    Text("Registered Users").tag("Registered")
+                    Text("Nobody").tag("Nobody")
                 }
             }
-            .navigationTitle("Privacy Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+
+            Section("Activity") {
+                Toggle("Show my activity", isOn: $showActivity)
+                Toggle("Show my listings", isOn: $showListings)
+                Toggle("Allow messages", isOn: $allowMessages)
+            }
+        }
+        .navigationTitle("Privacy Settings")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
         }
@@ -820,51 +810,49 @@ struct AboutView: View {
     }
 
     var body: some View {
-        NavigationView {
-            List {
-                Section {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("\(appVersion) (\(buildNumber))")
-                            .foregroundColor(.secondary)
-                    }
+        List {
+            Section {
+                HStack {
+                    Text("Version")
+                    Spacer()
+                    Text("\(appVersion) (\(buildNumber))")
+                        .foregroundColor(.secondary)
+                }
 
+                HStack {
+                    Text("Developer")
+                    Spacer()
+                    Text("Brrow Inc.")
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Section("Connect") {
+                Link(destination: URL(string: "https://brrowapp.com")!) {
                     HStack {
-                        Text("Developer")
+                        Text("Website")
                         Spacer()
-                        Text("Brrow Inc.")
+                        Image(systemName: "arrow.up.right.square")
                             .foregroundColor(.secondary)
                     }
                 }
 
-                Section("Connect") {
-                    Link(destination: URL(string: "https://brrowapp.com")!) {
-                        HStack {
-                            Text("Website")
-                            Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    Link(destination: URL(string: "https://twitter.com/brrowapp")!) {
-                        HStack {
-                            Text("Twitter")
-                            Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .foregroundColor(.secondary)
-                        }
+                Link(destination: URL(string: "https://twitter.com/brrowapp")!) {
+                    HStack {
+                        Text("Twitter")
+                        Spacer()
+                        Image(systemName: "arrow.up.right.square")
+                            .foregroundColor(.secondary)
                     }
                 }
             }
-            .navigationTitle("About Brrow")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+        }
+        .navigationTitle("About Brrow")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
         }
@@ -881,32 +869,30 @@ struct NotificationPreferencesView: View {
     @AppStorage("smsNotifications") private var smsNotifications = false
 
     var body: some View {
-        NavigationView {
-            Form {
-                Section("Push Notifications") {
-                    Toggle("Enable Push Notifications", isOn: $pushNotifications)
-                    Toggle("New Messages", isOn: $pushNotifications)
-                    Toggle("New Offers", isOn: $pushNotifications)
-                    Toggle("Rental Reminders", isOn: $pushNotifications)
-                }
-
-                Section("Email Preferences") {
-                    Toggle("Email Notifications", isOn: $emailNotifications)
-                    Toggle("Weekly Digest", isOn: $emailNotifications)
-                    Toggle("Marketing Emails", isOn: $emailNotifications)
-                }
-
-                Section("SMS") {
-                    Toggle("SMS Notifications", isOn: $smsNotifications)
-                }
+        Form {
+            Section("Push Notifications") {
+                Toggle("Enable Push Notifications", isOn: $pushNotifications)
+                Toggle("New Messages", isOn: $pushNotifications)
+                Toggle("New Offers", isOn: $pushNotifications)
+                Toggle("Rental Reminders", isOn: $pushNotifications)
             }
-            .navigationTitle("Notifications")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+
+            Section("Email Preferences") {
+                Toggle("Email Notifications", isOn: $emailNotifications)
+                Toggle("Weekly Digest", isOn: $emailNotifications)
+                Toggle("Marketing Emails", isOn: $emailNotifications)
+            }
+
+            Section("SMS") {
+                Toggle("SMS Notifications", isOn: $smsNotifications)
+            }
+        }
+        .navigationTitle("Notifications")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
         }
@@ -918,27 +904,25 @@ struct HelpCenterView: View {
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
-            List {
-                Section("Quick Help") {
-                    NavigationLink("How to Create a Listing", destination: Text("Help content"))
-                    NavigationLink("How to Rent an Item", destination: Text("Help content"))
-                    NavigationLink("Payment & Fees", destination: Text("Help content"))
-                    NavigationLink("Safety Tips", destination: Text("Help content"))
-                }
-
-                Section("Contact Support") {
-                    Link("Email Support", destination: URL(string: "mailto:support@brrowapp.com")!)
-                    Link("Visit Help Center", destination: URL(string: "https://brrowapp.com/help")!)
-                }
+        List {
+            Section("Quick Help") {
+                NavigationLink("How to Create a Listing", destination: Text("Help content"))
+                NavigationLink("How to Rent an Item", destination: Text("Help content"))
+                NavigationLink("Payment & Fees", destination: Text("Help content"))
+                NavigationLink("Safety Tips", destination: Text("Help content"))
             }
-            .navigationTitle("Help Center")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+
+            Section("Contact Support") {
+                Link("Email Support", destination: URL(string: "mailto:support@brrowapp.com")!)
+                Link("Visit Help Center", destination: URL(string: "https://brrowapp.com/help")!)
+            }
+        }
+        .navigationTitle("Help Center")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
         }

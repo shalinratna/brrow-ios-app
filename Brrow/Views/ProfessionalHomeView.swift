@@ -187,7 +187,7 @@ struct ProfessionalHomeView: View {
                 .offset(y: animateWelcome ? 0 : 20)
                 .animation(.easeOut(duration: 0.6), value: animateWelcome)
             
-            Text("what_would_you_like_to_share_today".localizedString)
+            Text(LocalizationHelper.localizedString("what_would_you_like_to_share_today"))
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(Theme.Colors.secondaryText)
                 .opacity(animateWelcome ? 1 : 0)
@@ -219,7 +219,7 @@ struct ProfessionalHomeView: View {
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(Theme.Colors.primary)
                     
-                    Text("garage_sales_near_you".localizedString)
+                    Text(LocalizationHelper.localizedString("garage_sales_near_you"))
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(Theme.Colors.text)
                 }
@@ -228,7 +228,7 @@ struct ProfessionalHomeView: View {
                 
                 Button(action: { showFullMapView = true }) {
                     HStack(spacing: 4) {
-                        Text("view_all".localizedString)
+                        Text(LocalizationHelper.localizedString("view_all"))
                         Image(systemName: "arrow.up.forward")
                     }
                     .font(.system(size: 16, weight: .semibold))
@@ -249,7 +249,7 @@ struct ProfessionalHomeView: View {
                                 Image(systemName: "map")
                                     .font(.system(size: 30))
                                     .foregroundColor(Theme.Colors.secondary)
-                                Text("no_garage_sales_nearby".localizedString)
+                                Text(LocalizationHelper.localizedString("no_garage_sales_nearby"))
                                     .font(.system(size: 14))
                                     .foregroundColor(Theme.Colors.secondaryText)
                             }
@@ -287,11 +287,11 @@ struct ProfessionalHomeView: View {
                     Spacer()
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.nearbyGarageSales.isEmpty ? "no_sales_this_weekend".localizedString : String(format: "sales_this_weekend".localizedString, viewModel.nearbyGarageSales.count))
+                            Text(viewModel.nearbyGarageSales.isEmpty ? LocalizationHelper.localizedString("no_sales_this_weekend") : String(format: LocalizationHelper.localizedString("sales_this_weekend"), viewModel.nearbyGarageSales.count))
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.white)
                             
-                            Text("tap_to_explore".localizedString)
+                            Text(LocalizationHelper.localizedString("tap_to_explore"))
                                 .font(.system(size: 12))
                                 .foregroundColor(.white.opacity(0.8))
                         }
@@ -398,14 +398,14 @@ struct ProfessionalHomeView: View {
     private var featuredSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack {
-                Text("featured_items".localizedString)
+                Text(LocalizationHelper.localizedString("featured_items"))
                     .font(.system(size: 22, weight: .bold))
                     .foregroundColor(Theme.Colors.text)
                 
                 Spacer()
                 
                 Button(action: { TabSelectionManager.shared.switchToMarketplace() }) {
-                    Text("see_all".localizedString)
+                    Text(LocalizationHelper.localizedString("see_all"))
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(Theme.Colors.primary)
                 }
@@ -419,7 +419,7 @@ struct ProfessionalHomeView: View {
                         Image(systemName: "cube.box")
                             .font(.system(size: 30))
                             .foregroundColor(Theme.Colors.secondary)
-                        Text("no_featured_items_available".localizedString)
+                        Text(LocalizationHelper.localizedString("no_featured_items_available"))
                             .font(.system(size: 14))
                             .foregroundColor(Theme.Colors.secondaryText)
                     }
@@ -522,7 +522,7 @@ struct ProfessionalHomeView: View {
     
     private var recentActivitySection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Text("recent_activity".localizedString)
+            Text(LocalizationHelper.localizedString("recent_activity"))
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(Theme.Colors.text)
             
@@ -531,10 +531,10 @@ struct ProfessionalHomeView: View {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 30))
                         .foregroundColor(Theme.Colors.secondary)
-                    Text("no_recent_activity".localizedString)
+                    Text(LocalizationHelper.localizedString("no_recent_activity"))
                         .font(.system(size: 14))
                         .foregroundColor(Theme.Colors.secondaryText)
-                    Text("your_recent_activity_will_appear_here".localizedString)
+                    Text(LocalizationHelper.localizedString("your_recent_activity_will_appear_here"))
                         .font(.system(size: 12))
                         .foregroundColor(Theme.Colors.tertiaryText)
                 }
@@ -748,7 +748,7 @@ struct FeaturedItemCard: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(Theme.Colors.primary)
                     
-                    Text("/" + "day".localizedString)
+                    Text("/" + LocalizationHelper.localizedString("day"))
                         .font(.system(size: 14))
                         .foregroundColor(Theme.Colors.secondaryText)
                     
@@ -822,18 +822,18 @@ enum QuickAction: CaseIterable {
     
     var title: String {
         switch self {
-        case .list: return "list_item".localizedString
-        case .search: return "search".localizedString
-        case .seeks: return "seeks".localizedString
+        case .list: return LocalizationHelper.localizedString("list_item")
+        case .search: return LocalizationHelper.localizedString("search")
+        case .seeks: return LocalizationHelper.localizedString("seeks")
         case .favorites: return "Favorites"
         }
     }
     
     var subtitle: String {
         switch self {
-        case .list: return "share_something".localizedString
-        case .search: return "find_items".localizedString
-        case .seeks: return "view_requests".localizedString
+        case .list: return LocalizationHelper.localizedString("share_something")
+        case .search: return LocalizationHelper.localizedString("find_items")
+        case .seeks: return LocalizationHelper.localizedString("view_requests")
         case .favorites: return "Your saved items"
         }
     }
@@ -907,11 +907,11 @@ class ProfessionalHomeViewModel: ObservableObject {
     private func updateGreeting() {
         let hour = Calendar.current.component(.hour, from: Date())
         if hour < 12 {
-            greeting = "good_morning".localizedString
+            greeting = LocalizationHelper.localizedString("good_morning")
         } else if hour < 17 {
-            greeting = "good_afternoon".localizedString
+            greeting = LocalizationHelper.localizedString("good_afternoon")
         } else {
-            greeting = "good_evening".localizedString
+            greeting = LocalizationHelper.localizedString("good_evening")
         }
     }
     

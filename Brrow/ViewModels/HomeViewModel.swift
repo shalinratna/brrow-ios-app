@@ -146,8 +146,12 @@ class HomeViewModel: ObservableObject {
         
         // Fetch in background (no loading spinner shown to user)
         do {
+            // CRITICAL FIX: Clear stale cache to force fresh data
+            CacheManager.shared.clearAll()
+
             // Fetch from: https://brrowapp.com/api/listings/fetch.php
             let fetchedListings = try await APIClient.shared.fetchListings()
+            print("🔍 DEBUG: Fetched \(fetchedListings.count) listings from backend")
             
             await MainActor.run {
                 // Silently update state

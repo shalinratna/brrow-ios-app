@@ -70,7 +70,7 @@ struct FullScreenListingDetailView: View {
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showingInquiry) {
-            InquiryView(listing: listing, message: $inquiryMessage) { message in
+            FullScreenInquiryView(listing: listing, message: $inquiryMessage) { message in
                 sendInquiry(message: message)
             }
         }
@@ -494,7 +494,7 @@ struct StatItem: View {
 // SimilarItemCard moved to ProfessionalListingDetailView to avoid duplication
 
 // MARK: - Inquiry View
-struct InquiryView: View {
+struct FullScreenInquiryView: View {
     let listing: Listing
     @Binding var message: String
     let onSend: (String) -> Void

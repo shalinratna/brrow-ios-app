@@ -572,7 +572,7 @@ struct UltraModernProfileView2: View {
         }
     }
     
-    private func generateMockChartData() -> [ChartDataPoint] {
+    private func generateMockChartData() -> [ProfileChartDataPoint] {
         // Return actual analytics data from viewModel if available
         if !viewModel.analyticsData.isEmpty {
             return viewModel.analyticsData
@@ -580,7 +580,7 @@ struct UltraModernProfileView2: View {
         
         // Return empty data for clean state
         return (0..<7).map { day in
-            ChartDataPoint(
+            ProfileChartDataPoint(
                 day: day,
                 value: 0
             )
@@ -826,7 +826,7 @@ struct ModernAnalyticsCard: View {
     let title: String
     let value: String
     let change: String
-    let chartData: [ChartDataPoint]
+    let chartData: [ProfileChartDataPoint]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -964,7 +964,7 @@ struct RatingSummaryCard: View {
             
             // Rating bars
             VStack(alignment: .leading, spacing: 8) {
-                ForEach((1...5).reversed(), id: \.self) { rating in
+                ForEach(Array((1...5).reversed()), id: \.self) { rating in
                     HStack(spacing: 8) {
                         Text("\(rating)")
                             .font(.caption.monospaced())
@@ -1053,7 +1053,7 @@ struct UltraModernReviewCard: View {
     }
 }
 
-struct ChartDataPoint: Identifiable {
+struct ProfileChartDataPoint: Identifiable {
     let id = UUID()
     let day: Int
     let value: Double
