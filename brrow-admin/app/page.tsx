@@ -20,6 +20,7 @@ import QuickActions from '@/components/QuickActions';
 import RecentActivity from '@/components/RecentActivity';
 
 export default function Dashboard() {
+  const [currentTime, setCurrentTime] = useState('');
   const [serverHealth, setServerHealth] = useState({ status: 'healthy', issues: [] as string[] });
   const [todayStats, setTodayStats] = useState({
     activeUsers: 0,
@@ -57,6 +58,18 @@ export default function Dashboard() {
     }
   };
 
+  // Update current time on client side only
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentTime(new Date().toLocaleString());
+    };
+
+    updateTime(); // Initial time
+    const timeInterval = setInterval(updateTime, 1000); // Update every second
+
+    return () => clearInterval(timeInterval);
+  }, []);
+
   useEffect(() => {
     fetchStats();
 
@@ -84,7 +97,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-400">
-                {new Date().toLocaleString()}
+                {currentTime}
               </span>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${serverHealth.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />

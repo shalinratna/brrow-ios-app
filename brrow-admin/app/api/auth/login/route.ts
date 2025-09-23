@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@shaiitech.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Shaiitech2024Admin!';
-const JWT_SECRET = process.env.JWT_SECRET || 'shaiitech_brrow_2024_secure_admin_panel';
+const JWT_SECRET = process.env.JWT_SECRET || 'brrow-secret-key-2024';
 
 export async function POST(req: NextRequest) {
   try {

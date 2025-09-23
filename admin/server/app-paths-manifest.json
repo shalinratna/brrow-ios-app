@@ -1,0 +1,15 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/garage-sales/page": "app/garage-sales/page.js",
+  "/analytics/page": "app/analytics/page.js",
+  "/listings/page": "app/listings/page.js",
+  "/messages/page": "app/messages/page.js",
+  "/login/page": "app/login/page.js",
+  "/marketplace/page": "app/marketplace/page.js",
+  "/moderation/page": "app/moderation/page.js",
+  "/page": "app/page.js",
+  "/users/page": "app/users/page.js",
+  "/settings/page": "app/settings/page.js"
+}

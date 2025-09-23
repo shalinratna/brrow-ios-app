@@ -224,7 +224,9 @@ export default function SettingsManagement() {
   };
 
   const handleLogout = () => {
+    // Clear both localStorage and cookie
     localStorage.removeItem('adminToken');
+    document.cookie = 'admin-token=; path=/; max-age=0';
     window.location.href = '/login';
   };
 

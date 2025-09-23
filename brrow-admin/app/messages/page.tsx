@@ -184,7 +184,6 @@ export default function MessagesManagement() {
             }
           }
         ]);
-      }
     } catch (error) {
       console.error('Error fetching messages:', error);
       // Load demo data on error

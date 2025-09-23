@@ -1,0 +1,15 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/auth/login/route": "/api/auth/login",
+  "/favicon.ico/route": "/favicon.ico",
+  "/garage-sales/page": "/garage-sales",
+  "/analytics/page": "/analytics",
+  "/listings/page": "/listings",
+  "/messages/page": "/messages",
+  "/login/page": "/login",
+  "/marketplace/page": "/marketplace",
+  "/moderation/page": "/moderation",
+  "/page": "/",
+  "/users/page": "/users",
+  "/settings/page": "/settings"
+}
