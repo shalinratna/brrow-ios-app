@@ -4181,10 +4181,12 @@ class APIClient: ObservableObject {
         return AchievementTrackResponse(
             success: true,
             data: AchievementUnlockResult(
-                achievementUnlocked: false,
-                pointsEarned: 0,
-                newTotalPoints: 0,
-                achievement: nil
+                action: action,
+                value: value,
+                timestamp: ISO8601DateFormatter().string(from: Date()),
+                achievementsUnlocked: nil,
+                progressUpdated: false,
+                level: nil
             )
         )
 
