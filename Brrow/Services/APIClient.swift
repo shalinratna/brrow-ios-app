@@ -4158,11 +4158,13 @@ class APIClient: ObservableObject {
         // TODO: Enable later by uncommenting API call below
         return AchievementsResponse(
             success: true,
-            data: AchievementProgressData(
+            data: AchievementsResponse.AchievementsData(
+                userLevel: nil,
+                progressToNext: nil,
+                nextLevelRequirement: nil,
+                statistics: nil,
                 achievements: [],
-                points: 0,
-                totalAchievements: 0,
-                unlockedAchievements: 0
+                recentUnlocked: nil
             )
         )
 
