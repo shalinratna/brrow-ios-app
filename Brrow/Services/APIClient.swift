@@ -4154,42 +4154,41 @@ class APIClient: ObservableObject {
     }
     
     func getUserAchievements() async throws -> AchievementsResponse {
-        // Check if achievements are enabled
-        guard FeatureFlags.isEnabled("achievements") else {
-            // Return empty achievements response
-            return AchievementsResponse(
-                success: true,
-                data: AchievementProgressData(
-                    achievements: [],
-                    points: 0,
-                    totalAchievements: 0,
-                    unlockedAchievements: 0
-                )
+        // ACHIEVEMENTS DISABLED FOR LAUNCH
+        // TODO: Enable later by uncommenting API call below
+        return AchievementsResponse(
+            success: true,
+            data: AchievementProgressData(
+                achievements: [],
+                points: 0,
+                totalAchievements: 0,
+                unlockedAchievements: 0
             )
-        }
+        )
 
+        /* DISABLED FOR LAUNCH - RE-ENABLE LATER:
         return try await performRequest(
             endpoint: "api_achievements_get_user.php",
             method: .GET,
             responseType: AchievementsResponse.self
         )
+        */
     }
     
     func trackAchievementProgress(action: String, value: Int, metadata: [String: Any]?) async throws -> AchievementTrackResponse {
-        // Check if achievements are enabled
-        guard FeatureFlags.isEnabled("achievements") else {
-            // Return mock response when disabled
-            return AchievementTrackResponse(
-                success: true,
-                data: AchievementUnlockResult(
-                    achievementUnlocked: false,
-                    pointsEarned: 0,
-                    newTotalPoints: 0,
-                    achievement: nil
-                )
+        // ACHIEVEMENTS DISABLED FOR LAUNCH
+        // TODO: Enable later by uncommenting API call below
+        return AchievementTrackResponse(
+            success: true,
+            data: AchievementUnlockResult(
+                achievementUnlocked: false,
+                pointsEarned: 0,
+                newTotalPoints: 0,
+                achievement: nil
             )
-        }
+        )
 
+        /* DISABLED FOR LAUNCH - RE-ENABLE LATER:
         var body: [String: Any] = [
             "action": action,
             "value": value
@@ -4198,15 +4197,20 @@ class APIClient: ObservableObject {
         if let metadata = metadata {
             body["metadata"] = metadata
         }
-        
+
+        if let metadata = metadata {
+            body["metadata"] = metadata
+        }
+
         let bodyData = try JSONSerialization.data(withJSONObject: body)
-        
+
         return try await performRequest(
             endpoint: "api_achievements_track_progress.php",
             method: .POST,
             body: bodyData,
             responseType: AchievementTrackResponse.self
         )
+        */
     }
     
     // MARK: - Async versions of performRequest for string method parameter

@@ -800,10 +800,10 @@ struct EditProfileView: View {
                         }
                     }
 
-                    // Show error via system notification since panel is dismissed
-                    authManager.showSystemError(alertMessage)
-
+                    // Log error since panel is dismissed (user will see via network monitoring if needed)
                     print("❌ Profile update error: \(alertMessage)")
+
+                    // For now, just log - in future could show toast notification
                 }
             }
         }
