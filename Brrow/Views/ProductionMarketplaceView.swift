@@ -729,7 +729,7 @@ struct HeroFeaturedCard: View {
                     .lineLimit(2)
                 
                 HStack {
-                    Text("$\(Int(listing.price))/day")
+                    Text(listing.listingType == "rental" ? "$\(Int(listing.price))/day" : "$\(Int(listing.price))")
                         .font(.title2.bold())
                         .foregroundColor(.white)
                     
@@ -983,9 +983,11 @@ struct ProductionListingCard: View {
                         Text("$\(Int(listing.price))")
                             .font(.title3.bold())
                             .foregroundColor(colors.primary)
-                        Text("per day")
-                            .font(.caption)
-                            .foregroundColor(colors.secondaryText)
+                        if listing.listingType == "rental" {
+                            Text("per day")
+                                .font(.caption)
+                                .foregroundColor(colors.secondaryText)
+                        }
                     }
                     
                     Spacer()

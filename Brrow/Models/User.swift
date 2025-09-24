@@ -394,9 +394,9 @@ struct User: Codable, Identifiable {
     }
     
     // Properties for UI with fallbacks
-    var totalListings: Int { return stats?.totalListings ?? 5 }
-    var completedRentals: Int { return stats?.itemsBorrowed ?? 12 }
-    var responseTime: String { return "2 hours" }
+    var totalListings: Int { return activeListings ?? stats?.totalListings ?? 0 }
+    var completedRentals: Int { return activeRentals ?? stats?.itemsBorrowed ?? 0 }
+    var responseTime: String { return "Usually responds within a few hours" }
     
     // Helper method to get the full profile picture URL
     var fullProfilePictureURL: String? {

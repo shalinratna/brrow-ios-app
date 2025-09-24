@@ -569,7 +569,7 @@ struct FeaturedCard: View {
                     
                     // Price badge
                     HStack {
-                        Text(listing.isFree ? "FREE" : "$\(Int(listing.price))/day")
+                        Text(listing.isFree ? "FREE" : (listing.listingType == "rental" ? "$\(Int(listing.price))/day" : "$\(Int(listing.price))"))
                             .font(.headline)
                             .foregroundColor(.white)
                         
@@ -850,7 +850,7 @@ struct FeedCard: View {
             
             Spacer()
             
-            Text(listing.isFree ? "FREE" : "$\(Int(listing.price))/day")
+            Text(listing.isFree ? "FREE" : (listing.listingType == "rental" ? "$\(Int(listing.price))/day" : "$\(Int(listing.price))"))
                 .font(.headline)
                 .foregroundColor(listing.isFree ? .green : Theme.Colors.primary)
         }
@@ -935,7 +935,7 @@ struct ListingDetailSheet: View {
                                     .font(.title.bold())
                                     .foregroundColor(listing.isFree ? .green : Theme.Colors.primary)
                                 
-                                if !listing.isFree {
+                                if !listing.isFree && listing.listingType == "rental" {
                                     Text("per day")
                                         .font(.caption)
                                         .foregroundColor(.secondary)

@@ -734,21 +734,21 @@ class SellerProfileViewModel: ObservableObject {
     @Published var isFollowing = false
     @Published var isPremiumSeller = false
     @Published var isLoadingListings = false
-    @Published var responseRate = 98
-    @Published var acceptanceRate = 92
-    @Published var onTimeRate = 100
-    @Published var satisfactionRate = 96
+    @Published var responseRate = 0
+    @Published var acceptanceRate = 0
+    @Published var onTimeRate = 0
+    @Published var satisfactionRate = 0
     @Published var addressVerified = false
-    @Published var languages = ["English", "Spanish"]
-    @Published var cancellationPolicy = "Flexible"
-    @Published var damageProtection = "Included"
-    @Published var paymentMethods = "All major cards"
+    @Published var languages: [String] = []
+    @Published var cancellationPolicy = "Standard"
+    @Published var damageProtection = "Available"
+    @Published var paymentMethods = "Credit/Debit Cards"
     
     private let user: User
     
     init(user: User) {
         self.user = user
-        setupMockData()
+        loadFullProfile()
     }
     
     func loadFullProfile() {
@@ -774,39 +774,8 @@ class SellerProfileViewModel: ObservableObject {
         isFollowing.toggle()
     }
     
-    private func setupMockData() {
-        // Mock achievements
-        achievements = [
-            SellerAchievement(id: "1", name: "Super Host", icon: "star.circle.fill", earned: true),
-            SellerAchievement(id: "2", name: "Quick Responder", icon: "bolt.circle.fill", earned: true),
-            SellerAchievement(id: "3", name: "100 Rentals", icon: "100.circle.fill", earned: false),
-            SellerAchievement(id: "4", name: "Eco Warrior", icon: "leaf.circle.fill", earned: true),
-            SellerAchievement(id: "5", name: "Top Rated", icon: "hand.thumbsup.circle.fill", earned: true),
-            SellerAchievement(id: "6", name: "Community Hero", icon: "heart.circle.fill", earned: false)
-        ]
-        
-        // Mock reviews
-        reviews = [
-            SellerReview(
-                id: "1",
-                reviewerName: "John D.",
-                reviewerAvatar: nil,
-                rating: 5,
-                comment: "Excellent seller! The item was exactly as described and pickup was super smooth.",
-                date: Date().addingTimeInterval(-86400 * 7),
-                itemName: "Power Drill"
-            ),
-            SellerReview(
-                id: "2",
-                reviewerName: "Sarah M.",
-                reviewerAvatar: nil,
-                rating: 4,
-                comment: "Good experience overall. Very responsive and helpful.",
-                date: Date().addingTimeInterval(-86400 * 14),
-                itemName: "Camera Lens"
-            )
-        ]
-    }
+    // Achievements and reviews are now loaded from API instead of mock data
+    // The empty arrays will be populated when real data becomes available
 }
 
 struct SellerAchievement: Identifiable {

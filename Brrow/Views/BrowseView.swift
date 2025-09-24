@@ -133,7 +133,7 @@ struct BrowseListingCard: View {
                     .foregroundColor(Theme.Colors.text)
                     .lineLimit(2)
                 
-                Text("$\(Int(listing.price))/day")
+                Text(listing.listingType == "rental" ? "$\(Int(listing.price))/day" : "$\(Int(listing.price))")
                     .font(Theme.Typography.label)
                     .foregroundColor(Theme.Colors.primary)
                     .fontWeight(.semibold)
