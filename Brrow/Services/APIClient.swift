@@ -4325,14 +4325,26 @@ class APIClient: ObservableObject {
         )
     }
     
-    func updateNotificationSettings(settings: [String: Any]) async throws -> EmptyResponse {
-        let bodyData = try JSONSerialization.data(withJSONObject: settings)
+    func getNotificationSettings() async throws -> NotificationSettingsResponse {
         return try await performRequest(
-            endpoint: "update_notification_settings.php",
-            method: .POST,
-            body: bodyData,
-            responseType: EmptyResponse.self
+            endpoint: "api/users/notification-settings",
+            method: .GET,
+            responseType: NotificationSettingsResponse.self
         )
+    }
+
+    func updateNotificationSettings(settings: [String: Bool]) async throws {
+        let bodyData = try JSONSerialization.data(withJSONObject: settings)
+        let response = try await performRequest(
+            endpoint: "api/users/notification-settings",
+            method: .PUT,
+            body: bodyData,
+            responseType: GenericResponse.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to update notification settings")
+        }
     }
     
     func sendPushNotification(

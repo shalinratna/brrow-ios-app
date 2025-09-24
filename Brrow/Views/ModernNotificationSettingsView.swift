@@ -164,37 +164,78 @@ struct ModernNotificationSettingsView: View {
     }
     
     private func loadSettings() {
-        // Load from API or UserDefaults
         Task {
             isLoading = true
-            // In a real app, fetch from API
-            isLoading = false
+            do {
+                let response = try await APIClient.shared.getNotificationSettings()
+                await MainActor.run {
+                    // Update settings from API response
+                    settings.pushEnabled = response.data.pushEnabled
+                    settings.messagesEnabled = response.data.messagesReceived
+                    settings.listingsEnabled = response.data.listingInquiries
+                    settings.offersEnabled = response.data.favoriteListingUpdates
+                    settings.reviewsEnabled = response.data.reviewsReceived
+                    settings.remindersEnabled = response.data.garageSaleReminders
+                    settings.emailDigest = response.data.emailEnabled
+                    settings.marketingEmails = response.data.systemUpdates
+                    settings.soundEnabled = response.data.pushEnabled // Use push as proxy for sound
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    // Keep defaults if API fails
+                    isLoading = false
+                }
+                print("Failed to load notification settings: \(error)")
+            }
         }
     }
     
     private func saveSettings() {
         Task {
             isLoading = true
-            
-            // Save to API
+
             do {
-                // API call to save settings
-                withAnimation {
-                    showingSaveConfirmation = true
-                }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                // Prepare notification settings for API
+                let notificationSettings: [String: Bool] = [
+                    "pushEnabled": settings.pushEnabled,
+                    "emailEnabled": settings.emailDigest,
+                    "smsEnabled": false, // Not supported in this view
+                    "listingInquiries": settings.listingsEnabled,
+                    "listingSold": true, // Default enabled
+                    "messagesReceived": settings.messagesEnabled,
+                    "reviewsReceived": settings.reviewsEnabled,
+                    "favoriteListingUpdates": settings.offersEnabled,
+                    "garageSaleReminders": settings.remindersEnabled,
+                    "seekMatches": true, // Default enabled
+                    "systemUpdates": settings.marketingEmails,
+                    "securityAlerts": true // Always enabled for security
+                ]
+
+                // Save to API
+                try await APIClient.shared.updateNotificationSettings(settings: notificationSettings)
+
+                await MainActor.run {
                     withAnimation {
-                        showingSaveConfirmation = false
+                        showingSaveConfirmation = true
                     }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            showingSaveConfirmation = false
+                        }
+                    }
+
+                    HapticManager.notification(type: .success)
+                    isLoading = false
                 }
-                
-                HapticManager.notification(type: .success)
             } catch {
-                // Handle error
+                await MainActor.run {
+                    print("Failed to save notification settings: \(error)")
+                    // Show error to user here
+                    isLoading = false
+                }
             }
-            
-            isLoading = false
         }
     }
 }

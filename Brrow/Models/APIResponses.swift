@@ -68,6 +68,26 @@ struct NotificationsResponse: Codable {
     let hasMore: Bool
 }
 
+struct NotificationSettingsResponse: Codable {
+    let success: Bool
+    let data: NotificationSettings
+}
+
+struct NotificationSettings: Codable {
+    let pushEnabled: Bool
+    let emailEnabled: Bool
+    let smsEnabled: Bool
+    let listingInquiries: Bool
+    let listingSold: Bool
+    let messagesReceived: Bool
+    let reviewsReceived: Bool
+    let favoriteListingUpdates: Bool
+    let garageSaleReminders: Bool
+    let seekMatches: Bool
+    let systemUpdates: Bool
+    let securityAlerts: Bool
+}
+
 struct APIUserNotification: Codable, Identifiable {
     let id: String
     let type: String
