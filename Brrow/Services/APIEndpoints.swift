@@ -11,7 +11,7 @@ import Foundation
 struct APIEndpoints {
     
     // MARK: - Base URLs
-    static let baseURL = "https://brrowapp.com"
+    static let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
     static let websocketURL = "wss://brrow-backend-nodejs-production.up.railway.app"
     
     // MARK: - Authentication
