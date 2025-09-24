@@ -67,6 +67,12 @@ struct User: Codable, Identifiable {
     // Progress & Gamification
     let currentLevel: Int?
     let userAchievementProgress: [String: String]?
+
+    // Profile Statistics
+    let activeListings: Int?
+    let totalReviews: Int?
+    let activeRentals: Int?
+    let offersMade: Int?
     
     // Username Management
     let lastUsernameChange: Date?
@@ -144,6 +150,12 @@ struct User: Codable, Identifiable {
         // Progress & Gamification
         case currentLevel = "current_level"
         case userAchievementProgress = "user_achievement_progress"
+
+        // Profile Statistics
+        case activeListings = "active_listings"
+        case totalReviews = "total_reviews"
+        case activeRentals = "active_rentals"
+        case offersMade = "offers_made"
         
         // Username Management
         case lastUsernameChange = "last_username_change"
@@ -220,6 +232,10 @@ struct User: Codable, Identifiable {
         self.maxListings = 20
         self.currentLevel = 1
         self.userAchievementProgress = nil
+        self.activeListings = 0
+        self.totalReviews = 0
+        self.activeRentals = 0
+        self.offersMade = 0
         self.updatedAt = nil
     }
     
@@ -308,6 +324,12 @@ struct User: Codable, Identifiable {
         // Progress & Gamification
         self.currentLevel = try container.decodeIfPresent(Int.self, forKey: .currentLevel) ?? 1
         self.userAchievementProgress = try container.decodeIfPresent([String: String].self, forKey: .userAchievementProgress)
+
+        // Profile Statistics
+        self.activeListings = try container.decodeIfPresent(Int.self, forKey: .activeListings) ?? 0
+        self.totalReviews = try container.decodeIfPresent(Int.self, forKey: .totalReviews) ?? 0
+        self.activeRentals = try container.decodeIfPresent(Int.self, forKey: .activeRentals) ?? 0
+        self.offersMade = try container.decodeIfPresent(Int.self, forKey: .offersMade) ?? 0
         
         // Username Management
         self.previousUsername = try container.decodeIfPresent(String.self, forKey: .previousUsername)

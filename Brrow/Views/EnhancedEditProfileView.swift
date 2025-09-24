@@ -493,7 +493,8 @@ struct EnhancedEditProfileView: View {
         website = user.website ?? ""
         
         if let birthdateString = user.birthdate {
-            let formatter = ISO8601DateFormatter()
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
             birthdate = formatter.date(from: birthdateString) ?? Date()
         }
         
@@ -572,15 +573,16 @@ struct EnhancedEditProfileView: View {
                 }
                 
                 // Prepare update data
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+
                 var updateData: [String: Any] = [
-                    "display_name": displayName,
                     "first_name": firstName,
                     "last_name": lastName,
                     "bio": bio,
                     "phone": phone,
-                    "location": location,
                     "website": website,
-                    "birthdate": ISO8601DateFormatter().string(from: birthdate)
+                    "birthdate": dateFormatter.string(from: birthdate)
                 ]
                 
                 // Only include username if it changed

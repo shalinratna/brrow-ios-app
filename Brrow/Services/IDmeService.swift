@@ -14,9 +14,8 @@ struct IDmeConfig {
     // ID.me Production Credentials
     static let clientID = "02ef5aa6d4b40536a8cb82b7b902aba4"
     static let clientSecret = "d79736fd19dd7960b40d4a342fd56876"
-    static let redirectURI = "https://brrowapp.com/brrow/idme/callback"
-    // NOTE: This redirect URI must be registered in ID.me dashboard at https://developer.id.me/
-    // Current error: "redirect_uri does not match registered values"
+    static let redirectURI = "https://brrow-backend-nodejs-production.up.railway.app/brrow/idme/callback"
+    // ✅ Updated to match ID.me dashboard configuration exactly
     
     // ID.me API Endpoints
     static let baseURL = "https://api.id.me"
@@ -24,12 +23,13 @@ struct IDmeConfig {
     static let tokenURL = "https://api.id.me/oauth/token"
     static let userInfoURL = "https://api.id.me/api/public/v3/attributes.json"
     
-    // Verification scopes - Basic Identity first, Student later
-    static let basicScope = "https://api.id.me/auth/basic"
-    static let studentScope = "https://api.id.me/auth/student" // For Phase 2
-    
+    // Verification scopes - Using standard OAuth2 scopes
+    static let basicScope = "openid profile email"
+    static let identityScope = "openid profile email phone address"
+    static let studentScope = "openid profile email student" // For Phase 2
+
     // Current active scope for this version
-    static let defaultScope = basicScope
+    static let defaultScope = identityScope
 }
 
 // MARK: - ID.me Models

@@ -651,32 +651,53 @@ struct HeroFeaturedCard: View {
     
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            // Background image
-            if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [colors.primary.opacity(0.3), colors.primary.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-                .frame(height: 240)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.8)],
-                        startPoint: .center,
-                        endPoint: .bottom
-                    )
+            // Image carousel
+            if !listing.imageUrls.isEmpty {
+                ZStack(alignment: .topTrailing) {
+                    TabView {
+                        ForEach(listing.imageUrls.indices, id: \.self) { index in
+                            AsyncImage(url: URL(string: listing.imageUrls[index])) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Rectangle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [colors.primary.opacity(0.3), colors.primary.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            }
+                        }
+                    }
+                    .frame(height: 240)
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                )
+                    .overlay(
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.8)],
+                            startPoint: .center,
+                            endPoint: .bottom
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                    )
+
+                    // Image counter
+                    if listing.imageUrls.count > 1 {
+                        Text("\(listing.imageUrls.count)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(12)
+                            .padding(.top, 12)
+                            .padding(.trailing, 12)
+                    }
+                }
             }
             
             // Content overlay
@@ -855,30 +876,52 @@ struct ProductionListingCard: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Image section
+            // Image section with carousel
             ZStack(alignment: .topTrailing) {
-                if let imageUrl = listing.imageUrls.first {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [colors.primary.opacity(0.1), colors.primary.opacity(0.05)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .font(.title2)
-                                    .foregroundColor(colors.primary.opacity(0.3))
-                            )
+                if !listing.imageUrls.isEmpty {
+                    TabView {
+                        ForEach(listing.imageUrls.indices, id: \.self) { index in
+                            AsyncImage(url: URL(string: listing.imageUrls[index])) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Rectangle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [colors.primary.opacity(0.1), colors.primary.opacity(0.05)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .overlay(
+                                        Image(systemName: "photo")
+                                            .font(.title2)
+                                            .foregroundColor(colors.primary.opacity(0.3))
+                                    )
+                            }
+                            .clipped()
+                        }
                     }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     .frame(height: 180)
                     .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
+                } else {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [colors.primary.opacity(0.1), colors.primary.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .foregroundColor(colors.primary.opacity(0.3))
+                        )
+                        .frame(height: 180)
+                        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
                 }
                 
                 // Badges

@@ -325,11 +325,27 @@ struct ModernAuthView: View {
             HStack {
                 Image(systemName: "exclamationmark.circle.fill")
                     .foregroundColor(Theme.Colors.error)
+                    .font(.system(size: 16))
                 Text(viewModel.errorMessage)
-                    .font(.system(size: 14))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(Theme.Colors.error)
+                Spacer()
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Theme.Colors.error.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Theme.Colors.error.opacity(0.3), lineWidth: 1)
+                    )
+            )
             .padding(.horizontal, 24)
+            .transition(.asymmetric(
+                insertion: .scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.4, dampingFraction: 0.8)),
+                removal: .scale(scale: 0.9).combined(with: .opacity).animation(.easeOut(duration: 0.2))
+            ))
         }
     }
     
@@ -353,6 +369,13 @@ struct ModernAuthView: View {
         .opacity((viewModel.isLoading || !isFormValid) ? 0.7 : 1.0)
         .scaleEffect((viewModel.isLoading || !isFormValid) ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isFormValid)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.isLoading)
+        .buttonStyle(PlainButtonStyle())
+        .onTapGesture {
+            // Haptic feedback for better UX
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
     }
     
     private var buttonBackground: some View {
@@ -376,12 +399,15 @@ struct ModernAuthView: View {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     .scaleEffect(0.8)
+                    .transition(.scale.combined(with: .opacity))
             } else {
                 Text(isSignUpMode ? "Sign Up" : "Sign In")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .transition(.scale.combined(with: .opacity))
             }
         }
         .foregroundColor(.white)
+        .animation(.easeInOut(duration: 0.3), value: viewModel.isLoading)
     }
     
     private var toggleModeButton: some View {
@@ -441,6 +467,9 @@ struct ModernAuthView: View {
         .frame(height: 56)
         .cornerRadius(14)
         .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
+        .scaleEffect(viewModel.isLoading ? 0.98 : 1.0)
+        .opacity(viewModel.isLoading ? 0.7 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.isLoading)
     }
     
     private var googleSignInButton: some View {
@@ -501,6 +530,12 @@ struct ModernAuthView: View {
         .scaleEffect(isGoogleSignInLoading || viewModel.isLoading ? 0.98 : 1.0)
         .disabled(isGoogleSignInLoading || viewModel.isLoading)
         .opacity(isGoogleSignInLoading || viewModel.isLoading ? 0.7 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isGoogleSignInLoading)
+        .onTapGesture {
+            // Haptic feedback for better UX
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
     }
     
     private var guestModeButton: some View {

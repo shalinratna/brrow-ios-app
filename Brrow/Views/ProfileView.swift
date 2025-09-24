@@ -147,29 +147,37 @@ struct ProfileView: View {
     
     // MARK: - Stats Section
     private var statsSection: some View {
-        HStack {
+        LazyVGrid(columns: [
+            GridItem(.flexible()),
+            GridItem(.flexible()),
+            GridItem(.flexible()),
+            GridItem(.flexible())
+        ], spacing: Theme.Spacing.sm) {
             ProfileStatCard(
-                title: "Lister Rating",
-                value: String(format: "%.1f", authManager.currentUser?.listerRating ?? 0),
+                title: "Active Listings",
+                value: "\(authManager.currentUser?.activeListings ?? 0)",
+                icon: "list.bullet",
+                color: Theme.Colors.primary
+            )
+
+            ProfileStatCard(
+                title: "Total Reviews",
+                value: "\(authManager.currentUser?.totalReviews ?? 0)",
                 icon: "star.fill",
                 color: Theme.Colors.warning
             )
-            
-            Spacer()
-            
+
             ProfileStatCard(
-                title: "Borrower Rating",
-                value: String(format: "%.1f", authManager.currentUser?.renteeRating ?? 0),
-                icon: "person.fill",
+                title: "Active Rentals",
+                value: "\(authManager.currentUser?.activeRentals ?? 0)",
+                icon: "clock.fill",
                 color: Theme.Colors.info
             )
-            
-            Spacer()
-            
+
             ProfileStatCard(
-                title: "Transactions",
-                value: "0", // TODO: Implement transaction count
-                icon: "arrow.left.arrow.right",
+                title: "Offers Made",
+                value: "\(authManager.currentUser?.offersMade ?? 0)",
+                icon: "hand.raised.fill",
                 color: Theme.Colors.success
             )
         }
