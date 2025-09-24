@@ -21,6 +21,7 @@ struct ModernAuthView: View {
     @State private var hasInteractedWithUsername = false
     @State private var hasInteractedWithFirstName = false
     @State private var hasInteractedWithLastName = false
+    @State private var isGoogleSignInLoading = false
     
     enum Field: Hashable {
         case email, username, password, firstName, lastName
@@ -445,25 +446,45 @@ struct ModernAuthView: View {
     private var googleSignInButton: some View {
         Button(action: handleGoogleSignIn) {
             HStack(spacing: 12) {
-                // Use text "G" as placeholder if image is missing
+                // Enhanced Google logo with better styling
                 Group {
                     if UIImage(named: "google-logo") != nil {
                         Image("google-logo")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 20, height: 20)
+                            .frame(width: 22, height: 22)
                     } else {
-                        Text("G")
-                            .font(.system(size: 20, weight: .bold, design: .serif))
-                            .foregroundColor(Color(red: 0.26, green: 0.52, blue: 0.96))
-                            .frame(width: 20, height: 20)
+                        // Improved Google "G" logo
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.white)
+                                .frame(width: 22, height: 22)
+                            Text("G")
+                                .font(.system(size: 16, weight: .bold, design: .default))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [Color(red: 0.26, green: 0.52, blue: 0.96),
+                                                Color(red: 0.22, green: 0.45, blue: 0.86)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        }
                     }
                 }
-                .padding(.leading, 2)
-                
-                Text("Continue with Google")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(.primary)
+
+                if isGoogleSignInLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                        .scaleEffect(0.9)
+                    Text("Signing in...")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                } else {
+                    Text("Continue with Google")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 56)
@@ -472,11 +493,14 @@ struct ModernAuthView: View {
                     .fill(Color(.systemBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color(.separator), lineWidth: 1)
+                            .stroke(Color(.systemGray4), lineWidth: 1.5)
                     )
             )
-            .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
         }
+        .scaleEffect(isGoogleSignInLoading || viewModel.isLoading ? 0.98 : 1.0)
+        .disabled(isGoogleSignInLoading || viewModel.isLoading)
+        .opacity(isGoogleSignInLoading || viewModel.isLoading ? 0.7 : 1.0)
     }
     
     private var guestModeButton: some View {
@@ -486,18 +510,28 @@ struct ModernAuthView: View {
             }
         }) {
             HStack(spacing: 12) {
-                Image(systemName: "person.circle")
+                Image(systemName: "person.circle.fill")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Theme.Colors.secondaryText)
-                
+                    .foregroundColor(Theme.Colors.secondaryText.opacity(0.8))
+
                 Text("Continue as Guest")
-                    .font(.system(size: 17, weight: .medium))
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(Theme.Colors.secondaryText)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(guestButtonBackground)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Theme.Colors.secondaryBackground.opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Theme.Colors.border.opacity(0.6), lineWidth: 1)
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
+        .disabled(viewModel.isLoading)
+        .opacity(viewModel.isLoading ? 0.5 : 1.0)
     }
     
     private var guestButtonBackground: some View {
@@ -612,10 +646,21 @@ struct ModernAuthView: View {
     // MARK: - Apple Sign In
     private func handleGoogleSignIn() {
         print("🔵 Google Sign-In button tapped")
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isGoogleSignInLoading = true
+        }
+
         Task {
             print("🔵 Starting Google Sign-In...")
             await GoogleAuthService.shared.signIn()
             print("🔵 Google Sign-In completed")
+
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isGoogleSignInLoading = false
+                }
+            }
         }
     }
     

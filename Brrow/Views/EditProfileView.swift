@@ -702,7 +702,11 @@ struct EditProfileView: View {
     }
     
     private func saveProfile() {
-        guard hasChanges else { return }
+        guard hasChanges else {
+            // No changes, dismiss immediately
+            presentationMode.wrappedValue.dismiss()
+            return
+        }
 
         // Check if username is being changed
         if username != originalUsername && !username.isEmpty {
@@ -710,6 +714,12 @@ struct EditProfileView: View {
             return
         }
 
+        // OPTIMISTIC UI: Dismiss immediately for better UX
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            presentationMode.wrappedValue.dismiss()
+        }
+
+        // Perform save in background
         performSave()
     }
 
@@ -770,27 +780,30 @@ struct EditProfileView: View {
                 await MainActor.run {
                     isLoading = false
 
-                    // Extract proper error message
+                    // Since panel is dismissed, show system-level alert
+                    var alertMessage = "Failed to update profile. Please check your network connection and try again."
+
                     if let apiError = error as? BrrowAPIError {
                         switch apiError {
                         case .validationError(let message):
-                            errorMessage = message
+                            alertMessage = message
                         case .serverError(let message):
-                            errorMessage = message
+                            alertMessage = message.isEmpty ? "Server error occurred" : message
                         case .unauthorized:
-                            errorMessage = "Authentication error. Please log in again."
+                            alertMessage = "Authentication error. Please log in again."
                         case .networkError(let message):
-                            errorMessage = message
+                            alertMessage = message.isEmpty ? "Network error. Please check your connection." : message
                         case .addressConflict(let message):
-                            errorMessage = message
+                            alertMessage = message
                         default:
-                            errorMessage = "Failed to update profile. Please try again."
+                            alertMessage = "Failed to update profile. Please try again."
                         }
-                    } else {
-                        errorMessage = "Failed to update profile. Please try again."
                     }
 
-                    showError = true
+                    // Show error via system notification since panel is dismissed
+                    authManager.showSystemError(alertMessage)
+
+                    print("❌ Profile update error: \(alertMessage)")
                 }
             }
         }
