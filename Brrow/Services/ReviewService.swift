@@ -1,76 +1,6 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Review Models
-struct Review: Codable, Identifiable {
-    let id: String
-    let authorId: String
-    let targetId: String
-    let rating: Int
-    let comment: String?
-    let reviewType: ReviewType
-    let listingId: String?
-    let transactionId: String?
-    let isVisible: Bool
-    let createdAt: Date
-    let updatedAt: Date
-    
-    // Populated relations
-    let author: ReviewUser?
-    let target: ReviewUser?
-    
-    enum ReviewType: String, Codable {
-        case general = "GENERAL"
-        case buyer = "BUYER"
-        case seller = "SELLER"
-    }
-}
-
-struct ReviewUser: Codable {
-    let id: String
-    let apiId: String?
-    let username: String
-    let profilePictureUrl: String?
-    let isVerified: Bool
-    let averageRating: Double?
-    let totalRatings: Int?
-}
-
-struct ReviewStats: Codable {
-    let averageRating: Double
-    let totalReviews: Int
-    let ratingBreakdown: [String: Int]?
-}
-
-struct ReviewSummary: Codable {
-    let user: ReviewUser?
-    let overall: ReviewStats
-    let asBuyer: ReviewStats
-    let asSeller: ReviewStats
-    let recentReviews: [Review]
-    let memberSince: MemberInfo
-    
-    struct MemberInfo: Codable {
-        let date: Date
-        let days: Int
-    }
-}
-
-struct CreateReviewRequest: Codable {
-    let targetId: String
-    let rating: Int
-    let comment: String?
-    let reviewType: String
-    let listingId: String?
-    let transactionId: String?
-}
-
-struct CanReviewResponse: Codable {
-    let canReview: Bool
-    let reason: String?
-    let existingReviewId: String?
-}
-
 // MARK: - Transaction Models
 // Using Transaction from Models/Transaction.swift instead
 /*
@@ -121,10 +51,10 @@ struct TransactionListing: Codable {
     let id: String
     let title: String
     let price: Double?
-    let images: [ListingImage]?
+    let images: [TransactionListingImage]?
     let category: Category?
     
-    struct ListingImage: Codable {
+    struct TransactionListingImage: Codable {
         let id: String
         let url: String
         let isPrimary: Bool
@@ -203,28 +133,36 @@ class ReviewService: ObservableObject {
         return (data.reviews, data.stats)
     }
     
-    func createReview(targetId: String, rating: Int, comment: String?, reviewType: String = "GENERAL", listingId: String? = nil, transactionId: String? = nil) async throws -> Review {
-        let request = CreateReviewRequest(
-            targetId: targetId,
-            rating: rating,
-            comment: comment,
-            reviewType: reviewType,
-            listingId: listingId,
-            transactionId: transactionId
-        )
-        
+    func submitReview(_ request: CreateReviewRequest) async throws -> Review {
         let response = try await apiClient.performRequest(
             endpoint: "api/reviews",
             method: "POST",
             body: try JSONEncoder().encode(request),
-            responseType: APIResponse<Review>.self
+            responseType: ReviewAPIResponse.self
         )
-        
+
         guard response.success, let review = response.data else {
-            throw BrrowAPIError.serverError(response.message ?? "Failed to create review")
+            throw BrrowAPIError.serverError(response.message ?? "Failed to submit review")
         }
-        
+
         return review
+    }
+
+    func createReview(targetId: String, rating: Int, comment: String?, reviewType: String = "GENERAL", listingId: String? = nil, transactionId: String? = nil) async throws -> Review {
+        let request = CreateReviewRequest(
+            revieweeId: targetId,
+            listingId: listingId,
+            transactionId: transactionId,
+            rating: rating,
+            title: nil,
+            content: comment ?? "",
+            reviewType: ReviewType(rawValue: reviewType) ?? .seller,
+            isAnonymous: false,
+            criteriaRatings: nil,
+            attachments: nil
+        )
+
+        return try await submitReview(request)
     }
     
     func updateReview(reviewId: String, rating: Int? = nil, comment: String? = nil) async throws -> Review {
@@ -428,10 +366,7 @@ class TransactionService: ObservableObject {
 }
 
 // MARK: - Helper Response Types
-private struct ReviewListResponse: Codable {
-    let reviews: [Review]
-    let stats: ReviewStats
-}
+// Using ReviewListResponse from ReviewModels.swift
 
 private struct TransactionListResponse: Codable {
     let data: [Transaction]

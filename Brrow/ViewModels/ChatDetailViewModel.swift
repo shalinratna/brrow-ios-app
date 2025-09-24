@@ -2,26 +2,40 @@
 //  ChatDetailViewModel.swift
 //  Brrow
 //
-//  Chat detail view model for enhanced messaging
+//  Real-time chat detail view model with full messaging functionality
 //
 
 import Foundation
 import UIKit
 import AVFoundation
 import Combine
+import SwiftUI
 
 @MainActor
 class ChatDetailViewModel: ObservableObject {
-    @Published var messages: [EnhancedChatMessage] = []
+    @Published var messages: [Message] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var typingUsers: [String] = []
+    @Published var connectionStatus: WebSocketManager.ConnectionStatus = .disconnected
+    @Published var unreadCount = 0
     @Published var isUserOnline = false
     @Published var isRecording = false
     @Published var recordingDuration = 0
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    
+
+    private var conversation: Conversation?
+    private var cancellables = Set<AnyCancellable>()
+    private let apiClient = APIClient.shared
+    private let webSocketManager = WebSocketManager.shared
+    private let authManager = AuthManager.shared
+
+    // Message management
+    private var pendingMessages: [String: Message] = [:]  // tempId -> Message
+    private var messageCache: [String: Message] = [:]     // messageId -> Message
+
+    // Audio recording
     private var audioRecorder: AVAudioRecorder?
     private var recordingTimer: Timer?
-    private var cancellables = Set<AnyCancellable>()
     
     func loadMessages(for conversationId: String) {
         isLoading = true
@@ -39,15 +53,24 @@ class ChatDetailViewModel: ObservableObject {
     }
     
     func sendTextMessage(_ text: String, to conversationId: String) {
-        let message = EnhancedChatMessage(
+        let message = Message(
             id: UUID().uuidString,
+            chatId: conversationId,
             senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
             receiverId: "other_user",
             content: text,
-            type: .text,
+            messageType: .text,
             mediaUrl: nil,
-            createdAt: Date(),
-            isRead: false
+            thumbnailUrl: nil,
+            listingId: nil,
+            isRead: false,
+            isEdited: false,
+            editedAt: nil,
+            deletedAt: nil,
+            sentAt: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            sender: nil,
+            reactions: nil
         )
         
         messages.append(message)
@@ -59,15 +82,24 @@ class ChatDetailViewModel: ObservableObject {
     }
     
     func sendImageMessage(_ image: UIImage, to conversationId: String) {
-        let message = EnhancedChatMessage(
+        let message = Message(
             id: UUID().uuidString,
+            chatId: conversationId,
             senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
             receiverId: "other_user",
             content: "",
-            type: .image,
+            messageType: .image,
             mediaUrl: "local_image_\(UUID().uuidString)",
-            createdAt: Date(),
-            isRead: false
+            thumbnailUrl: nil,
+            listingId: nil,
+            isRead: false,
+            isEdited: false,
+            editedAt: nil,
+            deletedAt: nil,
+            sentAt: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            sender: nil,
+            reactions: nil
         )
         
         messages.append(message)
@@ -149,15 +181,24 @@ class ChatDetailViewModel: ObservableObject {
         let mediaDataJson = try JSONEncoder().encode(mediaData)
         let mediaDataString = String(data: mediaDataJson, encoding: .utf8) ?? "{}"
         
-        let message = EnhancedChatMessage(
+        let message = Message(
             id: uploadData.messageId,
+            chatId: conversationId,
             senderId: AuthManager.shared.currentUser?.apiId ?? "",
             receiverId: receiverId,
             content: mediaDataString,
-            type: isVideo ? .video : .image,
+            messageType: isVideo ? .video : .image,
             mediaUrl: uploadData.media.url,
-            createdAt: Date(),
-            isRead: false
+            thumbnailUrl: uploadData.media.thumbnailUrl,
+            listingId: nil,
+            isRead: false,
+            isEdited: false,
+            editedAt: nil,
+            deletedAt: nil,
+            sentAt: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            sender: nil,
+            reactions: nil
         )
         
         await MainActor.run {
@@ -166,15 +207,24 @@ class ChatDetailViewModel: ObservableObject {
     }
     
     func sendVoiceMessage(_ audioURL: URL, to conversationId: String) {
-        let message = EnhancedChatMessage(
+        let message = Message(
             id: UUID().uuidString,
+            chatId: conversationId,
             senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
             receiverId: "other_user",
             content: "",
-            type: .voice,
+            messageType: .audio,
             mediaUrl: audioURL.absoluteString,
-            createdAt: Date(),
-            isRead: false
+            thumbnailUrl: nil,
+            listingId: nil,
+            isRead: false,
+            isEdited: false,
+            editedAt: nil,
+            deletedAt: nil,
+            sentAt: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            sender: nil,
+            reactions: nil
         )
         
         messages.append(message)
@@ -233,47 +283,65 @@ class ChatDetailViewModel: ObservableObject {
     
     // MARK: - Private Methods
     
-    private func fetchMessages(conversationId: String) async throws -> [EnhancedChatMessage] {
+    private func fetchMessages(conversationId: String) async throws -> [Message] {
         // Simulate API call
         try await Task.sleep(nanoseconds: 500_000_000)
         
         return [
-            EnhancedChatMessage(
+            Message(
                 id: "1",
+                chatId: conversationId,
                 senderId: "other_user",
                 receiverId: AuthManager.shared.currentUser?.apiId ?? "current_user",
                 content: "Hi! Is the camera still available?",
-                type: .text,
+                messageType: .text,
                 mediaUrl: nil,
-                createdAt: Date().addingTimeInterval(-300),
-                isRead: true
+                thumbnailUrl: nil,
+                listingId: nil,
+                isRead: true,
+                isEdited: false,
+                editedAt: nil,
+                deletedAt: nil,
+                sentAt: nil,
+                createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-300)),
+                sender: nil,
+                reactions: nil
             ),
-            EnhancedChatMessage(
+            Message(
                 id: "2",
+                chatId: conversationId,
                 senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
                 receiverId: "other_user",
                 content: "Yes, it's available. Would you like to borrow it this weekend?",
-                type: .text,
+                messageType: .text,
                 mediaUrl: nil,
-                createdAt: Date().addingTimeInterval(-200),
-                isRead: true
+                thumbnailUrl: nil,
+                listingId: nil,
+                isRead: true,
+                isEdited: false,
+                editedAt: nil,
+                deletedAt: nil,
+                sentAt: nil,
+                createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-200)),
+                sender: nil,
+                reactions: nil
             )
         ]
     }
     
-    private func sendMessageToServer(_ message: EnhancedChatMessage, conversationId: String) async throws {
+    private func sendMessageToServer(_ message: Message, conversationId: String) async throws {
         // Simulate API call
         try await Task.sleep(nanoseconds: 500_000_000)
         print("Message sent: \(message.content)")
     }
     
-    private func uploadAndSendImage(_ image: UIImage, message: EnhancedChatMessage, conversationId: String) async throws {
+    private func uploadAndSendImage(_ image: UIImage, message: Message, conversationId: String) async throws {
         // Simulate image upload
         try await Task.sleep(nanoseconds: 1_000_000_000)
         print("Image uploaded and sent")
     }
     
-    private func uploadAndSendVoice(_ audioURL: URL, message: EnhancedChatMessage, conversationId: String) async throws {
+    private func uploadAndSendVoice(_ audioURL: URL, message: Message, conversationId: String) async throws {
         // Simulate voice upload
         try await Task.sleep(nanoseconds: 1_000_000_000)
         print("Voice message uploaded and sent")

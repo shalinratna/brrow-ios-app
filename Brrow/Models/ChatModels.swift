@@ -212,6 +212,8 @@ enum MessageType: String, Codable {
     case file = "FILE"
     case listing = "LISTING"
     case system = "SYSTEM"
+    case voice = "VOICE"
+    case offer = "OFFER"
 }
 
 enum MessageSendStatus: String, Codable {

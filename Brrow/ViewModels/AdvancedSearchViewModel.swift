@@ -39,10 +39,11 @@ class AdvancedSearchViewModel: ObservableObject {
     var activeFiltersCount: Int {
         var count = 0
         if !filters.categories.isEmpty { count += 1 }
-        if filters.priceRange != 0...1000 { count += 1 }
-        if filters.distance != 10.0 { count += 1 }
+        if let priceRange = filters.priceRange,
+           !(priceRange.min == 0 && priceRange.max == 1000) { count += 1 }
+        if let distance = filters.distance, distance != 10.0 { count += 1 }
         if filters.condition != nil { count += 1 }
-        if filters.availability != .all { count += 1 }
+        if let availability = filters.availability, availability != .all { count += 1 }
         if filters.verifiedSellersOnly { count += 1 }
         if filters.freeItemsOnly { count += 1 }
         if filters.deliveryAvailable { count += 1 }
@@ -151,7 +152,7 @@ class AdvancedSearchViewModel: ObservableObject {
         } else if filter.contains("Within") {
             filters.distance = 10.0
         } else if filter.contains("Price:") {
-            filters.priceRange = 0...1000
+            filters.priceRange = AdvancedSearchFilters.PriceRange(min: 0, max: 1000)
         } else if filter == "Verified Sellers" {
             filters.verifiedSellersOnly = false
         } else if filter == "Delivery Available" {
@@ -181,13 +182,16 @@ class AdvancedSearchViewModel: ObservableObject {
         // Price
         if filters.freeItemsOnly {
             activeFilters.append("Free Items")
-        } else if filters.priceRange != 0...1000 {
-            activeFilters.append("Price: $\(Int(filters.priceRange.lowerBound))-$\(Int(filters.priceRange.upperBound))")
+        } else if let priceRange = filters.priceRange,
+                  let min = priceRange.lowerBound,
+                  let max = priceRange.upperBound,
+                  !(min == 0 && max == 1000) {
+            activeFilters.append("Price: $\(Int(min))-$\(Int(max))")
         }
         
         // Distance
-        if filters.distance != 10.0 {
-            activeFilters.append("Within \(Int(filters.distance)) miles")
+        if let distance = filters.distance, distance != 10.0 {
+            activeFilters.append("Within \(Int(distance)) miles")
         }
         
         // Condition
@@ -196,8 +200,8 @@ class AdvancedSearchViewModel: ObservableObject {
         }
         
         // Availability
-        if filters.availability != .all {
-            activeFilters.append("Availability: \(filters.availability.displayName)")
+        if let availability = filters.availability, availability != .all {
+            activeFilters.append("Availability: \(availability.displayName)")
         }
         
         // Additional filters
@@ -333,27 +337,29 @@ class AdvancedSearchViewModel: ObservableObject {
         // Price filter
         if filters.freeItemsOnly {
             filtered = filtered.filter { $0.price == 0 }
-        } else {
-            filtered = filtered.filter { filters.priceRange.contains($0.price) }
+        } else if let priceRange = filters.priceRange {
+            filtered = filtered.filter { priceRange.contains($0.price) }
         }
         
         // Distance filter (would require location data)
         // Implement when location services are integrated
         
         // Condition filter
-        if let condition = filters.condition, condition != .any {
+        if let condition = filters.condition {
             // Implement when condition field is added to Listing model
         }
         
         // Availability filter
-        switch filters.availability {
-        case .available:
-            filtered = filtered.filter { $0.isAvailable }
-        case .comingSoon:
-            // Implement when coming soon field is added
-            break
-        case .all:
-            break
+        if let availability = filters.availability {
+            switch availability {
+            case .available:
+                filtered = filtered.filter { $0.isAvailable }
+            case .comingSoon:
+                // Implement when coming soon field is added
+                break
+            case .all:
+                break
+            }
         }
         
         // Additional filters
@@ -378,39 +384,36 @@ class AdvancedSearchViewModel: ObservableObject {
         // Mix listings and garage sales
         listings.forEach { listing in
             allResults.append(SearchResult(
-                title: listing.title,
-                type: .listing,
-                imageUrl: listing.imageUrls.first,
-                price: listing.price,
-                location: listing.location.city,
-                rating: nil
+                id: listing.id,
+                score: 1.0,
+                listing: listing,
+                distance: nil,
+                matchedTerms: nil,
+                highlights: nil
             ))
         }
         
         garageSales.forEach { sale in
+            let dummyListing = Listing.example
             allResults.append(SearchResult(
-                title: sale.title,
-                type: .garageSale,
-                imageUrl: sale.images.first,
-                price: nil,
-                location: sale.location,
-                rating: nil
+                id: String(sale.id),
+                score: 0.8,
+                listing: dummyListing,
+                distance: nil,
+                matchedTerms: nil,
+                highlights: nil
             ))
         }
         
         users.forEach { user in
+            let dummyListing = Listing.example
             allResults.append(SearchResult(
-                title: user.username,
-                type: .user,
-                imageUrl: user.profilePicture,
-                price: nil,
-                location: nil,
-                rating: {
-                    let lister = user.listerRating ?? 0
-                    let rentee = user.renteeRating ?? 0
-                    let average = lister == 0 && rentee == 0 ? 0.0 : Double((lister + rentee)) / 2.0
-                    return average.isNaN || average.isInfinite ? 0.0 : average
-                }()
+                id: String(user.id),
+                score: 0.6,
+                listing: dummyListing,
+                distance: nil,
+                matchedTerms: nil,
+                highlights: nil
             ))
         }
     }
@@ -422,25 +425,23 @@ class AdvancedSearchViewModel: ObservableObject {
     
     private func sortResults() {
         switch filters.sortBy {
-        case .relevance:
-            // Default relevance sorting
-            break
-        case .priceLowest:
-            listings.sort { $0.price < $1.price }
-        case .priceHighest:
-            listings.sort { $0.price > $1.price }
-        case .newest:
-            listings.sort { $0.createdAt > $1.createdAt }
-        case .nearest:
-            // Implement when location sorting is available
-            break
-        case .highestRated:
-            // Implement when rating is available on listings
-            break
-        case .mostReviews:
-            // Implement when review count is available
-            break
-        }
+            case .relevance:
+                // Default relevance sorting
+                break
+            case .price:
+                listings.sort { $0.price < $1.price }
+            case .newest:
+                listings.sort { $0.createdAt > $1.createdAt }
+            case .distance:
+                // Implement when location sorting is available
+                break
+            case .rating:
+                // Implement when rating is available on listings
+                break
+            case .popular:
+                // Implement when popularity is available
+                break
+            }
     }
     
     private func generateSuggestions(for query: String) -> [String] {

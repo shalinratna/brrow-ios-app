@@ -129,12 +129,13 @@ struct ChatDetailView: View {
     
     private var messagesScrollView: some View {
         ScrollViewReader { proxy in
-            ScrollView {
+            let messagesContent = ScrollView {
                 LazyVStack(spacing: Theme.Spacing.sm) {
                     ForEach(viewModel.messages) { message in
+                        let isOwnMessage = message.senderId == AuthManager.shared.currentUser?.apiId
                         MessageBubbleView(
-                            message: message,
-                            isOwnMessage: message.senderId == AuthManager.shared.currentUser?.apiId
+                            message: message.toEnhancedChatMessage(),
+                            isOwnMessage: isOwnMessage
                         )
                         .id(message.id)
                     }
@@ -143,13 +144,15 @@ struct ChatDetailView: View {
                 .padding(.vertical, Theme.Spacing.sm)
             }
             .background(Theme.Colors.background)
-            .onChange(of: viewModel.messages.count) { _, _ in
-                if let lastMessage = viewModel.messages.last {
-                    withAnimation {
-                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+
+            messagesContent
+                .onChange(of: viewModel.messages.count) { _, _ in
+                    if let lastMessage = viewModel.messages.last {
+                        withAnimation {
+                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        }
                     }
                 }
-            }
         }
     }
     
@@ -190,9 +193,12 @@ struct ChatDetailView: View {
             
             // Send Button
             Button(action: sendMessage) {
-                Image(systemName: messageText.isEmpty ? "mic.fill" : "arrow.up.circle.fill")
+                let iconName = messageText.isEmpty ? "mic.fill" : "arrow.up.circle.fill"
+                let iconColor = messageText.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.primary
+
+                Image(systemName: iconName)
                     .font(.system(size: 28))
-                    .foregroundColor(messageText.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.primary)
+                    .foregroundColor(iconColor)
             }
             .disabled(messageText.isEmpty)
         }
@@ -281,9 +287,7 @@ struct MessageBubbleView: View {
                         .foregroundColor(isOwnMessage ? .white : Theme.Colors.text)
                         .padding(.horizontal, Theme.Spacing.md)
                         .padding(.vertical, Theme.Spacing.sm)
-                        .background(
-                            isOwnMessage ? Theme.Colors.primary : Theme.Colors.surface
-                        )
+                        .background(isOwnMessage ? Theme.Colors.primary : Theme.Colors.surface)
                         .cornerRadius(18)
                 } else if message.type == .image {
                     if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
@@ -348,5 +352,47 @@ struct MediaMessageData: Codable {
         case mimeType = "mime_type"
         case size
         case originalName = "original_name"
+    }
+}
+
+// MARK: - Message Conversion Extension
+extension Message {
+    func toEnhancedChatMessage() -> EnhancedChatMessage {
+        let dateFormatter = ISO8601DateFormatter()
+        let createdDate = dateFormatter.date(from: self.createdAt) ?? Date()
+
+        // Convert MessageType to EnhancedChatMessage.MessageType
+        let enhancedType: EnhancedChatMessage.MessageType
+        switch self.messageType {
+        case .text:
+            enhancedType = .text
+        case .image:
+            enhancedType = .image
+        case .video:
+            enhancedType = .video
+        case .voice:
+            enhancedType = .voice
+        case .audio:
+            enhancedType = .voice // map audio to voice
+        case .file:
+            enhancedType = .text // fallback to text for file type
+        case .listing:
+            enhancedType = .text // fallback to text for listing type
+        case .system:
+            enhancedType = .text // fallback to text for system type
+        case .offer:
+            enhancedType = .text // fallback to text for offer type
+        }
+
+        return EnhancedChatMessage(
+            id: self.id,
+            senderId: self.senderId,
+            receiverId: self.receiverId ?? "",
+            content: self.content,
+            type: enhancedType,
+            mediaUrl: self.mediaUrl,
+            createdAt: createdDate,
+            isRead: self.isRead
+        )
     }
 }

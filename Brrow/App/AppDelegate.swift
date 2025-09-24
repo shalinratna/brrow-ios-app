@@ -54,7 +54,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Task {
             do {
                 let garageSales = try await APIClient.shared.fetchGarageSales()
-                print("🚀 DEBUG: Preloaded \(garageSales.count) garage sales at app startup")
+                // Preloaded \(garageSales.count) garage sales at app startup
                 // Data is now cached in APIClient's response cache
             } catch {
                 print("⚠️ Failed to preload garage sales: \(error)")

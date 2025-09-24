@@ -167,7 +167,8 @@ struct ListingInquiryView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     TemplateButton(text: "Is this still available?") {
-                        message = "Hi! I'm interested in \(listing.title). Is it still available for rent?"
+                        let listingType = listing.dailyRate != nil ? "for rent" : "for sale"
+                        message = "Hi! I'm interested in \(listing.title). Is it still available \(listingType)?"
                     }
                     
                     TemplateButton(text: "What's the condition?") {
@@ -175,7 +176,8 @@ struct ListingInquiryView: View {
                     }
                     
                     TemplateButton(text: "Can we negotiate?") {
-                        message = "Hi there! I'm interested in renting \(listing.title). Would you be open to discussing the price?"
+                        let action = listing.dailyRate != nil ? "renting" : "buying"
+                        message = "Hi there! I'm interested in \(action) \(listing.title). Would you be open to discussing the price?"
                     }
                 }
             }

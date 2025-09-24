@@ -95,7 +95,7 @@ struct EditProfileView: View {
         .onChange(of: location) { _, _ in hasChanges = true }
         .onChange(of: website) { _, _ in hasChanges = true }
         .onChange(of: birthdate) { _, _ in hasChanges = true }
-        .alert("Error", isPresented: $showError) {
+        .alert(getAlertTitle(for: errorMessage), isPresented: $showError) {
             Button("OK") { }
         } message: {
             Text(errorMessage)
@@ -806,6 +806,21 @@ struct EditProfileView: View {
                     print("❌ Profile update error: \(alertMessage)")
                 }
             }
+        }
+    }
+
+    // Helper function to determine appropriate alert title
+    private func getAlertTitle(for message: String) -> String {
+        if message.contains("90 days") || message.contains("once every") {
+            return "Unable to Change Username"
+        } else if message.contains("Authentication") || message.contains("log in") {
+            return "Authentication Required"
+        } else if message.contains("Network") || message.contains("connection") {
+            return "Connection Issue"
+        } else if message.contains("not found") || message.contains("404") {
+            return "Feature Unavailable"
+        } else {
+            return "Notice"
         }
     }
 }

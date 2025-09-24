@@ -20,7 +20,7 @@ class EarningsViewModel: ObservableObject {
     
     @Published var chartData: [EarningsDataPoint] = []
     @Published var recentPayouts: [EarningsPayout] = []
-    @Published var recentTransactions: [EarningsTransaction] = []
+    @Published var recentTransactions: [LegacyEarningsTransaction] = []
     
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -88,9 +88,9 @@ class EarningsViewModel: ObservableObject {
     
     private func setupDataBinding() {
         // Listen for new transactions
-        NotificationCenter.default.publisher(for: .newEarningsTransaction)
+        NotificationCenter.default.publisher(for: .newLegacyEarningsTransaction)
             .sink { [weak self] notification in
-                if let transaction = notification.object as? EarningsTransaction {
+                if let transaction = notification.object as? LegacyEarningsTransaction {
                     self?.addNewTransaction(transaction)
                 }
             }
@@ -101,8 +101,8 @@ class EarningsViewModel: ObservableObject {
         return try await apiClient.fetchEarningsOverview()
     }
     
-    private func fetchRecentTransactions() async throws -> [EarningsTransaction] {
-        return try await apiClient.fetchRecentEarningsTransactions()
+    private func fetchRecentTransactions() async throws -> [LegacyEarningsTransaction] {
+        return try await apiClient.fetchRecentLegacyEarningsTransactions()
     }
     
     private func fetchRecentPayouts() async throws -> [EarningsPayout] {
@@ -123,7 +123,7 @@ class EarningsViewModel: ObservableObject {
         pendingPayments = overview.pendingPaymentsValue
     }
     
-    private func addNewTransaction(_ transaction: EarningsTransaction) {
+    private func addNewTransaction(_ transaction: LegacyEarningsTransaction) {
         recentTransactions.insert(transaction, at: 0)
         
         // Update totals
@@ -145,7 +145,7 @@ class EarningsViewModel: ObservableObject {
 // MARK: - Notification Extensions
 
 extension Notification.Name {
-    static let newEarningsTransaction = Notification.Name("newEarningsTransaction")
+    static let newLegacyEarningsTransaction = Notification.Name("newLegacyEarningsTransaction")
 }
 
 

@@ -1,60 +1,38 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Car,
-  Search,
-  Edit,
-  Trash2,
-  Eye,
-  Calendar,
-  MapPin,
-  Users,
-  DollarSign
-} from 'lucide-react';
+import AdminLayout from '../../components/AdminLayout';
 
 interface GarageSale {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   location: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-  totalItems?: number;
-  estimatedValue?: number;
+  date: string;
+  status: 'PENDING' | 'ACTIVE' | 'CANCELLED';
   host?: {
     id: string;
     email: string;
     firstName?: string;
     lastName?: string;
   };
-  attendees?: number;
+  itemCount: number;
   createdAt: string;
 }
 
-export default function GarageSalesManagement() {
+export default function GarageSalesPage() {
   const [garageSales, setGarageSales] = useState<GarageSale[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSales, setSelectedSales] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [error, setError] = useState<string | null>(null);
+  const [selectedSales, setSelectedSales] = useState<string[]>([]);
 
   const fetchGarageSales = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const adminToken = localStorage.getItem('adminToken');
-      if (!adminToken) {
-        setError('No admin token found. Please log in again.');
-        setLoading(false);
-        return;
-      }
-
-      // Try to fetch real garage sales from backend
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/garage-sales`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
@@ -62,29 +40,64 @@ export default function GarageSalesManagement() {
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Garage Sales API Response:', data);
-
-        if (data.success && data.data) {
-          setGarageSales(data.data);
-          console.log(`Loaded ${data.data.length} real garage sales from database`);
-        } else {
-          setError('No garage sales data available');
-        }
-      } else {
-        if (response.status === 404) {
-          setError('Garage sales feature not yet implemented in backend');
-        } else if (response.status === 401) {
+      if (!response.ok) {
+        if (response.status === 401) {
           setError('Authentication failed. Please log in again.');
+        } else if (response.status === 403) {
+          setError('Access denied. Admin privileges required.');
         } else {
           setError(`API error: ${response.status}`);
         }
+        setLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.garageSales) {
+        setGarageSales(data.garageSales);
+      } else {
+        setGarageSales([]);
       }
 
     } catch (error) {
       console.error('Error fetching garage sales:', error);
       setError('Failed to connect to backend server');
+
+      // Demo data fallback
+      setGarageSales([
+        {
+          id: '1',
+          title: 'Spring Cleaning Sale',
+          description: 'Clothes, books, and household items',
+          location: 'San Francisco, CA',
+          date: '2024-03-15',
+          status: 'ACTIVE',
+          host: {
+            id: 'user1',
+            email: 'sarah@example.com',
+            firstName: 'Sarah',
+            lastName: 'Johnson'
+          },
+          itemCount: 25,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: '2',
+          title: 'Moving Sale - Everything Must Go!',
+          description: 'Furniture, electronics, kitchen appliances',
+          location: 'Oakland, CA',
+          date: '2024-03-20',
+          status: 'PENDING',
+          host: {
+            id: 'user2',
+            email: 'mike@example.com',
+            firstName: 'Mike',
+            lastName: 'Chen'
+          },
+          itemCount: 42,
+          createdAt: new Date().toISOString()
+        }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -130,6 +143,37 @@ export default function GarageSalesManagement() {
     }
   };
 
+  const handleSingleAction = async (action: 'approve' | 'cancel' | 'delete', saleId: string) => {
+    const confirmAction = confirm(`Are you sure you want to ${action} this garage sale?`);
+    if (!confirmAction) return;
+
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+
+      const endpoint = action === 'delete'
+        ? `/api/admin/garage-sales/${saleId}`
+        : `/api/admin/garage-sales/${saleId}`;
+
+      const method = action === 'delete' ? 'DELETE' : 'PATCH';
+      const body = action !== 'delete' ? {
+        status: action === 'approve' ? 'ACTIVE' : 'CANCELLED'
+      } : undefined;
+
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${adminToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+
+      fetchGarageSales();
+    } catch (error) {
+      console.error(`Error performing ${action}:`, error);
+    }
+  };
+
   const filteredSales = garageSales.filter(sale => {
     const matchesSearch = sale.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          sale.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -140,122 +184,230 @@ export default function GarageSalesManagement() {
     return matchesSearch && matchesStatus;
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-            <span className="text-gray-400">Loading garage sales from database...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="text-red-400 text-lg mb-4">❌ {error}</div>
-            <button
-              onClick={fetchGarageSales}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'bg-green-100 text-green-800';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Garage Sales Management
-            </h1>
-            <p className="text-gray-400 mt-2">
-              Manage all garage sale events • {garageSales.length} total events from database
-            </p>
-          </div>
-          <button
-            onClick={fetchGarageSales}
-            className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 flex items-center gap-2"
-          >
-            <Eye className="w-4 h-4" />
-            Refresh
-          </button>
-        </div>
-
-        {/* Empty State */}
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Car className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <div className="text-gray-400 text-lg mb-2">No garage sales found</div>
-              <div className="text-gray-500 text-sm">
-                {garageSales.length === 0 ? 'No garage sales in database yet' : 'Try adjusting your search'}
-              </div>
-            </div>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Garage Sales Management</h1>
+          <div className="text-sm text-gray-500">
+            Total: {garageSales.length} garage sales
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Events</p>
-                <p className="text-2xl font-bold text-white">{garageSales.length}</p>
-              </div>
-              <Car className="w-8 h-8 text-blue-400" />
+        {/* Search and Filter Controls */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search
+              </label>
+              <input
+                type="text"
+                placeholder="Search by title, location, or host email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Active Events</p>
-                <p className="text-2xl font-bold text-white">
-                  {garageSales.filter(sale => sale.status === 'ACTIVE').length}
-                </p>
-              </div>
-              <Calendar className="w-8 h-8 text-green-400" />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Status Filter
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="PENDING">Pending</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
             </div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Attendees</p>
-                <p className="text-2xl font-bold text-white">
-                  {garageSales.reduce((sum, sale) => sum + (sale.attendees || 0), 0)}
-                </p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bulk Actions
+              </label>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleBulkAction('approve')}
+                  disabled={selectedSales.length === 0}
+                  className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  Approve ({selectedSales.length})
+                </button>
+                <button
+                  onClick={() => handleBulkAction('cancel')}
+                  disabled={selectedSales.length === 0}
+                  className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  Cancel ({selectedSales.length})
+                </button>
+                <button
+                  onClick={() => handleBulkAction('delete')}
+                  disabled={selectedSales.length === 0}
+                  className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  Delete ({selectedSales.length})
+                </button>
               </div>
-              <Users className="w-8 h-8 text-purple-400" />
-            </div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Value</p>
-                <p className="text-2xl font-bold text-white">
-                  ${garageSales.reduce((sum, sale) => sum + (sale.estimatedValue || 0), 0).toLocaleString()}
-                </p>
-              </div>
-              <DollarSign className="w-8 h-8 text-yellow-400" />
             </div>
           </div>
         </div>
-      </motion.div>
-    </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-red-700">{error}</p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading ? (
+          <div className="bg-white rounded-lg shadow p-8">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading garage sales...</span>
+            </div>
+          </div>
+        ) : (
+          /* Garage Sales Table */
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={selectedSales.length === filteredSales.length && filteredSales.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSales(filteredSales.map(sale => sale.id));
+                        } else {
+                          setSelectedSales([]);
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Garage Sale
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Host
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Items
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredSales.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedSales.includes(sale.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSales([...selectedSales, sale.id]);
+                          } else {
+                            setSelectedSales(selectedSales.filter(id => id !== sale.id));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{sale.title}</div>
+                        <div className="text-sm text-gray-500">{sale.description}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {sale.host?.firstName && sale.host?.lastName
+                          ? `${sale.host.firstName} ${sale.host.lastName}`
+                          : sale.host?.email || 'Unknown'}
+                      </div>
+                      <div className="text-sm text-gray-500">{sale.host?.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {sale.location}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(sale.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {sale.itemCount} items
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(sale.status)}`}>
+                        {sale.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        {sale.status === 'PENDING' && (
+                          <button
+                            onClick={() => handleSingleAction('approve', sale.id)}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {sale.status === 'ACTIVE' && (
+                          <button
+                            onClick={() => handleSingleAction('cancel', sale.id)}
+                            className="text-yellow-600 hover:text-yellow-900"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleSingleAction('delete', sale.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {filteredSales.length === 0 && !loading && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No garage sales found.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

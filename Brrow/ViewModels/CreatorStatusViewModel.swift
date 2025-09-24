@@ -14,9 +14,9 @@ class CreatorStatusViewModel: ObservableObject {
         do {
             let status = try await APIClient.shared.getCreatorStatus()
             
-            self.isCreator = status.isCreator
-            self.creatorCode = status.creatorCode
-            self.applicationPending = status.applicationStatus == "pending"
+            self.isCreator = status.data?.isCreator ?? false
+            self.creatorCode = status.data?.applicationId
+            self.applicationPending = status.data?.status == "pending"
         } catch {
             // User might not have any creator status yet
             self.isCreator = false

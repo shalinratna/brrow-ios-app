@@ -2,726 +2,569 @@
 //  AdvancedSearchView.swift
 //  Brrow
 //
-//  Created by Claude on 7/26/25.
-//  Advanced search with filters, sorting, and intelligent suggestions
+//  Advanced search interface with filters, location search, and faceted results
 //
 
 import SwiftUI
 import CoreLocation
 
-// MARK: - Search Filter Model
-struct AdvancedSearchFilters: Equatable {
-    var categories: Set<String> = []
-    var priceRange: ClosedRange<Double> = 0...1000
-    var distance: Double = 10.0 // miles
-    var condition: ItemCondition?
-    var availability: AvailabilityFilter = .all
-    var sortBy: SortOption = .relevance
-    var includeGarageSales: Bool = true
-    var verifiedSellersOnly: Bool = false
-    var freeItemsOnly: Bool = false
-    var deliveryAvailable: Bool = false
-    var instantBooking: Bool = false
-    
-    enum AvailabilityFilter: String, CaseIterable {
-        case all = "All"
-        case available = "Available Now"
-        case comingSoon = "Coming Soon"
-        
-        var displayName: String { rawValue }
-    }
-    
-    enum SortOption: String, CaseIterable {
-        case relevance = "Relevance"
-        case priceLowest = "Price: Low to High"
-        case priceHighest = "Price: High to Low"
-        case newest = "Newest First"
-        case nearest = "Nearest First"
-        case highestRated = "Highest Rated"
-        case mostReviews = "Most Reviews"
-        
-        var displayName: String { rawValue }
-        var icon: String {
-            switch self {
-            case .relevance: return "sparkles"
-            case .priceLowest: return "arrow.down.circle"
-            case .priceHighest: return "arrow.up.circle"
-            case .newest: return "clock"
-            case .nearest: return "location"
-            case .highestRated: return "star.fill"
-            case .mostReviews: return "text.bubble"
-            }
-        }
-    }
-}
-
-enum ItemCondition: String, CaseIterable {
-    case new = "New"
-    case likeNew = "Like New"
-    case good = "Good"
-    case fair = "Fair"
-    case any = "Any Condition"
-    
-    var displayName: String { rawValue }
-}
-
-// MARK: - Advanced Search View
 struct AdvancedSearchView: View {
-    @StateObject private var viewModel = AdvancedSearchViewModel()
+    @StateObject private var searchService = AdvancedSearchService.shared
     @State private var searchText = ""
-    @State private var showFilters = false
-    @State private var selectedTab = 0
-    @State private var animateContent = false
-    @FocusState private var isSearchFocused: Bool
-    @Environment(\.presentationMode) var presentationMode
-    
-    private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
-    
+    @State private var showingFilters = false
+    @State private var showingMap = false
+    @State private var showingSavedSearches = false
+    @State private var searchFilters = AdvancedSearchFilters()
+    @State private var selectedLocation: LocationResult?
+    @State private var sortOption: SortField = .relevance
+    @State private var suggestions: [SearchSuggestion] = []
+    @State private var showingSuggestions = false
+
     var body: some View {
-        ZStack {
-            Theme.Colors.background
-                .ignoresSafeArea()
-            
+        NavigationView {
             VStack(spacing: 0) {
-                // Custom Header
-                customHeader
-                
-                // Search Bar with Voice
-                searchBarSection
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .padding(.top, Theme.Spacing.sm)
-                
-                // Quick Filters
-                if !viewModel.activeFilters.isEmpty {
-                    activeFiltersSection
-                        .padding(.top, Theme.Spacing.sm)
-                }
-                
-                // Search Results Tabs
-                searchResultsTabs
-                    .padding(.top, Theme.Spacing.md)
-                
-                // Results Content
-                TabView(selection: $selectedTab) {
-                    // All Results
-                    allResultsView
-                        .tag(0)
-                    
-                    // Listings Only
-                    listingsView
-                        .tag(1)
-                    
-                    // Garage Sales Only
-                    garageSalesView
-                        .tag(2)
-                    
-                    // People
-                    peopleView
-                        .tag(3)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                // Search Header
+                searchHeaderView
+
+                // Search Results
+                searchResultsView
             }
-            
-            // Filter Button
-            filterButton
-        }
-        .navigationBarHidden(true)
-        .sheet(isPresented: $showFilters) {
-            AdvancedFiltersSheet(filters: $viewModel.filters) {
-                viewModel.applyFilters()
+            .navigationTitle("Advanced Search")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingSavedSearches = true
+                    } label: {
+                        Image(systemName: "bookmark.fill")
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingMap = true
+                    } label: {
+                        Image(systemName: "map.fill")
+                    }
+                }
             }
-        }
-        .onAppear {
-            isSearchFocused = true
-            withAnimation {
-                animateContent = true
+            .sheet(isPresented: $showingFilters) {
+                SearchFiltersView(filters: $searchFilters) {
+                    performSearch()
+                }
+            }
+            .sheet(isPresented: $showingMap) {
+                SearchMapView()
+            }
+            .sheet(isPresented: $showingSavedSearches) {
+                SavedSearchesView()
+            }
+            .onAppear {
+                searchService.requestLocationPermission()
             }
         }
     }
-    
-    // MARK: - Custom Header
-    private var customHeader: some View {
-        HStack(spacing: 16) {
-            Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                Image(systemName: "arrow.left")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Theme.Colors.text)
-                    .frame(width: 44, height: 44)
-                    .background(Theme.Colors.secondaryBackground)
-                    .clipShape(Circle())
-            }
-            
-            Text("Advanced Search")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(Theme.Colors.text)
-            
-            Spacer()
-            
-            // Search History
-            Button(action: { viewModel.showSearchHistory.toggle() }) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Theme.Colors.text)
-                    .frame(width: 44, height: 44)
-                    .background(Theme.Colors.secondaryBackground)
-                    .clipShape(Circle())
-            }
-        }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.top, 10)
-        .background(Theme.Colors.background)
-    }
-    
-    // MARK: - Search Bar Section
-    private var searchBarSection: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Theme.Colors.secondaryText)
-                
-                TextField("Search for anything...", text: $searchText)
-                    .font(.system(size: 16))
-                    .foregroundColor(Theme.Colors.text)
-                    .focused($isSearchFocused)
-                    .onSubmit {
-                        viewModel.performSearch(searchText)
-                    }
-                    .onChange(of: searchText) { newValue in
-                        viewModel.updateSuggestions(for: newValue)
-                    }
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                        viewModel.clearSearch()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                    }
-                }
-                
-                // Voice Search
-                Button(action: { viewModel.startVoiceSearch() }) {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(viewModel.isListening ? Theme.Colors.primary : Theme.Colors.secondaryText)
-                        .scaleEffect(viewModel.isListening ? 1.2 : 1.0)
-                        .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: viewModel.isListening)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Theme.Colors.secondaryBackground)
-            .cornerRadius(12)
-            
-            // Search Suggestions
-            if !viewModel.suggestions.isEmpty && !searchText.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(viewModel.suggestions, id: \.self) { suggestion in
-                            SuggestionChip(text: suggestion) {
-                                searchText = suggestion
-                                viewModel.performSearch(suggestion)
-                            }
+
+    private var searchHeaderView: some View {
+        VStack(spacing: 12) {
+            // Search Bar
+            HStack {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray)
+
+                    TextField("Search for anything...", text: $searchText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .onSubmit {
+                            performSearch()
+                        }
+
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                            showingSuggestions = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
                         }
                     }
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .padding(.top, 8)
                 }
-            }
-        }
-    }
-    
-    // MARK: - Active Filters Section
-    private var activeFiltersSection: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(viewModel.activeFilters, id: \.self) { filter in
-                    ActiveFilterChip(filter: filter) {
-                        viewModel.removeFilter(filter)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+
+                Button {
+                    showingFilters = true
+                } label: {
+                    ZStack {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.title3)
+
+                        if searchFilters.activeFilterCount > 0 {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 8, height: 8)
+                                .offset(x: 8, y: -8)
+                        }
                     }
                 }
-                
-                Button(action: { viewModel.clearAllFilters() }) {
-                    Text("Clear All")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Theme.Colors.error)
+                .foregroundColor(.blue)
+            }
+
+            // Sort Options
+            sortOptionsView
+        }
+        .padding()
+        .background(Color(.systemBackground))
+    }
+
+    private var sortOptionsView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(SortField.allCases, id: \.self) { option in
+                    SortChip(
+                        option: option,
+                        isSelected: sortOption == option
+                    ) {
+                        sortOption = option
+                        performSearch()
+                    }
                 }
             }
-            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.horizontal)
         }
     }
-    
-    // MARK: - Search Results Tabs
-    private var searchResultsTabs: some View {
-        HStack(spacing: 0) {
-            SearchTabButton(title: "All", count: viewModel.totalResults, isSelected: selectedTab == 0) {
-                selectedTab = 0
-            }
-            
-            SearchTabButton(title: "Items", count: viewModel.listings.count, isSelected: selectedTab == 1) {
-                selectedTab = 1
-            }
-            
-            SearchTabButton(title: "Garage Sales", count: viewModel.garageSales.count, isSelected: selectedTab == 2) {
-                selectedTab = 2
-            }
-            
-            SearchTabButton(title: "People", count: viewModel.users.count, isSelected: selectedTab == 3) {
-                selectedTab = 3
+
+    private var searchResultsView: some View {
+        Group {
+            if searchService.isLoading && searchService.searchResults.isEmpty {
+                loadingView
+            } else if searchService.searchResults.isEmpty && !searchText.isEmpty {
+                emptyResultsView
+            } else if searchService.searchResults.isEmpty {
+                searchLandingView
+            } else {
+                searchResultsList
             }
         }
-        .background(Theme.Colors.secondaryBackground)
-        .cornerRadius(12)
-        .padding(.horizontal, Theme.Spacing.md)
     }
-    
-    // MARK: - All Results View
-    private var allResultsView: some View {
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+            Text("Searching...")
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyResultsView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+
+            VStack(spacing: 8) {
+                Text("No results found")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("Try adjusting your search or filters")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button("Clear all filters") {
+                clearAllFilters()
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+
+    private var searchLandingView: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                // Featured Results
-                if !viewModel.featuredResults.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Featured")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(Theme.Colors.text)
-                            .padding(.horizontal, Theme.Spacing.md)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(viewModel.featuredResults) { item in
-                                    FeaturedResultCard(listing: item)
+            VStack(spacing: 24) {
+                // Recent Searches
+                if !searchService.searchHistory.isEmpty {
+                    recentSearchesSection
+                }
+
+                // Popular Searches
+                popularSearchesSection
+
+                // Browse Categories
+                browseCategoriesSection
+            }
+            .padding()
+        }
+    }
+
+    private var recentSearchesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Recent Searches")
+                    .font(.headline)
+                Spacer()
+                Button("Clear") {
+                    searchService.clearSearchHistory()
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+
+            ForEach(searchService.searchHistory.prefix(5)) { history in
+                Button {
+                    searchText = history.query
+                    performSearch()
+                } label: {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .foregroundColor(.gray)
+                            .frame(width: 20)
+
+                        Text(history.query)
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        Text("\(history.resultCount) results")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+        }
+    }
+
+    private var popularSearchesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Trending Searches")
+                .font(.headline)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                ForEach(searchService.popularSearches.prefix(6)) { popular in
+                    Button {
+                        searchText = popular.query
+                        performSearch()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(popular.query.capitalized)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+
+                                Spacer()
+
+                                if popular.trend == .rising {
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.caption)
+                                        .foregroundColor(.green)
                                 }
                             }
-                            .padding(.horizontal, Theme.Spacing.md)
+
+                            Text("\(popular.count) searches")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                    }
+                }
+            }
+        }
+    }
+
+    private var browseCategoriesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Browse Categories")
+                .font(.headline)
+
+            let categories = ["Electronics", "Sports", "Tools", "Home", "Fashion", "Books"]
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                ForEach(categories, id: \.self) { category in
+                    Button {
+                        searchFilters.categories = [category]
+                        performSearch()
+                    } label: {
+                        VStack(spacing: 8) {
+                            Image(systemName: categoryIcon(for: category))
+                                .font(.title2)
+                                .foregroundColor(.blue)
+
+                            Text(category)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                        .frame(height: 80)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
+                }
+            }
+        }
+    }
+
+    private var searchResultsList: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                // Results header
+                HStack {
+                    Text("\(searchService.totalResultCount) results")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Button("Save Search") {
+                        saveCurrentSearch()
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+                .padding(.horizontal)
+
+                // Results
+                ForEach(searchService.searchResults) { result in
+                    SearchResultCard(result: result)
+                        .padding(.horizontal)
+                }
+
+                // Load More
+                if searchService.hasMoreResults {
+                    Button {
+                        Task {
+                            try await searchService.loadMoreResults()
+                        }
+                    } label: {
+                        if searchService.isLoading {
+                            ProgressView()
+                        } else {
+                            Text("Load More")
                         }
                     }
+                    .padding()
                 }
-                
-                // Mixed Results Grid
-                if !viewModel.allResults.isEmpty {
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(viewModel.allResults) { result in
-                            SearchResultCard(result: result)
-                        }
-                    }
-                    .padding(.horizontal, Theme.Spacing.md)
-                } else if !viewModel.isSearching {
-                    EmptySearchState()
-                        .padding(.top, 50)
-                }
-                
-                Color.clear.frame(height: 100)
             }
-        }
-        .refreshable {
-            await viewModel.refreshSearch()
+            .padding(.vertical)
         }
     }
-    
-    // MARK: - Listings View
-    private var listingsView: some View {
-        ScrollView {
-            if !viewModel.listings.isEmpty {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(viewModel.listings) { listing in
-                        OptimizedListingCard(listing: listing)
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.md)
-            } else {
-                EmptySearchState()
-                    .padding(.top, 50)
-            }
-            
-            Color.clear.frame(height: 100)
+
+    // MARK: - Helper Methods
+
+    private func performSearch() {
+        guard !searchText.isEmpty || !searchFilters.isEmpty else { return }
+
+        let request = SearchRequest(
+            query: searchText.isEmpty ? nil : searchText,
+            location: nil,
+            filters: searchFilters,
+            sort: SearchSort(field: sortOption),
+            pagination: SearchPagination()
+        )
+
+        Task {
+            try await searchService.search(request)
         }
+
+        showingSuggestions = false
     }
-    
-    // MARK: - Garage Sales View
-    private var garageSalesView: some View {
-        ScrollView {
-            if !viewModel.garageSales.isEmpty {
-                LazyVStack(spacing: 12) {
-                    ForEach(viewModel.garageSales) { sale in
-                        GarageSaleSearchCard(sale: sale)
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.md)
-            } else {
-                EmptySearchState()
-                    .padding(.top, 50)
-            }
-            
-            Color.clear.frame(height: 100)
-        }
+
+    private func saveCurrentSearch() {
+        // Implementation for saving current search
     }
-    
-    // MARK: - People View
-    private var peopleView: some View {
-        ScrollView {
-            if !viewModel.users.isEmpty {
-                LazyVStack(spacing: 12) {
-                    ForEach(viewModel.users) { user in
-                        UserSearchCard(user: user)
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, Theme.Spacing.md)
-            } else {
-                EmptySearchState()
-                    .padding(.top, 50)
-            }
-            
-            Color.clear.frame(height: 100)
-        }
+
+    private func clearAllFilters() {
+        searchFilters = AdvancedSearchFilters()
+        selectedLocation = nil
+        performSearch()
     }
-    
-    // MARK: - Filter Button
-    private var filterButton: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                
-                Button(action: { showFilters = true }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 18, weight: .medium))
-                        
-                        Text("Filters")
-                            .font(.system(size: 16, weight: .medium))
-                        
-                        if viewModel.activeFiltersCount > 0 {
-                            Text("\(viewModel.activeFiltersCount)")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 20, height: 20)
-                                .background(Theme.Colors.error)
-                                .clipShape(Circle())
-                        }
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Theme.Colors.primary)
-                    .cornerRadius(25)
-                    .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .scaleEffect(animateContent ? 1 : 0.8)
-                .opacity(animateContent ? 1 : 0)
-                .animation(.spring(response: 0.6, dampingFraction: 0.8), value: animateContent)
-            }
-            .padding(.trailing, Theme.Spacing.lg)
-            .padding(.bottom, 100)
+
+    private func categoryIcon(for category: String) -> String {
+        switch category.lowercased() {
+        case "electronics": return "laptopcomputer"
+        case "sports": return "sportscourt"
+        case "tools": return "wrench.and.screwdriver"
+        case "home": return "house"
+        case "fashion": return "tshirt"
+        case "books": return "book"
+        default: return "tag"
         }
     }
 }
 
 // MARK: - Supporting Views
 
-struct SuggestionChip: View {
-    let text: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Theme.Colors.text)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Theme.Colors.secondaryBackground)
-                .cornerRadius(20)
-        }
-    }
-}
-
-struct ActiveFilterChip: View {
-    let filter: String
-    let onRemove: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(filter)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Theme.Colors.primary)
-            
-            Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Theme.Colors.primary)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Theme.Colors.primary.opacity(0.1))
-        .cornerRadius(15)
-    }
-}
-
-struct SearchTabButton: View {
-    let title: String
-    let count: Int
+struct SortChip: View {
+    let option: SortField
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Text(title)
-                    .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
-                    .foregroundColor(isSelected ? Theme.Colors.primary : Theme.Colors.secondaryText)
-                
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(isSelected ? Theme.Colors.primary : Theme.Colors.tertiaryText)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(
-                VStack {
-                    Spacer()
-                    if isSelected {
-                        Rectangle()
-                            .fill(Theme.Colors.primary)
-                            .frame(height: 3)
-                            .cornerRadius(1.5)
-                    }
-                }
-            )
+            Text(option.displayName)
+                .font(.caption)
+                .fontWeight(isSelected ? .semibold : .regular)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.blue : Color(.systemGray5))
+                .foregroundColor(isSelected ? .white : .primary)
+                .cornerRadius(16)
         }
     }
 }
 
-struct FeaturedResultCard: View {
-    let listing: Listing
-    
+// MARK: - Supporting Views (Placeholder)
+
+struct SearchFiltersView: View {
+    @Binding var filters: AdvancedSearchFilters
+    let onApply: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SimpleOptimizedAsyncImage(url: listing.imageUrls.first ?? "", targetSize: CGSize(width: 200, height: 150))
-                .frame(width: 200, height: 150)
-                .clipped()
-                .cornerRadius(12)
-                .overlay(
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Text("Featured")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Theme.Colors.primary)
-                                .cornerRadius(6)
-                                .padding(8)
-                        }
-                        Spacer()
+        NavigationView {
+            VStack {
+                Text("Advanced filters coming soon...")
+                    .foregroundColor(.secondary)
+            }
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Apply") {
+                        onApply()
+                        dismiss()
                     }
-                )
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(listing.title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Theme.Colors.text)
-                    .lineLimit(1)
-                
-                Text(listing.price > 0 ? "$\(String(format: "%.0f", listing.price))/day" : "Free")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(Theme.Colors.primary)
+                }
             }
         }
-        .frame(width: 200)
+    }
+}
+
+struct SearchMapView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                Text("Map view coming soon...")
+                    .foregroundColor(.secondary)
+            }
+            .navigationTitle("Map")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct SavedSearchesView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                Text("Saved searches coming soon...")
+                    .foregroundColor(.secondary)
+            }
+            .navigationTitle("Saved Searches")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 
 struct SearchResultCard: View {
     let result: SearchResult
-    
-    var body: some View {
-        // Implement based on result type
-        Text(result.title)
-            .padding()
-            .background(Theme.Colors.secondaryBackground)
-            .cornerRadius(12)
-    }
-}
 
-struct OptimizedListingCard: View {
-    let listing: Listing
-    
     var body: some View {
-        SimpleImageCard(
-            imageUrl: listing.imageUrls.first ?? "",
-            title: listing.title,
-            subtitle: listing.location.city,
-            price: listing.price > 0 ? "$\(String(format: "%.0f", listing.price))/day" : "Free",
-            onTap: {}
-        )
-    }
-}
-
-struct GarageSaleSearchCard: View {
-    let sale: GarageSale
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            SimpleOptimizedAsyncImage(url: sale.images.first ?? "", targetSize: CGSize(width: 80, height: 80))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                AsyncImage(url: URL(string: result.listing.images.first?.url ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Color(.systemGray5))
+                }
                 .frame(width: 80, height: 80)
-                .cornerRadius(12)
-            
-            VStack(alignment: .leading, spacing: 6) {
-                Text(sale.title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Theme.Colors.text)
-                    .lineLimit(1)
-                
-                HStack(spacing: 8) {
-                    Label(sale.location, systemImage: "location.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                    
-                    Text("•")
-                        .foregroundColor(Theme.Colors.tertiaryText)
-                    
-                    Text(sale.dateString)
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
-                
-                HStack {
-                    ForEach(sale.categories.prefix(3), id: \.self) { category in
-                        Text(category)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(Theme.Colors.primary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Theme.Colors.primary.opacity(0.1))
-                            .cornerRadius(6)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14))
-                .foregroundColor(Theme.Colors.tertiaryText)
-        }
-        .padding()
-        .background(Theme.Colors.secondaryBackground)
-        .cornerRadius(12)
-    }
-}
+                .cornerRadius(8)
 
-struct UserSearchCard: View {
-    let user: User
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            if let profilePicture = user.profilePicture {
-                SimpleOptimizedAsyncImage(url: profilePicture, targetSize: CGSize(width: 60, height: 60))
-                    .frame(width: 60, height: 60)
-                    .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Theme.Colors.primary.opacity(0.1))
-                    .frame(width: 60, height: 60)
-                    .overlay(
-                        Text(user.username.prefix(1).uppercased())
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(Theme.Colors.primary)
-                    )
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(user.username)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Theme.Colors.text)
-                
-                HStack(spacing: 6) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.accentOrange)
-                    
-                    Text(String(format: "%.1f", ((user.listerRating ?? 0) + (user.renteeRating ?? 0)) / 2))
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                    
-                    if user.emailVerified ?? false {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Theme.Colors.success)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(result.listing.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(2)
+
+                    Text(result.listing.location.city)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if let distance = result.distanceString {
+                        Text(distance)
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+
+                    HStack {
+                        Text("$\(Int(result.listing.dailyRate ?? result.listing.price))/day")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+
+                        Spacer()
+
+                        Text("Score: \(result.score, specifier: "%.1f")")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
                 }
-            }
-            
-            Spacer()
-            
-            Button(action: {}) {
-                Text("View Profile")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Theme.Colors.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Theme.Colors.primary.opacity(0.1))
-                    .cornerRadius(8)
+
+                Spacer()
             }
         }
         .padding()
-        .background(Theme.Colors.secondaryBackground)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
 }
 
-struct EmptySearchState: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 50))
-                .foregroundColor(.gray)
-            
-            Text("No results found")
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
-            
-            Text("Try adjusting your filters or search terms")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
+// MARK: - Preview
 
-// MARK: - Search Result Model
-struct SearchResult: Identifiable {
-    let id = UUID()
-    let title: String
-    let type: ResultType
-    let imageUrl: String?
-    let price: Double?
-    let location: String?
-    let rating: Double?
-    
-    enum ResultType {
-        case listing
-        case garageSale
-        case user
+struct AdvancedSearchView_Previews: PreviewProvider {
+    static var previews: some View {
+        AdvancedSearchView()
     }
-}
-
-#Preview {
-    AdvancedSearchView()
 }

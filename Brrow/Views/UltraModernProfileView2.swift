@@ -442,29 +442,29 @@ struct UltraModernProfileView2: View {
                 
                 // Insights grid
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                    ProfileInsightCard(
+                    UltraModernProfileInsightCard(
                         title: "Views",
                         value: viewModel.totalViews > 999 ? "\(String(format: "%.1fK", Double(viewModel.totalViews) / 1000))" : "\(viewModel.totalViews)",
                         icon: "eye.fill",
-                        trend: viewModel.viewsTrend
+                        trend: convertTrend(viewModel.viewsTrend)
                     )
-                    ProfileInsightCard(
+                    UltraModernProfileInsightCard(
                         title: "Saves",
                         value: "\(viewModel.totalSaves)",
                         icon: "bookmark.fill",
-                        trend: viewModel.savesTrend
+                        trend: convertTrend(viewModel.savesTrend)
                     )
-                    ProfileInsightCard(
+                    UltraModernProfileInsightCard(
                         title: "Messages",
                         value: "\(viewModel.totalMessages)",
                         icon: "message.fill",
-                        trend: viewModel.messagesTrend
+                        trend: convertTrend(viewModel.messagesTrend)
                     )
-                    ProfileInsightCard(
+                    UltraModernProfileInsightCard(
                         title: "Rentals",
                         value: "\(viewModel.totalRentals)",
                         icon: "arrow.triangle.2.circlepath",
-                        trend: viewModel.rentalsTrend
+                        trend: convertTrend(viewModel.rentalsTrend)
                     )
                 }
             }
@@ -584,6 +584,14 @@ struct UltraModernProfileView2: View {
                 day: day,
                 value: 0
             )
+        }
+    }
+
+    private func convertTrend(_ trendString: String) -> UltraModernProfileInsightCard.Trend {
+        switch trendString {
+        case "up": return .up
+        case "down": return .down
+        default: return .neutral
         }
     }
 }
@@ -889,7 +897,7 @@ struct ModernAnalyticsCard: View {
     }
 }
 
-struct ProfileInsightCard: View {
+struct UltraModernProfileInsightCard: View {
     let title: String
     let value: String
     let icon: String

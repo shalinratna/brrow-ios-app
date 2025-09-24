@@ -305,7 +305,7 @@ struct FleetAnalytics: Codable {
     let utilizationRates: [UtilizationData]
     let popularItems: [PopularItem]
     let customerInsights: CustomerInsights
-    let seasonalTrends: [SeasonalTrend]
+    let seasonalTrends: [BusinessSeasonalTrend]
     let forecast: RevenueForecast
     
     enum CodingKeys: String, CodingKey {
@@ -364,12 +364,12 @@ struct CustomerInsights: Codable {
     }
 }
 
-struct SeasonalTrend: Codable {
+struct BusinessSeasonalTrend: Codable {
     let season: String
     let demandLevel: String
     let topCategories: [String]
     let recommendation: String
-    
+
     enum CodingKeys: String, CodingKey {
         case season
         case demandLevel = "demand_level"

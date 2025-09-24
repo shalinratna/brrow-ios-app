@@ -16,6 +16,8 @@ enum BrrowCategory: String, CaseIterable {
     case baby = "Baby & Kids Essentials"
     case clothing = "Clothing & Accessories"
     case business = "Business & Office Equipment"
+    case books = "Books & Media"
+    case homeGarden = "Home & Garden"
     
     var displayName: String {
         return self.rawValue
@@ -37,6 +39,8 @@ enum BrrowCategory: String, CaseIterable {
         case .baby: return "figure.and.child.holdinghands"
         case .clothing: return "tshirt"
         case .business: return "briefcase"
+        case .books: return "book"
+        case .homeGarden: return "house"
         }
     }
     
@@ -56,6 +60,8 @@ enum BrrowCategory: String, CaseIterable {
         case .baby: return .pink
         case .clothing: return .indigo
         case .business: return .gray
+        case .books: return .orange
+        case .homeGarden: return .green
         }
     }
     
@@ -93,6 +99,8 @@ enum BrrowCategory: String, CaseIterable {
         case .baby: return "baby"
         case .clothing: return "clothing"
         case .business: return "business"
+        case .books: return "books"
+        case .homeGarden: return "home_garden"
         }
     }
     
@@ -113,6 +121,8 @@ enum BrrowCategory: String, CaseIterable {
         case "baby": self = .baby
         case "clothing": self = .clothing
         case "business": self = .business
+        case "books": self = .books
+        case "home_garden": self = .homeGarden
         default: return nil
         }
     }

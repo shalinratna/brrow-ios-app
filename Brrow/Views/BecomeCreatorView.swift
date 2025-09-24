@@ -242,8 +242,8 @@ class BecomeCreatorViewModel: ObservableObject {
         do {
             let response = try await apiClient.getCreatorApplicationStatus()
 
-            hasExistingApplication = response.hasApplication
-            canApply = response.canApply
+            hasExistingApplication = response.hasApplication ?? false
+            canApply = response.canApply ?? true
 
             if let application = response.application {
                 applicationStatus = application.status.rawValue
@@ -287,14 +287,8 @@ class BecomeCreatorViewModel: ObservableObject {
             let response = try await apiClient.submitCreatorApplication(
                 motivation: introduction.trimmingCharacters(in: .whitespacesAndNewlines),
                 experience: introduction.trimmingCharacters(in: .whitespacesAndNewlines),
-                businessName: nil,
-                businessDescription: nil,
-                experienceYears: nil,
                 portfolioLinks: socialMediaLinks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : socialMediaLinks,
-                expectedMonthlyRevenue: nil,
                 platform: socialMediaLinks.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : socialMediaLinks,
-                followers: nil,
-                contentType: nil,
                 referralStrategy: promotionStrategy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : promotionStrategy
             )
 

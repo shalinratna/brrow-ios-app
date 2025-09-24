@@ -537,33 +537,5 @@ struct PrimaryButtonStyle: ButtonStyle {
 }
 
 #Preview {
-    PaymentFlowView(listing: Listing(
-        id: "1",
-        title: "Sample Item",
-        description: "A sample item",
-        categoryId: "cat1",
-        condition: "good",
-        price: 25.0,
-        dailyRate: nil,
-        isNegotiable: true,
-        availabilityStatus: .available,
-        location: Location(address: "Sample Address", city: "Sample City", state: "ST", zipCode: "12345", country: "Country", latitude: 0, longitude: 0),
-        userId: "user1",
-        viewCount: 0,
-        favoriteCount: 0,
-        isActive: true,
-        isPremium: false,
-        premiumExpiresAt: nil,
-        deliveryOptions: nil,
-        tags: [],
-        metadata: nil,
-        createdAt: ISO8601DateFormatter().string(from: Date()),
-        updatedAt: ISO8601DateFormatter().string(from: Date()),
-        user: nil,
-        category: nil,
-        images: [],
-        videos: nil,
-        imageUrl: nil,
-        _count: nil
-    ))
+    PaymentFlowView(listing: Listing.example)
 }

@@ -29,56 +29,62 @@ struct AdvancedFiltersSheet: View {
         self._filters = filters
         self.onApply = onApply
         self._localFilters = State(initialValue: filters.wrappedValue)
-        self._minPrice = State(initialValue: filters.wrappedValue.priceRange.lowerBound)
-        self._maxPrice = State(initialValue: filters.wrappedValue.priceRange.upperBound)
-        self._selectedCategories = State(initialValue: filters.wrappedValue.categories)
+        self._minPrice = State(initialValue: filters.wrappedValue.priceRange?.lowerBound ?? 0)
+        self._maxPrice = State(initialValue: filters.wrappedValue.priceRange?.upperBound ?? 1000)
+        self._selectedCategories = State(initialValue: Set(filters.wrappedValue.categories))
     }
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Categories Section
-                    categoriesSection
-                    
-                    Divider()
-                        .padding(.vertical, Theme.Spacing.md)
-                    
-                    // Price Range Section with Slider
-                    priceRangeSection
-                    
-                    Divider()
-                        .padding(.vertical, Theme.Spacing.md)
-                    
-                    // Distance Section
-                    distanceSection
-                    
-                    Divider()
-                        .padding(.vertical, Theme.Spacing.md)
-                    
-                    // Condition Section
-                    conditionSection
-                    
-                    Divider()
-                        .padding(.vertical, Theme.Spacing.md)
-                    
-                    // Availability Section
-                    availabilitySection
-                    
-                    Divider()
-                        .padding(.vertical, Theme.Spacing.md)
-                    
-                    // Additional Filters
-                    additionalFiltersSection
-                    
-                    Divider()
-                        .padding(.vertical, Theme.Spacing.md)
-                    
-                    // Sort By Section
-                    sortBySection
-                    
-                    // Bottom padding for button
-                    Color.clear.frame(height: 100)
+                    Group {
+                        // Categories Section
+                        categoriesSection
+
+                        Divider()
+                            .padding(.vertical, Theme.Spacing.md)
+
+                        // Price Range Section with Slider
+                        priceRangeSection
+
+                        Divider()
+                            .padding(.vertical, Theme.Spacing.md)
+
+                        // Distance Section
+                        distanceSection
+                    }
+
+                    Group {
+                        Divider()
+                            .padding(.vertical, Theme.Spacing.md)
+
+                        // Condition Section
+                        conditionSection
+
+                        Divider()
+                            .padding(.vertical, Theme.Spacing.md)
+
+                        // Availability Section
+                        availabilitySection
+
+                        Divider()
+                            .padding(.vertical, Theme.Spacing.md)
+
+                        // Additional Filters
+                        additionalFiltersSection
+                    }
+
+                    Group {
+                        Divider()
+                            .padding(.vertical, Theme.Spacing.md)
+
+                        // Sort By Section
+                        sortBySection
+
+                        // Bottom padding for button
+                        Color.clear.frame(height: 100)
+                    }
                 }
                 .padding(.horizontal, Theme.Spacing.lg)
                 .padding(.top, Theme.Spacing.md)
@@ -250,12 +256,15 @@ struct AdvancedFiltersSheet: View {
                 
                 Spacer()
                 
-                Text("\(Int(localFilters.distance)) miles")
+                Text("\(Int(localFilters.distance ?? 10)) miles")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Theme.Colors.primary)
             }
             
-            Slider(value: $localFilters.distance, in: 1...100, step: 1)
+            Slider(value: Binding(
+                get: { localFilters.distance ?? 10 },
+                set: { localFilters.distance = $0 }
+            ), in: 1...100, step: 1)
                 .tint(Theme.Colors.primary)
             
             HStack {
@@ -293,18 +302,15 @@ struct AdvancedFiltersSheet: View {
             Text("Condition")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
-            
-            ForEach(ItemCondition.allCases, id: \.self) { condition in
-                RadioButton(
-                    title: condition.displayName,
-                    subtitle: "",
-                    isSelected: localFilters.condition == condition,
-                    action: {
-                        localFilters.condition = condition == .any ? nil : condition
-                    }
-                )
-            }
+
+            conditionButtons
         }
+    }
+
+    private var conditionButtons: some View {
+        Text("Condition selection temporarily disabled")
+            .foregroundColor(.gray)
+            .italic()
     }
     
     // MARK: - Availability Section
@@ -368,14 +374,20 @@ struct AdvancedFiltersSheet: View {
                 .foregroundColor(Theme.Colors.text)
             
             ForEach(AdvancedSearchFilters.SortOption.allCases, id: \.self) { option in
-                RadioButton(
-                    title: option.displayName,
-                    subtitle: "",
-                    isSelected: localFilters.sortBy == option,
-                    action: {
-                        localFilters.sortBy = option
+                Button(action: {
+                    localFilters.sortBy = option
+                }) {
+                    HStack {
+                        Image(systemName: localFilters.sortBy == option ? "checkmark.circle.fill" : "circle")
+                            .foregroundColor(localFilters.sortBy == option ? Theme.Colors.primary : Color.gray)
+
+                        Text(option.displayName)
+                            .foregroundColor(Theme.Colors.text)
+
+                        Spacer()
                     }
-                )
+                    .padding(.vertical, 8)
+                }
             }
         }
     }
@@ -437,8 +449,8 @@ struct AdvancedFiltersSheet: View {
     }
     
     private func applyFilters() {
-        localFilters.categories = selectedCategories
-        localFilters.priceRange = minPrice...maxPrice
+        localFilters.categories = Array(selectedCategories)
+        localFilters.priceRange = AdvancedSearchFilters.PriceRange(min: minPrice, max: maxPrice)
         filters = localFilters
         onApply()
         dismiss()
@@ -447,16 +459,17 @@ struct AdvancedFiltersSheet: View {
     private func getActiveFilterCount() -> Int {
         var count = 0
         if !selectedCategories.isEmpty { count += 1 }
-        if localFilters.priceRange != 0...1000 { count += 1 }
-        if localFilters.distance != 10.0 { count += 1 }
+        if let priceRange = localFilters.priceRange,
+           !(priceRange.min == 0 && priceRange.max == 1000) { count += 1 }
+        if let distance = localFilters.distance, distance != 10.0 { count += 1 }
         if localFilters.condition != nil { count += 1 }
-        if localFilters.availability != AdvancedSearchFilters.AvailabilityFilter.all { count += 1 }
+        if let availability = localFilters.availability, availability != .all { count += 1 }
         if localFilters.verifiedSellersOnly { count += 1 }
         if localFilters.freeItemsOnly { count += 1 }
         if localFilters.deliveryAvailable { count += 1 }
         if localFilters.instantBooking { count += 1 }
         if !localFilters.includeGarageSales { count += 1 }
-        if localFilters.sortBy != AdvancedSearchFilters.SortOption.relevance { count += 1 }
+        if localFilters.sortBy != .relevance { count += 1 }
         return count
     }
 }

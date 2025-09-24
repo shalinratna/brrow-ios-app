@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - Transaction Row
-struct TransactionRow: View {
+struct ProfileTransactionRow: View {
     let transaction: Transaction
     let listing: Listing?
     let otherUser: User?

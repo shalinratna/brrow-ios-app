@@ -500,6 +500,33 @@ struct FavoriteStatusResponse: Codable {
     let message: String?
 }
 
+struct UserPost: Identifiable, Codable {
+    let id: String
+    let title: String
+    let content: String
+    let imageUrl: String?
+    let createdAt: String
+    let updatedAt: String
+    let postType: String
+    let status: String
+    let price: Double?
+    let category: String?
+    let thumbnail: String?
+    let urgency: String?
+    let editRestrictions: [String]?
+    let canEdit: Bool?
+
+    // Computed property for display thumbnail
+    var displayThumbnail: String? {
+        return thumbnail ?? imageUrl
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, content, createdAt, updatedAt, postType, status, price, category, thumbnail, urgency, editRestrictions, canEdit
+        case imageUrl = "image_url"
+    }
+}
+
 struct UserPostsResponse: Codable {
     let success: Bool
     let posts: [UserPost]
@@ -807,3 +834,20 @@ struct EmailVerificationResponse: Codable {
         case expiresInHours = "expires_in_hours"
     }
 }
+
+struct CreatorStatusResponse: Codable {
+    let success: Bool
+    let data: CreatorStatus?
+    let message: String?
+}
+
+struct CreatorStatus: Codable {
+    let isCreator: Bool
+    let status: String
+    let canApply: Bool
+    let applicationId: String?
+    let createdAt: String?
+    let approvedAt: String?
+}
+
+// CreatorBadgeType moved to CreatorModels.swift to avoid duplication

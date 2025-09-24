@@ -31,24 +31,18 @@ struct PaymentMethodsView: View {
             }
             .navigationTitle("Payment Methods")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddCard = true }) {
-                        Image(systemName: "plus")
-                            .foregroundColor(Theme.Colors.primary)
-                    }
+            .navigationBarItems(trailing:
+                Button(action: { showingAddCard = true }) {
+                    Image(systemName: "plus")
+                        .foregroundColor(Theme.Colors.primary)
                 }
-            }
+            )
         }
         .onAppear {
             loadPaymentMethods()
         }
         .sheet(isPresented: $showingAddCard) {
-            AddPaymentMethodView { success in
-                if success {
-                    loadPaymentMethods()
-                }
-            }
+            AddPaymentMethodView()
         }
     }
     
@@ -88,7 +82,7 @@ struct PaymentMethodsView: View {
         List {
             Section("Cards") {
                 ForEach(paymentMethods, id: \.id) { method in
-                    PaymentMethodRow(method: method) {
+                    StandardPaymentMethodRow(method: method) {
                         deletePaymentMethod(method)
                     }
                 }
@@ -157,7 +151,7 @@ struct PaymentMethodDisplay {
     let isDefault: Bool
 }
 
-struct PaymentMethodRow: View {
+struct StandardPaymentMethodRow: View {
     let method: PaymentMethodDisplay
     let onDelete: () -> Void
     
@@ -241,7 +235,7 @@ struct PaymentMethodRow: View {
 }
 
 // MARK: - Add Payment Method View
-struct AddPaymentMethodView: View {
+struct StandardAddPaymentMethodView: View {
     @Environment(\.presentationMode) var presentationMode
     let onSuccess: (Bool) -> Void
     

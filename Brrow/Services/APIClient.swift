@@ -23,8 +23,9 @@ enum BrrowAPIError: Error, LocalizedError {
     case serverError(String)
     case serverErrorCode(Int)
     case validationError(String)
-    case decodingError
+    case decodingError(Error)
     case invalidResponse
+    case invalidURL
     case unauthorized
     case addressConflict(String)
 
@@ -38,10 +39,12 @@ enum BrrowAPIError: Error, LocalizedError {
             return "Server error (Code: \(code)). Please try again."
         case .validationError(let message):
             return message.isEmpty ? "Please check your information and try again." : message
-        case .decodingError:
-            return "Unable to process server response. Please try again."
+        case .decodingError(let error):
+            return "Unable to process server response: \(error.localizedDescription)"
         case .invalidResponse:
             return "Invalid server response. Please try again."
+        case .invalidURL:
+            return "Invalid URL format. Please check the request."
         case .unauthorized:
             return "Authentication required. Please log in again."
         case .addressConflict(let message):
@@ -478,7 +481,7 @@ class APIClient: ObservableObject {
                             let apiResponse = try JSONDecoder().decode(APIResponse<T>.self, from: retryData)
                             if apiResponse.success {
                                 guard let data = apiResponse.data else {
-                                    throw BrrowAPIError.decodingError
+                                    throw BrrowAPIError.decodingError(NSError(domain: "BrrowAPIClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]))
                                 }
                                 return data
                             } else {
@@ -545,7 +548,7 @@ class APIClient: ObservableObject {
                 
                 if apiResponse.success {
                     guard let data = apiResponse.data else {
-                        throw BrrowAPIError.decodingError
+                        throw BrrowAPIError.decodingError(NSError(domain: "BrrowAPIClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]))
                     }
                     // Cache successful responses
                     if cachePolicy != .ignoreCache {
@@ -847,14 +850,10 @@ class APIClient: ObservableObject {
             experience: experience,
             businessName: businessName,
             businessDescription: businessDescription,
-            experienceYears: experienceYears,
-            portfolioLinks: portfolioLinks,
+            experienceYears: experienceYears ?? 0,
+            portfolioLinks: portfolioLinks?.split(separator: ",").map(String.init) ?? [],
             expectedMonthlyRevenue: expectedMonthlyRevenue,
-            platform: platform,
-            followers: followers,
-            contentType: contentType,
-            referralStrategy: referralStrategy,
-            agreementAccepted: true
+            agreedToTerms: true
         )
 
         let bodyData = try JSONEncoder().encode(requestData)
@@ -883,11 +882,11 @@ class APIClient: ObservableObject {
         )
     }
     
-    func getCreatorDashboard() async throws -> CreatorDashboard {
+    func getCreatorDashboard() async throws -> LegacyCreatorDashboard {
         return try await performRequest(
             endpoint: "api/creators/dashboard",
             method: .GET,
-            responseType: CreatorDashboard.self
+            responseType: LegacyCreatorDashboard.self
         )
     }
     
@@ -946,7 +945,7 @@ class APIClient: ObservableObject {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
             debugLog("❌ Failed to parse test auth response: \(responseString)")
-            throw BrrowAPIError.decodingError
+            throw BrrowAPIError.decodingError(NSError(domain: "BrrowAPIClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]))
         }
         
         return json
@@ -1164,8 +1163,8 @@ class APIClient: ObservableObject {
             if !filters.categories.isEmpty {
                 parameters["categories"] = Array(filters.categories).joined(separator: ",")
             }
-            parameters["min_price"] = filters.priceRange.lowerBound
-            parameters["max_price"] = filters.priceRange.upperBound
+            parameters["min_price"] = filters.priceRange?.lowerBound
+            parameters["max_price"] = filters.priceRange?.upperBound
             parameters["distance"] = filters.distance
             parameters["free_only"] = filters.freeItemsOnly
             parameters["verified_only"] = filters.verifiedSellersOnly
@@ -1219,7 +1218,7 @@ class APIClient: ObservableObject {
         // Check cache first
         let cacheKey = category ?? "all"
         if let cachedListings = DataCacheManager.shared.getCachedListings(category: cacheKey) {
-            print("📦 Using cached listings for category: \(cacheKey)")
+            // Using cached listings for category: \(cacheKey)
             return cachedListings
         }
         
@@ -1663,7 +1662,7 @@ class APIClient: ObservableObject {
         guard let data = response["data"] as? [String: Any],
               let jsonData = try? JSONSerialization.data(withJSONObject: data),
               let settings = try? JSONDecoder().decode(NotificationSettings.self, from: jsonData) else {
-            throw BrrowAPIError.decodingError
+            throw BrrowAPIError.decodingError(NSError(domain: "BrrowAPIClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]))
         }
         
         return settings
@@ -1724,7 +1723,7 @@ class APIClient: ObservableObject {
         guard let data = response["data"] as? [[String: Any]],
               let jsonData = try? JSONSerialization.data(withJSONObject: data),
               let notifications = try? JSONDecoder().decode([AppNotification].self, from: jsonData) else {
-            throw BrrowAPIError.decodingError
+            throw BrrowAPIError.decodingError(NSError(domain: "BrrowAPIClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]))
         }
         
         let unreadCount = response["unread_count"] as? Int ?? 0
@@ -2051,10 +2050,9 @@ class APIClient: ObservableObject {
         // Convert simple string suggestions to SearchSuggestion models
         for suggestionText in response.suggestions {
             suggestions.append(SearchSuggestion(
-                icon: "magnifyingglass",
-                text: suggestionText,
-                subtitle: nil,
-                thumbnail: nil
+                query: suggestionText,
+                type: .query,
+                count: nil
             ))
         }
         
@@ -2089,17 +2087,68 @@ class APIClient: ObservableObject {
     /// Endpoint: https://brrowapp.com/api/listings/fetch.php
     /// NEW CLEAN STRUCTURE - All APIs in /api/ directory
     /// - Direct database connection
-    /// - Automatic temp/misc image replacement  
+    /// - Automatic temp/misc image replacement
     /// - Background preloading compatible
     /// - Organized in /api/listings/ directory
     /// Returns: Array of Listing objects with images, location, and all metadata
     func fetchListings() async throws -> [Listing] {
-        let response = try await performRequest(
-            endpoint: APIEndpoints.Listings.fetchAll,
+        // Add limit parameter to fetch all listings (default backend limit is 20)
+        let endpoint = "\(APIEndpoints.Listings.fetchAll)?limit=1000"
+
+        // Use public request for marketplace browsing (no auth required)
+        let response = try await performPublicRequest(
+            endpoint: endpoint,
             method: .GET,
             responseType: ListingsResponse.self
         )
         return response.allListings
+    }
+
+    /// Public request method that doesn't require authentication (for browsing marketplace)
+    private func performPublicRequest<T: Decodable>(
+        endpoint: String,
+        method: HTTPMethod = .GET,
+        body: Data? = nil,
+        responseType: T.Type
+    ) async throws -> T {
+        let baseURL = await self.baseURL
+        let urlString = "\(baseURL)/\(endpoint)"
+
+        guard let url = URL(string: urlString) else {
+            throw BrrowAPIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("BrrowApp-iOS/1.0", forHTTPHeaderField: "User-Agent")
+
+        if let body = body {
+            request.httpBody = body
+        }
+
+        debugLog("Executing public request", data: ["url": url.absoluteString])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BrrowAPIError.invalidResponse
+        }
+
+        debugLog("Received response", data: ["status": httpResponse.statusCode, "data_size": data.count])
+
+        guard httpResponse.statusCode == 200 else {
+            throw BrrowAPIError.serverError("HTTP \(httpResponse.statusCode)")
+        }
+
+        do {
+            let decodedResponse = try JSONDecoder().decode(T.self, from: data)
+            debugLog("✅ Successfully decoded public response")
+            return decodedResponse
+        } catch {
+            debugLog("❌ Failed to decode public response", data: ["error": error.localizedDescription])
+            throw BrrowAPIError.decodingError(error)
+        }
     }
     
     func fetchFilteredListings(category: String? = nil, filters: MarketplaceFilters? = nil, page: Int = 1) async throws -> [Listing] {
@@ -2295,13 +2344,25 @@ class APIClient: ObservableObject {
     func updateProfile(name: String, bio: String) async throws -> User {
         let updateRequest = UpdateProfileRequest(name: name, bio: bio)
         let bodyData = try JSONEncoder().encode(updateRequest)
-        
-        return try await performRequest(
+
+        struct ProfileUpdateAPIResponse: Codable {
+            let success: Bool
+            let message: String?
+            let user: User?
+        }
+
+        let response = try await performRequest(
             endpoint: "api/users/me",
             method: .PUT,
             body: bodyData,
-            responseType: User.self
+            responseType: ProfileUpdateAPIResponse.self
         )
+
+        guard response.success, let user = response.user else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to update profile")
+        }
+
+        return user
     }
     
     func updateProfile(data: ProfileUpdateData) async throws {
@@ -3600,7 +3661,7 @@ class APIClient: ObservableObject {
         )
         
         let response = try await performAdvancedSearch(parameters: params)
-        return response.data.listings
+        return response.data?.results.map { $0.listing } ?? []
     }
     
     // Search with all filters
@@ -4093,6 +4154,20 @@ class APIClient: ObservableObject {
     }
     
     func getUserAchievements() async throws -> AchievementsResponse {
+        // Check if achievements are enabled
+        guard FeatureFlags.isEnabled("achievements") else {
+            // Return empty achievements response
+            return AchievementsResponse(
+                success: true,
+                data: AchievementProgressData(
+                    achievements: [],
+                    points: 0,
+                    totalAchievements: 0,
+                    unlockedAchievements: 0
+                )
+            )
+        }
+
         return try await performRequest(
             endpoint: "api_achievements_get_user.php",
             method: .GET,
@@ -4101,6 +4176,20 @@ class APIClient: ObservableObject {
     }
     
     func trackAchievementProgress(action: String, value: Int, metadata: [String: Any]?) async throws -> AchievementTrackResponse {
+        // Check if achievements are enabled
+        guard FeatureFlags.isEnabled("achievements") else {
+            // Return mock response when disabled
+            return AchievementTrackResponse(
+                success: true,
+                data: AchievementUnlockResult(
+                    achievementUnlocked: false,
+                    pointsEarned: 0,
+                    newTotalPoints: 0,
+                    achievement: nil
+                )
+            )
+        }
+
         var body: [String: Any] = [
             "action": action,
             "value": value
@@ -4471,5 +4560,11 @@ class APIClient: ObservableObject {
             textSize: data.textSize ?? "medium",
             language: data.language ?? "en"
         )
+    }
+
+    // MARK: - Earnings
+    func fetchRecentLegacyEarningsTransactions() async throws -> [LegacyEarningsTransaction] {
+        // Placeholder implementation
+        return []
     }
 }

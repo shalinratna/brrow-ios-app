@@ -104,37 +104,75 @@ struct ListingDetail: Codable {
             updatedAt: dateFormatter.string(from: Date())
         )
         
-        var listing = Listing(
-            id: "\(id)",
-            title: title,
-            description: description,
-            categoryId: "default-category",
-            condition: "GOOD",
-            price: price,
-            dailyRate: nil,
-            isNegotiable: true,
-            availabilityStatus: is_active ? .available : .deleted,
-            location: locationModel,
-            userId: "\(owner_id)",
-            viewCount: views,
-            favoriteCount: 0,
-            isActive: is_active,
-            isPremium: false,
-            premiumExpiresAt: nil,
-            deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
-            tags: [],
-            metadata: [:],
-            createdAt: createdDateString,
-            updatedAt: updatedDateString,
-            user: nil,
-            category: categoryModel,
-            images: listingImages,
-            videos: [],
-            imageUrl: nil,
-            _count: Listing.ListingCount(favorites: 0),
-            isOwner: false,
-            isFavorite: false
-        )
+        let listingJson: [String: Any] = [
+            "id": "\(id)",
+            "title": title,
+            "description": description,
+            "categoryId": "default-category",
+            "condition": "GOOD",
+            "price": price,
+            "dailyRate": NSNull(),
+            "isNegotiable": true,
+            "availabilityStatus": is_active ? "AVAILABLE" : "DELETED",
+            "location": [
+                "address": location.address,
+                "city": location.city,
+                "state": location.state,
+                "zipCode": location.zip_code,
+                "country": location.country,
+                "latitude": location.latitude,
+                "longitude": location.longitude
+            ],
+            "userId": "\(owner_id)",
+            "viewCount": views,
+            "favoriteCount": 0,
+            "isActive": is_active,
+            "isPremium": false,
+            "premiumExpiresAt": NSNull(),
+            "deliveryOptions": [
+                "pickup": true,
+                "delivery": false,
+                "shipping": false
+            ],
+            "tags": [],
+            "metadata": NSNull(),
+            "createdAt": createdDateString,
+            "updatedAt": updatedDateString,
+            "user": NSNull(),
+            "category": [
+                "id": "cat_\(category.lowercased())",
+                "name": category,
+                "description": NSNull(),
+                "iconUrl": NSNull(),
+                "parentId": NSNull(),
+                "isActive": true,
+                "sortOrder": 0,
+                "createdAt": dateFormatter.string(from: Date()),
+                "updatedAt": dateFormatter.string(from: Date())
+            ],
+            "images": images.enumerated().map { index, imageUrl in
+                [
+                    "id": UUID().uuidString,
+                    "url": imageUrl,
+                    "imageUrl": imageUrl,
+                    "thumbnailUrl": NSNull(),
+                    "isPrimary": index == 0,
+                    "displayOrder": index,
+                    "thumbnail_url": NSNull(),
+                    "is_primary": index == 0
+                ]
+            },
+            "videos": NSNull(),
+            "imageUrl": NSNull(),
+            "_count": [
+                "favorites": 0
+            ],
+            "isOwner": false,
+            "isFavorite": false
+        ]
+
+        let jsonData = try! JSONSerialization.data(withJSONObject: listingJson)
+        let listing = try! JSONDecoder().decode(Listing.self, from: jsonData)
         
         // Owner details are already handled via the user property
         // The computed properties ownerUsername, ownerProfilePicture, etc. 

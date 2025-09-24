@@ -283,8 +283,8 @@ struct EnhancedPostCard: View {
                             .font(.caption)
                     }
                     .foregroundColor(urgencyColor(post.urgency))
-                } else if post.price > 0 {
-                    Text("$\(Int(post.price))")
+                } else if (post.price ?? 0) > 0 {
+                    Text("$\(Int(post.price ?? 0))")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Theme.Colors.primary)
                 }
@@ -425,76 +425,81 @@ struct PostDetailSheet: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
     @Environment(\.dismiss) private var dismiss
-    
+
+    // MARK: - Computed Properties
+
+    private var imageSection: some View {
+        Group {
+            if let thumbnail = post.thumbnail {
+                AsyncImage(url: URL(string: thumbnail)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Theme.Colors.secondaryBackground)
+                        .overlay(
+                            ProgressView()
+                        )
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 300)
+                .clipped()
+                .cornerRadius(16)
+            }
+        }
+    }
+
+    private var infoSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(post.title)
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(Theme.Colors.text)
+
+            Text(post.content)
+                .font(.system(size: 16))
+                .foregroundColor(Theme.Colors.text)
+                .lineLimit(nil)
+
+            if let price = post.price, price > 0 {
+                Text("$\(Int(price))")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(Theme.Colors.primary)
+            }
+
+            // Edit restrictions
+            if !(post.editRestrictions?.isEmpty ?? true) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Edit Restrictions", systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.orange)
+
+                    ForEach(post.editRestrictions ?? [], id: \.self) { restriction in
+                        Text("• \(restriction)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+            }
+        }
+    }
+
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Images section
-                    if let thumbnail = post.thumbnail {
-                        AsyncImage(url: URL(string: thumbnail)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Rectangle()
-                                .fill(Theme.Colors.secondaryBackground)
-                                .overlay(
-                                    ProgressView()
-                                )
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 300)
-                        .clipped()
-                        .cornerRadius(16)
-                    }
-                    
+                    imageSection
+
                     // Info section
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(post.title)
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(Theme.Colors.text)
-                        
-                        Text(post.description)
-                            .font(.system(size: 16))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                        
-                        if post.price > 0 {
-                            Text("$\(Int(post.price))")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(Theme.Colors.primary)
-                        }
-                        
-                        // Edit restrictions
-                        if !post.editRestrictions.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Label("Edit Restrictions", systemImage: "exclamationmark.triangle.fill")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.orange)
-                                
-                                ForEach(post.editRestrictions, id: \.self) { restriction in
-                                    HStack(spacing: 8) {
-                                        Circle()
-                                            .fill(Color.orange)
-                                            .frame(width: 4, height: 4)
-                                        Text(restriction)
-                                            .font(.caption)
-                                            .foregroundColor(Theme.Colors.secondaryText)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.orange.opacity(0.1))
-                            )
-                        }
-                    }
-                    .padding(.horizontal)
+                    infoSection
                     
                     // Action buttons
                     VStack(spacing: 12) {
-                        if post.canEdit {
+                        if post.canEdit ?? false {
                             Button(action: onEdit) {
                                 Label("Edit Post", systemImage: "pencil")
                                     .font(.system(size: 16, weight: .semibold))

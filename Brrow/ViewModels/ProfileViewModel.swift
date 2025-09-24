@@ -24,10 +24,10 @@ class ProfileViewModel: ObservableObject {
     @Published var totalSaves: Int = 0
     @Published var totalMessages: Int = 0
     @Published var totalRentals: Int = 0
-    @Published var viewsTrend: ProfileInsightCard.Trend = .neutral
-    @Published var savesTrend: ProfileInsightCard.Trend = .neutral
-    @Published var messagesTrend: ProfileInsightCard.Trend = .neutral
-    @Published var rentalsTrend: ProfileInsightCard.Trend = .neutral
+    @Published var viewsTrend: String = "neutral"
+    @Published var savesTrend: String = "neutral"
+    @Published var messagesTrend: String = "neutral"
+    @Published var rentalsTrend: String = "neutral"
     @Published var analyticsData: [ProfileChartDataPoint] = []
     @Published var ratingDistribution: [Double] = [0.0, 0.0, 0.0, 0.0, 0.0]
     

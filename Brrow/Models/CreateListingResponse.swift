@@ -23,7 +23,15 @@ struct ListingImage: Codable {
     let height: Int?
     let fileSize: Int?
     let uploadedAt: String?
-    
+
+    // GPS-related fields from API
+    let hasGPSData: Bool?
+    let latitude: Double?
+    let longitude: Double?
+    let altitude: Double?
+    let gpsTimestamp: String?
+    let locationData: String?
+
     // Legacy field names
     let thumbnail_url: String?
     let is_primary: Bool?
@@ -31,14 +39,17 @@ struct ListingImage: Codable {
     enum CodingKeys: String, CodingKey {
         case id, url, imageUrl, thumbnailUrl, isPrimary, displayOrder
         case listingId, width, height, fileSize, uploadedAt
+        case hasGPSData, latitude, longitude, altitude, gpsTimestamp, locationData
         case thumbnail_url = "thumbnail_url"
         case is_primary = "is_primary"
     }
     
     // Memberwise initializer for manual creation
-    init(id: String, listingId: String? = nil, url: String? = nil, imageUrl: String? = nil, 
+    init(id: String, listingId: String? = nil, url: String? = nil, imageUrl: String? = nil,
          thumbnailUrl: String? = nil, isPrimary: Bool? = nil, displayOrder: Int? = nil,
          width: Int? = nil, height: Int? = nil, fileSize: Int? = nil, uploadedAt: String? = nil,
+         hasGPSData: Bool? = nil, latitude: Double? = nil, longitude: Double? = nil,
+         altitude: Double? = nil, gpsTimestamp: String? = nil, locationData: String? = nil,
          thumbnail_url: String? = nil, is_primary: Bool? = nil) {
         self.id = id
         self.listingId = listingId
@@ -51,6 +62,12 @@ struct ListingImage: Codable {
         self.height = height
         self.fileSize = fileSize
         self.uploadedAt = uploadedAt
+        self.hasGPSData = hasGPSData
+        self.latitude = latitude
+        self.longitude = longitude
+        self.altitude = altitude
+        self.gpsTimestamp = gpsTimestamp
+        self.locationData = locationData
         self.thumbnail_url = thumbnail_url
         self.is_primary = is_primary
     }
@@ -97,6 +114,14 @@ struct ListingImage: Codable {
         self.height = try? container.decodeIfPresent(Int.self, forKey: .height)
         self.fileSize = try? container.decodeIfPresent(Int.self, forKey: .fileSize)
         self.uploadedAt = try? container.decodeIfPresent(String.self, forKey: .uploadedAt)
+
+        // GPS fields
+        self.hasGPSData = try? container.decodeIfPresent(Bool.self, forKey: .hasGPSData)
+        self.latitude = try? container.decodeIfPresent(Double.self, forKey: .latitude)
+        self.longitude = try? container.decodeIfPresent(Double.self, forKey: .longitude)
+        self.altitude = try? container.decodeIfPresent(Double.self, forKey: .altitude)
+        self.gpsTimestamp = try? container.decodeIfPresent(String.self, forKey: .gpsTimestamp)
+        self.locationData = try? container.decodeIfPresent(String.self, forKey: .locationData)
     }
     
     // Helper method to get the full URL with base URL if needed
@@ -207,45 +232,50 @@ struct CreatedListing: Decodable {
         // Extract image URLs from structured image data
         let imageUrls = images?.map { $0.url } ?? []
         
-        let listing = Listing(
-            id: actualId,
-            title: title ?? "Untitled",
-            description: description ?? "",
-            categoryId: category ?? "general",
-            condition: "Good",
-            price: Double(price ?? "0") ?? 0.0,
-            dailyRate: nil,
-            isNegotiable: false,
-            availabilityStatus: .available,
-            location: Location(
-                address: location ?? "Unknown",
-                city: "",
-                state: "",
-                zipCode: "",
-                country: "USA",
-                latitude: 0,
-                longitude: 0
-            ),
-            userId: userId ?? "0",
-            viewCount: views ?? 0,
-            favoriteCount: 0,
-            isActive: isActive ?? true,
-            isPremium: false,
-            premiumExpiresAt: nil,
-            deliveryOptions: nil,
-            tags: [],
-            metadata: nil,
-            createdAt: createdAt ?? ISO8601DateFormatter().string(from: Date()),
-            updatedAt: ISO8601DateFormatter().string(from: Date()),
-            user: nil,
-            category: nil,
-            images: images ?? [],
-            videos: nil,
-            imageUrl: nil,
-            _count: Listing.ListingCount(favorites: 0),
-            isOwner: true,
-            isFavorite: false
-        )
+        let jsonString = """
+        {
+            "id": "\(actualId)",
+            "title": "\(title ?? "Untitled")",
+            "description": "\(description ?? "")",
+            "categoryId": "\(category ?? "general")",
+            "condition": "good",
+            "price": \(Double(price ?? "0") ?? 0.0),
+            "dailyRate": null,
+            "isNegotiable": false,
+            "availabilityStatus": "available",
+            "location": {
+                "address": "\(location ?? "Unknown")",
+                "city": "",
+                "state": "",
+                "zipCode": "",
+                "country": "USA",
+                "latitude": 0,
+                "longitude": 0
+            },
+            "userId": "\(userId ?? "0")",
+            "viewCount": \(views ?? 0),
+            "favoriteCount": 0,
+            "isActive": \(isActive ?? true),
+            "isPremium": false,
+            "premiumExpiresAt": null,
+            "deliveryOptions": null,
+            "tags": [],
+            "metadata": null,
+            "createdAt": "\(createdAt ?? ISO8601DateFormatter().string(from: Date()))",
+            "updatedAt": "\(ISO8601DateFormatter().string(from: Date()))",
+            "user": null,
+            "category": null,
+            "images": [],
+            "videos": null,
+            "imageUrl": null,
+            "_count": {"favorites": 0},
+            "isOwner": true,
+            "isFavorite": false
+        }
+        """
+
+        let data = jsonString.data(using: .utf8)!
+        let listing = try! JSONDecoder().decode(Listing.self, from: data)
         
         return listing
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ReviewView: View {
-    let targetUser: ReviewUser
+    let targetUser: UserInfo
     let listingId: String?
     let transactionId: String?
     
@@ -39,11 +39,11 @@ struct ReviewView: View {
                             
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text(targetUser.username)
+                                    Text(targetUser.username ?? "Unknown User")
                                         .font(.headline)
                                         .foregroundColor(.primary)
                                     
-                                    if targetUser.isVerified {
+                                    if targetUser.isVerified == true {
                                         Image(systemName: "checkmark.seal.fill")
                                             .foregroundColor(.blue)
                                             .font(.caption)
@@ -216,7 +216,7 @@ struct ReviewView: View {
 }
 
 // MARK: - Reviews List View
-struct ReviewsListView: View {
+struct ReviewViewReviewsList: View {
     let targetUserId: String
     let listingId: String?
     
@@ -231,10 +231,11 @@ struct ReviewsListView: View {
         ("as_buyer", "As Buyer"),
         ("as_seller", "As Seller")
     ]
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Stats Header
+
+    // MARK: - Computed Properties
+
+    private var statsHeaderSection: some View {
+        Group {
             if let stats = reviewStats {
                 VStack(spacing: 16) {
                     HStack {
@@ -243,7 +244,7 @@ struct ReviewsListView: View {
                                 Text(String(format: "%.1f", stats.averageRating))
                                     .font(.title)
                                     .fontWeight(.bold)
-                                
+
                                 HStack(spacing: 2) {
                                     ForEach(1...5, id: \.self) { star in
                                         Image(systemName: "star.fill")
@@ -252,44 +253,55 @@ struct ReviewsListView: View {
                                     }
                                 }
                             }
-                            
+
                             Text("\(stats.totalReviews) review\(stats.totalReviews == 1 ? "" : "s")")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Spacer()
-                        
+
                         // Rating breakdown if available
-                        if let breakdown = stats.ratingBreakdown {
-                            VStack(alignment: .trailing, spacing: 2) {
-                                ForEach((1...5).reversed(), id: \.self) { rating in
-                                    let count = breakdown[String(rating)] ?? 0
-                                    HStack(spacing: 4) {
-                                        Text("\(rating)")
-                                            .font(.caption2)
-                                        
-                                        RatingBar(
-                                            count: count,
-                                            total: stats.totalReviews,
-                                            color: .yellow
-                                        )
-                                        
-                                        Text("\(count)")
-                                            .font(.caption2)
-                                            .frame(width: 20, alignment: .trailing)
-                                    }
-                                }
-                            }
-                            .font(.caption2)
+                        if !stats.ratingBreakdown.isEmpty {
+                            ratingBreakdownView(breakdown: stats.ratingBreakdown, totalReviews: stats.totalReviews)
                         }
                     }
-                    .padding()
-                    .background(Color(UIColor.systemGray6))
-                    .cornerRadius(12)
                 }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
                 .padding(.horizontal)
             }
+        }
+    }
+
+    private func ratingBreakdownView(breakdown: [Int], totalReviews: Int) -> some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            ForEach((1...5).reversed(), id: \.self) { rating in
+                let count = rating <= breakdown.count ? breakdown[rating - 1] : 0
+                HStack(spacing: 4) {
+                    Text("\(rating)")
+                        .font(.caption2)
+
+                    RatingBar(
+                        count: count,
+                        total: totalReviews,
+                        color: .yellow
+                    )
+
+                    Text("\(count)")
+                        .font(.caption2)
+                        .frame(width: 20, alignment: .trailing)
+                }
+            }
+        }
+        .font(.caption2)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Stats Header
+            statsHeaderSection
             
             // Filter Options
             if listingId == nil {
@@ -378,7 +390,7 @@ struct ReviewRowView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Author info and rating
             HStack(spacing: 12) {
-                AsyncImage(url: URL(string: review.author?.profilePictureUrl ?? "")) { image in
+                AsyncImage(url: URL(string: "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -391,11 +403,11 @@ struct ReviewRowView: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(review.author?.username ?? "Anonymous")
+                        Text("Reviewer")
                             .font(.subheadline)
                             .fontWeight(.medium)
                         
-                        if review.author?.isVerified == true {
+                        if review.isVerified {
                             Image(systemName: "checkmark.seal.fill")
                                 .foregroundColor(.blue)
                                 .font(.caption2)
@@ -403,7 +415,7 @@ struct ReviewRowView: View {
                         
                         Spacer()
                         
-                        Text(review.createdAt, style: .relative)
+                        Text(DateFormatter.iso8601.date(from: review.createdAt) ?? Date(), style: .relative)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -467,14 +479,15 @@ struct RatingBar: View {
 
 #Preview {
     ReviewView(
-        targetUser: ReviewUser(
+        targetUser: UserInfo(
             id: "1",
-            apiId: "1",
             username: "john_doe",
             profilePictureUrl: nil,
-            isVerified: true,
             averageRating: 4.5,
-            totalRatings: 23
+            bio: nil,
+            totalRatings: 23,
+            isVerified: true,
+            createdAt: nil
         ),
         listingId: "listing1",
         transactionId: nil

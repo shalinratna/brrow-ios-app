@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct NotificationsView: View {
-    @StateObject private var notificationManager = PushNotificationManager.shared
+    @StateObject private var notificationService = UnifiedNotificationService.shared
     @State private var selectedFilter = "all"
     @State private var isLoading = false
     @State private var showingSettings = false
-    @State private var selectedNotification: AppNotification?
+    @State private var selectedNotification: NotificationHistoryItem?
     
     private let filters = [
         ("all", "All"),
@@ -29,7 +29,7 @@ struct NotificationsView: View {
                 filterTabs
                 
                 // Notifications list
-                if notificationManager.notifications.isEmpty && !isLoading {
+                if notificationService.notifications.isEmpty && !isLoading {
                     emptyState
                 } else {
                     notificationsList
@@ -39,7 +39,7 @@ struct NotificationsView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if notificationManager.unreadCount > 0 {
+                    if notificationService.unreadCount > 0 {
                         Button("Mark All Read") {
                             markAllAsRead()
                         }
@@ -142,73 +142,80 @@ struct NotificationsView: View {
         .padding(.top, 100)
     }
     
-    private var filteredNotifications: [AppNotification] {
+    private var filteredNotifications: [NotificationHistoryItem] {
         switch selectedFilter {
         case "unread":
-            return notificationManager.notifications.filter { !$0.isRead }
+            return notificationService.notifications.filter { !$0.isRead }
+        case "rental":
+            return notificationService.notifications.filter {
+                $0.type.contains("offer") || $0.type.contains("rental")
+            }
+        case "message":
+            return notificationService.notifications.filter { $0.type == "new_message" }
+        case "offer":
+            return notificationService.notifications.filter { $0.type.contains("offer") }
         case "all":
-            return notificationManager.notifications
+            return notificationService.notifications
         default:
-            // Filter by type not available for notifications
-            return notificationManager.notifications
+            return notificationService.notifications
         }
     }
     
     private func loadNotifications() async {
         isLoading = true
-        await notificationManager.fetchNotifications(type: selectedFilter)
+        notificationService.loadNotificationHistory()
         isLoading = false
     }
-    
-    private func markAsRead(_ notification: AppNotification) async {
-        await notificationManager.markAsRead(notificationId: notification.id)
+
+    private func markAsRead(_ notification: NotificationHistoryItem) async {
+        notificationService.markAsRead(notification.id)
     }
-    
+
     private func markAllAsRead() {
-        Task {
-            await notificationManager.markAllAsRead()
-        }
+        notificationService.markAllAsRead()
     }
-    
-    private func handleNotificationTap(_ notification: AppNotification) {
+
+    private func handleNotificationTap(_ notification: NotificationHistoryItem) {
         if !notification.isRead {
-            Task {
-                await markAsRead(notification)
-            }
+            notificationService.markAsRead(notification.id)
         }
-        
+
         // Handle navigation based on notification type
-        notificationManager.handleNotificationAction(notification)
+        if let actionUrl = notification.actionUrl {
+            // Handle deep linking navigation
+            print("Navigate to: \(actionUrl)")
+        }
     }
 }
 
 // MARK: - Notification Row
 
 struct NotificationRow: View {
-    let notification: AppNotification
+    let notification: NotificationHistoryItem
     let onTap: () -> Void
-    
+
     private var iconName: String {
         switch notification.type {
-        case "rental_request": return "calendar.badge.plus"
-        case "rental_accepted": return "checkmark.circle.fill"
-        case "rental_rejected": return "xmark.circle.fill"
+        case "new_offer", "rental_request": return "calendar.badge.plus"
+        case "offer_accepted", "rental_accepted": return "checkmark.circle.fill"
+        case "offer_declined", "rental_rejected": return "xmark.circle.fill"
         case "payment_received": return "creditcard.fill"
-        case "message": return "message.fill"
-        case "offer": return "tag.fill"
-        case "new_listing": return "sparkles"
-        case "garage_sale": return "house.fill"
+        case "new_message": return "message.fill"
+        case "review_received": return "star.fill"
+        case "achievement_unlocked": return "trophy.fill"
+        case "listing_expiring": return "clock.fill"
         default: return "bell.fill"
         }
     }
-    
+
     private var iconColor: Color {
         switch notification.type {
-        case "rental_accepted", "payment_received": return .green
-        case "rental_rejected": return .red
-        case "message": return .blue
-        case "offer": return .orange
-        case "new_listing": return .purple
+        case "offer_accepted", "payment_received": return .green
+        case "offer_declined": return .red
+        case "new_message": return .blue
+        case "new_offer": return .orange
+        case "review_received": return .yellow
+        case "achievement_unlocked": return .purple
         default: return .gray
         }
     }
@@ -244,17 +251,15 @@ struct NotificationRow: View {
                         }
                     }
                     
-                    Text(notification.message)
+                    Text(notification.body)
                         .font(.caption)
                         .foregroundColor(.gray)
                         .lineLimit(2)
-                    
-                    if let timeAgo = notification.timeAgo {
-                        Text(timeAgo)
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                            .padding(.top, 2)
-                    }
+
+                    Text(notification.createdDate, style: .relative)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                        .padding(.top, 2)
                 }
                 
                 Spacer(minLength: 0)
@@ -293,7 +298,7 @@ struct NotificationFilterChip: View {
 // MARK: - Notification Detail View
 
 struct NotificationDetailView: View {
-    let notification: AppNotification
+    let notification: NotificationHistoryItem
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
@@ -305,35 +310,31 @@ struct NotificationDetailView: View {
                         Text(notification.title)
                             .font(.title2)
                             .fontWeight(.bold)
-                        
-                        if let timeAgo = notification.timeAgo {
-                            Text(timeAgo)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
+
+                        Text(notification.createdDate, style: .relative)
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
                     
                     // Message
-                    Text(notification.message)
+                    Text(notification.body)
                         .font(.body)
-                    
+
                     // Additional data
-                    if !notification.data.isEmpty {
+                    if let payload = notification.payload, !payload.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Details")
                                 .font(.headline)
-                            
-                            ForEach(Array(notification.data.keys.sorted()), id: \.self) { key in
-                                if let value = notification.data[key] {
-                                    HStack {
-                                        Text(key.replacingOccurrences(of: "_", with: " ").capitalized)
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                        Spacer()
-                                        Text("\(value)")
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                    }
+
+                            ForEach(Array(payload.keys.sorted()), id: \.self) { key in
+                                HStack {
+                                    Text(key.replacingOccurrences(of: "_", with: " ").capitalized)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text(payload[key] ?? "")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
                                 }
                             }
                         }
@@ -346,7 +347,10 @@ struct NotificationDetailView: View {
                     if notification.actionUrl != nil {
                         Button(action: {
                             presentationMode.wrappedValue.dismiss()
-                            PushNotificationManager.shared.handleNotificationAction(notification)
+                            // Handle navigation to action URL
+                            if let actionUrl = notification.actionUrl {
+                                print("Navigate to: \(actionUrl)")
+                            }
                         }) {
                             Text("View Details")
                                 .frame(maxWidth: .infinity)

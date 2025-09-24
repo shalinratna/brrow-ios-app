@@ -137,28 +137,28 @@ struct BusinessStatsGrid: View {
                 .foregroundColor(Theme.Colors.text)
             
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                StatCard(
+                BusinessStatCard(
                     title: "Total Listings",
                     value: "\(viewModel.totalListings)",
                     icon: "cube.box.fill",
                     color: Theme.Colors.primary
                 )
                 
-                StatCard(
+                BusinessStatCard(
                     title: "Active Bookings",
                     value: "\(viewModel.activeBookings)",
                     icon: "calendar.fill",
                     color: Theme.Colors.accentBlue
                 )
                 
-                StatCard(
+                BusinessStatCard(
                     title: "Total Revenue",
                     value: "$\(String(format: "%.0f", viewModel.totalRevenue))",
                     icon: "dollarsign.circle.fill",
                     color: Theme.Colors.success
                 )
                 
-                StatCard(
+                BusinessStatCard(
                     title: "Rating",
                     value: String(format: "%.1f", viewModel.averageRating),
                     icon: "star.fill",
@@ -222,7 +222,7 @@ struct InfoRow: View {
     }
 }
 
-struct StatCard: View {
+struct BusinessStatCard: View {
     let title: String
     let value: String
     let icon: String

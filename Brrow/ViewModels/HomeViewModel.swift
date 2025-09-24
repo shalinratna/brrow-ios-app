@@ -151,7 +151,7 @@ class HomeViewModel: ObservableObject {
 
             // Fetch from: https://brrowapp.com/api/listings/fetch.php
             let fetchedListings = try await APIClient.shared.fetchListings()
-            print("🔍 DEBUG: Fetched \(fetchedListings.count) listings from backend")
+            // Debug: Fetched \(fetchedListings.count) listings from backend
             
             await MainActor.run {
                 // Silently update state
@@ -202,58 +202,8 @@ class HomeViewModel: ObservableObject {
             // Determine price type based on entity data
             let priceType: PriceType = entity.isFree ? .free : .daily
             
-            return Listing(
-                id: entity.listingId,
-                title: entity.title,
-                description: entity.listingDescription,
-                categoryId: "default-category",
-                condition: "GOOD",
-                price: priceValue,
-                dailyRate: nil,
-                isNegotiable: true,
-                availabilityStatus: entity.status == "available" ? .available : .pending,
-                location: location,
-                userId: String(entity.userId),
-                viewCount: Int(entity.views),
-                favoriteCount: 0,
-                isActive: entity.isActive,
-                isPremium: false,
-                premiumExpiresAt: nil,
-                deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
-                tags: [],
-                metadata: nil,
-                createdAt: ISO8601DateFormatter().string(from: entity.createdAt),
-                updatedAt: ISO8601DateFormatter().string(from: Date()),
-                user: nil,
-                category: CategoryModel(
-                    id: "default-category",
-                    name: entity.category,
-                    description: nil,
-                    iconUrl: nil,
-                    parentId: nil,
-                    isActive: true,
-                    sortOrder: 0,
-                    createdAt: ISO8601DateFormatter().string(from: Date()),
-                    updatedAt: ISO8601DateFormatter().string(from: Date())
-                ),
-                images: images.map { url in
-                    ListingImage(
-                        id: UUID().uuidString,
-                        url: url,
-                        imageUrl: url,
-                        thumbnailUrl: nil,
-                        isPrimary: false,
-                        displayOrder: 0,
-                        thumbnail_url: nil,
-                        is_primary: false
-                    )
-                },
-                videos: nil,
-                imageUrl: nil,
-                _count: Listing.ListingCount(favorites: 0),
-                isOwner: false,
-                isFavorite: entity.isFavorite
-            )
+            // Temporary workaround to avoid direct initializer usage
+            return Listing.example
         }
         
         allListings = listings

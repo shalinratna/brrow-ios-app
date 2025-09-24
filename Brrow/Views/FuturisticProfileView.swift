@@ -399,14 +399,14 @@ struct FuturisticProfileView: View {
                 .background(GlassmorphicCard())
             
             // Insights cards
-            InsightCard(
+            ProfileInsightCard(
                 title: "Peak Activity",
                 value: "3-5 PM",
                 trend: "+12%",
                 icon: "chart.line.uptrend.xyaxis"
             )
-            
-            InsightCard(
+
+            ProfileInsightCard(
                 title: "Most Popular Category",
                 value: "Electronics",
                 trend: "68% of listings",
@@ -840,12 +840,34 @@ struct AnimatedChart: View {
     }
 }
 
-struct InsightCard: View {
+struct ProfileInsightCard: View {
     let title: String
     let value: String
     let trend: String
     let icon: String
-    
+
+    enum Trend {
+        case up
+        case down
+        case neutral
+
+        var color: Color {
+            switch self {
+            case .up: return .green
+            case .down: return .red
+            case .neutral: return .gray
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .up: return "arrow.up.right"
+            case .down: return "arrow.down.right"
+            case .neutral: return "minus"
+            }
+        }
+    }
+
     var body: some View {
         HStack {
             Image(systemName: icon)
@@ -856,21 +878,21 @@ struct InsightCard: View {
                     Circle()
                         .fill(Theme.Colors.primary.opacity(0.2))
                 )
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.7))
-                
+
                 Text(value)
                     .font(.headline.bold())
                     .foregroundColor(.white)
-                
+
                 Text(trend)
                     .font(.caption)
                     .foregroundColor(.green)
             }
-            
+
             Spacer()
         }
         .padding()

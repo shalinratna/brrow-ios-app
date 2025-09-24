@@ -69,6 +69,7 @@ struct ProductionConfig {
     static let enableAIRecommendations = true
     static let enableBrrowStories = true
     static let enableCommunityFeed = true
+    static let enableAchievements = false  // Disabled for launch, will enable later
     
     // MARK: - Security Settings
     static let enableCertificatePinning = true
@@ -192,6 +193,7 @@ struct ProductionConfig {
         FeatureFlags.setFlag("ai_recommendations", enabled: enableAIRecommendations)
         FeatureFlags.setFlag("brrow_stories", enabled: enableBrrowStories)
         FeatureFlags.setFlag("community_feed", enabled: enableCommunityFeed)
+        FeatureFlags.setFlag("achievements", enabled: enableAchievements)
         
         print("🎛️ Feature flags configured")
     }

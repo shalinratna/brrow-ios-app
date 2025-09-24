@@ -134,7 +134,6 @@ export default function MarketplaceManagement() {
             _count: { views: 298, favorites: 45, inquiries: 25 }
           }
         ]);
-      }
     } catch (error) {
       console.error('Error fetching marketplace items:', error);
       // Load demo data on error

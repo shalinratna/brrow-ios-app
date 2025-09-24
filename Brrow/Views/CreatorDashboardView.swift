@@ -1,499 +1,1057 @@
+//
+//  CreatorDashboardView.swift
+//  Brrow
+//
+//  Comprehensive creator dashboard with analytics and monetization
+//
+
 import SwiftUI
 import Charts
 
 struct CreatorDashboardView: View {
-    @StateObject private var viewModel = CreatorDashboardViewModel()
+    @StateObject private var creatorService = CreatorService.shared
     @State private var selectedTab = 0
-    @State private var showShareSheet = false
-    @State private var showStripeOnboarding = false
-    @Environment(\.dismiss) private var dismiss
-    
+    @State private var selectedPeriod: TimePeriod = .month
+    @State private var showingSettings = false
+    @State private var showingInsights = false
+
+    private let tabs = ["Overview", "Analytics", "Earnings", "Insights"]
+
     var body: some View {
         NavigationView {
-            ZStack {
-                Color(hex: "#F5F5F5")
-                    .ignoresSafeArea()
-                
-                if viewModel.isLoading {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                } else if let dashboard = viewModel.dashboard {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            // Header Card
-                            headerCard(dashboard: dashboard)
-                            
-                            // Stats Grid
-                            statsGrid(dashboard: dashboard)
-                            
-                            // Tab Selection
-                            Picker("", selection: $selectedTab) {
-                                Text("Overview").tag(0)
-                                Text("Earnings").tag(1)
-                                Text("Activity").tag(2)
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                            .padding(.horizontal)
-                            
-                            // Tab Content
-                            switch selectedTab {
-                            case 0:
-                                overviewTab(dashboard: dashboard)
-                            case 1:
-                                earningsTab(dashboard: dashboard)
-                            case 2:
-                                activityTab(dashboard: dashboard)
-                            default:
-                                EmptyView()
-                            }
+            VStack(spacing: 0) {
+                // Header
+                dashboardHeaderView
+
+                // Tab Selector
+                tabSelectorView
+
+                // Content
+                ScrollView {
+                    LazyVStack(spacing: 20) {
+                        switch selectedTab {
+                        case 0:
+                            overviewContent
+                        case 1:
+                            analyticsContent
+                        case 2:
+                            earningsContent
+                        case 3:
+                            insightsContent
+                        default:
+                            overviewContent
                         }
-                        .padding(.bottom, 30)
-                    }
-                } else if viewModel.error != nil {
-                    VStack(spacing: 20) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 50))
-                            .foregroundColor(.orange)
-                        
-                        Text("Unable to load creator dashboard")
-                            .font(.headline)
-                        
-                        Text(viewModel.error ?? "Unknown error")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        
-                        Button("Try Again") {
-                            Task {
-                                await viewModel.loadDashboard()
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color(hex: "#2ABF5A"))
-                        .foregroundColor(.white)
-                        .cornerRadius(20)
                     }
                     .padding()
                 }
             }
             .navigationTitle("Creator Dashboard")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing: Button("Done") {
-                dismiss()
-            })
-        }
-        .task {
-            await viewModel.loadDashboard()
-        }
-        .sheet(isPresented: $showShareSheet) {
-            if let shareLink = viewModel.dashboard?.shareLink {
-                CreatorShareSheet(items: [shareLink])
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
             }
-        }
-        .sheet(isPresented: $showStripeOnboarding) {
-            StripeOnboardingView()
-        }
-    }
-    
-    private func headerCard(dashboard: CreatorDashboard) -> some View {
-        VStack(spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Creator Code")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    
-                    HStack {
-                        Text(dashboard.creator.creatorCode)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(Color(hex: "#2ABF5A"))
-                        
-                        Button {
-                            UIPasteboard.general.string = dashboard.creator.creatorCode
-                            // Haptic feedback
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                            impactFeedback.impactOccurred()
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                                .font(.caption)
-                                .foregroundColor(.gray)
+            .sheet(isPresented: $showingSettings) {
+                CreatorSettingsView()
+            }
+            .sheet(isPresented: $showingInsights) {
+                // CreatorInsightsView - defined in CreatorSettingsView.swift
+                NavigationView {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(creatorService.insights) { insight in
+                                InsightCard(insight: insight) {
+                                    Task {
+                                        try await creatorService.markInsightAsRead(insight.id)
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                    }
+                    .navigationTitle("Creator Insights")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showingInsights = false
+                            }
                         }
                     }
                 }
-                
-                Spacer()
-                
-                Button {
-                    showShareSheet = true
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share")
+            }
+            .task {
+                await loadDashboard()
+            }
+            .refreshable {
+                await loadDashboard()
+            }
+        }
+    }
+
+    private var dashboardHeaderView: some View {
+        VStack(spacing: 16) {
+            if let overview = creatorService.dashboard?.overview {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Total Earnings")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("$\(Int(overview.totalEarnings))")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
                     }
-                    .font(.caption)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color(hex: "#2ABF5A"))
-                    .foregroundColor(.white)
-                    .cornerRadius(20)
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 8) {
+                        HStack(spacing: 4) {
+                            Image(systemName: overview.currentRank.level.icon)
+                                .foregroundColor(Color(overview.currentRank.level.color))
+                            Text(overview.currentRank.level.displayName)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+
+                        HStack(spacing: 2) {
+                            ForEach(1...5, id: \.self) { star in
+                                Image(systemName: star <= Int(overview.averageRating) ? "star.fill" : "star")
+                                    .font(.caption2)
+                                    .foregroundColor(.yellow)
+                            }
+                            Text("(\(overview.totalReviews))")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+
+                // Quick Stats
+                HStack(spacing: 20) {
+                    StatCard(title: "Active Listings", value: "\(overview.activeListings)", icon: "list.bullet", color: .blue)
+                    StatCard(title: "Total Bookings", value: "\(overview.totalBookings)", icon: "calendar", color: .orange)
+                    StatCard(title: "Response Rate", value: "\(Int(overview.responseRate * 100))%", icon: "message", color: .green)
                 }
             }
-            
-            if !dashboard.creator.stripeConnected {
-                HStack {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundColor(.orange)
-                    
-                    Text("Connect Stripe to receive payouts")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    
-                    Spacer()
-                    
-                    Button("Connect") {
-                        showStripeOnboarding = true
+
+            // Period Selector
+            periodSelectorView
+        }
+        .padding()
+        .background(Color(.systemGray6))
+    }
+
+    private var periodSelectorView: some View {
+        Picker("Period", selection: $selectedPeriod) {
+            ForEach(TimePeriod.allCases, id: \.self) { period in
+                Text(period.displayName).tag(period)
+            }
+        }
+        .pickerStyle(SegmentedPickerStyle())
+        .onChange(of: selectedPeriod) { _ in
+            Task {
+                await loadDashboard()
+            }
+        }
+    }
+
+    private var tabSelectorView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 20) {
+                ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+                    Button {
+                        selectedTab = index
+                    } label: {
+                        VStack(spacing: 8) {
+                            Text(tab)
+                                .font(.subheadline)
+                                .fontWeight(selectedTab == index ? .semibold : .regular)
+                                .foregroundColor(selectedTab == index ? .blue : .secondary)
+
+                            Rectangle()
+                                .fill(selectedTab == index ? Color.blue : Color.clear)
+                                .frame(height: 2)
+                        }
                     }
-                    .font(.caption)
-                    .foregroundColor(Color(hex: "#2ABF5A"))
                 }
-                .padding()
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
+            }
+            .padding(.horizontal)
+        }
+        .padding(.vertical, 8)
+        .background(Color(.systemBackground))
+    }
+
+    // MARK: - Content Views
+
+    private var overviewContent: some View {
+        VStack(spacing: 20) {
+            // Performance Summary
+            performanceSummaryView
+
+            // Top Performing Listings
+            topListingsView
+
+            // Recent Activity
+            recentActivityView
+
+            // Quick Actions
+            quickActionsView
+        }
+    }
+
+    private var analyticsContent: some View {
+        VStack(spacing: 20) {
+            // Charts
+            analyticsChartsView
+
+            // Category Breakdown
+            categoryBreakdownView
+
+            // Location Analytics
+            locationAnalyticsView
+
+            // Seasonal Trends
+            seasonalTrendsView
+        }
+    }
+
+    private var earningsContent: some View {
+        VStack(spacing: 20) {
+            // Earnings Overview
+            earningsOverviewView
+
+            // Recent Transactions
+            recentTransactionsView
+
+            // Payout Schedule
+            payoutScheduleView
+
+            // Tax Documents
+            taxDocumentsView
+        }
+    }
+
+    private var insightsContent: some View {
+        VStack(spacing: 20) {
+            // Optimization Insights
+            optimizationInsightsView
+
+            // Market Insights
+            marketInsightsView
+
+            // Growth Opportunities
+            growthOpportunitiesView
+        }
+    }
+
+    // MARK: - Component Views
+
+    private var performanceSummaryView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Performance Summary")
+                .font(.headline)
+
+            if let analytics = creatorService.analyticsData {
+                HStack(spacing: 20) {
+                    PerformanceMetric(
+                        title: "Views",
+                        value: "\(Int(analytics.viewsData.total))",
+                        growth: analytics.viewsData.growth,
+                        trend: analytics.viewsData.trend
+                    )
+
+                    PerformanceMetric(
+                        title: "Bookings",
+                        value: "\(Int(analytics.bookingsData.total))",
+                        growth: analytics.bookingsData.growth,
+                        trend: analytics.bookingsData.trend
+                    )
+
+                    PerformanceMetric(
+                        title: "Revenue",
+                        value: "$\(Int(analytics.earningsData.total))",
+                        growth: analytics.earningsData.growth,
+                        trend: analytics.earningsData.trend
+                    )
+                }
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-        .padding(.horizontal)
     }
-    
-    private func statsGrid(dashboard: CreatorDashboard) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-            CreatorStatCard(
-                title: "Total Earned",
-                value: "$\(String(format: "%.2f", dashboard.stats.totalEarned))",
-                icon: "dollarsign.circle.fill",
-                color: .green
-            )
-            
-            CreatorStatCard(
-                title: "Referrals",
-                value: "\(dashboard.stats.totalReferrals)",
-                icon: "person.2.fill",
-                color: .blue
-            )
-            
-            CreatorStatCard(
-                title: "Pending",
-                value: "$\(String(format: "%.2f", dashboard.stats.pendingEarnings))",
-                icon: "clock.fill",
-                color: .orange
-            )
-            
-            CreatorStatCard(
-                title: "Transactions",
-                value: "\(dashboard.stats.totalTransactions)",
-                icon: "arrow.right.arrow.left.circle.fill",
-                color: .purple
-            )
-        }
-        .padding(.horizontal)
-    }
-    
-    private func overviewTab(dashboard: CreatorDashboard) -> some View {
-        VStack(spacing: 20) {
-            // Share Link Card
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Your Share Link", systemImage: "link")
+
+    private var topListingsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Top Performing Listings")
                     .font(.headline)
-                
-                Text(dashboard.shareLink)
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
-                    .onTapGesture {
-                        UIPasteboard.general.string = dashboard.shareLink
-                        // Haptic feedback
-                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                        impactFeedback.impactOccurred()
-                    }
-                
-                Text("Tap to copy • Share this link to earn 1% on all referrals")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-            }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            .padding(.horizontal)
-            
-            // How It Works
-            VStack(alignment: .leading, spacing: 16) {
-                Label("How It Works", systemImage: "questionmark.circle")
-                    .font(.headline)
-                
-                VStack(alignment: .leading, spacing: 12) {
-                    HowItWorksRow(number: "1", text: "Share your unique code or link")
-                    HowItWorksRow(number: "2", text: "Users sign up with your code")
-                    HowItWorksRow(number: "3", text: "Earn 1% on all their transactions")
-                    HowItWorksRow(number: "4", text: "Get paid directly via Stripe")
+                Spacer()
+                Button("View All") {
+                    // Navigate to detailed listings analytics
                 }
+                .font(.caption)
+                .foregroundColor(.blue)
             }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            .padding(.horizontal)
+
+            ForEach(creatorService.getTopPerformingListings()) { listing in
+                ListingPerformanceRow(listing: listing)
+            }
         }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
     }
-    
-    private func earningsTab(dashboard: CreatorDashboard) -> some View {
-        VStack(spacing: 20) {
-            // Monthly Earnings Chart
-            if !dashboard.monthlyEarnings.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Monthly Earnings")
-                        .font(.headline)
-                    
-                    Chart(dashboard.monthlyEarnings) { earning in
-                        BarMark(
-                            x: .value("Month", earning.month),
-                            y: .value("Earnings", earning.earnings)
-                        )
-                        .foregroundStyle(Color(hex: "#2ABF5A"))
-                    }
-                    .frame(height: 200)
-                }
-                .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-                .padding(.horizontal)
-            }
-            
-            // Average Commission
-            VStack(spacing: 8) {
-                Text("Average Commission")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                
-                Text("$\(String(format: "%.2f", dashboard.stats.averageCommission))")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(Color(hex: "#2ABF5A"))
-                
-                Text("per transaction")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            .padding(.horizontal)
-        }
-    }
-    
-    private func activityTab(dashboard: CreatorDashboard) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Commissions")
+
+    private var recentActivityView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Recent Activity")
                 .font(.headline)
-                .padding(.horizontal)
-            
-            if dashboard.recentCommissions.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 40))
-                        .foregroundColor(.gray)
-                    
-                    Text("No commissions yet")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                    
-                    Text("Share your code to start earning!")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-            } else {
-                ForEach(dashboard.recentCommissions) { commission in
-                    CommissionRow(commission: commission)
+
+            if let earnings = creatorService.earningsData {
+                ForEach(earnings.recentTransactions.prefix(3)) { transaction in
+                    TransactionRow(transaction: transaction)
                 }
             }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var quickActionsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Quick Actions")
+                .font(.headline)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                QuickActionCard(
+                    title: "Create Listing",
+                    icon: "plus.circle",
+                    color: .blue
+                ) {
+                    // Navigate to create listing
+                }
+
+                QuickActionCard(
+                    title: "View Insights",
+                    icon: "lightbulb",
+                    color: .orange
+                ) {
+                    showingInsights = true
+                }
+
+                QuickActionCard(
+                    title: "Manage Bookings",
+                    icon: "calendar",
+                    color: .green
+                ) {
+                    // Navigate to bookings
+                }
+
+                QuickActionCard(
+                    title: "Update Settings",
+                    icon: "gear",
+                    color: .purple
+                ) {
+                    showingSettings = true
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var analyticsChartsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Analytics Charts")
+                .font(.headline)
+
+            if let analytics = creatorService.analyticsData {
+                // Earnings Chart
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Earnings Trend")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Chart(analytics.earningsData.dataPoints) { dataPoint in
+                        LineMark(
+                            x: .value("Date", dataPoint.date),
+                            y: .value("Earnings", dataPoint.value)
+                        )
+                        .foregroundStyle(.blue)
+                    }
+                    .frame(height: 150)
+                    .chartXAxis(.hidden)
+                }
+
+                Divider()
+
+                // Views vs Bookings Chart
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Views vs Bookings")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Chart {
+                        ForEach(analytics.viewsData.dataPoints.indices, id: \.self) { index in
+                            let viewsPoint = analytics.viewsData.dataPoints[index]
+                            let bookingsPoint = analytics.bookingsData.dataPoints[index]
+
+                            LineMark(
+                                x: .value("Date", viewsPoint.date),
+                                y: .value("Views", viewsPoint.value)
+                            )
+                            .foregroundStyle(.blue)
+
+                            LineMark(
+                                x: .value("Date", bookingsPoint.date),
+                                y: .value("Bookings", bookingsPoint.value * 10) // Scale for visibility
+                            )
+                            .foregroundStyle(.orange)
+                        }
+                    }
+                    .frame(height: 150)
+                    .chartXAxis(.hidden)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var categoryBreakdownView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Category Performance")
+                .font(.headline)
+
+            ForEach(creatorService.getCategoryPerformance()) { category in
+                CategoryPerformanceRow(category: category)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var locationAnalyticsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Location Analytics")
+                .font(.headline)
+
+            if let locationInsights = creatorService.analyticsData?.locationInsights {
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("Reach Radius")
+                        Spacer()
+                        Text("\(Int(locationInsights.reachRadius)) miles")
+                            .fontWeight(.medium)
+                    }
+
+                    HStack {
+                        Text("Delivery Success")
+                        Spacer()
+                        Text("\(Int(locationInsights.deliverySuccess * 100))%")
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
+                    }
+
+                    if let popularLocation = locationInsights.mostPopularPickupLocation {
+                        HStack {
+                            Text("Top Pickup Location")
+                            Spacer()
+                            Text(popularLocation)
+                                .fontWeight(.medium)
+                        }
+                    }
+                }
+
+                Divider()
+
+                Text("Top Cities")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                ForEach(locationInsights.topCities) { city in
+                    HStack {
+                        Text(city.city)
+                        Spacer()
+                        Text("\(city.bookings) bookings")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("$\(Int(city.earnings))")
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var seasonalTrendsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Seasonal Trends")
+                .font(.headline)
+
+            if let trends = creatorService.analyticsData?.seasonalTrends {
+                Chart(trends) { trend in
+                    BarMark(
+                        x: .value("Month", trend.month),
+                        y: .value("Earnings", trend.earnings)
+                    )
+                    .foregroundStyle(.blue)
+                }
+                .frame(height: 150)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var earningsOverviewView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Earnings Overview")
+                .font(.headline)
+
+            if let earnings = creatorService.earningsData {
+                VStack(spacing: 16) {
+                    HStack {
+                        EarningsCard(
+                            title: "Current Balance",
+                            amount: earnings.currentBalance,
+                            color: .green
+                        )
+
+                        EarningsCard(
+                            title: "Pending",
+                            amount: earnings.pendingEarnings,
+                            color: .orange
+                        )
+                    }
+
+                    HStack {
+                        EarningsCard(
+                            title: "This Month",
+                            amount: earnings.thisMonthEarnings,
+                            color: .blue
+                        )
+
+                        EarningsCard(
+                            title: "Last Month",
+                            amount: earnings.lastMonthEarnings,
+                            color: .gray
+                        )
+                    }
+
+                    let growthRate = earnings.growthRate
+                    HStack {
+                        Text("Growth Rate")
+                            .font(.subheadline)
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Image(systemName: growthRate >= 0 ? "arrow.up.right" : "arrow.down.right")
+                                .font(.caption)
+                                .foregroundColor(growthRate >= 0 ? .green : .red)
+                            Text("\(growthRate, specifier: "%.1f")%")
+                                .fontWeight(.medium)
+                                .foregroundColor(growthRate >= 0 ? .green : .red)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var recentTransactionsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Recent Transactions")
+                    .font(.headline)
+                Spacer()
+                Button("View All") {
+                    // Navigate to transactions
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+
+            if let earnings = creatorService.earningsData {
+                ForEach(earnings.recentTransactions.prefix(5)) { transaction in
+                    TransactionRow(transaction: transaction)
+                        .padding(.vertical, 4)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var payoutScheduleView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Payout Schedule")
+                .font(.headline)
+
+            if let earnings = creatorService.earningsData {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Frequency")
+                        Spacer()
+                        Text(earnings.payoutSchedule.frequency.displayName)
+                            .fontWeight(.medium)
+                    }
+
+                    HStack {
+                        Text("Next Payout")
+                        Spacer()
+                        Text(earnings.payoutSchedule.nextPayoutDate)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                    }
+
+                    HStack {
+                        Text("Minimum Threshold")
+                        Spacer()
+                        Text("$\(Int(earnings.payoutSchedule.minimumThreshold))")
+                            .fontWeight(.medium)
+                    }
+
+                    if earnings.currentBalance >= earnings.payoutSchedule.minimumThreshold {
+                        Button("Request Instant Payout") {
+                            Task {
+                                try await creatorService.requestPayout(amount: earnings.currentBalance)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var taxDocumentsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Tax Documents")
+                .font(.headline)
+
+            if let earnings = creatorService.earningsData {
+                ForEach(earnings.taxDocuments) { document in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(document.type.displayName)
+                                .fontWeight(.medium)
+                            Text("\(document.year)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Text("$\(Int(document.amount))")
+                            .fontWeight(.medium)
+
+                        Button("Download") {
+                            Task {
+                                _ = try await creatorService.downloadTaxDocument(document.id)
+                            }
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(8)
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var optimizationInsightsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Optimization Insights")
+                .font(.headline)
+
+            ForEach(creatorService.getOptimizationSuggestions()) { insight in
+                InsightCard(insight: insight) {
+                    Task {
+                        try await creatorService.markInsightAsRead(insight.id)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var marketInsightsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Market Insights")
+                .font(.headline)
+
+            ForEach(creatorService.getDemandInsights()) { insight in
+                InsightCard(insight: insight) {
+                    Task {
+                        try await creatorService.markInsightAsRead(insight.id)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private var growthOpportunitiesView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Growth Opportunities")
+                .font(.headline)
+
+            ForEach(creatorService.getPricingInsights()) { insight in
+                InsightCard(insight: insight) {
+                    Task {
+                        try await creatorService.markInsightAsRead(insight.id)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    // MARK: - Helper Methods
+
+    private func loadDashboard() async {
+        do {
+            try await creatorService.fetchDashboard(period: selectedPeriod)
+        } catch {
+            print("Failed to load dashboard: \(error)")
         }
     }
 }
 
 // MARK: - Supporting Views
 
-struct CreatorStatCard: View {
+struct StatCard: View {
     let title: String
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Spacer()
-            }
-            
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+
             Text(value)
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.bold)
-            
+
             Text(title)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .background(Color(.systemBackground))
+        .cornerRadius(8)
     }
 }
 
-struct HowItWorksRow: View {
-    let number: String
-    let text: String
-    
+struct PerformanceMetric: View {
+    let title: String
+    let value: String
+    let growth: Double
+    let trend: TrendDirection
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(number)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
                 .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text(value)
+                .font(.title3)
                 .fontWeight(.bold)
-                .foregroundColor(.white)
-                .frame(width: 24, height: 24)
-                .background(Color(hex: "#2ABF5A"))
-                .clipShape(Circle())
-            
-            Text(text)
-                .font(.callout)
-                .foregroundColor(.gray)
-            
+
+            HStack(spacing: 4) {
+                Image(systemName: trend.icon)
+                    .font(.caption)
+                    .foregroundColor(Color(trend.color))
+
+                Text("\(growth, specifier: "%.1f")%")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(Color(trend.color))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct ListingPerformanceRow: View {
+    let listing: ListingPerformance
+
+    var body: some View {
+        HStack {
+            AsyncImage(url: URL(string: listing.imageUrl ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color(.systemGray5))
+            }
+            .frame(width: 60, height: 60)
+            .cornerRadius(8)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(listing.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                Text(listing.category)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                HStack {
+                    Text("\(listing.views) views")
+                    Text("•")
+                    Text("\(listing.bookings) bookings")
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+
             Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("$\(Int(listing.earnings))")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.green)
+
+                HStack(spacing: 4) {
+                    Image(systemName: listing.trend.icon)
+                        .font(.caption2)
+                        .foregroundColor(Color(listing.trend.color))
+
+                    Text("\(listing.conversionRate * 100, specifier: "%.1f")%")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct TransactionRow: View {
+    let transaction: EarningsTransaction
+
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(Color(transaction.status.color).opacity(0.2))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: transactionIcon)
+                        .font(.caption)
+                        .foregroundColor(Color(transaction.status.color))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transaction.description)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                if let listingTitle = transaction.listingTitle {
+                    Text(listingTitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Text(transaction.date)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("+$\(Int(transaction.amount))")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.green)
+
+                Text(transaction.status.displayName)
+                    .font(.caption)
+                    .foregroundColor(Color(transaction.status.color))
+            }
+        }
+    }
+
+    private var transactionIcon: String {
+        switch transaction.type {
+        case .rental: return "calendar"
+        case .sale: return "tag"
+        case .fee: return "minus.circle"
+        case .refund: return "arrow.uturn.left"
+        case .bonus: return "gift"
         }
     }
 }
 
-struct CommissionRow: View {
-    let commission: CreatorCommission
-    
+struct CategoryPerformanceRow: View {
+    let category: CategoryPerformance
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(commission.listingTitle ?? "Transaction")
-                    .font(.callout)
-                    .lineLimit(1)
-                
-                Text("From @\(commission.buyerUsername)")
+                Text(category.category)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text("\(category.listings) listings")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             VStack(alignment: .trailing, spacing: 4) {
-                Text("+$\(String(format: "%.2f", commission.commissionAmount))")
-                    .font(.callout)
+                Text("$\(Int(category.earnings))")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.green)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .font(.caption2)
+                        .foregroundColor(.yellow)
+
+                    Text("\(category.averageRating, specifier: "%.1f")")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// QuickActionCard struct moved to ProfileView.swift to avoid duplication
+
+struct EarningsCard: View {
+    let title: String
+    let amount: Double
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text("$\(Int(amount))")
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+
+struct InsightCard: View {
+    let insight: CreatorInsight
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: insight.type.icon)
+                    .font(.title3)
+                    .foregroundColor(Color(insight.impact.color))
+
+                Text(insight.title)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(commission.paymentStatus == "paid" ? .green : .orange)
-                
-                Text(commission.paymentStatus.capitalized)
-                    .font(.caption2)
-                    .foregroundColor(commission.paymentStatus == "paid" ? .green : .orange)
+
+                Spacer()
+
+                Button("Dismiss") {
+                    onDismiss()
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+
+            Text(insight.description)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            if insight.actionRequired, let actionText = insight.actionText {
+                Button(actionText) {
+                    // Handle action
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(8)
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(insight.impact.color).opacity(0.1))
         .cornerRadius(8)
-        .shadow(color: Color.black.opacity(0.02), radius: 2, x: 0, y: 1)
-        .padding(.horizontal)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(insight.impact.color).opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
-struct StripeOnboardingView: View {
-    @StateObject private var viewModel = StripeOnboardingViewModel()
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                } else {
-                    Image(systemName: "creditcard.circle.fill")
-                        .font(.system(size: 80))
-                        .foregroundColor(Color(hex: "#2ABF5A"))
-                    
-                    Text("Connect Stripe Account")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("Connect your Stripe account to receive creator payouts directly to your bank account.")
-                        .font(.callout)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    
-                    Spacer()
-                    
-                    Button {
-                        Task {
-                            await viewModel.startOnboarding()
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.right.circle.fill")
-                            Text("Connect Stripe")
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .padding()
-                    .background(Color(hex: "#2ABF5A"))
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                }
-            }
-            .padding(.vertical)
-            .navigationTitle("Payment Setup")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing: Button("Cancel") {
-                dismiss()
-            })
-            .alert("Error", isPresented: .constant(viewModel.error != nil)) {
-                Button("OK") {
-                    viewModel.error = nil
-                }
-            } message: {
-                Text(viewModel.error ?? "")
-            }
-        }
-    }
-}
+// MARK: - Preview
 
-// MARK: - Share Sheet
-
-struct CreatorShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
+struct CreatorDashboardView_Previews: PreviewProvider {
+    static var previews: some View {
+        CreatorDashboardView()
     }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

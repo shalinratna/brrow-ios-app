@@ -19,10 +19,36 @@ struct UserBadgeView: View {
     }
     
     var body: some View {
-        if let badge = badgeType, let type = CreatorBadgeType(rawValue: badge) {
-            Image(systemName: type.icon)
+        if let badge = badgeType, let type = BadgeCategory(rawValue: badge) {
+            Image(systemName: iconFor(badgeCategory: type))
                 .font(.system(size: size.iconSize))
-                .foregroundColor(Color(hex: type.color))
+                .foregroundColor(colorFor(badgeCategory: type))
+        }
+    }
+
+    private func iconFor(badgeCategory: BadgeCategory) -> String {
+        switch badgeCategory {
+        case .quality:
+            return "star.fill"
+        case .volume:
+            return "chart.bar.fill"
+        case .service:
+            return "hand.thumbsup.fill"
+        case .special:
+            return "crown.fill"
+        }
+    }
+
+    private func colorFor(badgeCategory: BadgeCategory) -> Color {
+        switch badgeCategory {
+        case .quality:
+            return .blue
+        case .volume:
+            return .green
+        case .service:
+            return .orange
+        case .special:
+            return .purple
         }
     }
 }

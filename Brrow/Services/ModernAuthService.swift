@@ -271,6 +271,8 @@ class ModernAuthService: ObservableObject {
             return .invalidData
         case .invalidResponse:
             return .unknown("Invalid server response")
+        case .invalidURL:
+            return .unknown("Invalid URL")
         }
     }
     

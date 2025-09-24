@@ -49,12 +49,6 @@ extension Listing {
         return nil // Not supported in new model
     }
     
-    // Listing type (rent or sale)
-    var listingType: String {
-        // Check if this is for sale or rent based on metadata
-        // For now, default to rent since most listings are rentals
-        return "rent"
-    }
     
     // Rental period
     var rentalPeriod: String? {
@@ -117,64 +111,52 @@ extension Listing {
         category: String = "General",
         location: Location? = nil,
         images: [String] = [],
-        isActive: Bool = true
+        isActive: Bool = true,
+        ownerId: String = "default-user"
     ) -> Listing {
-        return Listing(
-            id: id ?? "lst_\(UUID().uuidString.prefix(8))",
-            title: title,
-            description: description,
-            categoryId: "default-category",
-            condition: "GOOD",
-            price: price,
-            dailyRate: nil,
-            isNegotiable: true,
-            availabilityStatus: isActive ? .available : .pending,
-            location: location ?? Location(
-                address: "Unknown",
-                city: "Unknown",
-                state: "Unknown",
-                zipCode: "00000",
-                country: "US",
-                latitude: 0,
-                longitude: 0
-            ),
-            userId: "0",
-            viewCount: 0,
-            favoriteCount: 0,
-            isActive: isActive,
-            isPremium: false,
-            premiumExpiresAt: nil,
-            deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
-            tags: [],
-            metadata: nil,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
-            updatedAt: ISO8601DateFormatter().string(from: Date()),
-            user: nil,
-            category: CategoryModel(
-                id: "default-category",
-                name: category,
-                description: nil,
-                iconUrl: nil,
-                parentId: nil,
-                isActive: true,
-                sortOrder: 0,
-                createdAt: ISO8601DateFormatter().string(from: Date()),
-                updatedAt: ISO8601DateFormatter().string(from: Date())
-            ),
-            images: images.map { url in
-                ListingImage(
-                    id: UUID().uuidString,
-                    url: url,
-                    imageUrl: url,
-                    isPrimary: false,
-                    displayOrder: 0
-                )
+        // Use JSON-based initialization to avoid constructor issues
+        let jsonString = """
+        {
+            "id": "\(id ?? "lst_\(UUID().uuidString.prefix(8))")",
+            "title": "\(title)",
+            "description": "\(description)",
+            "categoryId": "default-category",
+            "condition": "good",
+            "price": \(price),
+            "dailyRate": null,
+            "isNegotiable": true,
+            "availabilityStatus": "available",
+            "location": {
+                "address": "\(location)",
+                "city": "Unknown",
+                "state": "Unknown",
+                "zipCode": "00000",
+                "country": "USA",
+                "latitude": 0,
+                "longitude": 0
             },
-            videos: nil,
-            imageUrl: nil,
-            _count: Listing.ListingCount(favorites: 0),
-            isOwner: false,
-            isFavorite: false
-        )
+            "userId": "\(ownerId)",
+            "viewCount": 0,
+            "favoriteCount": 0,
+            "isActive": true,
+            "isPremium": false,
+            "premiumExpiresAt": null,
+            "deliveryOptions": null,
+            "tags": [],
+            "metadata": null,
+            "createdAt": "\(ISO8601DateFormatter().string(from: Date()))",
+            "updatedAt": "\(ISO8601DateFormatter().string(from: Date()))",
+            "user": null,
+            "category": null,
+            "images": [],
+            "videos": null,
+            "imageUrl": null,
+            "_count": {"favorites": 0},
+            "isOwner": true,
+            "isFavorite": false
+        }
+        """
+        let data = jsonString.data(using: String.Encoding.utf8)!
+        return try! JSONDecoder().decode(Listing.self, from: data)
     }
 }

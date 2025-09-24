@@ -39,7 +39,7 @@ struct EarningsDataPoint: Identifiable, Codable {
 
 // MARK: - Earnings Transaction
 
-struct EarningsTransaction: Identifiable, Codable {
+struct LegacyEarningsTransaction: Identifiable, Codable {
     let id: String
     let itemTitle: String
     let itemImageUrl: String?

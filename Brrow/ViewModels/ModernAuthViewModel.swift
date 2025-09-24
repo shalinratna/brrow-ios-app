@@ -244,6 +244,8 @@ class ModernAuthViewModel: ObservableObject {
                 errorMessage = "Unable to process response. Please try again."
             case .invalidResponse:
                 errorMessage = "Invalid response from server. Please try again."
+            case .invalidURL:
+                errorMessage = "Invalid request. Please try again."
             }
         } else if error.localizedDescription.contains("The Internet connection appears to be offline") {
             errorMessage = "Please check your internet connection and try again"
@@ -296,10 +298,12 @@ extension BrrowAPIError {
             return message.isEmpty ? "Please check your information and try again." : message
         case .addressConflict(let message):
             return message.isEmpty ? "This account already exists. Try signing in instead." : message
-        case .decodingError:
-            return "Unable to process response. Please try again."
+        case .decodingError(let error):
+            return "Unable to process response: \(error.localizedDescription)"
         case .invalidResponse:
-            return "Invalid response from server. Please try again."
+            return "Received invalid response from server. Please try again."
+        case .invalidURL:
+            return "Invalid server URL. Please contact support."
         }
     }
 }

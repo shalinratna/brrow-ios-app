@@ -838,7 +838,7 @@ class EnhancedMarketplaceViewModel: ObservableObject {
     @Published var listings: [Listing] = []
     @Published var featuredItems: [Listing] = []
     @Published var trendingItems: [Listing] = []
-    @Published var searchSuggestions: [SearchSuggestion] = []
+    @Published var searchSuggestions: [MarketplaceSearchSuggestion] = []
     @Published var recentSearches: [String] = []
     @Published var categoryCounts: [String: Int] = [:]
     @Published var isLoading = false
@@ -904,7 +904,14 @@ class EnhancedMarketplaceViewModel: ObservableObject {
     private func fetchSearchSuggestions(query: String) async {
         do {
             let suggestions = try await apiClient.fetchSearchSuggestions(query: query)
-            self.searchSuggestions = suggestions
+            self.searchSuggestions = suggestions.map { suggestion in
+                MarketplaceSearchSuggestion(
+                    icon: iconForSuggestionType(suggestion.type),
+                    text: suggestion.query,
+                    subtitle: suggestion.count != nil ? "\(suggestion.count!) results" : "",
+                    thumbnail: nil
+                )
+            }
         } catch {
             print("Error fetching suggestions: \(error)")
         }
@@ -1111,11 +1118,24 @@ class EnhancedMarketplaceViewModel: ObservableObject {
         recentSearches = []
         UserDefaults.standard.removeObject(forKey: "recentSearches")
     }
+
+    private func iconForSuggestionType(_ type: SearchSuggestion.SuggestionType) -> String {
+        switch type {
+        case .query:
+            return "magnifyingglass"
+        case .category:
+            return "folder"
+        case .location:
+            return "location"
+        case .brand:
+            return "tag"
+        }
+    }
 }
 
 // MARK: - Supporting Models
 
-struct SearchSuggestion: Identifiable {
+struct MarketplaceSearchSuggestion: Identifiable {
     let id = UUID()
     let icon: String
     let text: String
@@ -1123,6 +1143,7 @@ struct SearchSuggestion: Identifiable {
     let thumbnail: String?
 }
 
+// MARK: - Helper Functions
 
 // MARK: - Preview
 

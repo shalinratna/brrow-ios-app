@@ -150,26 +150,26 @@ enum SearchSortOption: String, Codable, CaseIterable {
 }
 
 // MARK: - Search Response
-struct SearchResponse: Codable {
+struct LegacySearchResponse: Codable {
     let success: Bool
     let data: SearchData
     
     struct SearchData: Codable {
         let listings: [Listing]
-        let pagination: SearchPagination
-        let filters: SearchFilters
+        let pagination: LegacySearchPagination
+        let filters: LegacySearchFilters
         let suggestions: [String]
     }
 }
 
-struct SearchPagination: Codable {
+struct LegacySearchPagination: Codable {
     let page: Int
     let limit: Int
     let total: Int
     let totalPages: Int
 }
 
-struct SearchFilters: Codable {
+struct LegacySearchFilters: Codable {
     let applied: AppliedFilters
     let available: AvailableFilters
     

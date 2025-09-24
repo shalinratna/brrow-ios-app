@@ -204,8 +204,8 @@ struct PostCard: View {
                     }
                     
                     // Price/Budget
-                    if post.price > 0 {
-                        Text("$\(String(format: "%.2f", post.price))\(post.postType == "listing" ? "/day" : "")")
+                    if let price = post.price, price > 0 {
+                        Text("$\(String(format: "%.2f", price))\(post.postType == "listing" ? "/day" : "")")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(Theme.Colors.primary)
                     }
@@ -230,13 +230,13 @@ struct PostCard: View {
                     }
                     
                     // Edit Restrictions
-                    if !post.editRestrictions.isEmpty {
+                    if !(post.editRestrictions?.isEmpty ?? true) {
                         HStack(spacing: 4) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 10))
                                 .foregroundColor(.orange)
                             
-                            Text(post.editRestrictions.first ?? "")
+                            Text(post.editRestrictions?.first ?? "")
                                 .font(.system(size: 11))
                                 .foregroundColor(.orange)
                                 .lineLimit(1)
@@ -246,14 +246,14 @@ struct PostCard: View {
                 
                 // Edit Button
                 Button(action: onEdit) {
-                    Image(systemName: post.canEdit ? "pencil" : "lock.fill")
+                    Image(systemName: (post.canEdit ?? true) ? "pencil" : "lock.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(post.canEdit ? Theme.Colors.primary : Theme.Colors.secondary)
+                        .foregroundColor((post.canEdit ?? true) ? Theme.Colors.primary : Theme.Colors.secondary)
                         .frame(width: 40, height: 40)
                         .background(Theme.Colors.secondaryBackground)
                         .clipShape(Circle())
                 }
-                .disabled(!post.canEdit)
+                .disabled(!(post.canEdit ?? true))
             }
             .padding()
         }
@@ -362,64 +362,9 @@ struct FilterPill: View {
     }
 }
 
-// MARK: - Post Filter
-enum PostFilter: String, CaseIterable {
-    case all = "All"
-    case listings = "Listings"
-    case seeks = "Seeks"
-    case garageSales = "Garage Sales"
-    
-    var title: String { rawValue }
-}
+// MARK: - Post Filter (Moved to PostModels.swift)
 
-// MARK: - User Post Model
-struct UserPost: Identifiable, Codable {
-    let id: Int
-    let listingId: String?
-    let postType: String
-    let title: String
-    let description: String
-    let price: Double
-    let category: String
-    let status: String
-    let createdAt: String
-    let updatedAt: String
-    let images: [String]?  // Add images array from API
-    let thumbnail: String? // Keep for backward compatibility
-    let canEdit: Bool
-    let editRestrictions: [String]
-    
-    // Additional fields for different post types
-    let urgency: String?
-    let startDate: String?
-    let endDate: String?
-    let hasActiveRental: Bool?
-    let hasStarted: Bool?
-    let hasEnded: Bool?
-    
-    // Computed property to get thumbnail from images array or thumbnail field
-    var displayThumbnail: String? {
-        if let firstImage = images?.first {
-            return firstImage
-        }
-        return thumbnail
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case id, title, description, price, category, status, thumbnail, images, urgency
-        case listingId = "listing_id"
-        case postType = "post_type"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-        case canEdit = "can_edit"
-        case editRestrictions = "edit_restrictions"
-        case startDate = "start_date"
-        case endDate = "end_date"
-        case hasActiveRental = "has_active_rental"
-        case hasStarted = "has_started"
-        case hasEnded = "has_ended"
-    }
-}
+// Note: UserPost model is defined in APITypes.swift
 
 // MARK: - View Model
 class MyPostsViewModel: ObservableObject {
@@ -493,26 +438,20 @@ class MyPostsViewModel: ObservableObject {
                         let updatedAtString = listing.updatedAt
                         
                         return UserPost(
-                            id: Int(listing.id) ?? 0,  // Convert String ID to Int
-                            listingId: listing.listingId,  // Use API ID for all API calls
-                            postType: "listing",
+                            id: listing.id,
                             title: listing.title,
-                            description: listing.description,
-                            price: listing.price,
-                            category: listing.category?.name ?? "General",
-                            status: listing.status,
+                            content: listing.description,
+                            imageUrl: listing.imageUrls.first,
                             createdAt: createdAtString,
                             updatedAt: updatedAtString,
-                            images: listing.imageUrls,  // Use imageUrls array
-                            thumbnail: listing.imageUrls.first,  // Keep for backward compatibility
-                            canEdit: true,
-                            editRestrictions: [],
+                            postType: "listing",
+                            status: listing.status,
+                            price: listing.price,
+                            category: listing.category?.name ?? "General",
+                            thumbnail: listing.imageUrls.first,
                             urgency: nil,
-                            startDate: nil,
-                            endDate: nil,
-                            hasActiveRental: false,
-                            hasStarted: nil,
-                            hasEnded: nil
+                            editRestrictions: nil,
+                            canEdit: true
                         )
                     }
                     allPosts.append(contentsOf: listingPosts)
@@ -536,26 +475,20 @@ class MyPostsViewModel: ObservableObject {
                     
                     let seekPosts = seeksResponse.map { seek -> UserPost in
                         return UserPost(
-                            id: seek.id,
-                            listingId: "seek_\(seek.id)",
-                            postType: "seek",
+                            id: String(seek.id),
                             title: seek.title,
-                            description: seek.description,
-                            price: seek.maxBudget ?? 0,
-                            category: seek.category,
-                            status: seek.status,
+                            content: seek.description,
+                            imageUrl: nil,
                             createdAt: seek.createdAt,
-                            updatedAt: seek.createdAt, // Use createdAt since updatedAt doesn't exist
-                            images: [],
+                            updatedAt: seek.createdAt,
+                            postType: "seek",
+                            status: seek.status,
+                            price: seek.maxBudget,
+                            category: seek.category,
                             thumbnail: nil,
-                            canEdit: true,
-                            editRestrictions: [],
                             urgency: seek.urgency,
-                            startDate: nil,
-                            endDate: nil,
-                            hasActiveRental: false,
-                            hasStarted: nil,
-                            hasEnded: nil
+                            editRestrictions: nil,
+                            canEdit: true
                         )
                     }
                     allPosts.append(contentsOf: seekPosts)
@@ -570,26 +503,20 @@ class MyPostsViewModel: ObservableObject {
                     
                     let garageSalePosts = garageSalesResponse.map { sale -> UserPost in
                         return UserPost(
-                            id: sale.id,
-                            listingId: "sale_\(sale.id)",
-                            postType: "garage_sale",
+                            id: String(sale.id),
                             title: sale.title,
-                            description: sale.description ?? "",
+                            content: sale.description ?? "",
+                            imageUrl: sale.images.first,
+                            createdAt: sale.startDate,
+                            updatedAt: sale.startDate,
+                            postType: "garage_sale",
+                            status: sale.status ?? sale.computedStatus,
                             price: 0,
                             category: "Garage Sale",
-                            status: sale.status ?? sale.computedStatus,
-                            createdAt: sale.startDate, // Use startDate since createdAt doesn't exist
-                            updatedAt: sale.endDate, // Use endDate as updatedAt
-                            images: sale.images,
                             thumbnail: sale.images.first,
-                            canEdit: true,
-                            editRestrictions: [],
                             urgency: nil,
-                            startDate: sale.startDate,
-                            endDate: sale.endDate,
-                            hasActiveRental: false,
-                            hasStarted: !sale.isUpcoming, // Started if not upcoming
-                            hasEnded: sale.isPast
+                            editRestrictions: nil,
+                            canEdit: true
                         )
                     }
                     allPosts.append(contentsOf: garageSalePosts)

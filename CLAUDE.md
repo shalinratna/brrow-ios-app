@@ -91,3 +91,4 @@ git push
 
 ---
 *Last Updated: [Auto-updates with each session]*
+- Any backend change will not take effect in the app until successfully deployed on railway

@@ -132,12 +132,13 @@ struct EnhancedChatDetailView: View {
     // MARK: - Messages Scroll View
     private var messagesScrollView: some View {
         ScrollViewReader { proxy in
-            ScrollView {
+            let scrollContent = ScrollView {
                 LazyVStack(spacing: 12) {
                     ForEach(viewModel.messages, id: \.id) { message in
+                        let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.apiId
                         EnhancedMessageBubble(
-                            message: message,
-                            isFromCurrentUser: message.senderId == AuthManager.shared.currentUser?.apiId
+                            message: message.toEnhancedChatMessage(),
+                            isFromCurrentUser: isFromCurrentUser
                         )
                         .id(message.id)
                     }
@@ -145,13 +146,15 @@ struct EnhancedChatDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
-            .onChange(of: viewModel.messages.count) { _ in
-                if let lastMessage = viewModel.messages.last {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+
+            scrollContent
+                .onChange(of: viewModel.messages.count) { _, _ in
+                    if let lastMessage = viewModel.messages.last {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        }
                     }
                 }
-            }
         }
         .padding(.bottom, keyboardHeight)
         .animation(.easeOut(duration: 0.25), value: keyboardHeight)
@@ -199,10 +202,14 @@ struct EnhancedChatDetailView: View {
                                 startVoiceRecording()
                             }
                         }) {
-                            Image(systemName: isRecordingVoice ? "stop.circle.fill" : "mic.circle.fill")
+                            let iconName = isRecordingVoice ? "stop.circle.fill" : "mic.circle.fill"
+                            let iconColor = isRecordingVoice ? Color.red : Theme.Colors.primary
+                            let iconScale = isRecordingVoice ? 1.2 : 1.0
+
+                            Image(systemName: iconName)
                                 .font(.system(size: 24))
-                                .foregroundColor(isRecordingVoice ? .red : Theme.Colors.primary)
-                                .scaleEffect(isRecordingVoice ? 1.2 : 1.0)
+                                .foregroundColor(iconColor)
+                                .scaleEffect(iconScale)
                                 .animation(.easeInOut(duration: 0.1), value: isRecordingVoice)
                         }
                     }

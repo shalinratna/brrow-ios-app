@@ -18,13 +18,13 @@ import {
 interface User {
   id: string;
   email: string;
-  username?: string;
   firstName?: string;
   lastName?: string;
   isVerified: boolean;
-  isActive: boolean;
+  isCreator: boolean;
   createdAt: string;
-  lastActiveAt?: string;
+  lastLoginAt?: string;
+  emailVerifiedAt?: string;
   _count?: {
     listings: number;
     favorites: number;
@@ -52,8 +52,8 @@ export default function UsersManagement() {
         return;
       }
 
-      // Fetch real users from your Railway backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
+      // Fetch ALL users from your Railway backend
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users?limit=500`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
           'Content-Type': 'application/json'
@@ -75,17 +75,18 @@ export default function UsersManagement() {
       const data = await response.json();
       console.log('Users API Response:', data);
 
-      if (data.success && data.data && data.data.users) {
-        const realUsers = data.data.users.map((user: any) => ({
+      // Handle the actual API response structure: { users: [...], pagination: {...} }
+      if (data.users && Array.isArray(data.users)) {
+        const realUsers = data.users.map((user: any) => ({
           id: user.id,
           email: user.email,
-          username: user.username,
           firstName: user.firstName,
           lastName: user.lastName,
           isVerified: user.isVerified || false,
-          isActive: user.isActive !== false, // Default to true if not specified
+          isCreator: user.isCreator || false,
           createdAt: user.createdAt,
-          lastActiveAt: user.lastLoginAt || user.lastActiveAt,
+          lastLoginAt: user.lastLoginAt,
+          emailVerifiedAt: user.emailVerifiedAt,
           _count: {
             listings: user._count?.listings || 0,
             favorites: user._count?.favorites || 0
@@ -110,26 +111,39 @@ export default function UsersManagement() {
     fetchUsers();
   }, []);
 
-  const handleBulkAction = async (action: 'activate' | 'deactivate' | 'delete') => {
+  const handleBulkAction = async (action: 'verify' | 'unverify' | 'delete') => {
     if (selectedUsers.length === 0) return;
 
     const confirmAction = confirm(`Are you sure you want to ${action} ${selectedUsers.length} users?`);
     if (!confirmAction) return;
 
+    console.log(`🔥 Starting bulk ${action} for users:`, selectedUsers);
+
     try {
       const adminToken = localStorage.getItem('adminToken');
 
+      if (!adminToken) {
+        console.error('❌ No admin token found');
+        alert('No admin token found. Please log in again.');
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
       for (const userId of selectedUsers) {
+        console.log(`🔄 Processing ${action} for user ${userId}...`);
+
         const endpoint = action === 'delete'
           ? `/api/admin/users/${userId}`
           : `/api/admin/users/${userId}`;
 
-        const method = action === 'delete' ? 'DELETE' : 'PUT';
+        const method = action === 'delete' ? 'DELETE' : 'PATCH';
         const body = action !== 'delete' ? {
-          isActive: action === 'activate'
+          isVerified: action === 'verify'
         } : undefined;
 
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
           method,
           headers: {
             'Authorization': `Bearer ${adminToken}`,
@@ -137,24 +151,44 @@ export default function UsersManagement() {
           },
           body: body ? JSON.stringify(body) : undefined
         });
+
+        console.log(`📋 Response for user ${userId}:`, response.status, response.statusText);
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ Success for user ${userId}:`, result);
+          successCount++;
+        } else {
+          const error = await response.text();
+          console.error(`❌ Failed for user ${userId}:`, error);
+          failCount++;
+        }
+      }
+
+      console.log(`📊 Bulk ${action} completed: ${successCount} success, ${failCount} failed`);
+
+      if (successCount > 0) {
+        alert(`Successfully ${action}ed ${successCount} users${failCount > 0 ? ` (${failCount} failed)` : ''}`);
+      } else {
+        alert(`Failed to ${action} any users. Check console for details.`);
       }
 
       setSelectedUsers([]);
       fetchUsers(); // Reload real data
     } catch (error) {
-      console.error(`Error performing ${action}:`, error);
+      console.error(`❌ Error performing bulk ${action}:`, error);
+      alert(`Error performing bulk ${action}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilter = filter === 'all' ||
-                         (filter === 'active' && user.isActive) ||
-                         (filter === 'inactive' && !user.isActive) ||
-                         (filter === 'verified' && user.isVerified);
+                         (filter === 'verified' && user.isVerified) ||
+                         (filter === 'creators' && user.isCreator) ||
+                         (filter === 'recent' && user.lastLoginAt);
 
     return matchesSearch && matchesFilter;
   });
@@ -222,6 +256,52 @@ export default function UsersManagement() {
           </div>
         </div>
 
+        {/* Analytics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Total Users</p>
+                <p className="text-2xl font-bold text-white">{users.length}</p>
+              </div>
+              <Users className="w-8 h-8 text-blue-400" />
+            </div>
+          </div>
+          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Recent Logins</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.lastLoginAt).length}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-400" />
+            </div>
+          </div>
+          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Verified Users</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.isVerified).length}</p>
+              </div>
+              <Mail className="w-8 h-8 text-purple-400" />
+            </div>
+          </div>
+          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">New Today</p>
+                <p className="text-2xl font-bold text-white">
+                  {users.filter(u => {
+                    const today = new Date();
+                    const userDate = new Date(u.createdAt);
+                    return userDate.toDateString() === today.toDateString();
+                  }).length}
+                </p>
+              </div>
+              <Calendar className="w-8 h-8 text-yellow-400" />
+            </div>
+          </div>
+        </div>
+
         {/* Controls */}
         <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-6 mb-6">
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
@@ -239,7 +319,7 @@ export default function UsersManagement() {
 
             {/* Filters */}
             <div className="flex gap-2">
-              {['all', 'active', 'inactive', 'verified'].map((f) => (
+              {['all', 'verified', 'creators', 'recent'].map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -249,7 +329,7 @@ export default function UsersManagement() {
                       : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                   }`}
                 >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {f === 'creators' ? 'Creators' : f === 'recent' ? 'Recent Logins' : f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
               ))}
             </div>
@@ -258,16 +338,16 @@ export default function UsersManagement() {
             {selectedUsers.length > 0 && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleBulkAction('activate')}
+                  onClick={() => handleBulkAction('verify')}
                   className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
                 >
-                  Activate ({selectedUsers.length})
+                  Verify ({selectedUsers.length})
                 </button>
                 <button
-                  onClick={() => handleBulkAction('deactivate')}
+                  onClick={() => handleBulkAction('unverify')}
                   className="px-3 py-1 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
                 >
-                  Deactivate ({selectedUsers.length})
+                  Unverify ({selectedUsers.length})
                 </button>
                 <button
                   onClick={() => handleBulkAction('delete')}
@@ -339,7 +419,7 @@ export default function UsersManagement() {
                           <div className="font-medium text-white">
                             {user.firstName && user.lastName
                               ? `${user.firstName} ${user.lastName}`
-                              : user.username || 'No name'
+                              : 'No name'
                             }
                           </div>
                           <div className="text-sm text-gray-400">{user.email}</div>
@@ -350,34 +430,29 @@ export default function UsersManagement() {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col gap-1">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            user.isActive
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.isActive ? (
-                              <>
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Active
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="w-3 h-3 mr-1" />
-                                Inactive
-                              </>
-                            )}
-                          </span>
                           {user.isVerified && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               <Mail className="w-3 h-3 mr-1" />
                               Verified
                             </span>
                           )}
+                          {user.isCreator && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Creator
+                            </span>
+                          )}
+                          {user.lastLoginAt && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Recent Login
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="p-4 text-sm text-gray-400">
-                        {user.lastActiveAt
-                          ? new Date(user.lastActiveAt).toLocaleDateString()
+                        {user.lastLoginAt
+                          ? new Date(user.lastLoginAt).toLocaleDateString()
                           : 'Never'
                         }
                       </td>
@@ -405,51 +480,6 @@ export default function UsersManagement() {
           )}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Users</p>
-                <p className="text-2xl font-bold text-white">{users.length}</p>
-              </div>
-              <Users className="w-8 h-8 text-blue-400" />
-            </div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Active Users</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.isActive).length}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-400" />
-            </div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Verified Users</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.isVerified).length}</p>
-              </div>
-              <Mail className="w-8 h-8 text-purple-400" />
-            </div>
-          </div>
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">New Today</p>
-                <p className="text-2xl font-bold text-white">
-                  {users.filter(u => {
-                    const today = new Date();
-                    const userDate = new Date(u.createdAt);
-                    return userDate.toDateString() === today.toDateString();
-                  }).length}
-                </p>
-              </div>
-              <Calendar className="w-8 h-8 text-yellow-400" />
-            </div>
-          </div>
-        </div>
       </motion.div>
     </div>
   );

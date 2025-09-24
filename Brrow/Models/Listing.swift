@@ -134,7 +134,61 @@ struct Listing: Codable, Identifiable, Equatable {
         case imageUrl, _count
         // NOTE: isOwner and isFavorite are client-side only, not from API
     }
-    
+
+    // Custom decoder to handle string location from API
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        description = try container.decode(String.self, forKey: .description)
+        categoryId = try container.decode(String.self, forKey: .categoryId)
+        condition = try container.decode(String.self, forKey: .condition)
+        price = try container.decode(Double.self, forKey: .price)
+        dailyRate = try container.decodeIfPresent(Double.self, forKey: .dailyRate)
+        isNegotiable = try container.decode(Bool.self, forKey: .isNegotiable)
+        availabilityStatus = try container.decode(ListingStatus.self, forKey: .availabilityStatus)
+
+        // Handle location - can be string or object
+        if let locationString = try? container.decode(String.self, forKey: .location) {
+            // If location is a string, create a Location object with the string as city
+            location = Location(
+                address: locationString,
+                city: locationString,
+                state: "",
+                zipCode: "",
+                country: "",
+                latitude: 0.0,
+                longitude: 0.0
+            )
+        } else {
+            // If location is an object, decode it normally
+            location = try container.decode(Location.self, forKey: .location)
+        }
+
+        userId = try container.decode(String.self, forKey: .userId)
+        viewCount = try container.decode(Int.self, forKey: .viewCount)
+        favoriteCount = try container.decode(Int.self, forKey: .favoriteCount)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        isPremium = try container.decode(Bool.self, forKey: .isPremium)
+        premiumExpiresAt = try container.decodeIfPresent(String.self, forKey: .premiumExpiresAt)
+        deliveryOptions = try container.decodeIfPresent(DeliveryOptions.self, forKey: .deliveryOptions)
+        tags = try container.decode([String].self, forKey: .tags)
+        metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        user = try container.decodeIfPresent(UserInfo.self, forKey: .user)
+        category = try container.decodeIfPresent(CategoryModel.self, forKey: .category)
+        images = try container.decode([ListingImage].self, forKey: .images)
+        videos = try container.decodeIfPresent([ListingVideo].self, forKey: .videos)
+        imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        _count = try container.decodeIfPresent(ListingCount.self, forKey: ._count)
+
+        // Client-side properties (not from API)
+        isOwner = nil
+        isFavorite = false
+    }
+
     // Helper methods
     var hasValidImages: Bool {
         return !images.isEmpty
@@ -163,52 +217,96 @@ struct Listing: Codable, Identifiable, Equatable {
     var longitude: Double {
         return location.longitude
     }
-    
+
+    // Computed property to determine if this is for sale or rent
+    // TODO: This should ideally come from the backend as an explicit field
+    var listingType: String {
+        // If daily rate exists and > 0, it's for rent (Brrow's primary business model)
+        if let dailyRate = dailyRate, dailyRate > 0 {
+            return "rental"
+        }
+        // If only price exists and > 0, it's for sale
+        else if price > 0 {
+            return "sale"
+        }
+        // If both are 0, it's free
+        else {
+            return "free"
+        }
+    }
+
+    // Human-readable listing type
+    var listingTypeDisplay: String {
+        switch listingType {
+        case "rental":
+            return "For Rent"
+        case "sale":
+            return "For Sale"
+        case "free":
+            return "Free"
+        default:
+            return "Available"
+        }
+    }
+
     var specifications: [(key: String, value: String)] {
         // This would be populated from API
         return []
     }
     
     // Example for preview
-    static let example = Listing(
-        id: "lst_example_drill",
-        title: "DeWalt 20V Max Cordless Drill",
-        description: "Professional-grade cordless drill perfect for home improvement projects. Includes two batteries, charger, and carrying case. Well-maintained and ready to use.",
-        categoryId: "cat_tools",
-        condition: "GOOD",
-        price: 25.0,
-        dailyRate: nil,
-        isNegotiable: true,
-        availabilityStatus: ListingStatus.available,
-        location: Location(
-            address: "123 Main St",
-            city: "San Francisco",
-            state: "CA",
-            zipCode: "94105",
-            country: "USA",
-            latitude: 37.7749,
-            longitude: -122.4194
-        ),
-        userId: "usr_example",
-        viewCount: 145,
-        favoriteCount: 12,
-        isActive: true,
-        isPremium: false,
-        premiumExpiresAt: nil as String?,
-        deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
-        tags: ["tools", "construction", "dewalt"],
-        metadata: nil as [String: AnyCodable]?,
-        createdAt: ISO8601DateFormatter().string(from: Date()),
-        updatedAt: ISO8601DateFormatter().string(from: Date()),
-        user: nil as UserInfo?,
-        category: nil as CategoryModel?,
-        images: [],
-        videos: nil as [ListingVideo]?,
-        imageUrl: nil,
-        _count: ListingCount(favorites: 0),
-        isOwner: false,
-        isFavorite: false
-    )
+    static var example: Listing {
+        let jsonString = """
+        {
+            "id": "lst_example_drill",
+            "title": "DeWalt 20V Max Cordless Drill",
+            "description": "Professional-grade cordless drill perfect for home improvement projects. Includes two batteries, charger, and carrying case. Well-maintained and ready to use.",
+            "categoryId": "cat_tools",
+            "condition": "GOOD",
+            "price": 25.0,
+            "dailyRate": null,
+            "isNegotiable": true,
+            "availabilityStatus": "AVAILABLE",
+            "location": {
+                "address": "123 Main St",
+                "city": "San Francisco",
+                "state": "CA",
+                "zipCode": "94105",
+                "country": "USA",
+                "latitude": 37.7749,
+                "longitude": -122.4194
+            },
+            "userId": "usr_example",
+            "viewCount": 145,
+            "favoriteCount": 12,
+            "isActive": true,
+            "isPremium": false,
+            "premiumExpiresAt": null,
+            "deliveryOptions": {
+                "pickup": true,
+                "delivery": false,
+                "shipping": false
+            },
+            "tags": ["tools", "construction", "dewalt"],
+            "metadata": null,
+            "createdAt": "2024-01-15T10:30:00Z",
+            "updatedAt": "2024-01-15T10:30:00Z",
+            "user": null,
+            "category": null,
+            "images": [],
+            "videos": null,
+            "imageUrl": null,
+            "_count": {
+                "favorites": 0
+            },
+            "isOwner": false,
+            "isFavorite": false
+        }
+        """
+
+        let data = jsonString.data(using: .utf8)!
+        return try! JSONDecoder().decode(Listing.self, from: data)
+    }
 }
 
 // MARK: - Core Data Entity

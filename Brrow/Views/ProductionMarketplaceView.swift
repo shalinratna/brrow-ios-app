@@ -1188,7 +1188,7 @@ struct ShimmerCard: View {
 class ProductionMarketplaceViewModel: ObservableObject {
     @Published var listings: [Listing] = []
     @Published var featuredItems: [Listing] = []
-    @Published var searchSuggestions: [SearchSuggestion] = []
+    @Published var searchSuggestions: [MarketplaceSearchSuggestion] = []
     @Published var recentSearches: [String] = []
     @Published var trendingSearches: [String] = ["iPhone", "Camera", "Tools", "Camping Gear", "Party Supplies"]
     @Published var categoryCounts: [String: Int] = [:]
@@ -1278,7 +1278,14 @@ class ProductionMarketplaceViewModel: ObservableObject {
     private func fetchSearchSuggestions(query: String) async {
         do {
             let suggestions = try await apiClient.fetchSearchSuggestions(query: query)
-            self.searchSuggestions = suggestions
+            self.searchSuggestions = suggestions.map { suggestion in
+                MarketplaceSearchSuggestion(
+                    icon: iconForSuggestionType(suggestion.type),
+                    text: suggestion.query,
+                    subtitle: suggestion.count != nil ? "\(suggestion.count!) results" : "",
+                    thumbnail: nil
+                )
+            }
         } catch {
             print("Error fetching suggestions: \(error)")
         }
@@ -1436,6 +1443,19 @@ class ProductionMarketplaceViewModel: ObservableObject {
     func clearRecentSearches() {
         recentSearches = []
         UserDefaults.standard.removeObject(forKey: "recentSearches")
+    }
+
+    private func iconForSuggestionType(_ type: SearchSuggestion.SuggestionType) -> String {
+        switch type {
+        case .query:
+            return "magnifyingglass"
+        case .category:
+            return "folder"
+        case .location:
+            return "location"
+        case .brand:
+            return "tag"
+        }
     }
 }
 

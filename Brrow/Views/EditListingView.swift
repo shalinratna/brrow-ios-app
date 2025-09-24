@@ -519,55 +519,7 @@ class EditListingViewModel: ObservableObject {
 // MARK: - Preview
 struct EditListingView_Previews: PreviewProvider {
     static var previews: some View {
-        let sampleListing = Listing(
-            id: "lst_123",
-            title: "Sample Item",
-            description: "A sample listing for preview",
-            categoryId: "cat_electronics",
-            condition: "GOOD",
-            price: 25.00,
-            dailyRate: nil,
-            isNegotiable: true,
-            availabilityStatus: .available,
-            location: Location(
-                address: "123 Main St",
-                city: "San Francisco",
-                state: "CA",
-                zipCode: "94102",
-                country: "USA",
-                latitude: 37.7749,
-                longitude: -122.4194
-            ),
-            userId: "usr_123",
-            viewCount: 0,
-            favoriteCount: 0,
-            isActive: true,
-            isPremium: false,
-            premiumExpiresAt: nil as String?,
-            deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
-            tags: [],
-            metadata: nil as [String: AnyCodable]?,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
-            updatedAt: ISO8601DateFormatter().string(from: Date()),
-            user: nil as UserInfo?,
-            category: CategoryModel(
-                id: "cat_electronics",
-                name: "Electronics",
-                description: "Electronic items",
-                iconUrl: nil,
-                parentId: nil,
-                isActive: true,
-                sortOrder: 1,
-                createdAt: ISO8601DateFormatter().string(from: Date()),
-                updatedAt: ISO8601DateFormatter().string(from: Date())
-            ),
-            images: [],
-            videos: nil as [ListingVideo]?,
-            imageUrl: nil,
-            _count: Listing.ListingCount(favorites: 0),
-            isOwner: true,
-            isFavorite: false
-        )
+        let sampleListing = Listing.example
         
         EditListingView(listing: sampleListing)
             .environmentObject(AuthManager.shared)

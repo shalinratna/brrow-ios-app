@@ -31,10 +31,10 @@ class FileUploadService: ObservableObject {
         print("🚀 [UPLOAD START] Beginning image upload")
         print("📐 Original image size: \(image.size.width)x\(image.size.height)")
 
-        // AGGRESSIVE compression to prevent timeouts
+        // High quality compression for better image quality
         let originalSize = image.size
-        let maxDimension: CGFloat = 800  // Much smaller max size
-        var compressionQuality: CGFloat = 0.5  // Start with 50% quality
+        let maxDimension: CGFloat = 1920  // Much higher max size for better quality
+        var compressionQuality: CGFloat = 0.90  // Start with 90% quality
 
         print("📏 Resizing to max dimension: \(maxDimension)px")
 
@@ -42,23 +42,23 @@ class FileUploadService: ObservableObject {
         let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension)
         print("✅ Resized to: \(resizedImage.size.width)x\(resizedImage.size.height)")
 
-        // Try progressively lower quality until we get under 100KB
+        // Try progressively lower quality until we get under reasonable size
         var imageData: Data?
-        let targetSize = 50 * 1024  // 50KB target - VERY AGGRESSIVE
+        let targetSize = 2 * 1024 * 1024  // 2MB target - Much more reasonable
 
-        print("🎯 Target size: \(targetSize / 1024)KB")
+        print("🎯 Target size: \(targetSize / 1024 / 1024)MB")
 
-        for quality in stride(from: compressionQuality, to: 0.1, by: -0.1) {
+        for quality in stride(from: compressionQuality, to: 0.6, by: -0.05) {
             if let data = resizedImage.jpegData(compressionQuality: quality) {
                 print("  📊 Quality \(Int(quality * 100))%: \(data.count / 1024)KB")
                 if data.count <= targetSize {
                     imageData = data
                     print("✅ SUCCESS: Image compressed to \(data.count / 1024)KB at \(Int(quality * 100))% quality")
                     break
-                } else if quality <= 0.2 {
-                    // Last resort - use this even if too big
+                } else if quality <= 0.65 {
+                    // Last resort - use this even if too big (still good quality)
                     imageData = data
-                    print("⚠️ WARNING: Image still \(data.count / 1024)KB at minimum quality")
+                    print("⚠️ WARNING: Image still \(data.count / 1024)KB at minimum quality \(Int(quality * 100))%")
                     break
                 }
             }

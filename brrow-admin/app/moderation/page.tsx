@@ -480,7 +480,7 @@ export default function ModerationManagement() {
                                 {item.message && 'Message Content'}
                                 {item.report && !item.user && !item.listing && !item.message && 'General Report'}
                               </div>
-                              {item.user?.warningCount > 0 && (
+                              {item.user?.warningCount && item.user.warningCount > 0 && (
                                 <div className="text-xs text-orange-400 mt-1">
                                   {item.user.warningCount} previous warnings
                                 </div>

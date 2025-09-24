@@ -254,8 +254,8 @@ class NetworkErrorHandler: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             if let apiError = error as? BrrowAPIError {
                 switch apiError {
-                case .networkError:
-                    self?.currentError = "Network connection error. Please check your internet connection."
+                case .networkError(let message):
+                    self?.currentError = message.isEmpty ? "Network connection error. Please check your internet connection." : message
                 case .serverError(let message):
                     self?.currentError = message
                 case .serverErrorCode(let code):
@@ -264,8 +264,10 @@ class NetworkErrorHandler: ObservableObject {
                     self?.currentError = "Your session has expired. Please log in again."
                 case .invalidResponse:
                     self?.currentError = "Received invalid response from server."
-                case .decodingError:
-                    self?.currentError = "Error processing server response."
+                case .invalidURL:
+                    self?.currentError = "Invalid URL provided."
+                case .decodingError(let error):
+                    self?.currentError = "Error processing server response: \(error.localizedDescription)"
                 case .validationError(let message):
                     self?.currentError = message
                 case .addressConflict(let message):

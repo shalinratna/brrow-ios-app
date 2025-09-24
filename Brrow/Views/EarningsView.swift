@@ -299,7 +299,19 @@ struct EarningsView: View {
             }
             
             LazyVStack(spacing: Theme.Spacing.sm) {
-                ForEach(viewModel.recentTransactions.prefix(5), id: \.id) { transaction in
+                ForEach(viewModel.recentTransactions.prefix(5), id: \.id) { legacyTransaction in
+                    let transaction = EarningsTransaction(
+                        id: legacyTransaction.id,
+                        bookingId: legacyTransaction.id,
+                        amount: legacyTransaction.amount,
+                        type: .rental,
+                        status: .completed,
+                        date: legacyTransaction.date,
+                        description: legacyTransaction.itemTitle,
+                        listingTitle: legacyTransaction.itemTitle,
+                        renterName: nil,
+                        itemImageUrl: legacyTransaction.itemImageUrl
+                    )
                     EarningsTransactionRow(transaction: transaction)
                 }
             }
@@ -443,7 +455,7 @@ struct EarningsTransactionRow: View {
             .cornerRadius(8)
             
             VStack(alignment: .leading, spacing: 2) {
-                Text(transaction.itemTitle)
+                Text(transaction.listingTitle ?? "Unknown Item")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(Theme.Colors.text)
                     .lineLimit(1)

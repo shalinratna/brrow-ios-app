@@ -207,7 +207,7 @@ class NetworkManager {
                         if let responseString = String(data: data, encoding: .utf8) {
                             print("❌ Decoding error. Raw response: \(responseString)")
                         }
-                        throw BrrowAPIError.decodingError
+                        throw BrrowAPIError.decodingError(error)
                     }
                     
                 case 401:

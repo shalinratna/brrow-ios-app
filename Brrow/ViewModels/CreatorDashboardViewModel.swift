@@ -3,20 +3,20 @@ import SwiftUI
 
 @MainActor
 class CreatorDashboardViewModel: ObservableObject {
-    @Published var dashboard: CreatorDashboard?
+    @Published var dashboard: LegacyCreatorDashboard?
     @Published var isLoading = false
     @Published var error: String?
-    
+
     func loadDashboard() async {
         isLoading = true
         error = nil
-        
+
         do {
             dashboard = try await APIClient.shared.getCreatorDashboard()
         } catch {
             self.error = error.localizedDescription
         }
-        
+
         isLoading = false
     }
 }
@@ -46,14 +46,14 @@ class StripeOnboardingViewModel: ObservableObject {
 
 // MARK: - Data Models
 
-struct CreatorDashboard: Codable {
+struct LegacyCreatorDashboard: Codable {
     let success: Bool
     let creator: CreatorInfo
     let stats: CreatorStats
     let shareLink: String
     let monthlyEarnings: [CreatorMonthlyEarning]
     let recentCommissions: [CreatorCommission]
-    
+
     private enum CodingKeys: String, CodingKey {
         case success
         case creator

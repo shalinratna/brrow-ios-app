@@ -28,8 +28,9 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store token in cookie
+        // Store token in both cookie and localStorage
         document.cookie = `admin-token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}`;
+        localStorage.setItem('adminToken', data.token);
         toast.success('Login successful!');
         router.push('/');
       } else {
@@ -134,7 +135,7 @@ export default function LoginPage() {
                 <p className="text-blue-400 font-medium mb-1">Default Credentials</p>
                 <p className="text-gray-400">
                   Email: admin@shaiitech.com<br />
-                  Password: Shaiitech2024Admin!
+                  Password: admin123456
                 </p>
               </div>
             </div>
