@@ -2968,24 +2968,23 @@ class APIClient: ObservableObject {
     
     func sendListingInquiry(listingId: String, message: String, inquiryType: String = "general") async throws -> ListingInquiryResponse {
         let body: [String: Any] = [
-            "listing_id": listingId,
             "message": message,
-            "inquiry_type": inquiryType
+            "inquiryType": inquiryType
         ]
-        
+
         let bodyData = try JSONSerialization.data(withJSONObject: body)
-        
+
         let response = try await performRequest(
-            endpoint: "send_listing_inquiry.php",
+            endpoint: "api/listings/\(listingId)/inquiry",
             method: .POST,
             body: bodyData,
             responseType: APIResponse<ListingInquiryResponse>.self
         )
-        
+
         guard response.success, let data = response.data else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to send inquiry")
         }
-        
+
         return data
     }
     
