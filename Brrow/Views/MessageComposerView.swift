@@ -181,13 +181,18 @@ struct MessageComposerView: View {
         
         Task {
             do {
-                let request = SendMessageRequest(
-                    receiverId: recipientId,
-                    content: messageText,
-                    messageType: "text",
-                    conversationId: nil
+                // First create or find a conversation
+                let conversation = try await APIClient.shared.createConversation(
+                    otherUserId: recipientId,
+                    listingId: listingId
                 )
-                let message = try await APIClient.shared.sendMessage(request)
+
+                // Then send the message
+                let message = try await APIClient.shared.sendMessage(
+                    conversationId: conversation.id,
+                    content: messageText,
+                    messageType: .text
+                )
                 
                 await MainActor.run {
                     isLoading = false

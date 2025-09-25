@@ -420,9 +420,16 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func sendMessage(_ message: SendMessageRequest) async {
+    func sendMessage(_ messageRequest: SendMessageRequest) async {
         do {
-            let sentMessage = try await APIClient.shared.sendMessage(message)
+            let sentMessage = try await APIClient.shared.sendMessage(
+                conversationId: messageRequest.conversationId,
+                content: messageRequest.content,
+                messageType: messageRequest.messageType ?? .text,
+                mediaUrl: messageRequest.mediaUrl,
+                thumbnailUrl: messageRequest.thumbnailUrl,
+                listingId: messageRequest.listingId
+            )
             DispatchQueue.main.async {
                 // Convert ChatMessage to Message from ChatModels
                 let newMessage = Message(
