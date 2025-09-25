@@ -98,11 +98,22 @@ class ImageCacheManager: ObservableObject {
     
     // Async download method
     private func downloadImageAsync(from urlString: String) async throws -> UIImage {
+        // Handle empty or null strings
+        guard !urlString.isEmpty && urlString != "null" else {
+            throw NSError(domain: "ImageCache", code: 0, userInfo: [NSLocalizedDescriptionKey: "Empty or null URL string"])
+        }
+
         // Add base URL if the path is relative
         let fullUrlString: String
-        if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
-            // This is a relative path from our backend
-            fullUrlString = "https://brrowapp.com\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
+        if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
+            // Already a full URL
+            fullUrlString = urlString
+        } else if urlString.hasPrefix("/") {
+            // Absolute path relative to domain root (e.g., "/uploads/...", "/api/images/...")
+            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app\(urlString)"
+        } else if urlString.contains("/") || urlString.contains(".") {
+            // Relative path or filename (e.g., "uploads/...", "image.jpg")
+            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app/\(urlString)"
         } else {
             fullUrlString = urlString
         }
@@ -186,11 +197,24 @@ class ImageCacheManager: ObservableObject {
     // MARK: - Private Methods
     
     private func downloadImage(from urlString: String, cacheKey: String) {
+        // Handle empty or null strings
+        guard !urlString.isEmpty && urlString != "null" else {
+            print("❌ Empty or null URL string")
+            completeDownload(for: cacheKey, with: nil)
+            return
+        }
+
         // Add base URL if the path is relative
         let fullUrlString: String
-        if urlString.hasPrefix("/uploads/") || urlString.hasPrefix("uploads/") {
-            // This is a relative path from our backend
-            fullUrlString = "https://brrowapp.com\(urlString.hasPrefix("/") ? "" : "/")\(urlString)"
+        if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
+            // Already a full URL
+            fullUrlString = urlString
+        } else if urlString.hasPrefix("/") {
+            // Absolute path relative to domain root (e.g., "/uploads/...", "/api/images/...")
+            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app\(urlString)"
+        } else if urlString.contains("/") || urlString.contains(".") {
+            // Relative path or filename (e.g., "uploads/...", "image.jpg")
+            fullUrlString = "https://brrow-backend-nodejs-production.up.railway.app/\(urlString)"
         } else {
             fullUrlString = urlString
         }

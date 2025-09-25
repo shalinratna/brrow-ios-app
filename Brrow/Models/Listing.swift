@@ -110,7 +110,7 @@ struct Listing: Codable, Identifiable, Equatable {
     var inventoryAmt: Int { 1 } // Default
     var isArchived: Bool { !isActive }
     var ownerUsername: String? { user?.username }
-    var ownerProfilePicture: String? { user?.profilePictureUrl }
+    var ownerProfilePicture: String? { user?.fullProfilePictureURL }
     var ownerRating: Double? { user?.averageRating }
     var ownerVerified: Bool { user?.emailVerifiedAt != nil || user?.idmeVerified == true }
     var isPromoted: Bool { isPremium }

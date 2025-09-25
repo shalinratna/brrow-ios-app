@@ -87,7 +87,7 @@ struct SocialProfileView: View {
             .overlay(
                 VStack(spacing: 12) {
                     // Profile picture
-                    AsyncImage(url: URL(string: user.profilePicture ?? "")) { image in
+                    AsyncImage(url: URL(string: user.fullProfilePictureURL ?? "")) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
