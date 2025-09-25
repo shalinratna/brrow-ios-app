@@ -406,9 +406,9 @@ class ChatViewModel: ObservableObject {
         
         Task {
             do {
-                let response = try await APIClient.shared.fetchMessages(conversationId: conversationId)
+                let fetchedMessages = try await APIClient.shared.fetchMessages(conversationId: conversationId)
                 DispatchQueue.main.async {
-                    self.messages = response.messages
+                    self.messages = fetchedMessages
                     self.isLoading = false
                 }
             } catch {
@@ -422,38 +422,18 @@ class ChatViewModel: ObservableObject {
     
     func sendMessage(_ messageRequest: SendMessageRequest) async {
         do {
+            let messageType = MessageType(rawValue: messageRequest.messageType) ?? .text
             let sentMessage = try await APIClient.shared.sendMessage(
-                conversationId: messageRequest.conversationId,
+                conversationId: messageRequest.conversationId ?? "",
                 content: messageRequest.content,
-                messageType: messageRequest.messageType ?? .text,
-                mediaUrl: messageRequest.mediaUrl,
-                thumbnailUrl: messageRequest.thumbnailUrl,
-                listingId: messageRequest.listingId
+                messageType: messageType,
+                mediaUrl: nil,
+                thumbnailUrl: nil,
+                listingId: nil
             )
             DispatchQueue.main.async {
-                // Convert ChatMessage to Message from ChatModels
-                let newMessage = Message(
-                    id: sentMessage.id,
-                    chatId: message.conversationId ?? message.receiverId,
-                    senderId: sentMessage.senderId,
-                    receiverId: sentMessage.receiverId,
-                    content: sentMessage.content,
-                    messageType: MessageType(rawValue: sentMessage.messageType) ?? .text,
-                    mediaUrl: nil,
-                    thumbnailUrl: nil,
-                    listingId: nil,
-                    isRead: sentMessage.isRead,
-                    isEdited: false,
-                    editedAt: nil,
-                    deletedAt: nil,
-                    sentAt: sentMessage.createdAt,
-                    createdAt: sentMessage.createdAt,
-                    sender: AuthManager.shared.currentUser,
-                    reactions: nil,
-                    tempId: nil,
-                    sendStatus: .sent
-                )
-                self.messages.append(newMessage)
+                // The sentMessage is already a Message object from the new API
+                self.messages.append(sentMessage)
             }
         } catch {
             DispatchQueue.main.async {
