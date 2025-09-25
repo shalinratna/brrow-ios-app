@@ -184,7 +184,7 @@ struct MessageComposerView: View {
                 // First create or find a conversation
                 let conversation = try await APIClient.shared.createConversation(
                     otherUserId: recipientId,
-                    listingId: listingId
+                    listingId: listing.listingId
                 )
 
                 // Then send the message
