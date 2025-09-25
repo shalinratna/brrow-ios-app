@@ -89,20 +89,62 @@ struct AuthResponse: Codable {
 struct ListingsResponse: Codable {
     let success: Bool
     let listings: [Listing]?  // Backend returns listings directly
-    let data: ListingsData?  // Sometimes returns nested data
+    let data: ListingsDataWrapper?  // Sometimes returns nested data
     let message: String?
     let total: Int?
     let page: Int?
     let limit: Int?
 
-    // Handle both response formats
+    // Handle multiple response formats
     var allListings: [Listing] {
         // First check if listings is directly available
         if let directListings = listings {
             return directListings
         }
-        // Otherwise check for nested data.listings
-        return data?.listings ?? []
+        // Check for nested data.listings
+        if let nestedData = data {
+            if let nestedListings = nestedData.listings {
+                return nestedListings
+            }
+            // Handle case where data is a direct array of listings
+            if let directArray = nestedData.directArray {
+                return directArray
+            }
+        }
+        return []
+    }
+
+    // Flexible data wrapper to handle different API response formats
+    struct ListingsDataWrapper: Codable {
+        let listings: [Listing]?
+        let pagination: PaginationData?
+        let directArray: [Listing]?
+
+        init(from decoder: Decoder) throws {
+            // Try to decode as object with listings array first
+            if let container = try? decoder.container(keyedBy: CodingKeys.self) {
+                listings = try container.decodeIfPresent([Listing].self, forKey: .listings)
+                pagination = try container.decodeIfPresent(PaginationData.self, forKey: .pagination)
+                directArray = nil
+            } else {
+                // Try to decode as direct array of listings
+                let arrayContainer = try decoder.singleValueContainer()
+                if let array = try? arrayContainer.decode([Listing].self) {
+                    directArray = array
+                    listings = nil
+                    pagination = nil
+                } else {
+                    // Fallback
+                    listings = nil
+                    pagination = nil
+                    directArray = nil
+                }
+            }
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case listings, pagination
+        }
     }
 
     struct ListingsData: Codable {
@@ -145,7 +187,12 @@ struct UserListingsResponse: Codable {
     let success: Bool
     let data: UserListingsData?
     let message: String?
-    
+
+    // Handle listings access uniformly
+    var allListings: [Listing] {
+        return data?.listings ?? []
+    }
+
     struct UserListingsData: Codable {
         let listings: [Listing]
         let stats: ListingStats?
@@ -428,7 +475,12 @@ struct FetchListingsAPIResponse: Codable {
     let success: Bool
     let data: FetchListingsData?
     let message: String?
-    
+
+    // Handle listings access uniformly
+    var allListings: [Listing] {
+        return data?.listings ?? []
+    }
+
     struct FetchListingsData: Codable {
         let listings: [Listing]
         let pagination: ListingsResponse.PaginationData?

@@ -53,7 +53,7 @@ extension Listing {
     // Rental period
     var rentalPeriod: String? {
         // Default to "day" for rental listings
-        return listingType == "rent" ? "day" : nil
+        return listingType == "rental" ? "day" : nil
     }
     
     // Check if listing is new

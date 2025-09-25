@@ -9,6 +9,8 @@ import SwiftUI
 
 struct UltraModernMarketplaceView3: View {
     @StateObject private var viewModel = UltraModernMarketplaceViewModel()
+    @StateObject private var predictiveLoader = PredictiveLoadingManager.shared
+    @StateObject private var cacheManager = AggressiveCacheManager.shared
     @State private var searchText = ""
     @State private var selectedCategory: String? = nil
     @State private var showingFilters = false
@@ -32,6 +34,12 @@ struct UltraModernMarketplaceView3: View {
                 dynamicGradientBackground
                 .onAppear {
                     print("🎨 UltraModernMarketplaceView3 loaded!")
+
+                    // 🚀 PREDICTIVE LOADING: Preload marketplace data and images
+                    Task {
+                        await predictiveLoader.preloadMarketplaceData()
+                        await cacheManager.preloadListingImages(viewModel.listings)
+                    }
                 }
                 
                 ScrollView {

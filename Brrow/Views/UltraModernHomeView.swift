@@ -75,10 +75,7 @@ struct UltraModernHomeView: View {
                 viewModel.loadHomeData()
             }
             .sheet(isPresented: $showingNotifications) {
-                // TODO: Add NotificationsView when available
-                Text("Notifications")
-                    .font(.title)
-                    .padding()
+                NotificationsView()
             }
             .sheet(item: $selectedQuickAction) { action in
                 getViewForAction(action)
@@ -749,6 +746,172 @@ class UltraModernHomeViewModel: ObservableObject {
     
     private func updateStats() async {
         // API call to update stats
+    }
+}
+
+// MARK: - Notifications View
+struct HomeNotificationsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var notifications: [NotificationItem] = []
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(notifications) { notification in
+                    NotificationRowView(notification: notification)
+                }
+                .onDelete(perform: deleteNotifications)
+            }
+            .navigationTitle("Notifications")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Mark All Read") {
+                        markAllAsRead()
+                    }
+                    .disabled(notifications.allSatisfy { $0.isRead })
+                }
+            }
+            .onAppear {
+                loadNotifications()
+            }
+        }
+    }
+
+    private func loadNotifications() {
+        // Mock notifications
+        notifications = [
+            NotificationItem(
+                id: UUID().uuidString,
+                title: "New message from John",
+                body: "Hey, is the bicycle still available?",
+                type: .message,
+                timestamp: Date().addingTimeInterval(-300),
+                isRead: false
+            ),
+            NotificationItem(
+                id: UUID().uuidString,
+                title: "Rental request approved",
+                body: "Your Camera rental request has been approved",
+                type: .booking,
+                timestamp: Date().addingTimeInterval(-3600),
+                isRead: false
+            ),
+            NotificationItem(
+                id: UUID().uuidString,
+                title: "Payment received",
+                body: "You've received $45 for your Power Drill rental",
+                type: .payment,
+                timestamp: Date().addingTimeInterval(-7200),
+                isRead: true
+            ),
+            NotificationItem(
+                id: UUID().uuidString,
+                title: "New listing nearby",
+                body: "Someone listed a MacBook Pro near you",
+                type: .newListing,
+                timestamp: Date().addingTimeInterval(-86400),
+                isRead: true
+            )
+        ]
+    }
+
+    private func markAllAsRead() {
+        notifications = notifications.map { notification in
+            var updated = notification
+            updated.isRead = true
+            return updated
+        }
+    }
+
+    private func deleteNotifications(at offsets: IndexSet) {
+        notifications.remove(atOffsets: offsets)
+    }
+}
+
+struct NotificationRowView: View {
+    let notification: NotificationItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: notification.type.icon)
+                .font(.title2)
+                .foregroundColor(notification.type.color)
+                .frame(width: 40, height: 40)
+                .background(notification.type.color.opacity(0.1))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(notification.title)
+                        .font(.system(size: 16, weight: notification.isRead ? .medium : .semibold))
+                        .foregroundColor(Theme.Colors.text)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text(timeAgo(from: notification.timestamp))
+                        .font(.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+
+                Text(notification.body)
+                    .font(.system(size: 14))
+                    .foregroundColor(notification.isRead ? Theme.Colors.secondaryText : Theme.Colors.text)
+                    .lineLimit(2)
+            }
+
+            if !notification.isRead {
+                Circle()
+                    .fill(Theme.Colors.primary)
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .padding(.vertical, 4)
+        .background(notification.isRead ? Color.clear : Theme.Colors.primary.opacity(0.05))
+    }
+
+    private func timeAgo(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+struct NotificationItem: Identifiable {
+    let id: String
+    let title: String
+    let body: String
+    let type: HomeNotificationType
+    let timestamp: Date
+    var isRead: Bool
+}
+
+enum HomeNotificationType: String, CaseIterable {
+    case message, booking, payment, newListing
+
+    var icon: String {
+        switch self {
+        case .message: return "message.fill"
+        case .booking: return "calendar"
+        case .payment: return "dollarsign.circle.fill"
+        case .newListing: return "plus.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .message: return .blue
+        case .booking: return .green
+        case .payment: return .orange
+        case .newListing: return .purple
+        }
     }
 }
 

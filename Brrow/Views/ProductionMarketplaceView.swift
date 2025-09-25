@@ -292,7 +292,9 @@ struct ProductionMarketplaceView: View {
             
             TabView {
                 ForEach(viewModel.featuredItems) { listing in
-                    NavigationLink(destination: ListingDetailView(listing: listing)) {
+                    Button(action: {
+                        ListingNavigationManager.shared.showListing(listing)
+                    }) {
                         HeroFeaturedCard(listing: listing, colors: colors)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -421,7 +423,9 @@ struct ProductionMarketplaceView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(viewModel.listings) { listing in
-                        NavigationLink(destination: ListingDetailView(listing: listing)) {
+                        Button(action: {
+                            ListingNavigationManager.shared.showListing(listing)
+                        }) {
                             ProductionListingCard(
                                 listing: listing,
                                 colors: colors,
@@ -1262,7 +1266,7 @@ class ProductionMarketplaceViewModel: ObservableObject {
             do {
                 // Fetch all data
                 let response = try await apiClient.fetchFeaturedListings()
-                let allListings = response.data?.listings ?? []
+                let allListings = response.allListings
                 
                 await MainActor.run {
                     // Separate featured and regular listings
@@ -1404,7 +1408,7 @@ class ProductionMarketplaceViewModel: ObservableObject {
                 offset: (currentPage - 1) * 20
             )
             
-            self.listings = response.data?.listings ?? []
+            self.listings = response.allListings
             self.hasMore = response.data?.pagination?.hasMore ?? false
             self.isLoading = false
         } catch {
@@ -1442,7 +1446,8 @@ class ProductionMarketplaceViewModel: ObservableObject {
                 offset: listings.count
             )
             
-            if let newListings = response.data?.listings {
+            let newListings = response.allListings
+            if !newListings.isEmpty {
                 self.listings.append(contentsOf: newListings)
             }
             

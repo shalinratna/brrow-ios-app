@@ -445,8 +445,8 @@ struct ModernCreateListingView: View {
                                        let uiImage = UIImage(data: data),
                                        loadedImages.count < 10 {
                                         // Resize image immediately after loading to save memory
-                                        print("📸 [LOAD] Resizing image to 600px max")
-                                        let optimizedImage = uiImage.resizedWithAspectRatio(maxDimension: 600)
+                                        print("📸 [LOAD] Resizing image to 1600px max")
+                                        let optimizedImage = uiImage.resizedWithAspectRatio(maxDimension: 1600)
                                         loadedImages.append(optimizedImage)
                                         print("✅ [LOAD] Image resized and added")
                                     }
@@ -660,7 +660,7 @@ struct ModernCreateListingView: View {
                     
                     // Use AGGRESSIVE compression to prevent timeouts
                     print("🚀 [UPLOAD] Starting image \(index + 1)/\(totalImages)")
-                    if let imageData = image.optimizedForUpload(maxDimension: 600, compressionQuality: 0.3) {
+                    if let imageData = image.optimizedForUpload(maxDimension: 1600, compressionQuality: 0.7) {
                         print("📦 [UPLOAD] Image compressed to \(imageData.count / 1024)KB")
                         let fileName = "listing_\(Date().timeIntervalSince1970)_\(index).jpg"
 

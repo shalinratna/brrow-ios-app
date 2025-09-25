@@ -655,8 +655,8 @@ struct GarageSaleListingsView: View {
                     // Listings grid
                     if sale.associatedListingCount > 0 {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            // TODO: Fetch actual listings for this garage sale
-                            // For now, show placeholder message
+                            // Fetch listings for this garage sale (mock implementation)
+                            // In a real app, use API call: APIClient.shared.fetchListingsForGarageSale(sale.id)
                             ForEach(0..<1, id: \.self) { _ in
                                 VStack(spacing: 16) {
                                     Image(systemName: "cube.box")

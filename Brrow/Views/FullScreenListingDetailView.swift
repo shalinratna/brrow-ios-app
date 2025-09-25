@@ -11,6 +11,8 @@ struct FullScreenListingDetailView: View {
     @State private var showingBorrowOptions = false
     @State private var inquiryMessage = ""
     @State private var animateContent = false
+    @State private var showingErrorAlert = false
+    @State private var errorMessage = ""
     @Environment(\.dismiss) private var dismiss
     
     init(listing: Listing) {
@@ -69,6 +71,11 @@ struct FullScreenListingDetailView: View {
             }
         }
         .navigationBarHidden(true)
+        .alert("Error", isPresented: $showingErrorAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
         .sheet(isPresented: $showingInquiry) {
             FullScreenInquiryView(listing: listing, message: $inquiryMessage) { message in
                 sendInquiry(message: message)
@@ -461,7 +468,10 @@ struct FullScreenListingDetailView: View {
                 }
             } catch {
                 print("Failed to send inquiry: \(error)")
-                // TODO: Show error alert to user
+                await MainActor.run {
+                    errorMessage = "Failed to send inquiry. Please try again."
+                    showingErrorAlert = true
+                }
             }
         }
     }

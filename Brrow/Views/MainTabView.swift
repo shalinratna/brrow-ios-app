@@ -10,9 +10,10 @@ import Combine
 
 struct MainTabView: View {
     @StateObject private var authManager = AuthManager.shared
+    @StateObject private var predictiveLoader = PredictiveLoadingManager.shared
     @State private var cancellables = Set<AnyCancellable>()
     @State private var selectedTab = 0
-    
+
     // Persistent view models to prevent reloading
     @StateObject private var homeViewModel = HomeViewModel()
     @StateObject private var browseViewModel = HomeViewModel() // Reuse for Browse
@@ -76,17 +77,31 @@ struct MainTabView: View {
             // Smooth transition with haptic feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
-            
+
             // Preload content for adjacent tabs
             preloadAdjacentTabs(currentTab: newTab)
-            
+
+            // 🚀 PREDICTIVE LOADING: Predict next navigation based on current tab
+            Task {
+                await predictiveLoader.predictNextNavigation(
+                    from: getTabName(newTab),
+                    userBehavior: ["previousTab": oldValue, "currentTab": newTab]
+                )
+            }
+
             // Track tab switching analytics
             trackTabSwitch(from: oldValue, to: newTab)
         }
+        .withUniversalListingDetail()  // Enable universal listing navigation
         .onAppear {
             setupTabAppearance()
             preloadInitialContent()
             trackScreenView("main_tab_view")
+
+            // 🚀 PREDICTIVE LOADING: Start background sync when app launches
+            Task {
+                await predictiveLoader.startBackgroundSync()
+            }
         }
     }
     
@@ -151,6 +166,11 @@ struct MainTabView: View {
     
     private func trackScreenView(_ screenName: String) {
         // TODO: Track screen view analytics when needed
+    }
+
+    private func getTabName(_ tabIndex: Int) -> String {
+        let tabNames = ["home", "marketplace", "borrow", "chats", "profile"]
+        return tabIndex < tabNames.count ? tabNames[tabIndex] : "unknown"
     }
 }
 

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
+    @StateObject private var predictiveLoader = PredictiveLoadingManager.shared
     @State private var showPassword = false
     
     var body: some View {
@@ -102,6 +103,18 @@ struct LoginView: View {
             // Toggle mode
             modernToggleSection
             
+            // Predictive loading indicator
+            if predictiveLoader.isPredictiveLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Getting ready...")
+                        .font(.caption)
+                        .foregroundColor(Theme.Colors.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+
             // Error message
             if !viewModel.errorMessage.isEmpty {
                 modernErrorView
@@ -127,6 +140,12 @@ struct LoginView: View {
                 )
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .onChange(of: viewModel.username) { _, newValue in
+                    // 🚀 PREDICTIVE LOADING: Start preloading as user types username
+                    if !newValue.isEmpty {
+                        predictiveLoader.startPredictiveLoading(for: newValue)
+                    }
+                }
                 
                 // Birthdate Field (Registration only)
                 ModernDatePicker(
@@ -147,6 +166,12 @@ struct LoginView: View {
             )
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
+            .onChange(of: viewModel.email) { _, newValue in
+                // 🚀 PREDICTIVE LOADING: Start preloading as user types email
+                if !newValue.isEmpty && newValue.contains("@") {
+                    predictiveLoader.startPredictiveLoading(for: newValue)
+                }
+            }
             
             // Password Field
             ModernSecureField(

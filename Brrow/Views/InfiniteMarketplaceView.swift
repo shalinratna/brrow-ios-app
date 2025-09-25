@@ -217,7 +217,9 @@ struct InfiniteMarketplaceView: View {
                         ForEach(Array(viewModel.items.enumerated()), id: \.offset) { index, item in
                             Group {
                                 if let listing = item as? Listing {
-                                    NavigationLink(destination: ListingDetailView(listing: listing)) {
+                                    Button(action: {
+                                        ListingNavigationManager.shared.showListing(listing)
+                                    }) {
                                         InfiniteListingCard(listing: listing)
                                     }
                                 } else if let sale = item as? GarageSale {
@@ -290,7 +292,9 @@ struct InfiniteMarketplaceView: View {
                 HStack(spacing: 16) {
                     ForEach(Array(viewModel.featuredItems.enumerated()), id: \.offset) { index, item in
                         if let listing = item as? Listing {
-                            NavigationLink(destination: ListingDetailView(listing: listing)) {
+                            Button(action: {
+                                ListingNavigationManager.shared.showListing(listing)
+                            }) {
                                 InfiniteFeaturedCard(listing: listing)
                             }
                             .buttonStyle(PlainButtonStyle())

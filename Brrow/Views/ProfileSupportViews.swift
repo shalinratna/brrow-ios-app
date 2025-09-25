@@ -10,7 +10,7 @@ import MessageUI
 import StoreKit
 
 // MARK: - Help & Support View
-struct HelpSupportView: View {
+struct ProfileHelpSupportView: View {
     @State private var showingContactMail = false
     @State private var showingReportBugMail = false
     @State private var searchText = ""

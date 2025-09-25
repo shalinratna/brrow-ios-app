@@ -8,7 +8,7 @@
 import SwiftUI
 import PhotosUI
 
-struct EditGarageSaleView: View {
+struct StandaloneEditGarageSaleView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = EditGarageSaleViewModel()

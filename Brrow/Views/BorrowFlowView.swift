@@ -221,7 +221,7 @@ struct BorrowFlowView: View {
                 }
                 
                 // Make an offer (optional)
-                if "listing" == "rent" {
+                if listing.listingType == "rental" {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Make an offer (optional)")
                             .font(.system(size: 18, weight: .semibold))

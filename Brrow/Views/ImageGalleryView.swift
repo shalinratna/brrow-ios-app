@@ -85,7 +85,36 @@ struct FullScreenImageGalleryView: View {
     
     private func shareImage() {
         guard selectedIndex < images.count else { return }
-        // TODO: Implement image sharing
+        let imageURLString = images[selectedIndex]
+
+        guard let url = URL(string: imageURLString) else { return }
+
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard let image = UIImage(data: data) else { return }
+
+                await MainActor.run {
+                    let activityVC = UIActivityViewController(
+                        activityItems: [image, "Check out this item on Brrow!"],
+                        applicationActivities: nil
+                    )
+
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let window = windowScene.windows.first,
+                       let rootVC = window.rootViewController {
+
+                        if let presentedVC = rootVC.presentedViewController {
+                            presentedVC.present(activityVC, animated: true)
+                        } else {
+                            rootVC.present(activityVC, animated: true)
+                        }
+                    }
+                }
+            } catch {
+                print("Failed to load image for sharing: \(error)")
+            }
+        }
     }
 }
 

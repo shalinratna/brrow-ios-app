@@ -137,7 +137,9 @@ struct NativeDiscoverView: View {
             GridItem(.flexible(), spacing: 16)
         ], spacing: 16) {
             ForEach(viewModel.listings) { listing in
-                NavigationLink(destination: ListingDetailView(listing: listing)) {
+                Button(action: {
+                    ListingNavigationManager.shared.showListing(listing)
+                }) {
                     NativeListingCard(listing: listing)
                 }
                 .buttonStyle(PlainButtonStyle())

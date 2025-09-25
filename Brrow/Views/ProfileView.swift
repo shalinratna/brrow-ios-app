@@ -12,6 +12,14 @@ struct ProfileView: View {
     @StateObject private var authManager = AuthManager.shared
     @State private var showingSettings = false
     @State private var showingEditProfile = false
+    @State private var showingMyListings = false
+    @State private var showingFavorites = false
+    @State private var showingTransactions = false
+    @State private var showingHelpSupport = false
+    @State private var showingPaymentMethods = false
+    @State private var showingNotifications = false
+    @State private var showingPrivacySecurity = false
+    @State private var showingAboutBrrow = false
     
     var body: some View {
         NavigationView {
@@ -44,6 +52,35 @@ struct ProfileView: View {
             .sheet(isPresented: $showingEditProfile) {
                 EnhancedEditProfileView()
                     .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showingMyListings) {
+                EnhancedMyPostsView()
+                    .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showingFavorites) {
+                AllFavoritesView()
+                    .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showingTransactions) {
+                TransactionsView()
+                    .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showingHelpSupport) {
+                StandaloneHelpSupportView()
+            }
+            .sheet(isPresented: $showingPaymentMethods) {
+                PaymentMethodsView()
+                    .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showingNotifications) {
+                SettingsView()
+            }
+            .sheet(isPresented: $showingPrivacySecurity) {
+                PrivacySecurityView()
+                    .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showingAboutBrrow) {
+                AboutBrrowView()
             }
             .onAppear {
                 trackScreenView("profile")
@@ -201,7 +238,7 @@ struct ProfileView: View {
                     icon: "list.bullet",
                     color: Theme.Colors.primary
                 ) {
-                    // TODO: Navigate to my listings
+                    showingMyListings = true
                 }
                 
                 QuickActionCard(
@@ -209,7 +246,7 @@ struct ProfileView: View {
                     icon: "heart.fill",
                     color: Theme.Colors.error
                 ) {
-                    // TODO: Navigate to favorites
+                    showingFavorites = true
                 }
                 
                 QuickActionCard(
@@ -217,7 +254,7 @@ struct ProfileView: View {
                     icon: "creditcard",
                     color: Theme.Colors.success
                 ) {
-                    // TODO: Navigate to transactions
+                    showingTransactions = true
                 }
                 
                 QuickActionCard(
@@ -225,7 +262,7 @@ struct ProfileView: View {
                     icon: "questionmark.circle",
                     color: Theme.Colors.info
                 ) {
-                    // TODO: Navigate to help
+                    showingHelpSupport = true
                 }
             }
         }
@@ -239,7 +276,7 @@ struct ProfileView: View {
                 icon: "creditcard",
                 showChevron: true
             ) {
-                // TODO: Navigate to payment methods
+                showingPaymentMethods = true
             }
             
             MenuRow(
@@ -247,7 +284,7 @@ struct ProfileView: View {
                 icon: "bell",
                 showChevron: true
             ) {
-                // TODO: Navigate to notifications
+                showingNotifications = true
             }
             
             MenuRow(
@@ -255,7 +292,7 @@ struct ProfileView: View {
                 icon: "lock.shield",
                 showChevron: true
             ) {
-                // TODO: Navigate to privacy settings
+                showingPrivacySecurity = true
             }
             
             MenuRow(
@@ -263,7 +300,7 @@ struct ProfileView: View {
                 icon: "info.circle",
                 showChevron: true
             ) {
-                // TODO: Navigate to about
+                showingAboutBrrow = true
             }
             
             MenuRow(

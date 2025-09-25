@@ -130,7 +130,7 @@ extension APIClient {
 
         switch result {
         case .success(let response):
-            return .success(response.data?.listings ?? [])
+            return .success(response.allListings)
         case .failure(let error):
             return .failure(error)
         }

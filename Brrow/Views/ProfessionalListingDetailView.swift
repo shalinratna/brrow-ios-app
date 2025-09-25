@@ -251,15 +251,16 @@ struct ProfessionalListingDetailView: View {
     // MARK: - Image Gallery (Facebook Marketplace Style)
     private var imageGallerySection: some View {
         Group {
-            if !viewModel.listing.images.isEmpty {
+            if !viewModel.listing.imageUrls.isEmpty {
                 TabView(selection: $selectedImageIndex) {
                     ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
                         CachedAsyncImage(url: imageUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(maxWidth: .infinity)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .clipped()
+                                .allowsHitTesting(true)
                         } placeholder: {
                             Rectangle()
                                 .fill(Color.gray.opacity(0.1))
@@ -306,7 +307,7 @@ struct ProfessionalListingDetailView: View {
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(Theme.Colors.text)
                 
-                if viewModel.listing.listingType == "rent" {
+                if viewModel.listing.listingType == "rental" {
                     Text("/\(viewModel.listing.rentalPeriod ?? "day")")
                         .font(.system(size: 16))
                         .foregroundColor(Theme.Colors.secondaryText)
@@ -324,7 +325,7 @@ struct ProfessionalListingDetailView: View {
                             .padding(.vertical, 4)
                             .background(Color.red)
                             .cornerRadius(4)
-                    } else {
+                    } else if viewModel.listing.listingType == "rental" {
                         Text("FOR RENT")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.white)
@@ -412,10 +413,25 @@ struct ProfessionalListingDetailView: View {
     
     // MARK: - Quick Actions
     private var quickActionsSection: some View {
-        VStack(spacing: 12) {
-            // Check if this is the owner's listing (handle both String and Int IDs)
-            let isOwner = viewModel.listing.userId == AuthManager.shared.currentUser?.id || 
-                         viewModel.listing.userId == AuthManager.shared.currentUser?.apiId
+        let currentUser = AuthManager.shared.currentUser
+        let isOwner = currentUser != nil && (
+            viewModel.listing.userId == currentUser?.id ||
+            viewModel.listing.userId == currentUser?.apiId ||
+            viewModel.listing.user?.apiId == currentUser?.apiId ||
+            viewModel.listing.user?.id == currentUser?.id
+        )
+
+        // Debug ownership detection
+        let _ = print("🔍 OWNERSHIP DEBUG:")
+        let _ = print("  Current user ID: \(currentUser?.id ?? "nil")")
+        let _ = print("  Current user API ID: \(currentUser?.apiId ?? "nil")")
+        let _ = print("  Listing userId: \(viewModel.listing.userId)")
+        let _ = print("  Listing user?.apiId: \(viewModel.listing.user?.apiId ?? "nil")")
+        let _ = print("  Listing user?.id: \(viewModel.listing.user?.id ?? "nil")")
+        let _ = print("  Is Owner: \(isOwner)")
+
+        return VStack(spacing: 12) {
+
             
             if isOwner {
                 // Owner actions - Simple design
@@ -614,12 +630,16 @@ struct ProfessionalListingDetailView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(Theme.Colors.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .onAppear {
+                    print("📝 Description section appeared with text: '\(viewModel.listing.description)'")
+                }
             
             Text(viewModel.listing.description.isEmpty ? "No description available for this item." : viewModel.listing.description)
                 .font(.body)
                 .foregroundColor(viewModel.listing.description.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -877,7 +897,7 @@ struct ProfessionalListingDetailView: View {
                     Text("$\(Int(viewModel.listing.price))")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(Theme.Colors.text)
-                    if viewModel.listing.listingType == "rent" {
+                    if viewModel.listing.listingType == "rental" {
                         Text("per \(viewModel.listing.rentalPeriod ?? "day")")
                             .font(.system(size: 12))
                             .foregroundColor(Theme.Colors.secondaryText)

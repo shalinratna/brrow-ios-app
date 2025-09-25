@@ -248,7 +248,7 @@ struct NativeSettingsView: View {
                     .foregroundColor(Theme.Colors.secondary)
             }
             
-            NavigationLink(destination: LicensesView()) {
+            NavigationLink(destination: NativeLicensesView()) {
                 Label("Open Source Licenses", systemImage: "doc.badge.gearshape.fill")
                     .foregroundColor(Theme.Colors.accentOrange)
             }
@@ -469,7 +469,7 @@ extension Image {
     }
 }
 
-struct LicensesView: View {
+struct NativeLicensesView: View {
     var body: some View {
         Text("Open Source Licenses")
             .navigationTitle("Licenses")

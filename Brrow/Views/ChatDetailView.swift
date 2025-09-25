@@ -18,6 +18,8 @@ struct ChatDetailView: View {
     @State private var selectedPhotosItem: PhotosPickerItem? = nil
     @State private var showingMediaOptions = false
     @State private var isUploadingMedia = false
+    @State private var showingErrorAlert = false
+    @State private var errorMessage = ""
     
     var body: some View {
         VStack(spacing: 0) {
@@ -63,6 +65,11 @@ struct ChatDetailView: View {
                 }
             }
         )
+        .alert("Error", isPresented: $showingErrorAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
     }
     
     private var chatHeader: some View {
@@ -246,7 +253,8 @@ struct ChatDetailView: View {
         } catch {
             await MainActor.run {
                 isUploadingMedia = false
-                // TODO: Show error alert
+                errorMessage = "Failed to upload media. Please try again."
+                showingErrorAlert = true
                 print("Failed to upload media: \(error)")
             }
         }
@@ -265,7 +273,8 @@ struct ChatDetailView: View {
     private func showSizeLimitError(currentSize: Int, limit: Int) {
         let currentMB = Double(currentSize) / (1024 * 1024)
         let limitMB = Double(limit) / (1024 * 1024)
-        // TODO: Show proper alert
+        errorMessage = "File size (\(String(format: "%.1f", currentMB))MB) exceeds your limit of \(Int(limitMB))MB. Please choose a smaller file."
+        showingErrorAlert = true
         print("File size (\(String(format: "%.1f", currentMB))MB) exceeds your limit of \(Int(limitMB))MB")
     }
 }

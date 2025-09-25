@@ -161,7 +161,8 @@ class DataPreloader: ObservableObject {
                 }
                 
                 // Cache for 30 minutes
-                if let listings = response.data?.listings {
+                let listings = response.allListings
+                if !listings.isEmpty {
                     cacheManager.save(listings, forKey: cacheKey, expiration: .minutes(30))
                 }
             } catch {

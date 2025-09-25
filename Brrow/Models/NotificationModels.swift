@@ -202,8 +202,8 @@ struct PushNotificationRequest: Codable {
 // MARK: - Notification Settings Request
 struct NotificationSettingsRequest: Codable {
     let userId: Int
-    let settings: NotificationSettings
-    
+    let settings: [String: Bool]
+
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case settings

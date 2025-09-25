@@ -217,7 +217,7 @@ struct LegacyListingDetailView: View {
                 .clipShape(Circle())
                 
                 VStack(alignment: .leading) {
-                    Text("Owner") // TODO: Get actual owner info
+                    Text("Owner")
                         .font(Theme.Typography.callout)
                         .fontWeight(.medium)
                         .foregroundColor(Theme.Colors.text)
@@ -236,7 +236,8 @@ struct LegacyListingDetailView: View {
                 Spacer()
                 
                 Button(action: {
-                    // TODO: Navigate to owner profile
+                    // Navigate to owner profile - placeholder for now
+                    print("Navigate to profile of owner: Unknown")
                 }) {
                     Text(LocalizationHelper.localizedString("view_profile"))
                         .font(Theme.Typography.caption)

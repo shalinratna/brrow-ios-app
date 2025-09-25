@@ -5,11 +5,13 @@ import SwiftUI
 @MainActor
 class ChatListViewModel: ObservableObject {
     @Published var conversations: [Conversation] = []
+    @Published var filteredConversations: [Conversation] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var unreadCount = 0
     @Published var selectedChatId: String?
     @Published var navigatedListing: Listing?
+    @Published var searchQuery = ""
 
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
@@ -72,17 +74,27 @@ class ChatListViewModel: ObservableObject {
     }
     
     func searchConversations(query: String) {
-        // TODO: Implement search functionality
+        searchQuery = query
+        if query.isEmpty {
+            filteredConversations = conversations
+        } else {
+            filteredConversations = conversations.filter { conversation in
+                conversation.otherUser.username.localizedCaseInsensitiveContains(query) ||
+                conversation.lastMessage.content.localizedCaseInsensitiveContains(query)
+            }
+        }
     }
     
     func clearSearch() {
-        // TODO: Implement clear search functionality
+        searchQuery = ""
+        filteredConversations = conversations
     }
     
     func fetchConversations() {
         // Check if user is authenticated and not a guest
         guard authManager.isAuthenticated && !authManager.isGuestUser else {
             conversations = []
+            filteredConversations = []
             unreadCount = 0
             isLoading = false
             return
@@ -96,11 +108,17 @@ class ChatListViewModel: ObservableObject {
                 let fetchedConversations = try await apiClient.fetchConversations()
                 
                 await MainActor.run {
-                    self.conversations = fetchedConversations.sorted {
+                    let sortedConversations = fetchedConversations.sorted {
                         let formatter = ISO8601DateFormatter()
                         let timestamp1 = formatter.date(from: $0.lastMessage.createdAt) ?? Date()
                         let timestamp2 = formatter.date(from: $1.lastMessage.createdAt) ?? Date()
                         return timestamp1 > timestamp2
+                    }
+                    self.conversations = sortedConversations
+                    if self.searchQuery.isEmpty {
+                        self.filteredConversations = sortedConversations
+                    } else {
+                        self.searchConversations(query: self.searchQuery)
                     }
                     self.unreadCount = fetchedConversations.reduce(0) { $0 + $1.unreadCount }
                     self.isLoading = false
@@ -120,6 +138,7 @@ class ChatListViewModel: ObservableObject {
                 try await apiClient.deleteConversation(id: Int(conversation.id) ?? 0)
                 await MainActor.run {
                     self.conversations.removeAll { $0.id == conversation.id }
+                    self.filteredConversations.removeAll { $0.id == conversation.id }
                     self.unreadCount = self.conversations.reduce(0) { $0 + $1.unreadCount }
                 }
             } catch {
@@ -183,7 +202,10 @@ class ChatListViewModel: ObservableObject {
         
         Task {
             do {
-                let createdConversation = try await apiClient.createConversation(conversation)
+                let createdConversation = try await apiClient.createConversation(
+                    otherUserId: user.apiId ?? user.id,
+                    listingId: item?.listingId
+                )
                 await MainActor.run {
                     self.conversations.insert(createdConversation, at: 0)
                 }
@@ -207,12 +229,85 @@ class ChatListViewModel: ObservableObject {
             // Mark as selected for navigation
             selectedChatId = conversation.id
         } else {
-            // If conversation doesn't exist in the list, fetch it
-            Task {
-                await fetchConversations()
-                await MainActor.run {
-                    self.selectedChatId = chatId
+            // If conversation doesn't exist, try to create it from chatId
+            // ChatId format: "listing_{listingId}_{userId1}_{userId2}"
+            if chatId.hasPrefix("listing_") {
+                Task {
+                    await createConversationFromChatId(chatId: chatId, listing: listing)
                 }
+            } else {
+                // If conversation doesn't exist in the list, fetch it
+                Task {
+                    await fetchConversations()
+                    await MainActor.run {
+                        self.selectedChatId = chatId
+                    }
+                }
+            }
+        }
+    }
+
+    // Create conversation from the chat ID format
+    private func createConversationFromChatId(chatId: String, listing: Listing?) async {
+        guard let currentUser = authManager.currentUser else {
+            print("❌ No current user found")
+            return
+        }
+
+        // Parse the chat ID to extract user IDs
+        let components = chatId.components(separatedBy: "_")
+        guard components.count >= 4 else {
+            print("❌ Invalid chat ID format: \(chatId)")
+            return
+        }
+
+        let listingIdString = components[1] // Skip "listing" prefix
+        let userId1String = components[components.count - 2]
+        let userId2String = components[components.count - 1]
+
+        // Determine which user is the "other" user
+        let currentUserId = Int(currentUser.id) ?? 0
+        let userId1 = Int(userId1String) ?? 0
+        let userId2 = Int(userId2String) ?? 0
+        let otherUserId: String
+
+        if currentUserId == userId1 {
+            otherUserId = String(userId2)
+        } else if currentUserId == userId2 {
+            otherUserId = String(userId1)
+        } else {
+            print("❌ Current user not found in chat ID: \(chatId)")
+            return
+        }
+
+        // Try to find the other user by numeric ID or use listing owner info
+        var otherUserApiId: String = otherUserId
+        if let listing = listing {
+            otherUserApiId = listing.userId // This should be the owner's API ID
+        }
+
+        print("🔄 Creating conversation with other user: \(otherUserApiId)")
+
+        do {
+            let conversation = try await apiClient.createConversation(
+                otherUserId: otherUserApiId,
+                listingId: listing?.listingId
+            )
+
+            await MainActor.run {
+                // Add the new conversation to the list
+                self.conversations.insert(conversation, at: 0)
+                if self.searchQuery.isEmpty {
+                    self.filteredConversations = self.conversations
+                }
+                // Navigate to it
+                self.selectedChatId = conversation.id
+                print("✅ Created and navigating to conversation: \(conversation.id)")
+            }
+        } catch {
+            print("❌ Failed to create conversation: \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to start conversation. Please try again."
             }
         }
     }

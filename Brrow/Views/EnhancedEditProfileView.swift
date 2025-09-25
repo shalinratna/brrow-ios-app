@@ -409,6 +409,9 @@ struct EnhancedEditProfileView: View {
                         .keyboardType(.phonePad)
                         .disabled(authManager.currentUser?.phoneVerified == true)
                         .opacity(authManager.currentUser?.phoneVerified == true ? 0.7 : 1.0)
+                        .onChange(of: phone) { _, newValue in
+                            phone = formatPhoneNumber(newValue)
+                        }
 
                     if authManager.currentUser?.phoneVerified != true && !phone.isEmpty {
                         Button("Verify") {
@@ -622,6 +625,29 @@ struct EnhancedEditProfileView: View {
 
         // This would call the image upload API
         return try await APIClient.shared.uploadProfilePicture(imageData: imageData)
+    }
+
+    // MARK: - Phone Number Formatting
+    private func formatPhoneNumber(_ input: String) -> String {
+        let digits = input.replacingOccurrences(of: "[^0-9]", with: "", options: .regularExpression)
+
+        if digits.count <= 3 {
+            return digits
+        } else if digits.count <= 6 {
+            let area = String(digits.prefix(3))
+            let prefix = String(digits.suffix(from: digits.index(digits.startIndex, offsetBy: 3)))
+            return "\(area)-\(prefix)"
+        } else if digits.count <= 10 {
+            let area = String(digits.prefix(3))
+            let prefix = String(digits[digits.index(digits.startIndex, offsetBy: 3)..<digits.index(digits.startIndex, offsetBy: 6)])
+            let number = String(digits.suffix(from: digits.index(digits.startIndex, offsetBy: 6)))
+            return "\(area)-\(prefix)-\(number)"
+        } else {
+            let area = String(digits.prefix(3))
+            let prefix = String(digits[digits.index(digits.startIndex, offsetBy: 3)..<digits.index(digits.startIndex, offsetBy: 6)])
+            let number = String(digits[digits.index(digits.startIndex, offsetBy: 6)..<digits.index(digits.startIndex, offsetBy: 10)])
+            return "\(area)-\(prefix)-\(number)"
+        }
     }
 }
 

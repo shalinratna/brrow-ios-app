@@ -15,6 +15,8 @@ struct MessageComposerView: View {
     @State private var isLoading = false
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var showingChatView = false
+    @State private var conversationId: String?
     
     var body: some View {
         NavigationView {
@@ -129,17 +131,45 @@ struct MessageComposerView: View {
             }
             .navigationTitle("Send Message")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            .navigationBarBackButtonHidden(true)
+            .navigationBarItems(leading:
+                Button("Cancel") {
+                    dismiss()
                 }
-            }
+            )
             .alert("Error", isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
+            }
+        }
+        .sheet(isPresented: $showingChatView) {
+            if let conversationId = conversationId {
+                // Create a temporary conversation object for ChatDetailView using the custom initializer
+                let tempUser = User(
+                    id: recipient?.apiId ?? "",
+                    username: recipient?.displayName ?? recipient?.username ?? "User",
+                    email: "",
+                    apiId: recipient?.apiId,
+                    profilePicture: recipient?.profilePicture
+                )
+                let tempMessage = ChatMessage(
+                    id: "",
+                    senderId: "",
+                    receiverId: "",
+                    content: "",
+                    messageType: "text",
+                    createdAt: "",
+                    isRead: false
+                )
+                let tempConversation = Conversation(
+                    id: conversationId,
+                    otherUser: tempUser,
+                    lastMessage: tempMessage,
+                    unreadCount: 0,
+                    updatedAt: ""
+                )
+                ChatDetailView(conversation: tempConversation)
             }
         }
     }
@@ -161,9 +191,14 @@ struct MessageComposerView: View {
                 
                 await MainActor.run {
                     isLoading = false
+                    // Set conversation ID for navigation - use message ID as fallback
+                    self.conversationId = message.id
                     dismiss()
-                    
-                    // TODO: Navigate to chat view with this conversation
+
+                    // Navigate to chat view with this conversation
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.showingChatView = true
+                    }
                 }
             } catch {
                 await MainActor.run {

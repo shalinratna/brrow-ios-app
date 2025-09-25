@@ -70,10 +70,10 @@ struct NotificationsResponse: Codable {
 
 struct NotificationSettingsResponse: Codable {
     let success: Bool
-    let data: NotificationSettings
+    let data: APINotificationSettings
 }
 
-struct NotificationSettings: Codable {
+struct APINotificationSettings: Codable {
     let pushEnabled: Bool
     let emailEnabled: Bool
     let smsEnabled: Bool

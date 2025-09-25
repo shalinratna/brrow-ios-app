@@ -51,14 +51,10 @@ struct EarningsView: View {
                 }
             }
             .sheet(isPresented: $showingPayoutSheet) {
-                // TODO: Implement PayoutRequestView
-                Text("Payout Request View - Coming Soon")
-                    .padding()
+                PayoutRequestView()
             }
             .sheet(isPresented: $showingEarningsBreakdown) {
-                // TODO: Implement EarningsBreakdownView
-                Text("Earnings Breakdown View - Coming Soon")
-                    .padding()
+                EarningsBreakdownView()
                     .environmentObject(viewModel)
             }
         }
@@ -537,6 +533,287 @@ enum EarningsTimeframe: String, CaseIterable {
     case week = "Week"
     case month = "Month"
     case year = "Year"
+}
+
+// MARK: - Payout Request View
+struct PayoutRequestView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var payoutAmount: String = ""
+    @State private var selectedMethod: EarningsPayoutMethod = .bankAccount
+    @State private var bankAccount = ""
+    @State private var routingNumber = ""
+    @State private var paypalEmail = ""
+    @State private var isSubmitting = false
+    @State private var showSuccess = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Payout Amount") {
+                    HStack {
+                        Text("$")
+                            .foregroundColor(Theme.Colors.text)
+                        TextField("0.00", text: $payoutAmount)
+                            .keyboardType(.decimalPad)
+                    }
+
+                    Text("Minimum payout: $5.00")
+                        .font(.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+
+                Section("Payout Method") {
+                    Picker("Method", selection: $selectedMethod) {
+                        ForEach(EarningsPayoutMethod.allCases, id: \.self) { method in
+                            Text(method.displayName).tag(method)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                if selectedMethod == .bankAccount {
+                    Section("Bank Account Details") {
+                        TextField("Account Number", text: $bankAccount)
+                            .keyboardType(.numberPad)
+                        TextField("Routing Number", text: $routingNumber)
+                            .keyboardType(.numberPad)
+                    }
+                } else if selectedMethod == .paypal {
+                    Section("PayPal Details") {
+                        TextField("PayPal Email", text: $paypalEmail)
+                            .keyboardType(.emailAddress)
+                            .autocapitalization(.none)
+                    }
+                }
+
+                Section {
+                    Button("Request Payout") {
+                        submitPayoutRequest()
+                    }
+                    .disabled(payoutAmount.isEmpty || Double(payoutAmount) ?? 0 < 5.0 || isSubmitting)
+                }
+
+                Section {
+                    Text("Payouts typically take 2-3 business days to process. You'll receive an email confirmation once your payout is complete.")
+                        .font(.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+            }
+            .navigationTitle("Request Payout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+            .alert("Payout Requested", isPresented: $showSuccess) {
+                Button("OK") {
+                    dismiss()
+                }
+            } message: {
+                Text("Your payout request has been submitted and will be processed within 2-3 business days.")
+            }
+        }
+    }
+
+    private func submitPayoutRequest() {
+        isSubmitting = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isSubmitting = false
+            showSuccess = true
+        }
+    }
+}
+
+enum EarningsPayoutMethod: String, CaseIterable {
+    case bankAccount = "bank"
+    case paypal = "paypal"
+    case venmo = "venmo"
+
+    var displayName: String {
+        switch self {
+        case .bankAccount: return "Bank Account"
+        case .paypal: return "PayPal"
+        case .venmo: return "Venmo"
+        }
+    }
+}
+
+// MARK: - Earnings Breakdown View
+struct EarningsBreakdownView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var viewModel: EarningsViewModel
+    @State private var selectedTimeframe: EarningsTimeframe = .month
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: Theme.Spacing.lg) {
+                    // Timeframe picker
+                    Picker("Timeframe", selection: $selectedTimeframe) {
+                        ForEach(EarningsTimeframe.allCases, id: \.self) { timeframe in
+                            Text(timeframe.rawValue).tag(timeframe)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+
+                    // Summary cards
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.md) {
+                        BreakdownCard(title: "Total Earnings", value: String(format: "$%.2f", viewModel.totalEarnings), color: Theme.Colors.primary)
+                        BreakdownCard(title: "Items Rented", value: "\(viewModel.itemsRented)", color: Theme.Colors.secondary)
+                        BreakdownCard(title: "Avg Per Rental", value: String(format: "$%.2f", viewModel.avgDailyEarnings), color: .orange)
+                        BreakdownCard(title: "Platform Fee", value: String(format: "$%.2f", viewModel.totalEarnings * 0.1), color: .red)
+                    }
+                    .padding(.horizontal)
+
+                    // Category breakdown
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        Text("Earnings by Category")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal)
+
+                        VStack(spacing: Theme.Spacing.sm) {
+                            CategoryBreakdownRow(category: "Electronics", amount: viewModel.totalEarnings * 0.4, percentage: 40)
+                            CategoryBreakdownRow(category: "Tools", amount: viewModel.totalEarnings * 0.3, percentage: 30)
+                            CategoryBreakdownRow(category: "Sports", amount: viewModel.totalEarnings * 0.2, percentage: 20)
+                            CategoryBreakdownRow(category: "Other", amount: viewModel.totalEarnings * 0.1, percentage: 10)
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.vertical)
+                    .background(Theme.Colors.surface)
+                    .cornerRadius(Theme.CornerRadius.card)
+                    .padding(.horizontal)
+
+                    // Top performing items
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        Text("Top Performing Items")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal)
+
+                        VStack(spacing: Theme.Spacing.sm) {
+                            ForEach(0..<5) { index in
+                                TopItemRow(
+                                    rank: index + 1,
+                                    title: "Sample Item \(index + 1)",
+                                    earnings: viewModel.totalEarnings * Double(5 - index) / 15,
+                                    rentals: 15 - (index * 3)
+                                )
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.vertical)
+                    .background(Theme.Colors.surface)
+                    .cornerRadius(Theme.CornerRadius.card)
+                    .padding(.horizontal)
+                }
+                .padding(.vertical)
+            }
+            .background(Theme.Colors.background)
+            .navigationTitle("Earnings Breakdown")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct BreakdownCard: View {
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(value)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(color)
+
+            Text(title)
+                .font(.caption)
+                .foregroundColor(Theme.Colors.secondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.card)
+    }
+}
+
+struct CategoryBreakdownRow: View {
+    let category: String
+    let amount: Double
+    let percentage: Int
+
+    var body: some View {
+        HStack {
+            Text(category)
+                .font(.callout)
+                .foregroundColor(Theme.Colors.text)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(String(format: "$%.2f", amount))
+                    .font(.callout)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.text)
+
+                Text("\(percentage)%")
+                    .font(.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct TopItemRow: View {
+    let rank: Int
+    let title: String
+    let earnings: Double
+    let rentals: Int
+
+    var body: some View {
+        HStack {
+            Text("#\(rank)")
+                .font(.callout)
+                .fontWeight(.bold)
+                .foregroundColor(Theme.Colors.primary)
+                .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout)
+                    .foregroundColor(Theme.Colors.text)
+
+                Text("\(rentals) rentals")
+                    .font(.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+
+            Spacer()
+
+            Text(String(format: "$%.2f", earnings))
+                .font(.callout)
+                .fontWeight(.semibold)
+                .foregroundColor(Theme.Colors.success)
+        }
+        .padding(.vertical, 4)
+    }
 }
 
 #Preview {

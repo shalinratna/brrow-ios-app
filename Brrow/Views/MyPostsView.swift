@@ -460,7 +460,7 @@ class MyPostsViewModel: ObservableObject {
                     print("🔍 MyPostsView - No listings found or response failed")
                     if let response = listingsResponse {
                         print("   🔍 Success: \(response.success)")
-                        print("   🔍 Data: \(response.data?.listings.count ?? 0) listings")
+                        print("   🔍 Data: \(response.allListings.count) listings")
                         print("   🔍 Error: \(response.message ?? "No error message")")
                     }
                 }
@@ -600,19 +600,15 @@ struct EditPostNavigationView: View {
                             .foregroundColor(.red)
                     }
                 case "seek":
-                    // TODO: Load seek and show EditSeekView
-                    Text("Edit Seek - Coming Soon")
-                        .onAppear {
-                            onComplete()
-                            dismiss()
-                        }
+                    MyPostsEditSeekView(seekId: post.id, onComplete: {
+                        onComplete()
+                        dismiss()
+                    })
                 case "garage_sale":
-                    // TODO: Load garage sale and show EditGarageSaleView
-                    Text("Edit Garage Sale - Coming Soon")
-                        .onAppear {
-                            onComplete()
-                            dismiss()
-                        }
+                    MyPostsEditGarageSaleView(garageSaleId: post.id, onComplete: {
+                        onComplete()
+                        dismiss()
+                    })
                 default:
                     Text("Unknown post type")
                 }
@@ -635,7 +631,7 @@ struct EditPostNavigationView: View {
     
     private func loadListing() {
         isLoadingListing = true
-        
+
         // Create a temporary listing from the post data
         // In a real app, you'd fetch the full listing from the API
         Task {
@@ -644,6 +640,149 @@ struct EditPostNavigationView: View {
                 self.listing = Listing.example
                 self.isLoadingListing = false
             }
+        }
+    }
+}
+
+// MARK: - Edit Seek View
+struct MyPostsEditSeekView: View {
+    let seekId: String
+    let onComplete: () -> Void
+
+    @State private var title = ""
+    @State private var description = ""
+    @State private var maxPrice = ""
+    @State private var location = ""
+    @State private var category = "Electronics"
+    @State private var isLoading = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("What are you looking for?") {
+                    TextField("Item title", text: $title)
+
+                    TextField("Description", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                Section("Budget") {
+                    HStack {
+                        Text("Max Price: $")
+                        TextField("0", text: $maxPrice)
+                            .keyboardType(.decimalPad)
+                    }
+                }
+
+                Section("Details") {
+                    Picker("Category", selection: $category) {
+                        ForEach(CategoryHelper.getAllCategories(), id: \.self) { category in
+                            Text(category).tag(category)
+                        }
+                    }
+
+                    TextField("Location", text: $location)
+                }
+
+                Section {
+                    Button("Update Seek Post") {
+                        updateSeek()
+                    }
+                    .disabled(title.isEmpty || isLoading)
+                }
+            }
+            .navigationTitle("Edit Seek")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                loadSeekData()
+            }
+        }
+    }
+
+    private func loadSeekData() {
+        // In real app, load seek data from API
+        title = "Sample Seek Item"
+        description = "Looking for this item"
+        maxPrice = "50"
+        location = "San Francisco, CA"
+    }
+
+    private func updateSeek() {
+        isLoading = true
+
+        // Simulate API call
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            isLoading = false
+            onComplete()
+        }
+    }
+}
+
+// MARK: - Edit Garage Sale View
+struct MyPostsEditGarageSaleView: View {
+    let garageSaleId: String
+    let onComplete: () -> Void
+
+    @State private var title = ""
+    @State private var description = ""
+    @State private var address = ""
+    @State private var startDate = Date()
+    @State private var endDate = Date()
+    @State private var contactInfo = ""
+    @State private var isLoading = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Garage Sale Details") {
+                    TextField("Sale title", text: $title)
+
+                    TextField("Description", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                Section("Location & Time") {
+                    TextField("Address", text: $address)
+
+                    DatePicker("Start Date", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+
+                    DatePicker("End Date", selection: $endDate, displayedComponents: [.date, .hourAndMinute])
+                }
+
+                Section("Contact") {
+                    TextField("Contact information", text: $contactInfo)
+                }
+
+                Section {
+                    Button("Update Garage Sale") {
+                        updateGarageSale()
+                    }
+                    .disabled(title.isEmpty || address.isEmpty || isLoading)
+                }
+            }
+            .navigationTitle("Edit Garage Sale")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                loadGarageSaleData()
+            }
+        }
+    }
+
+    private func loadGarageSaleData() {
+        // In real app, load garage sale data from API
+        title = "Sample Garage Sale"
+        description = "Great items for sale"
+        address = "123 Main St, San Francisco, CA"
+        contactInfo = "Call or text: (555) 123-4567"
+    }
+
+    private func updateGarageSale() {
+        isLoading = true
+
+        // Simulate API call
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            isLoading = false
+            onComplete()
         }
     }
 }

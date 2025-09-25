@@ -10,7 +10,7 @@ import PhotosUI
 
 // NOTE: EditSeekView temporarily disabled due to Seek model incompatibility
 // This view needs to be updated to match the actual Seek model structure
-struct EditSeekView: View {
+struct StandaloneEditSeekView: View {
     var body: some View {
         Text("Edit Seek functionality coming soon")
             .padding()

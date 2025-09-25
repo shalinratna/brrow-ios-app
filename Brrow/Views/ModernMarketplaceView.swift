@@ -280,7 +280,7 @@ struct ModernMarketplaceView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(filters, id: \.self) { filter in
-                    FilterChip(
+                    ModernFilterChip(
                         title: filter,
                         isSelected: selectedFilter == filter,
                         icon: filterIcon(for: filter),
@@ -502,7 +502,7 @@ struct MarketplaceBackground: View {
     }
 }
 
-struct FilterChip: View {
+struct ModernFilterChip: View {
     let title: String
     let isSelected: Bool
     let icon: String

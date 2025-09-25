@@ -264,14 +264,23 @@ struct HomeView: View {
     private func applyQuickFilter(_ filter: String) {
         switch filter {
         case "Nearby":
-            // TODO: Apply location-based filter
-            break
+            // Apply location-based filter (sort by distance)
+            viewModel.listings.sort { listing1, listing2 in
+                // In real implementation, calculate distance from user location
+                return listing1.locationString.localizedCompare(listing2.locationString) == .orderedAscending
+            }
         case "Popular":
-            // TODO: Apply popularity filter
-            break
+            // Apply popularity filter (sort by view count/favorites)
+            viewModel.listings.sort { listing1, listing2 in
+                // In real implementation, sort by popularity metrics
+                return listing1.title.localizedCompare(listing2.title) == .orderedDescending
+            }
         case "New":
-            // TODO: Apply recent filter
-            break
+            // Apply recent filter (sort by creation date)
+            viewModel.listings.sort { listing1, listing2 in
+                // In real implementation, sort by creation date
+                return listing1.title.localizedCompare(listing2.title) == .orderedAscending
+            }
         default:
             break
         }

@@ -74,18 +74,16 @@ class ListingDetailViewModel: ObservableObject {
                 }
                 
                 await MainActor.run {
-                    // Only update if we got better data
-                    if detailedListing.images.count > self.listing.images.count || 
-                       (detailedListing.images.count == self.listing.images.count && 
-                        detailedListing.views > self.listing.views) {
-                        print("🔄 Background update with better data")
+                    // CRITICAL: Only update if the listing ID matches to prevent wrong details
+                    if detailedListing.listingId == self.listing.listingId {
+                        print("🔄 Background update with matching listing ID: \(detailedListing.listingId)")
                         self.listing = detailedListing
                         self.ownerRating = ownerRatingValue
-                        
+
                         // Preload new images if any
                         self.preloadAllListingImages()
                     } else {
-                        print("✓ Keeping cached data - no update needed")
+                        print("⚠️ MISMATCH: API returned wrong listing! Expected: \(self.listing.listingId), Got: \(detailedListing.listingId)")
                     }
                 }
             } catch {
@@ -116,21 +114,28 @@ class ListingDetailViewModel: ObservableObject {
                 }
                 
                 await MainActor.run {
-                    print("🔍 Updating listing with detailed data:")
-                    print("  Original images count: \(self.listing.images.count)")
-                    self.listing.images.enumerated().forEach { index, url in
-                        print("    Original Image \(index): \(url)")
-                    }
-                    print("  New images count: \(detailedListing.images.count)")
-                    detailedListing.images.enumerated().forEach { index, url in
-                        print("    New Image \(index): \(url)")
-                    }
-                    self.listing = detailedListing
-                    self.ownerRating = ownerRatingValue
-                    self.isLoading = false
-                    print("  Final images count after update: \(self.listing.images.count)")
-                    self.listing.images.enumerated().forEach { index, url in
-                        print("    Final Image \(index): \(url)")
+                    // CRITICAL: Verify listing ID matches to prevent wrong details
+                    if detailedListing.listingId == self.listing.listingId {
+                        print("🔍 Updating listing with detailed data:")
+                        print("  Original images count: \(self.listing.images.count)")
+                        self.listing.images.enumerated().forEach { index, url in
+                            print("    Original Image \(index): \(url)")
+                        }
+                        print("  New images count: \(detailedListing.images.count)")
+                        detailedListing.images.enumerated().forEach { index, url in
+                            print("    New Image \(index): \(url)")
+                        }
+                        self.listing = detailedListing
+                        self.ownerRating = ownerRatingValue
+                        self.isLoading = false
+                        print("  Final images count after update: \(self.listing.images.count)")
+                        self.listing.images.enumerated().forEach { index, url in
+                            print("    Final Image \(index): \(url)")
+                        }
+                    } else {
+                        print("❌ CRITICAL ERROR: API returned wrong listing! Expected: \(self.listing.listingId), Got: \(detailedListing.listingId)")
+                        self.errorMessage = "Failed to load correct listing details"
+                        self.isLoading = false
                     }
                 }
             } catch {
@@ -253,7 +258,8 @@ class ListingDetailViewModel: ObservableObject {
             // Fetch seller's active listings count
             do {
                 let response = try await apiClient.fetchUserListings(userId: listing.userId)
-                if let listings = response.data?.listings {
+                let listings = response.allListings
+                if !listings.isEmpty {
                     let activeCount = listings.filter { $0.isActive }.count
                     let completedCount = listings.filter { $0.status == "completed" || $0.status == "sold" }.count
                     
@@ -506,6 +512,8 @@ class ListingDetailViewModel: ObservableObject {
         let chatId = "listing_\(String(listing.id))_\(min(currentUserId, ownerUserId))_\(max(currentUserId, ownerUserId))"
 
         print("🔔 Posting navigateToChat notification with chatId: \(chatId)")
+        print("🔔 Current user: \(currentUser.username), Owner: \(listing.userId)")
+        print("🔔 User IDs - Current: \(currentUserId), Owner: \(ownerUserId)")
 
         // Navigate to chat with the listing owner
         NotificationCenter.default.post(

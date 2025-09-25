@@ -524,7 +524,6 @@ struct FeaturedListingCard: View {
                         } placeholder: {
                             Rectangle()
                                 .fill(Color(.systemGray5))
-                                .shimmer()
                         }
                         .frame(width: 200, height: 150)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -614,7 +613,6 @@ struct ModernListingCard: View {
                         } placeholder: {
                             Rectangle()
                                 .fill(Color(.systemGray5))
-                                .shimmer()
                         }
                         .frame(height: 160)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -924,37 +922,7 @@ class MarketplaceViewModel: ObservableObject {
     }
 }
 
-// MARK: - Shimmer Effect
-extension View {
-    func shimmer() -> some View {
-        self
-            .redacted(reason: .placeholder)
-            .overlay(
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.4),
-                                    Color.white.opacity(0.8),
-                                    Color.white.opacity(0.4)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .rotationEffect(.degrees(30))
-                        .offset(x: -geometry.size.width)
-                        .animation(
-                            .linear(duration: 1.5)
-                            .repeatForever(autoreverses: false),
-                            value: true
-                        )
-                }
-                .mask(self)
-            )
-    }
-}
+// MARK: - Shimmer Effect (Removed to avoid redeclaration - already exists elsewhere)
 
 // Preview
 struct UltraModernMarketplaceView_Previews: PreviewProvider {

@@ -44,7 +44,7 @@ class ChatDetailViewModel: ObservableObject {
             do {
                 let loadedMessages = try await fetchMessages(conversationId: conversationId)
                 self.messages = loadedMessages
-                self.isUserOnline = true // Simulate online status
+                self.isUserOnline = true // TODO: Implement real online status
             } catch {
                 self.errorMessage = error.localizedDescription
             }
@@ -284,67 +284,29 @@ class ChatDetailViewModel: ObservableObject {
     // MARK: - Private Methods
     
     private func fetchMessages(conversationId: String) async throws -> [Message] {
-        // Simulate API call
-        try await Task.sleep(nanoseconds: 500_000_000)
-        
-        return [
-            Message(
-                id: "1",
-                chatId: conversationId,
-                senderId: "other_user",
-                receiverId: AuthManager.shared.currentUser?.apiId ?? "current_user",
-                content: "Hi! Is the camera still available?",
-                messageType: .text,
-                mediaUrl: nil,
-                thumbnailUrl: nil,
-                listingId: nil,
-                isRead: true,
-                isEdited: false,
-                editedAt: nil,
-                deletedAt: nil,
-                sentAt: nil,
-                createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-300)),
-                sender: nil,
-                reactions: nil
-            ),
-            Message(
-                id: "2",
-                chatId: conversationId,
-                senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
-                receiverId: "other_user",
-                content: "Yes, it's available. Would you like to borrow it this weekend?",
-                messageType: .text,
-                mediaUrl: nil,
-                thumbnailUrl: nil,
-                listingId: nil,
-                isRead: true,
-                isEdited: false,
-                editedAt: nil,
-                deletedAt: nil,
-                sentAt: nil,
-                createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-200)),
-                sender: nil,
-                reactions: nil
-            )
-        ]
+        return try await apiClient.fetchMessages(conversationId: conversationId)
     }
     
     private func sendMessageToServer(_ message: Message, conversationId: String) async throws {
-        // Simulate API call
-        try await Task.sleep(nanoseconds: 500_000_000)
+        let _ = try await apiClient.sendMessage(
+            conversationId: conversationId,
+            content: message.content,
+            messageType: message.messageType,
+            mediaUrl: message.mediaUrl,
+            thumbnailUrl: message.thumbnailUrl,
+            listingId: message.listingId
+        )
         print("Message sent: \(message.content)")
     }
     
     private func uploadAndSendImage(_ image: UIImage, message: Message, conversationId: String) async throws {
-        // Simulate image upload
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        print("Image uploaded and sent")
+        // TODO: Implement real image upload via APIClient
+        print("Image upload not yet implemented")
     }
-    
+
     private func uploadAndSendVoice(_ audioURL: URL, message: Message, conversationId: String) async throws {
-        // Simulate voice upload
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        print("Voice message uploaded and sent")
+        // TODO: Implement real voice upload via APIClient
+        print("Voice upload not yet implemented")
     }
     
     private func getDocumentsDirectory() -> URL {

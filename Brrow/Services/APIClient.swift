@@ -67,7 +67,7 @@ class APIClient: ObservableObject {
     func getBaseURL() async -> String {
         return await baseURL
     }
-    private var primaryURL = "https://brrowapp.com"
+    private var primaryURL = "https://brrow-backend-nodejs-production.up.railway.app"
     private let session: URLSession = NetworkManager.createURLSession()
     private var cancellables = Set<AnyCancellable>()
     private let authManager = AuthManager.shared
@@ -232,7 +232,7 @@ class APIClient: ObservableObject {
               let url = URL(string: sanitized) else {
             debugLog("❌ Invalid URL: \(urlString)")
             // Return a dummy request to avoid crash
-            return URLRequest(url: URL(string: "https://brrowapp.com/health")!)
+            return URLRequest(url: URL(string: "https://brrow-backend-nodejs-production.up.railway.app/health")!)
         }
         
         debugLog("Creating request", data: ["endpoint": endpoint, "method": method.rawValue, "url": url.absoluteString])
@@ -1251,7 +1251,7 @@ class APIClient: ObservableObject {
         )
         
         // Convert to Listing array
-        let listings = response.data?.listings ?? []
+        let listings = response.allListings
         
         // Cache the listings
         if !listings.isEmpty {
@@ -3029,24 +3029,48 @@ class APIClient: ObservableObject {
         }
     }
     
-    func fetchMessages(conversationId: String, limit: Int = 50, offset: Int = 0) async throws -> APIMessagesResponse {
-        return try await performRequest(
-            endpoint: "fetch_messages.php?conversation_id=\(conversationId)&limit=\(limit)&offset=\(offset)",
+    func fetchMessages(conversationId: String, limit: Int = 50, before: String? = nil) async throws -> [Message] {
+        var endpoint = "api/messages/chats/\(conversationId)/messages?limit=\(limit)"
+        if let before = before {
+            endpoint += "&before=\(before)"
+        }
+
+        let response = try await performRequest(
+            endpoint: endpoint,
             method: .GET,
-            responseType: APIMessagesResponse.self
+            responseType: APIResponse<[Message]>.self
         )
+
+        guard response.success, let messages = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch messages")
+        }
+
+        return messages
     }
     
-    func sendMessage(_ message: SendMessageRequest) async throws -> ChatMessage {
-        let bodyData = try JSONEncoder().encode(message)
-        
+    func sendMessage(conversationId: String, content: String, messageType: MessageType = .text, mediaUrl: String? = nil, thumbnailUrl: String? = nil, listingId: String? = nil) async throws -> Message {
+        let bodyDict = [
+            "content": content,
+            "messageType": messageType.rawValue.uppercased(),
+            "mediaUrl": mediaUrl,
+            "thumbnailUrl": thumbnailUrl,
+            "listingId": listingId
+        ].compactMapValues { $0 }
+
+        let bodyData = try JSONEncoder().encode(bodyDict)
+
         let response = try await performRequest(
-            endpoint: "send_message.php",
+            endpoint: "api/messages/chats/\(conversationId)/messages",
             method: .POST,
             body: bodyData,
-            responseType: SendMessageResponse.self
+            responseType: APIResponse<Message>.self
         )
-        return response.data
+
+        guard response.success, let message = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to send message")
+        }
+
+        return message
     }
     
     func sendListingInquiry(_ request: SendListingInquiryRequest) async throws -> ListingInquiryResponse {
@@ -3066,20 +3090,25 @@ class APIClient: ObservableObject {
         return data
     }
     
-    func createConversation(_ conversation: Conversation) async throws -> Conversation {
-        let bodyData = try JSONEncoder().encode(conversation)
-        
+    func createConversation(otherUserId: String, listingId: String? = nil) async throws -> Conversation {
+        let bodyDict = [
+            "otherUserId": otherUserId,
+            "listingId": listingId
+        ].compactMapValues { $0 }
+
+        let body = try JSONEncoder().encode(bodyDict)
+
         let response = try await performRequest(
-            endpoint: "create_conversation.php",
+            endpoint: "api/conversations",
             method: .POST,
-            body: bodyData,
+            body: body,
             responseType: APIResponse<Conversation>.self
         )
-        
+
         guard response.success, let conversation = response.data else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to create conversation")
         }
-        
+
         return conversation
     }
     
@@ -4335,11 +4364,11 @@ class APIClient: ObservableObject {
 
     func updateNotificationSettings(settings: [String: Bool]) async throws {
         let bodyData = try JSONSerialization.data(withJSONObject: settings)
-        let response = try await performRequest(
+        let response: APIResponse<AnyCodable> = try await performRequest(
             endpoint: "api/users/notification-settings",
             method: .PUT,
             body: bodyData,
-            responseType: GenericResponse.self
+            responseType: APIResponse<AnyCodable>.self
         )
 
         guard response.success else {

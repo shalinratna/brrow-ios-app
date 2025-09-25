@@ -207,28 +207,64 @@ struct FiltersRangeSlider: View {
     @Binding var range: ClosedRange<Double>
     let bounds: ClosedRange<Double>
     let step: Double
-    
+
+    @State private var minSliderValue: Double = 0
+    @State private var maxSliderValue: Double = 1000
+
     var body: some View {
-        // Simplified range slider - in production, you'd use a proper range slider component
-        VStack {
+        VStack(spacing: Theme.Spacing.md) {
             HStack {
-                Text("Min: $\(Int(range.lowerBound))")
+                Text("Min: $\(Int(minSliderValue))")
                     .font(Theme.Typography.caption)
-                
+                    .foregroundColor(Theme.Colors.secondaryText)
+
                 Spacer()
-                
-                Text("Max: $\(Int(range.upperBound))")
+
+                Text("Max: $\(Int(maxSliderValue))")
                     .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
             }
-            .foregroundColor(Theme.Colors.secondaryText)
-            
-            // TODO: Implement proper range slider
-            Slider(value: Binding(
-                get: { range.upperBound },
-                set: { range = range.lowerBound...$0 }
-            ), in: bounds, step: step)
-            .accentColor(Theme.Colors.primary)
+
+            // Min Value Slider
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Minimum Price")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Colors.tertiaryText)
+
+                Slider(value: $minSliderValue, in: bounds, step: step) { _ in
+                    updateRange()
+                }
+                .accentColor(Theme.Colors.primary)
+            }
+
+            // Max Value Slider
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Maximum Price")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Colors.tertiaryText)
+
+                Slider(value: $maxSliderValue, in: bounds, step: step) { _ in
+                    updateRange()
+                }
+                .accentColor(Theme.Colors.primary)
+            }
         }
+        .onAppear {
+            minSliderValue = range.lowerBound
+            maxSliderValue = range.upperBound
+        }
+    }
+
+    private func updateRange() {
+        // Ensure min is always less than max
+        if minSliderValue > maxSliderValue {
+            minSliderValue = maxSliderValue - step
+        }
+        if maxSliderValue < minSliderValue {
+            maxSliderValue = minSliderValue + step
+        }
+
+        range = minSliderValue...maxSliderValue
     }
 }
 

@@ -119,8 +119,8 @@ class AdvancedCacheIntegration: ObservableObject {
     private func preloadUserCriticalData(for user: User) {
         Task {
             // Preload user's listings
-            if let response = try? await apiClient.fetchUserListings(userId: user.id),
-               let listings = response.data?.listings {
+            if let response = try? await apiClient.fetchUserListings(userId: user.id) {
+                let listings = response.allListings
                 cacheUserListings(listings)
             }
 
@@ -172,7 +172,7 @@ extension APIClient {
 
         // Fetch from network and cache
         let response = try await fetchUserListings(userId: userId)
-        let listings = response.data?.listings ?? []
+        let listings = response.allListings
         cacheIntegration.cacheUserListings(listings)
         return listings
     }

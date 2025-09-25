@@ -77,8 +77,9 @@ struct Listing: Codable, Identifiable, Equatable {
     let images: [ListingImage]
     let videos: [ListingVideo]?
 
-    // Backend compatibility field
+    // Backend compatibility fields
     let imageUrl: String?
+    let apiImageUrlsFromAPI: [String]?  // Direct array of image URLs from API
     
     // Backend-provided count data
     let _count: ListingCount?
@@ -93,8 +94,13 @@ struct Listing: Codable, Identifiable, Equatable {
     
     // Legacy support (computed properties for backward compatibility)
     var listingId: String { id }
-    var imageUrls: [String] { 
-        images.compactMap { image in
+    var imageUrls: [String] {
+        // First try to use direct imageUrls from API
+        if let apiImageUrls = apiImageUrlsFromAPI, !apiImageUrls.isEmpty {
+            return apiImageUrls
+        }
+        // Fall back to images array if available
+        return images.compactMap { image in
             // Use the fullURL property to get the complete URL with brrowapp.com base
             return image.fullURL
         }
@@ -132,6 +138,7 @@ struct Listing: Codable, Identifiable, Equatable {
         case premiumExpiresAt, deliveryOptions, tags, metadata
         case createdAt, updatedAt, user, category, images, videos
         case imageUrl, _count
+        case apiImageUrlsFromAPI = "imageUrls"
         // NOTE: isOwner and isFavorite are client-side only, not from API
     }
 
@@ -179,9 +186,18 @@ struct Listing: Codable, Identifiable, Equatable {
         updatedAt = try container.decode(String.self, forKey: .updatedAt)
         user = try container.decodeIfPresent(UserInfo.self, forKey: .user)
         category = try container.decodeIfPresent(CategoryModel.self, forKey: .category)
-        images = try container.decode([ListingImage].self, forKey: .images)
+
+        // Handle both images array and imageUrls array formats
+        if let imagesArray = try? container.decodeIfPresent([ListingImage].self, forKey: .images) {
+            images = imagesArray ?? []
+        } else {
+            // If images array is not available, create from imageUrls if available
+            images = []
+        }
+
         videos = try container.decodeIfPresent([ListingVideo].self, forKey: .videos)
         imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        apiImageUrlsFromAPI = try container.decodeIfPresent([String].self, forKey: .apiImageUrlsFromAPI)
         _count = try container.decodeIfPresent(ListingCount.self, forKey: ._count)
 
         // Client-side properties (not from API)

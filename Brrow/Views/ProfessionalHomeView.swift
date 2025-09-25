@@ -670,7 +670,9 @@ struct FavoriteItemCard: View {
     let item: Listing
     
     var body: some View {
-        NavigationLink(destination: ListingDetailView(listing: item)) {
+        Button(action: {
+            ListingNavigationManager.shared.showListing(item)
+        }) {
             VStack(alignment: .leading, spacing: 0) {
                 // Image
                 AsyncImage(url: URL(string: item.imageUrls.first ?? "")) { image in
@@ -928,7 +930,7 @@ class ProfessionalHomeViewModel: ObservableObject {
             let response = try await APIClient.shared.fetchFeaturedListings()
             
             await MainActor.run {
-                self.featuredItems = response.data?.listings.compactMap { listing in
+                self.featuredItems = response.allListings.compactMap { listing in
                     FeaturedItem(
                         title: listing.title,
                         price: Int(listing.price),
@@ -1128,7 +1130,7 @@ class CalculatorLauncherViewModel: ObservableObject {
             do {
                 let response = try await APIClient.shared.fetchFeaturedListings()
                 await MainActor.run {
-                    self.listings = response.data?.listings ?? []
+                    self.listings = response.allListings
                     self.isLoading = false
                 }
             } catch {

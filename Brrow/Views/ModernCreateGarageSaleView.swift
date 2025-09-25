@@ -1352,7 +1352,7 @@ class CreateGarageSaleViewModel: ObservableObject {
         do {
             // Fetch user's listings that can be linked to garage sales
             let response = try await apiClient.fetchUserListings(userId: userId)
-            let listings = response.data?.listings ?? []
+            let listings = response.allListings
             
             // Include all active listings regardless of type - users can sell anything at garage sales
             let availableListings = listings.filter { listing in

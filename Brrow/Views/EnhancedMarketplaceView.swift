@@ -863,7 +863,7 @@ class EnhancedMarketplaceViewModel: ObservableObject {
             do {
                 // Load all data - featured listings will be prioritized
                 let response = try await apiClient.fetchFeaturedListings()
-                let listings = response.data?.listings ?? []
+                let listings = response.allListings
                 let featured = try await loadFeaturedItems()
                 let trending = try await loadTrendingItems()
                 let counts = try await loadCategoryCounts()

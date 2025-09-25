@@ -541,7 +541,7 @@ class UltraModernMarketplaceViewModel: ObservableObject {
             do {
                 // Load featured listings
                 let response = try await apiClient.fetchFeaturedListings()
-                let allListings = response.data?.listings ?? []
+                let allListings = response.allListings
                 
                 await MainActor.run {
                     self.listings = allListings

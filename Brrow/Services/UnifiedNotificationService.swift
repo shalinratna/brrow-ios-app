@@ -345,9 +345,20 @@ class UnifiedNotificationService: ObservableObject {
 
         Task {
             do {
+                let settingsDict: [String: Bool] = [
+                    "isEnabled": settings.isEnabled,
+                    "newMessages": settings.newMessages,
+                    "rentalUpdates": settings.rentalUpdates,
+                    "payments": settings.payments,
+                    "achievements": settings.achievements,
+                    "marketing": settings.marketing,
+                    "nearbyItems": settings.nearbyItems,
+                    "quietHoursEnabled": settings.quietHoursEnabled
+                ]
+
                 let request = NotificationSettingsRequest(
                     userId: Int(AuthManager.shared.currentUser?.id ?? "0") ?? 0,
-                    settings: settings
+                    settings: settingsDict
                 )
 
                 let _ = try await apiClient.performRequest(

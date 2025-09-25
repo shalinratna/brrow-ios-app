@@ -41,25 +41,29 @@ struct StripeConnectOnboardingView: View {
                     FeatureRow(
                         icon: "shield.checkered",
                         title: "Secure Payments",
-                        description: "Stripe processes payments securely with bank-level encryption"
+                        description: "Stripe processes payments securely with bank-level encryption",
+                        color: Color.green
                     )
 
                     FeatureRow(
                         icon: "dollarsign.circle",
                         title: "Fast Payouts",
-                        description: "Get paid quickly with automatic transfers to your bank account"
+                        description: "Get paid quickly with automatic transfers to your bank account",
+                        color: Color.blue
                     )
 
                     FeatureRow(
                         icon: "chart.line.uptrend.xyaxis",
                         title: "Track Earnings",
-                        description: "Monitor your sales and earnings in real-time"
+                        description: "Monitor your sales and earnings in real-time",
+                        color: Color.orange
                     )
 
                     FeatureRow(
                         icon: "percent",
                         title: "Low Fees",
-                        description: "Only 5% platform fee on successful transactions"
+                        description: "Only 5% platform fee on successful transactions",
+                        color: Color.purple
                     )
                 }
                 .padding(.horizontal)
@@ -131,12 +135,13 @@ struct FeatureRow: View {
     let icon: String
     let title: String
     let description: String
+    let color: Color
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(.blue)
+                .foregroundColor(color)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 4) {

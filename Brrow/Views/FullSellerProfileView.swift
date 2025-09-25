@@ -529,9 +529,9 @@ struct FullSellerProfileView: View {
                     .foregroundColor(Theme.Colors.text)
                 
                 VStack(spacing: 8) {
-                    verificationRow(title: "Email", verified: true)
-                    verificationRow(title: "Phone Number", verified: false) // Phone verification not available in User model
-                    verificationRow(title: "Government ID", verified: user.isVerified ?? false)
+                    verificationRow(title: "Email", verified: user.emailVerified == true)
+                    verificationRow(title: "Phone Number", verified: user.phoneVerified == true)
+                    verificationRow(title: "Government ID", verified: user.idVerified == true)
                     verificationRow(title: "Address", verified: viewModel.addressVerified)
                 }
                 .padding()
@@ -567,10 +567,10 @@ struct FullSellerProfileView: View {
                     .foregroundColor(Theme.Colors.text)
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    policyRow(icon: "clock", title: "Cancellation", value: viewModel.cancellationPolicy)
-                    policyRow(icon: "shield", title: "Damage Protection", value: viewModel.damageProtection)
-                    policyRow(icon: "doc.text", title: "Rental Agreement", value: "Required")
-                    policyRow(icon: "creditcard", title: "Payment Methods", value: viewModel.paymentMethods)
+                    policyRow(icon: "clock", title: "Cancellation", value: viewModel.cancellationPolicy.isEmpty ? "Not Set" : viewModel.cancellationPolicy)
+                    policyRow(icon: "shield", title: "Damage Protection", value: viewModel.damageProtection.isEmpty ? "Not Set" : viewModel.damageProtection)
+                    policyRow(icon: "doc.text", title: "Rental Agreement", value: "Not Set")
+                    policyRow(icon: "creditcard", title: "Payment Methods", value: viewModel.paymentMethods.isEmpty ? "Not Set" : viewModel.paymentMethods)
                 }
                 .padding()
                 .background(Color.white)
@@ -740,9 +740,9 @@ class SellerProfileViewModel: ObservableObject {
     @Published var satisfactionRate = 0
     @Published var addressVerified = false
     @Published var languages: [String] = []
-    @Published var cancellationPolicy = "Standard"
-    @Published var damageProtection = "Available"
-    @Published var paymentMethods = "Credit/Debit Cards"
+    @Published var cancellationPolicy = ""
+    @Published var damageProtection = ""
+    @Published var paymentMethods = ""
     
     private let user: User
     
@@ -758,7 +758,7 @@ class SellerProfileViewModel: ObservableObject {
             do {
                 let response = try await APIClient.shared.fetchUserListings(userId: user.apiId)
                 DispatchQueue.main.async {
-                    self.listings = response.data?.listings ?? []
+                    self.listings = response.allListings
                     self.isLoadingListings = false
                 }
             } catch {
