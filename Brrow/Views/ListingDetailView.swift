@@ -83,7 +83,7 @@ struct LegacyListingDetailView: View {
             if !listing.images.isEmpty {
                 TabView(selection: $selectedImageIndex) {
                     ForEach(0..<listing.imageUrls.count, id: \.self) { index in
-                        AsyncImage(url: URL(string: listing.imageUrls[index])) { image in
+                        BrrowAsyncImage(url: listing.imageUrls[index]) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

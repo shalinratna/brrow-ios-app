@@ -321,7 +321,7 @@ struct RecommendedCard: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             // Image with overlay
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: listing.firstImageUrl ?? "")) { image in
+                BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -379,7 +379,7 @@ struct HomeModernListingCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Image with gradient overlay
             ZStack(alignment: .bottomLeading) {
-                AsyncImage(url: URL(string: listing.firstImageUrl ?? "")) { image in
+                BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
