@@ -30,6 +30,27 @@ struct UserInfo: Codable {
     var displayName: String {
         return username ?? "User"
     }
+
+    // Helper method to get the full profile picture URL
+    var fullProfilePictureURL: String? {
+        guard let profilePictureString = profilePictureUrl else { return nil }
+
+        // If the URL is already complete (starts with http), return as-is
+        if profilePictureString.hasPrefix("http://") || profilePictureString.hasPrefix("https://") {
+            return profilePictureString
+        }
+
+        // If it's a relative path starting with /uploads/, prepend base URL
+        if profilePictureString.hasPrefix("/uploads/") || profilePictureString.hasPrefix("uploads/") {
+            let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+            let formattedPath = profilePictureString.hasPrefix("/") ? profilePictureString : "/\(profilePictureString)"
+            return "\(baseURL)\(formattedPath)"
+        }
+
+        // For other relative paths, assume they need the base URL
+        let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
+        return "\(baseURL)/\(profilePictureString)"
+    }
 }
 
 // MARK: - Category
