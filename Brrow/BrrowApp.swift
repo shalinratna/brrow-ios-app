@@ -190,12 +190,40 @@ struct BrrowApp: App {
     }
     
     private func handleNotificationNavigation(_ notification: Notification) {
-        // Handle deep linking from push notifications
+        // Handle navigation from messaging buttons and push notifications
         guard let userInfo = notification.userInfo else { return }
-        
+
+        // Handle messaging button navigation (from listing detail views)
+        if let chatId = userInfo["chatId"] as? String,
+           let listingId = userInfo["listingId"] as? String,
+           let listingTitle = userInfo["listingTitle"] as? String {
+
+            print("🔔 Navigating to chat: \(chatId)")
+            print("🔔 For listing: \(listingTitle) (\(listingId))")
+
+            // Switch to Messages tab and navigate to specific chat
+            selectedTab = 2  // Messages tab index
+
+            // Use ChatListViewModel to handle the navigation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NotificationCenter.default.post(
+                    name: .openSpecificChat,
+                    object: nil,
+                    userInfo: [
+                        "chatId": chatId,
+                        "listingId": listingId,
+                        "listingTitle": listingTitle
+                    ]
+                )
+            }
+
+            return
+        }
+
+        // Handle legacy push notification navigation
         if let username = userInfo["username"] as? String {
-            // Navigate to specific chat
             print("Navigating to chat with \(username)")
+            selectedTab = 2  // Messages tab
         }
     }
     

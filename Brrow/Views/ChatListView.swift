@@ -43,6 +43,31 @@ struct ChatListView: View {
             .refreshable {
                 viewModel.refreshConversations()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .openSpecificChat)) { notification in
+                if let userInfo = notification.userInfo,
+                   let chatId = userInfo["chatId"] as? String,
+                   let listingId = userInfo["listingId"] as? String,
+                   let listingTitle = userInfo["listingTitle"] as? String {
+
+                    print("🔔 ChatListView received openSpecificChat for: \(chatId)")
+
+                    // Create a mock listing for the chat
+                    let mockListing = Listing(
+                        id: listingId,
+                        title: listingTitle,
+                        description: "",
+                        price: 0.0,
+                        imageUrls: [],
+                        categoryId: "",
+                        userId: "",
+                        location: "",
+                        createdAt: "",
+                        updatedAt: ""
+                    )
+
+                    viewModel.navigateToChat(chatId: chatId, listing: mockListing)
+                }
+            }
         }
         .sheet(isPresented: $showingNewMessageSheet) {
             NewMessageSheet()
