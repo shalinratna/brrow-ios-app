@@ -11,6 +11,7 @@ extension Notification.Name {
     // Navigation
     static let navigateToChat = Notification.Name("navigateToChat")
     static let openSpecificChat = Notification.Name("openSpecificChat")
+    static let navigateToMessages = Notification.Name("navigateToMessages")
     static let navigateToEarnings = Notification.Name("navigateToEarnings")
     static let navigateToMyPosts = Notification.Name("navigateToMyPosts")
     

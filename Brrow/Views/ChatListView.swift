@@ -51,21 +51,8 @@ struct ChatListView: View {
 
                     print("🔔 ChatListView received openSpecificChat for: \(chatId)")
 
-                    // Create a mock listing for the chat
-                    let mockListing = Listing(
-                        id: listingId,
-                        title: listingTitle,
-                        description: "",
-                        price: 0.0,
-                        imageUrls: [],
-                        categoryId: "",
-                        userId: "",
-                        location: "",
-                        createdAt: "",
-                        updatedAt: ""
-                    )
-
-                    viewModel.navigateToChat(chatId: chatId, listing: mockListing)
+                    // Navigate directly with chatId, don't need a full listing object
+                    viewModel.navigateToChat(chatId: chatId, listing: nil)
                 }
             }
         }

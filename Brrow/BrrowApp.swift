@@ -202,7 +202,8 @@ struct BrrowApp: App {
             print("🔔 For listing: \(listingTitle) (\(listingId))")
 
             // Switch to Messages tab and navigate to specific chat
-            selectedTab = 2  // Messages tab index
+            // Note: selectedTab is managed by MainTabView, use notification to switch tabs
+            NotificationCenter.default.post(name: .navigateToMessages, object: nil)
 
             // Use ChatListViewModel to handle the navigation
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -223,7 +224,7 @@ struct BrrowApp: App {
         // Handle legacy push notification navigation
         if let username = userInfo["username"] as? String {
             print("Navigating to chat with \(username)")
-            selectedTab = 2  // Messages tab
+            NotificationCenter.default.post(name: .navigateToMessages, object: nil)
         }
     }
     
