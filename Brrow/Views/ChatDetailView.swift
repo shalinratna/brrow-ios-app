@@ -82,7 +82,7 @@ struct ChatDetailView: View {
             
             // User Avatar
             if let profilePicture = conversation.otherUser.profilePicture, !profilePicture.isEmpty {
-                AsyncImage(url: URL(string: profilePicture)) { image in
+                BrrowAsyncImage(url: profilePicture) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
