@@ -224,7 +224,7 @@ struct ZoomableImageView: View {
     @State private var lastOffset: CGSize = .zero
     
     var body: some View {
-        CachedAsyncImage(url: imageURL) { image in
+        BrrowAsyncImage(url: imageURL) { image in
             image
                 .resizable()
                 .aspectRatio(contentMode: .fit)

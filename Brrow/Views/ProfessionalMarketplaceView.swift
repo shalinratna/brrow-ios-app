@@ -604,8 +604,8 @@ struct ProfessionalListingCard: View {
         VStack(spacing: 0) {
             // Image section
             ZStack(alignment: .topTrailing) {
-                // Using CachedAsyncImage for better performance
-                CachedAsyncImage(url: listing.imageUrls.first)
+                // Using BrrowAsyncImage for better performance
+                BrrowAsyncImage(url: listing.imageUrls.first)
                     .frame(height: 140)
                     .clipped()
                     .background(Theme.Colors.secondaryBackground)

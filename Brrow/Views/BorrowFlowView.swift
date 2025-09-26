@@ -120,7 +120,7 @@ struct BorrowFlowView: View {
             VStack(alignment: .leading, spacing: 24) {
                 // Item info
                 HStack(spacing: 12) {
-                    CachedAsyncImage(url: listing.imageUrls.first)
+                    BrrowAsyncImage(url: listing.imageUrls.first)
                         .frame(width: 60, height: 60)
                         .cornerRadius(8)
                     

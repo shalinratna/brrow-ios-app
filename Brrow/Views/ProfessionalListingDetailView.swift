@@ -254,7 +254,7 @@ struct ProfessionalListingDetailView: View {
             if !viewModel.listing.imageUrls.isEmpty {
                 TabView(selection: $selectedImageIndex) {
                     ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
-                        CachedAsyncImage(url: imageUrl) { image in
+                        BrrowAsyncImage(url: imageUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

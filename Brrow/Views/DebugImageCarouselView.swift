@@ -83,7 +83,7 @@ struct DebugImageCarouselView: View {
                                     .font(.caption)
                                     .padding(.bottom, 5)
                                 
-                                CachedAsyncImage(url: listing.imageUrls[index])
+                                BrrowAsyncImage(url: listing.imageUrls[index])
                                     .frame(height: 200)
                                     .cornerRadius(10)
                                     .onAppear {

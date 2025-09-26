@@ -111,7 +111,7 @@ struct SimplifiedListingDetailView: View {
     private var imageCarousel: some View {
         TabView(selection: $selectedImageIndex) {
             ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
-                CachedAsyncImage(url: imageUrl)
+                BrrowAsyncImage(url: imageUrl)
                     .frame(height: 400)
                     .clipped()
                     .tag(index)
@@ -193,7 +193,7 @@ struct SimplifiedListingDetailView: View {
                     HStack {
                         // Profile picture
                         if let profilePic = viewModel.listing.ownerProfilePicture {
-                            CachedAsyncImage(url: profilePic)
+                            BrrowAsyncImage(url: profilePic)
                                 .frame(width: 50, height: 50)
                                 .clipShape(Circle())
                         } else {

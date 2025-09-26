@@ -168,7 +168,7 @@ struct ModernListingDetailView: View {
                 // Image carousel
                 TabView(selection: $selectedImageIndex) {
                     ForEach(Array(currentImageUrls.enumerated()), id: \.1) { index, imageUrl in
-                        CachedAsyncImage(url: imageUrl) { image in
+                        BrrowAsyncImage(url: imageUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -516,7 +516,7 @@ struct ModernListingDetailView: View {
                 HStack(spacing: 12) {
                     // Profile picture
                     if let profilePicture = listing.ownerProfilePicture {
-                        CachedAsyncImage(url: profilePicture) { image in
+                        BrrowAsyncImage(url: profilePicture) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -928,7 +928,7 @@ struct ModernSimilarItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let firstImage = listing.imageUrls.first {
-                CachedAsyncImage(url: firstImage) { image in
+                BrrowAsyncImage(url: firstImage) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
