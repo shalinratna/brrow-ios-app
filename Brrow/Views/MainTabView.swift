@@ -93,6 +93,10 @@ struct MainTabView: View {
             trackTabSwitch(from: oldValue, to: newTab)
         }
         .withUniversalListingDetail()  // Enable universal listing navigation
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToMessages)) { _ in
+            print("🔔 MainTabView: Received navigateToMessages, switching to Chats tab")
+            selectedTab = 3  // Chats tab
+        }
         .onAppear {
             setupTabAppearance()
             preloadInitialContent()

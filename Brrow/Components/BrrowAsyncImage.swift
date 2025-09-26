@@ -18,23 +18,36 @@ struct BrrowAsyncImage<Content: View, Placeholder: View>: View {
 
     // Computed property to construct proper URLs
     private var properURL: String? {
-        guard let urlString = urlString, !urlString.isEmpty, urlString != "null" else { return nil }
+        guard let urlString = urlString, !urlString.isEmpty, urlString != "null" else {
+            print("🖼️ BrrowAsyncImage: Empty/null URL input")
+            return nil
+        }
+
+        print("🖼️ BrrowAsyncImage: Input URL = '\(urlString)'")
 
         // If already a full URL, return as-is
         if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
+            print("🖼️ BrrowAsyncImage: Already full URL, returning as-is")
             return urlString
         }
+
+        let finalURL: String
 
         // If it's a relative path, construct full Railway URL
         if urlString.hasPrefix("/") {
             // Absolute path relative to domain root (e.g., "/uploads/...", "/api/images/...")
-            return "https://brrow-backend-nodejs-production.up.railway.app\(urlString)"
+            finalURL = "https://brrow-backend-nodejs-production.up.railway.app\(urlString)"
+            print("🖼️ BrrowAsyncImage: Converted absolute path: '\(urlString)' → '\(finalURL)'")
         } else if urlString.contains("/") || urlString.contains(".") {
             // Relative path or filename (e.g., "uploads/...", "image.jpg")
-            return "https://brrow-backend-nodejs-production.up.railway.app/\(urlString)"
+            finalURL = "https://brrow-backend-nodejs-production.up.railway.app/\(urlString)"
+            print("🖼️ BrrowAsyncImage: Converted relative path: '\(urlString)' → '\(finalURL)'")
+        } else {
+            finalURL = urlString
+            print("🖼️ BrrowAsyncImage: No conversion needed: '\(urlString)'")
         }
 
-        return urlString
+        return finalURL
     }
 
     var body: some View {
