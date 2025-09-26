@@ -199,7 +199,7 @@ struct SocialMediaProfileView: View {
                 
                 // Profile image
                 if let avatarUrl = viewModel.user?.profilePicture {
-                    AsyncImage(url: URL(string: avatarUrl)) { image in
+                    BrrowAsyncImage(url: avatarUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -632,7 +632,7 @@ struct ListingGridItem: View {
         ZStack(alignment: .topTrailing) {
             // Main image
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(1, contentMode: .fill)

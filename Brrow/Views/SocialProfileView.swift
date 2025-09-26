@@ -87,7 +87,7 @@ struct SocialProfileView: View {
             .overlay(
                 VStack(spacing: 12) {
                     // Profile picture
-                    AsyncImage(url: URL(string: user.fullProfilePictureURL ?? "")) { image in
+                    BrrowAsyncImage(url: user.fullProfilePictureURL ?? "") { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -419,7 +419,7 @@ struct ReviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
-                AsyncImage(url: URL(string: review.reviewerProfilePicture)) { image in
+                BrrowAsyncImage(url: review.reviewerProfilePicture) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

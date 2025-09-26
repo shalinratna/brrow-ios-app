@@ -546,7 +546,7 @@ struct HomeTrendingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Image
-            AsyncImage(url: URL(string: item.imageURL)) { image in
+            BrrowAsyncImage(url: item.imageURL) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

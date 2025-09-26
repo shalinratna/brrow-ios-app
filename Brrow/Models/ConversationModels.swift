@@ -17,7 +17,7 @@ struct Conversation: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id, unreadCount
-        case otherUser = "other_user"
+        case otherUser
         case lastMessage = "last_message"
         case updatedAt = "updated_at"
     }

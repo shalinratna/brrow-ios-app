@@ -212,7 +212,7 @@ struct EditProfileView: View {
                         .frame(width: 120, height: 120)
                         .clipShape(Circle())
                 } else {
-                    AsyncImage(url: URL(string: user.profilePicture ?? "")) { image in
+                    BrrowAsyncImage(url: user.profilePicture ?? "") { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
