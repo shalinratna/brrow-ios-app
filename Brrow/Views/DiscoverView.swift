@@ -332,7 +332,7 @@ struct BrrowStoryView: View {
     var body: some View {
         VStack {
             ZStack {
-                AsyncImage(url: URL(string: story.thumbnailUrl)) { image in
+                BrrowAsyncImage(url: story.thumbnailUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -406,7 +406,7 @@ struct SocialListingCard: View {
             .padding(Theme.Spacing.md)
             
             // Image
-            AsyncImage(url: URL(string: listing.firstImageUrl ?? "")) { image in
+            BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

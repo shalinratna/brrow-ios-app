@@ -145,7 +145,7 @@ struct FullScreenListingDetailView: View {
     private var imageGallerySection: some View {
         TabView(selection: $selectedImageIndex) {
             ForEach(Array(listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -248,7 +248,7 @@ struct FullScreenListingDetailView: View {
     private var sellerInfoSection: some View {
         Button(action: { showingSellerProfile = true }) {
             HStack(spacing: 12) {
-                AsyncImage(url: URL(string: viewModel.seller?.profilePicture ?? "")) { image in
+                BrrowAsyncImage(url: viewModel.seller?.profilePicture ?? "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -516,7 +516,7 @@ struct FullScreenInquiryView: View {
             VStack(spacing: 20) {
                 // Listing preview
                 HStack(spacing: 12) {
-                    AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
+                    BrrowAsyncImage(url: listing.imageUrls.first ?? "") { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

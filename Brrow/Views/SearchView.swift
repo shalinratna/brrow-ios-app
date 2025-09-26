@@ -190,7 +190,7 @@ struct BasicSearchResultCard: View {
     
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
-            AsyncImage(url: URL(string: listing.firstImageUrl ?? "")) { image in
+            BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
