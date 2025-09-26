@@ -542,7 +542,7 @@ struct FeaturedCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Image with gradient overlay
                 ZStack(alignment: .bottomLeading) {
-                    AsyncImage(url: URL(string: listing.firstImageUrl ?? "")) { image in
+                    BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -767,7 +767,7 @@ struct FeedCard: View {
     }
     
     private func imageView(at index: Int) -> some View {
-        AsyncImage(url: URL(string: listing.imageUrls[safe: index] ?? listing.firstImageUrl ?? "")) { image in
+        BrrowAsyncImage(url: listing.imageUrls[safe: index] ?? listing.firstImageUrl ?? "") { image in
             image
                 .resizable()
                 .aspectRatio(contentMode: .fill)
