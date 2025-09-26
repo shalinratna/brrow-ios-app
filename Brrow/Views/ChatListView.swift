@@ -212,13 +212,13 @@ struct ConversationRow: View {
                     
                     Spacer()
                     
-                    Text(timeAgo(conversation.lastMessage.createdAt))
+                    Text(timeAgo(conversation.lastMessage?.createdAt ?? conversation.updatedAt))
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
                 
                 HStack {
-                    Text(conversation.lastMessage.content)
+                    Text(conversation.lastMessage?.content ?? "No messages yet")
                         .font(Theme.Typography.body)
                         .foregroundColor(Theme.Colors.secondaryText)
                         .lineLimit(2)

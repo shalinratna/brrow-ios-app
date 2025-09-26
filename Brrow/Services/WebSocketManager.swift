@@ -218,6 +218,12 @@ class WebSocketManager: NSObject, ObservableObject {
     private func sendMessage(_ data: [String: Any]) {
         guard isConnected else {
             print("⚠️ WebSocket not connected, cannot send message")
+            // Fallback to REST API for sending messages
+            if let eventData = data["data"] as? [String: Any],
+               let chatId = eventData["chatId"] as? String,
+               let content = eventData["content"] as? String {
+                sendMessageViaREST(chatId: chatId, content: content)
+            }
             return
         }
 
@@ -235,6 +241,51 @@ class WebSocketManager: NSObject, ObservableObject {
             }
         } catch {
             print("❌ Failed to serialize message: \(error)")
+        }
+    }
+
+    // REST API fallback for sending messages
+    private func sendMessageViaREST(chatId: String, content: String) {
+        guard let token = authToken else { return }
+
+        let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/messages/chats/\(chatId)/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = [
+            "content": content,
+            "messageType": "TEXT"
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("❌ REST message send error: \(error)")
+                        return
+                    }
+
+                    if let httpResponse = response as? HTTPURLResponse,
+                       httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+                        print("✅ Message sent via REST API fallback")
+
+                        // Trigger a refresh of messages
+                        NotificationCenter.default.post(
+                            name: .messageSentViaREST,
+                            object: chatId
+                        )
+                    } else {
+                        print("❌ REST message send failed with status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                    }
+                }
+            }.resume()
+
+        } catch {
+            print("❌ Failed to serialize REST message: \(error)")
         }
     }
 
@@ -637,6 +688,7 @@ extension Notification.Name {
     static let messagesRead = Notification.Name("messagesRead")
     static let messageDeleted = Notification.Name("messageDeleted")
     static let messageSent = Notification.Name("messageSent")
+    static let messageSentViaREST = Notification.Name("messageSentViaREST")
     static let userTyping = Notification.Name("userTyping")
     static let userStoppedTyping = Notification.Name("userStoppedTyping")
     static let userOnline = Notification.Name("userOnline")

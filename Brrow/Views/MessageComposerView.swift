@@ -146,12 +146,11 @@ struct MessageComposerView: View {
         .sheet(isPresented: $showingChatView) {
             if let conversationId = conversationId {
                 // Create a temporary conversation object for ChatDetailView using the custom initializer
-                let tempUser = User(
+                let tempUser = ConversationUser(
                     id: recipient?.apiId ?? "",
                     username: recipient?.displayName ?? recipient?.username ?? "User",
-                    email: "",
-                    apiId: recipient?.apiId,
-                    profilePicture: recipient?.profilePicture
+                    profilePicture: recipient?.profilePicture,
+                    isVerified: recipient?.isVerified
                 )
                 let tempMessage = ChatMessage(
                     id: "",

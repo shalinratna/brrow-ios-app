@@ -133,7 +133,7 @@ struct SocialChatView: View {
         } else {
             return viewModel.conversations.filter { conversation in
                 conversation.otherUser.username.localizedCaseInsensitiveContains(searchText) ||
-                conversation.lastMessage.content.localizedCaseInsensitiveContains(searchText)
+                conversation.lastMessage?.content.localizedCaseInsensitiveContains(searchText) == true
             }
         }
     }
@@ -171,13 +171,13 @@ struct SocialConversationRow: View {
                     
                     Spacer()
                     
-                    Text(timeAgo(conversation.lastMessage.createdAt))
+                    Text(timeAgo(conversation.lastMessage?.createdAt ?? conversation.updatedAt))
                         .font(.system(size: 12))
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
                 
                 HStack {
-                    Text(conversation.lastMessage.content)
+                    Text(conversation.lastMessage?.content ?? "No messages yet")
                         .font(.system(size: 14))
                         .foregroundColor(Theme.Colors.secondaryText)
                         .lineLimit(2)

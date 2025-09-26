@@ -80,7 +80,7 @@ class ChatListViewModel: ObservableObject {
         } else {
             filteredConversations = conversations.filter { conversation in
                 conversation.otherUser.username.localizedCaseInsensitiveContains(query) ||
-                conversation.lastMessage.content.localizedCaseInsensitiveContains(query)
+                conversation.lastMessage?.content.localizedCaseInsensitiveContains(query) == true
             }
         }
     }
@@ -110,8 +110,8 @@ class ChatListViewModel: ObservableObject {
                 await MainActor.run {
                     let sortedConversations = fetchedConversations.sorted {
                         let formatter = ISO8601DateFormatter()
-                        let timestamp1 = formatter.date(from: $0.lastMessage.createdAt) ?? Date()
-                        let timestamp2 = formatter.date(from: $1.lastMessage.createdAt) ?? Date()
+                        let timestamp1 = formatter.date(from: $0.lastMessage?.createdAt ?? $0.updatedAt) ?? Date()
+                        let timestamp2 = formatter.date(from: $1.lastMessage?.createdAt ?? $1.updatedAt) ?? Date()
                         return timestamp1 > timestamp2
                     }
                     self.conversations = sortedConversations
@@ -184,9 +184,16 @@ class ChatListViewModel: ObservableObject {
     }
     
     func startConversation(with user: User, about item: Listing? = nil) -> Conversation {
+        let otherUser = ConversationUser(
+            id: user.id,
+            username: user.username,
+            profilePicture: user.profilePicture,
+            isVerified: user.isVerified
+        )
+
         let conversation = Conversation(
             id: "temp_\(UUID().uuidString)", // Will be set by server
-            otherUser: user,
+            otherUser: otherUser,
             lastMessage: ChatMessage(
                 id: "",
                 senderId: authManager.currentUser?.id ?? "0",

@@ -39,7 +39,26 @@ class ChatDetailViewModel: ObservableObject {
     
     func loadMessages(for conversationId: String) {
         isLoading = true
-        
+        conversation = Conversation(
+            id: conversationId,
+            otherUser: ConversationUser(id: "", username: "", profilePicture: nil, isVerified: false),
+            lastMessage: nil,
+            unreadCount: 0,
+            updatedAt: ""
+        )
+
+        // Listen for REST API message sends to refresh
+        NotificationCenter.default.addObserver(
+            forName: .messageSentViaREST,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let chatId = notification.object as? String,
+               chatId == conversationId {
+                self?.refreshMessages(for: conversationId)
+            }
+        }
+
         Task {
             do {
                 let loadedMessages = try await fetchMessages(conversationId: conversationId)
@@ -49,6 +68,17 @@ class ChatDetailViewModel: ObservableObject {
                 self.errorMessage = error.localizedDescription
             }
             self.isLoading = false
+        }
+    }
+
+    private func refreshMessages(for conversationId: String) {
+        Task {
+            do {
+                let loadedMessages = try await fetchMessages(conversationId: conversationId)
+                self.messages = loadedMessages
+            } catch {
+                print("Failed to refresh messages: \(error)")
+            }
         }
     }
     

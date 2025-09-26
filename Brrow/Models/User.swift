@@ -8,6 +8,22 @@
 import Foundation
 import CoreData
 
+// Helper for dynamic coding keys
+struct AnyCodingKey: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+
+    init(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
+
+    init?(intValue: Int) {
+        self.stringValue = String(intValue)
+        self.intValue = intValue
+    }
+}
+
 
 // MARK: - User Model (Codable for API)
 struct User: Codable, Identifiable {
@@ -111,7 +127,7 @@ struct User: Codable, Identifiable {
         case location
         case website
         case birthdate
-        case profilePicture = "profile_picture"
+        case profilePicture
         
         // Verification Status
         case verified
@@ -285,7 +301,19 @@ struct User: Codable, Identifiable {
         self.location = try container.decodeIfPresent(String.self, forKey: .location)
         self.website = try container.decodeIfPresent(String.self, forKey: .website)
         self.birthdate = try container.decodeIfPresent(String.self, forKey: .birthdate)
-        self.profilePicture = try container.decodeIfPresent(String.self, forKey: .profilePicture)
+        // Handle both profilePicture and profile_picture field names
+        if let profilePic = try? container.decodeIfPresent(String.self, forKey: .profilePicture) {
+            self.profilePicture = profilePic
+        } else {
+            // Try snake_case version using a separate container
+            do {
+                let anyContainer = try decoder.container(keyedBy: AnyCodingKey.self)
+                let profilePictureKey = AnyCodingKey(stringValue: "profile_picture")
+                self.profilePicture = try? anyContainer.decodeIfPresent(String.self, forKey: profilePictureKey)
+            } catch {
+                self.profilePicture = nil
+            }
+        }
         
         // Verification Status
         self.verified = try container.decodeIfPresent(Bool.self, forKey: .verified) ?? false
