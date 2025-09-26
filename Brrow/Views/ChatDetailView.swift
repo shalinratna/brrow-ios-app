@@ -300,7 +300,7 @@ struct MessageBubbleView: View {
                         .cornerRadius(18)
                 } else if message.type == .image {
                     if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
-                        AsyncImage(url: URL(string: "https://brrowapp.com/brrow" + mediaData.url)) { image in
+                        BrrowAsyncImage(url: mediaData.url) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

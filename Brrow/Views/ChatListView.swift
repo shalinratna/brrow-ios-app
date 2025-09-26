@@ -187,7 +187,7 @@ struct ConversationRow: View {
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             // Profile Image
-            AsyncImage(url: URL(string: conversation.otherUser.fullProfilePictureURL ?? "")) { image in
+            BrrowAsyncImage(url: conversation.otherUser.fullProfilePictureURL) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
