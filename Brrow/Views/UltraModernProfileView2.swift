@@ -130,7 +130,7 @@ struct UltraModernProfileView2: View {
                         
                         // Profile image
                         if let user = authManager.currentUser, let imageUrl = user.profilePicture {
-                            AsyncImage(url: URL(string: imageUrl)) { image in
+                            BrrowAsyncImage(url: imageUrl) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -738,7 +738,7 @@ struct ModernListingGridCard: View {
         VStack(spacing: 0) {
             // Image
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

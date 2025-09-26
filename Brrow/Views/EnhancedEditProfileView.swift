@@ -174,7 +174,7 @@ struct EnhancedEditProfileView: View {
                         .frame(width: 120, height: 120)
                         .clipShape(Circle())
                 } else {
-                    AsyncImage(url: URL(string: authManager.currentUser?.profilePicture ?? "")) { image in
+                    BrrowAsyncImage(url: authManager.currentUser?.profilePicture ?? "") { image in
                         image
                             .resizable()
                             .scaledToFill()

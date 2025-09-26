@@ -126,7 +126,7 @@ struct TrendingItemGridCard: View {
             // Image with rank badge
             ZStack(alignment: .topLeading) {
                 if let imageUrl = listing.imageUrls.first {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
+                    BrrowAsyncImage(url: imageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

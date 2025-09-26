@@ -89,7 +89,7 @@ struct BorrowVsBuyCalculatorView: View {
     private var itemHeader: some View {
         HStack(spacing: Theme.Spacing.md) {
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

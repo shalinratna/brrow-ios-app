@@ -38,7 +38,7 @@ struct ClickableUserProfile: View {
         Button(action: { showingProfile = true }) {
             HStack(spacing: 12) {
                 // Profile Picture
-                AsyncImage(url: URL(string: user.fullProfilePictureURL ?? "")) { image in
+                BrrowAsyncImage(url: user.fullProfilePictureURL ?? "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -104,7 +104,7 @@ struct InlineUserProfile: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 8) {
-                AsyncImage(url: URL(string: user.fullProfilePictureURL ?? "")) { image in
+                BrrowAsyncImage(url: user.fullProfilePictureURL ?? "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

@@ -675,7 +675,7 @@ struct FavoriteItemCard: View {
         }) {
             VStack(alignment: .leading, spacing: 0) {
                 // Image
-                AsyncImage(url: URL(string: item.imageUrls.first ?? "")) { image in
+                BrrowAsyncImage(url: item.imageUrls.first ?? "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -722,7 +722,7 @@ struct FeaturedItemCard: View {
         Button(action: action) {
         VStack(alignment: .leading, spacing: 0) {
             // Image
-            AsyncImage(url: URL(string: item.imageURL)) { image in
+            BrrowAsyncImage(url: item.imageURL) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

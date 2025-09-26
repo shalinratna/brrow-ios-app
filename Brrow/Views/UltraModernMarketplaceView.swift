@@ -517,7 +517,7 @@ struct FeaturedListingCard: View {
                 // Image with gradient overlay
                 ZStack(alignment: .bottomLeading) {
                     if let imageUrl = listing.imageUrls.first {
-                        AsyncImage(url: URL(string: imageUrl)) { image in
+                        BrrowAsyncImage(url: imageUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -606,7 +606,7 @@ struct ModernListingCard: View {
                 // Image
                 ZStack(alignment: .topTrailing) {
                     if let imageUrl = listing.imageUrls.first {
-                        AsyncImage(url: URL(string: imageUrl)) { image in
+                        BrrowAsyncImage(url: imageUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

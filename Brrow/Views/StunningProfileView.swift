@@ -139,7 +139,7 @@ struct StunningProfileView: View {
                 // Profile image
                 if let user = authManager.currentUser {
                     if let imageUrl = user.profilePicture, !imageUrl.isEmpty {
-                        AsyncImage(url: URL(string: imageUrl)) { image in
+                        BrrowAsyncImage(url: imageUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -650,7 +650,7 @@ struct MiniListingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

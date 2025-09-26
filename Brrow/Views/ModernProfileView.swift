@@ -113,7 +113,7 @@ struct ModernProfileView: View {
                         .frame(width: 100, height: 100)
                     
                     if let avatarUrl = profileData.avatarUrl {
-                        AsyncImage(url: URL(string: avatarUrl)) { image in
+                        BrrowAsyncImage(url: avatarUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

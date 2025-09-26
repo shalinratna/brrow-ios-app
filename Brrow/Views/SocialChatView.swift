@@ -146,7 +146,7 @@ struct SocialConversationRow: View {
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             // Profile picture
-            AsyncImage(url: URL(string: conversation.otherUser.profilePicture ?? "")) { image in
+            BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -254,7 +254,7 @@ struct NewChatView: View {
                         presentationMode.wrappedValue.dismiss()
                     }) {
                         HStack {
-                            AsyncImage(url: URL(string: user.profilePicture ?? "")) { image in
+                            BrrowAsyncImage(url: user.profilePicture) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)

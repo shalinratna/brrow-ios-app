@@ -148,7 +148,7 @@ struct EditListingView: View {
                     ForEach(existingImages, id: \.self) { imageUrl in
                         if !imagesToDelete.contains(imageUrl) {
                             ZStack(alignment: .topTrailing) {
-                                AsyncImage(url: URL(string: imageUrl)) { image in
+                                BrrowAsyncImage(url: imageUrl) { image in
                                     image
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)

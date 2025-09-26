@@ -24,7 +24,7 @@ struct MessageComposerView: View {
                 // Recipient info
                 HStack(spacing: 12) {
                     if let profilePicture = recipient?.profilePicture {
-                        AsyncImage(url: URL(string: profilePicture)) { image in
+                        BrrowAsyncImage(url: profilePicture) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

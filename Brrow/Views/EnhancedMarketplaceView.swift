@@ -458,7 +458,7 @@ struct SearchSuggestionRow: View {
             HStack(spacing: 12) {
                 // Icon or thumbnail
                 if let thumbnail = thumbnail {
-                    AsyncImage(url: URL(string: thumbnail)) { image in
+                    BrrowAsyncImage(url: thumbnail) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -508,7 +508,7 @@ struct TrendingItemCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -597,7 +597,7 @@ struct FeaturedItemBanner: View {
         ZStack(alignment: .bottomLeading) {
             // Background image
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -684,7 +684,7 @@ struct EnhancedListingCard: View {
                     .zIndex(2)
                 }
                 if let imageUrl = listing.imageUrls.first {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
+                    BrrowAsyncImage(url: imageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

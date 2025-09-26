@@ -439,7 +439,7 @@ struct EarningsTransactionRow: View {
     
     var body: some View {
         HStack {
-            AsyncImage(url: URL(string: transaction.itemImageUrl ?? "")) { image in
+            BrrowAsyncImage(url: transaction.itemImageUrl ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

@@ -43,7 +43,7 @@ struct InquiryView: View {
 
                 // Item Preview
                 HStack(spacing: 12) {
-                    AsyncImage(url: URL(string: listing.firstImageUrl ?? "")) { image in
+                    BrrowAsyncImage(url: listing.firstImageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

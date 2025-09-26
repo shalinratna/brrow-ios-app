@@ -224,7 +224,7 @@ struct NativeListingCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
             if let firstImage = listing.imageUrls.first {
-                AsyncImage(url: URL(string: firstImage)) { image in
+                BrrowAsyncImage(url: firstImage) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

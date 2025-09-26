@@ -22,7 +22,7 @@ struct ImageViewerView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            AsyncImage(url: URL(string: imageUrl)) { image in
+            BrrowAsyncImage(url: imageUrl) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)

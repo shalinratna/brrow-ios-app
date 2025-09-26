@@ -267,7 +267,7 @@ struct PaymentFlowView: View {
     
     private var listingInfoCard: some View {
         HStack(spacing: 16) {
-            AsyncImage(url: URL(string: listing.images.first?.imageUrl ?? "")) { image in
+            BrrowAsyncImage(url: listing.images.first?.imageUrl) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

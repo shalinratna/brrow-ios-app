@@ -94,7 +94,7 @@ struct FullSellerProfileView: View {
                 VStack {
                     Spacer()
                     if let avatarUrl = user.profilePicture {
-                        AsyncImage(url: URL(string: avatarUrl)) { image in
+                        BrrowAsyncImage(url: avatarUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -661,7 +661,7 @@ struct SellerReviewCard: View {
             HStack {
                 // Reviewer avatar
                 if let avatarUrl = review.reviewerAvatar {
-                    AsyncImage(url: URL(string: avatarUrl)) { image in
+                    BrrowAsyncImage(url: avatarUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

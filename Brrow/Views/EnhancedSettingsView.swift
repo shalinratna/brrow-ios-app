@@ -135,7 +135,7 @@ struct EnhancedSettingsView: View {
             HStack {
                 // Profile Image
                 if let user = authManager.currentUser {
-                    AsyncImage(url: URL(string: user.profilePicture ?? "")) { image in
+                    BrrowAsyncImage(url: user.profilePicture) { image in
                         image
                             .resizable()
                             .scaledToFill()

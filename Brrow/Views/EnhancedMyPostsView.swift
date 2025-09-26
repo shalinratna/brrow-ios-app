@@ -223,7 +223,7 @@ struct EnhancedPostCard: View {
         HStack(spacing: 16) {
             // Thumbnail
             if let thumbnail = post.thumbnail {
-                AsyncImage(url: URL(string: thumbnail)) { image in
+                BrrowAsyncImage(url: thumbnail) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -431,7 +431,7 @@ struct PostDetailSheet: View {
     private var imageSection: some View {
         Group {
             if let thumbnail = post.thumbnail {
-                AsyncImage(url: URL(string: thumbnail)) { image in
+                BrrowAsyncImage(url: thumbnail) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

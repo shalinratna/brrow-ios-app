@@ -68,7 +68,7 @@ struct NativeSettingsView: View {
                 NavigationLink(destination: EditProfileView(user: user)) {
                     HStack(spacing: 16) {
                         // Profile Picture
-                        AsyncImage(url: URL(string: user.profilePicture ?? "")) { image in
+                        BrrowAsyncImage(url: user.profilePicture ?? "") { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

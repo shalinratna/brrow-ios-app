@@ -364,7 +364,7 @@ struct InfiniteListingCard: View {
             // Image with badges
             ZStack(alignment: .topLeading) {
                 if let imageUrl = listing.imageUrls.first {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
+                    BrrowAsyncImage(url: imageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -465,7 +465,7 @@ struct InfiniteGarageSaleCard: View {
             // Image
             ZStack(alignment: .topTrailing) {
                 if let imageUrl = garageSale.images.first {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
+                    BrrowAsyncImage(url: imageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -551,7 +551,7 @@ struct InfiniteFeaturedCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Image
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -591,7 +591,7 @@ struct MarketplaceGarageSaleCard: View {
         HStack(spacing: 16) {
             // Image
             if let imageUrl = garageSale.images.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

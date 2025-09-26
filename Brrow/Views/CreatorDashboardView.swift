@@ -827,7 +827,7 @@ struct ListingPerformanceRow: View {
 
     var body: some View {
         HStack {
-            AsyncImage(url: URL(string: listing.imageUrl ?? "")) { image in
+            BrrowAsyncImage(url: listing.imageUrl) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

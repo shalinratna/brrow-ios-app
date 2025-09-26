@@ -186,7 +186,7 @@ struct BookingRowView: View {
             VStack(spacing: 16) {
                 HStack(alignment: .top, spacing: 12) {
                     // Image
-                    AsyncImage(url: URL(string: booking.listing?.images.first?.url ?? "")) { image in
+                    BrrowAsyncImage(url: booking.listing?.images.first?.url) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

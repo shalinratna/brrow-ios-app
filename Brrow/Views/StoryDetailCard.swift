@@ -21,7 +21,7 @@ struct StoryDetailCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: URL(string: story.imageUrl ?? story.thumbnailUrl)) { image in
+            BrrowAsyncImage(url: story.imageUrl ?? story.thumbnailUrl) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

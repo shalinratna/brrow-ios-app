@@ -68,7 +68,7 @@ struct EnhancedChatDetailView: View {
             }
             
             // Profile picture
-            AsyncImage(url: URL(string: conversation.otherUser.profilePicture ?? "")) { image in
+            BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -376,7 +376,7 @@ struct EnhancedMessageBubble: View {
     
     private var imageMessageView: some View {
         VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 8) {
-            AsyncImage(url: URL(string: message.mediaUrl ?? "")) { image in
+            BrrowAsyncImage(url: message.mediaUrl) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

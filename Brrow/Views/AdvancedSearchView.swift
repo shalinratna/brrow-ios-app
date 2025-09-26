@@ -510,7 +510,7 @@ struct SearchResultCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                AsyncImage(url: URL(string: result.listing.images.first?.url ?? "")) { image in
+                BrrowAsyncImage(url: result.listing.images.first?.url) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

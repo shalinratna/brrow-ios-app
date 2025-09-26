@@ -32,7 +32,7 @@ struct GarageSalePreviewPopup: View {
             HStack(spacing: 16) {
                 // Image
                 if let firstImage = garageSale.images.first {
-                    AsyncImage(url: URL(string: firstImage)) { image in
+                    BrrowAsyncImage(url: firstImage) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

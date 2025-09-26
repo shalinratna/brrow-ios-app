@@ -679,7 +679,7 @@ struct FeedCard: View {
     
     private var header: some View {
         HStack {
-            AsyncImage(url: URL(string: listing.ownerProfilePicture ?? "")) { image in
+            BrrowAsyncImage(url: listing.ownerProfilePicture ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -712,7 +712,7 @@ struct FeedCard: View {
     // Header component
     private var headerView: some View {
         HStack {
-            AsyncImage(url: URL(string: listing.ownerProfilePicture ?? "")) { image in
+            BrrowAsyncImage(url: listing.ownerProfilePicture ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -907,7 +907,7 @@ struct ListingDetailSheet: View {
                     // Image carousel
                     TabView {
                         ForEach(listing.imageUrls ?? [listing.firstImageUrl ?? ""], id: \.self) { imageUrl in
-                            AsyncImage(url: URL(string: imageUrl)) { image in
+                            BrrowAsyncImage(url: imageUrl) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -945,7 +945,7 @@ struct ListingDetailSheet: View {
                         
                         // Owner info
                         HStack {
-                            AsyncImage(url: URL(string: listing.ownerProfilePicture ?? "")) { image in
+                            BrrowAsyncImage(url: listing.ownerProfilePicture ?? "") { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)

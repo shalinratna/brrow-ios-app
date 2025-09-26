@@ -158,7 +158,7 @@ struct SimpleProfessionalProfileView: View {
                     .frame(width: 100, height: 100)
                 
                 if let user = viewModel.user, let profilePicture = user.profilePicture, !profilePicture.isEmpty {
-                    AsyncImage(url: URL(string: profilePicture)) { image in
+                    BrrowAsyncImage(url: profilePicture) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

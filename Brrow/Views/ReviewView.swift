@@ -26,7 +26,7 @@ struct ReviewView: View {
                             .fontWeight(.bold)
                         
                         HStack(spacing: 16) {
-                            AsyncImage(url: URL(string: targetUser.profilePictureUrl ?? "")) { image in
+                            BrrowAsyncImage(url: targetUser.profilePictureUrl ?? "") { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -390,7 +390,7 @@ struct ReviewRowView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Author info and rating
             HStack(spacing: 12) {
-                AsyncImage(url: URL(string: "")) { image in
+                BrrowAsyncImage(url: "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

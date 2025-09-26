@@ -217,7 +217,7 @@ struct ModernSettingsView: View {
                     .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: pulseAnimation)
 
                 if let profilePic = authManager.currentUser?.profilePicture {
-                    AsyncImage(url: URL(string: profilePic)) { image in
+                    BrrowAsyncImage(url: profilePic) { image in
                         image
                             .resizable()
                             .scaledToFill()

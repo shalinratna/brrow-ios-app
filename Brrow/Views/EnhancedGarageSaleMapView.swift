@@ -311,7 +311,7 @@ struct EnhancedGarageSalePreview: View {
             HStack(spacing: 16) {
                 // Image
                 if let firstImage = garageSale.images.first {
-                    AsyncImage(url: URL(string: firstImage)) { image in
+                    BrrowAsyncImage(url: firstImage) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -438,7 +438,7 @@ struct GarageSaleListRow: View {
             HStack(spacing: 12) {
                 // Image
                 if let firstImage = sale.images.first {
-                    AsyncImage(url: URL(string: firstImage)) { image in
+                    BrrowAsyncImage(url: firstImage) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

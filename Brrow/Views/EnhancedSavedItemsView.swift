@@ -251,7 +251,7 @@ struct SavedItemCard: View {
             // Image with favorite button
             ZStack(alignment: .topTrailing) {
                 if let imageUrl = item.imageUrl {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
+                    BrrowAsyncImage(url: imageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

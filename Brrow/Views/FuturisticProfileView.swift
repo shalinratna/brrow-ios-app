@@ -127,7 +127,7 @@ struct FuturisticProfileView: View {
         ZStack {
             // Blurred background image
             if let user = authManager.currentUser, let imageUrl = user.profilePicture {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -193,7 +193,7 @@ struct FuturisticProfileView: View {
                 
                 // Profile image
                 if let user = authManager.currentUser, let imageUrl = user.profilePicture {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
+                    BrrowAsyncImage(url: imageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -672,7 +672,7 @@ struct HoverListingCard: View {
     var body: some View {
         HStack(spacing: 16) {
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

@@ -98,7 +98,7 @@ struct BookingView: View {
     private var bookingHeaderView: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                AsyncImage(url: URL(string: listing.images.first?.url ?? "")) { image in
+                BrrowAsyncImage(url: listing.images.first?.url) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

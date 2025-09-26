@@ -382,7 +382,7 @@ struct CreateOfferView: View {
                         }) {
                             HStack {
                                 if let listing = selectedListing {
-                                    AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
+                                    BrrowAsyncImage(url: listing.imageUrls.first) { image in
                                         image
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
@@ -616,7 +616,7 @@ struct ListingPickerView: View {
             presentationMode.wrappedValue.dismiss()
         }) {
             HStack {
-                AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
+                BrrowAsyncImage(url: listing.imageUrls.first) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

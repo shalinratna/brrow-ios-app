@@ -113,7 +113,7 @@ struct ProfileView: View {
     private var profileInfoSection: some View {
         VStack(spacing: Theme.Spacing.md) {
             // Profile Picture
-            AsyncImage(url: URL(string: authManager.currentUser?.fullProfilePictureURL ?? "")) { image in
+            BrrowAsyncImage(url: authManager.currentUser?.fullProfilePictureURL ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

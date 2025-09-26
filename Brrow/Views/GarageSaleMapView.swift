@@ -479,7 +479,7 @@ struct GarageSaleDetailSheet: View {
                     if !garageSale.images.isEmpty {
                         TabView {
                             ForEach(garageSale.images, id: \.self) { imageUrl in
-                                AsyncImage(url: URL(string: imageUrl)) { image in
+                                BrrowAsyncImage(url: imageUrl) { image in
                                     image
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)

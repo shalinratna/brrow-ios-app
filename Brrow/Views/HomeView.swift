@@ -478,7 +478,7 @@ struct ListingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             // Image
-            AsyncImage(url: URL(string: listing.firstImageUrl ?? "")) { image in
+            BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

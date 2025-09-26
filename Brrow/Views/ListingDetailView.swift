@@ -201,7 +201,7 @@ struct LegacyListingDetailView: View {
                 .foregroundColor(Theme.Colors.text)
             
             HStack {
-                AsyncImage(url: URL(string: "")) { image in
+                BrrowAsyncImage(url: "") { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

@@ -139,7 +139,7 @@ struct GarageSalePreviewCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
             if let firstImage = sale.images.first {
-                AsyncImage(url: URL(string: firstImage)) { image in
+                BrrowAsyncImage(url: firstImage) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -361,7 +361,7 @@ struct GarageSaleDetailView: View {
                     if !sale.images.isEmpty {
                         TabView {
                             ForEach(sale.images, id: \.self) { imageUrl in
-                                AsyncImage(url: URL(string: imageUrl)) { image in
+                                BrrowAsyncImage(url: imageUrl) { image in
                                     image
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)

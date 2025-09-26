@@ -102,7 +102,7 @@ struct ProfilePictureEditView: View {
                             viewModel.showFullscreenPreview = true
                         }
                 } else if let currentPicture = viewModel.currentProfilePicture {
-                    AsyncImage(url: URL(string: currentPicture)) { image in
+                    BrrowAsyncImage(url: currentPicture) { image in
                         image
                             .resizable()
                             .scaledToFill()

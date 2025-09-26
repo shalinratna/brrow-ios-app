@@ -327,7 +327,7 @@ struct FuturisticListingCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Image with parallax effect
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -428,7 +428,7 @@ struct AnimatedListingCard: View {
         VStack(spacing: 0) {
             // Image
             if let imageUrl = listing.imageUrls.first {
-                AsyncImage(url: URL(string: imageUrl)) { image in
+                BrrowAsyncImage(url: imageUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

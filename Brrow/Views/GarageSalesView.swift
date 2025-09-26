@@ -150,7 +150,7 @@ struct GarageSaleCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             // Image
-            AsyncImage(url: URL(string: garageSale.photos.first?.url ?? "")) { image in
+            BrrowAsyncImage(url: garageSale.photos.first?.url) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

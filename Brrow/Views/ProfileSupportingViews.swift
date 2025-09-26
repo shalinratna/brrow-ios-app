@@ -64,7 +64,7 @@ struct ProfileSupportingReviewCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 if let imageUrl = review.reviewerImage {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
+                    BrrowAsyncImage(url: imageUrl) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
