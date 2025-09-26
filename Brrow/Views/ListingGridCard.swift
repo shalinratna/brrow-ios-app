@@ -13,7 +13,7 @@ struct ListingGridCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Image - Using CachedAsyncImage for better performance
-            BrrowAsyncImage(url:
+            BrrowAsyncImage(
                 url: listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first?.url,
                 content: { image in
                     image
