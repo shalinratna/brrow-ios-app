@@ -554,7 +554,7 @@ struct ProfessionalListingDetailView: View {
                 HStack(spacing: 12) {
                     // Seller Avatar
                     if let avatarUrl = viewModel.seller?.profilePicture {
-                        AsyncImage(url: URL(string: avatarUrl)) { image in
+                        BrrowAsyncImage(url: avatarUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -1035,7 +1035,7 @@ struct SimilarItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Image
-            AsyncImage(url: URL(string: listing.imageUrls.first ?? "")) { image in
+            BrrowAsyncImage(url: listing.imageUrls.first ?? "") { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -1272,7 +1272,7 @@ struct ImageGalleryView: View {
             
             TabView(selection: $selectedIndex) {
                 ForEach(images.indices, id: \.self) { index in
-                    AsyncImage(url: URL(string: images[index])) { image in
+                    BrrowAsyncImage(url: images[index]) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fit)
@@ -1326,7 +1326,7 @@ struct BasicUserProfileView: View {
                 VStack(spacing: 16) {
                     // Avatar
                     if let avatarUrl = user.profilePicture {
-                        AsyncImage(url: URL(string: avatarUrl)) { image in
+                        BrrowAsyncImage(url: avatarUrl) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

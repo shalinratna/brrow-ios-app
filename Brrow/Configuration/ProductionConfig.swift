@@ -19,11 +19,11 @@ struct ProductionConfig {
         var baseURL: String {
             switch self {
             case .development:
-                return "https://brrowapp.com"
+                return "https://brrow-backend-nodejs-production.up.railway.app"
             case .staging:
-                return "https://brrowapp.com"
+                return "https://brrow-backend-nodejs-production.up.railway.app"
             case .production:
-                return "https://brrowapp.com"
+                return "https://brrow-backend-nodejs-production.up.railway.app"
             }
         }
         

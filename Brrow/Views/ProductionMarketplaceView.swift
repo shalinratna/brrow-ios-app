@@ -660,7 +660,7 @@ struct HeroFeaturedCard: View {
                 ZStack(alignment: .topTrailing) {
                     TabView {
                         ForEach(listing.imageUrls.indices, id: \.self) { index in
-                            AsyncImage(url: URL(string: listing.imageUrls[index])) { image in
+                            BrrowAsyncImage(url: listing.imageUrls[index]) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -885,7 +885,7 @@ struct ProductionListingCard: View {
                 if !listing.imageUrls.isEmpty {
                     TabView {
                         ForEach(listing.imageUrls.indices, id: \.self) { index in
-                            AsyncImage(url: URL(string: listing.imageUrls[index])) { image in
+                            BrrowAsyncImage(url: listing.imageUrls[index]) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -1123,7 +1123,7 @@ struct SuggestionRow: View {
             HStack(spacing: 16) {
                 // Icon or thumbnail
                 if let thumbnail = thumbnail {
-                    AsyncImage(url: URL(string: thumbnail)) { image in
+                    BrrowAsyncImage(url: thumbnail) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
