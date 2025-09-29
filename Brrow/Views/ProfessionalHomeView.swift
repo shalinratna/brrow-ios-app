@@ -256,9 +256,7 @@ struct ProfessionalHomeView: View {
                         }
                     } else {
                         Map(coordinateRegion: $mapRegion, annotationItems: viewModel.nearbyGarageSales) { sale in
-                            MapAnnotation(coordinate: sale.coordinate) {
-                                GarageSaleMapPin(sale: sale)
-                            }
+                            MapPin(coordinate: sale.coordinate, tint: .red)
                         }
                     }
                 }

@@ -70,32 +70,7 @@ struct MapView: View {
             Map(coordinateRegion: $region,
                 showsUserLocation: true,
                 annotationItems: mapItems) { item in
-                MapAnnotation(coordinate: item.coordinate) {
-                    VStack(spacing: 0) {
-                        Image(systemName: item.type.icon)
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .frame(width: 35, height: 35)
-                            .background(item.type.color)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 2)
-                            )
-                            .shadow(radius: 3)
-                            .onTapGesture {
-                                selectedItem = item
-                            }
-                        
-                        Image(systemName: "triangle.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(item.type.color)
-                            .rotationEffect(.degrees(180))
-                            .offset(y: -2)
-                    }
-                    .scaleEffect(selectedItem?.id == item.id ? 1.2 : 1.0)
-                    .animation(.spring(response: 0.3), value: selectedItem?.id)
-                }
+                MapPin(coordinate: item.coordinate, tint: item.type == .listing ? .blue : .red)
             }
             .ignoresSafeArea()
             

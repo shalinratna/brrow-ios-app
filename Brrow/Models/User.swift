@@ -429,10 +429,27 @@ struct User: Codable, Identifiable {
     // Helper method to get the full profile picture URL
     var fullProfilePictureURL: String? {
         guard let profilePictureString = profilePicture else { return nil }
-        
-        // If the URL is already complete (starts with http), return as-is
+
+        // SECURITY: Only allow profile pictures from our platform domains
+        // Reject external URLs (Google, Facebook, etc.)
         if profilePictureString.hasPrefix("http://") || profilePictureString.hasPrefix("https://") {
-            return profilePictureString
+            let allowedDomains = [
+                "brrow-backend-nodejs-production.up.railway.app",
+                "brrowapp.com",
+                "api.brrowapp.com",
+                "res.cloudinary.com" // For uploaded images via Cloudinary
+            ]
+
+            // Check if URL is from an allowed domain
+            for domain in allowedDomains {
+                if profilePictureString.contains(domain) {
+                    return profilePictureString
+                }
+            }
+
+            // Reject external URLs (Google, Facebook, etc.)
+            print("🚫 Rejected external profile picture URL: \(profilePictureString)")
+            return nil
         }
         
         // If it's a relative path starting with /uploads/, prepend base URL
@@ -445,6 +462,23 @@ struct User: Codable, Identifiable {
         // For other relative paths, assume they need the base URL
         let baseURL = "https://brrow-backend-nodejs-production.up.railway.app"
         return "\(baseURL)/\(profilePictureString)"
+    }
+
+    // MARK: - Static Methods
+    static func placeholder() -> User {
+        return User(
+            id: "placeholder",
+            username: "Loading...",
+            email: "placeholder@example.com",
+            apiId: "placeholder",
+            profilePicture: nil,
+            listerRating: 0.0,
+            renteeRating: 0.0,
+            bio: nil,
+            emailVerified: false,
+            idVerified: false,
+            stripeLinked: false
+        )
     }
 }
 

@@ -415,7 +415,7 @@ struct FuturisticCreateListingView: View {
                     .fill(.ultraThinMaterial)
             )
         }
-        .onChange(of: selectedPhotos) { oldValue, newItems in
+        .onChange(of: selectedPhotos) { newItems in
             loadImages(from: newItems)
         }
     }

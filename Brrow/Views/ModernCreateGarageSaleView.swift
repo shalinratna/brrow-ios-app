@@ -1481,7 +1481,7 @@ class CreateGarageSaleViewModel: ObservableObject {
         // Upload processed images in parallel for speed
         let uploadedUrls = try await processor.uploadProcessedImages(
             processedImages,
-            to: "api_upload_file.php",  // Use api_upload_file.php which has correct response format
+            to: "api/upload",  // Use Node.js upload endpoint (same as listings)
             entityType: "garage_sales",
             entityId: nil  // Will be assigned by server
         )
@@ -1583,7 +1583,7 @@ class CreateGarageSaleViewModel: ObservableObject {
                 isPublic: true,
                 startTime: startTimeStr,
                 endTime: endTimeStr,
-                linkedListingIds: Array(selectedListingIds) // Include selected listings
+                linkedListingIds: selectedListingIds.isEmpty ? nil : Array(selectedListingIds) // Include selected listings
             )
             
             // Create garage sale via API

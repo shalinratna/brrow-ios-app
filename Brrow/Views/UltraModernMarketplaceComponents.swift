@@ -324,10 +324,12 @@ struct UltraModernListingCard: View {
                     Text("$\(Int(listing.price))")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundColor(colors.vibrantTeal)
-                    
-                    Text("/day")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
+
+                    if listing.listingType == "rental" || listing.dailyRate != nil {
+                        Text("/\(listing.rentalPeriod ?? "day")")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.gray)
+                    }
                     
                     Spacer()
                     
@@ -522,6 +524,7 @@ struct ModernLoadMoreButton: View {
 class UltraModernMarketplaceViewModel: ObservableObject {
     @Published var listings: [Listing] = []
     @Published var featuredListings: [Listing] = []
+    @Published var nearbySeeks: [Seek] = []
     @Published var isLoading = false
     @Published var isLoadingMore = false
     @Published var hasMore = true
@@ -539,20 +542,22 @@ class UltraModernMarketplaceViewModel: ObservableObject {
             await MainActor.run { isLoading = true }
             
             do {
-                // Load featured listings
-                let response = try await apiClient.fetchFeaturedListings()
-                let allListings = response.allListings
-                
+                // Load all listings, featured listings, and nearby seeks
+                let allListings = try await apiClient.fetchListings()
+                let featuredResponse = try await apiClient.fetchFeaturedListings(limit: 5)
+                let nearbySeeksResponse = try await loadNearbySeeks()
+
                 await MainActor.run {
                     self.listings = allListings
-                    self.featuredListings = Array(allListings.filter { $0.isPromoted }.prefix(5))
-                    
+                    self.featuredListings = featuredResponse.allListings
+                    self.nearbySeeks = nearbySeeksResponse
+
                     // Update stats
                     self.totalListings = allListings.count
                     self.activeUsers = Int.random(in: 50...200)
                     self.todaysDeals = allListings.filter { $0.price < 50 }.count
-                    
-                    self.hasMore = response.data?.pagination?.hasMore ?? false
+
+                    self.hasMore = false // No pagination when fetching all listings
                     self.isLoading = false
                 }
             } catch {
@@ -568,7 +573,24 @@ class UltraModernMarketplaceViewModel: ObservableObject {
             }
         }
     }
-    
+
+    private func loadNearbySeeks() async throws -> [Seek] {
+        // Check if we have location for seeks API
+        guard let currentUser = AuthManager.shared.currentUser else {
+            return []
+        }
+
+        // For now, fetch all seeks and take the first 5
+        // In a real app, you would filter by proximity to user's location
+        do {
+            let allSeeks = try await apiClient.fetchSeeks()
+            return Array(allSeeks.prefix(5))
+        } catch {
+            print("Failed to load nearby seeks: \(error)")
+            return []
+        }
+    }
+
     func refreshData() async {
         currentPage = 1
         await MainActor.run {
@@ -611,9 +633,160 @@ class UltraModernMarketplaceViewModel: ObservableObject {
     }
 }
 
+// MARK: - Nearby Seek Card
+struct NearbySeekCard: View {
+    let seek: Seek
+    let colors: UltraModernColorPalette
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: {
+            // Handle seek tap - navigate to seek detail
+        }) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    // Urgency indicator
+                    HStack(spacing: 4) {
+                        Image(systemName: urgencyIcon)
+                            .font(.caption2)
+                            .foregroundColor(urgencyColor)
+
+                        Text(seek.urgency.capitalized)
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(urgencyColor)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(urgencyColor.opacity(0.15))
+                    )
+
+                    Spacer()
+
+                    // Distance indicator
+                    HStack(spacing: 4) {
+                        Image(systemName: "location.fill")
+                            .font(.caption2)
+                            .foregroundColor(colors.vibrantTeal)
+
+                        Text("2.5 km")
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(colors.vibrantTeal)
+                    }
+                }
+
+                // Title and description
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(seek.title)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(2)
+
+                    Text(seek.description)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(3)
+                }
+
+                // Footer with budget and category
+                HStack {
+                    if let budget = seek.maxBudget {
+                        HStack(spacing: 4) {
+                            Image(systemName: "dollarsign.circle.fill")
+                                .font(.caption2)
+                                .foregroundColor(colors.vibrantGreen)
+
+                            Text("$\(Int(budget))")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(colors.vibrantGreen)
+                        }
+                    }
+
+                    Spacer()
+
+                    if !seek.category.isEmpty {
+                        Text(seek.category)
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(.white.opacity(0.1))
+                            )
+                    }
+                }
+            }
+            .padding(16)
+            .frame(width: 280, height: 140)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                colors.vibrantPurple.opacity(0.8),
+                                colors.vibrantBlue.opacity(0.6)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.white.opacity(0.2), lineWidth: 1)
+                    )
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .shadow(
+                color: colors.vibrantPurple.opacity(0.3),
+                radius: isPressed ? 5 : 15,
+                x: 0,
+                y: isPressed ? 2 : 8
+            )
+        }
+        .buttonStyle(.plain)
+        .onPressGesture(
+            onPressed: { isPressed = true },
+            onReleased: { isPressed = false }
+        )
+    }
+
+    private var urgencyIcon: String {
+        switch seek.urgency.lowercased() {
+        case "urgent": return "exclamationmark.triangle.fill"
+        case "high": return "flame.fill"
+        case "normal", "medium": return "hare.fill"
+        case "low": return "tortoise.fill"
+        default: return "hare.fill"
+        }
+    }
+
+    private var urgencyColor: Color {
+        switch seek.urgency.lowercased() {
+        case "urgent": return colors.vibrantRed
+        case "high": return colors.vibrantOrange
+        case "normal", "medium": return colors.vibrantBlue
+        case "low": return colors.vibrantGreen
+        default: return colors.vibrantBlue
+        }
+    }
+}
+
 // MARK: - Extensions
 extension View {
     func backdrop() -> some View {
         self.background(.ultraThinMaterial)
+    }
+
+    func onPressGesture(
+        onPressed: @escaping () -> Void,
+        onReleased: @escaping () -> Void
+    ) -> some View {
+        self.simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in onPressed() }
+                .onEnded { _ in onReleased() }
+        )
     }
 }

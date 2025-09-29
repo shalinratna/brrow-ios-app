@@ -13,6 +13,7 @@ struct MainTabView: View {
     @StateObject private var predictiveLoader = PredictiveLoadingManager.shared
     @State private var cancellables = Set<AnyCancellable>()
     @State private var selectedTab = 0
+    @State private var previousTab = 0
 
     // Persistent view models to prevent reloading
     @StateObject private var homeViewModel = HomeViewModel()
@@ -73,7 +74,11 @@ struct MainTabView: View {
                 .tag(4)
         }
         .accentColor(Theme.Colors.primary)
-        .onChange(of: selectedTab) { oldValue, newTab in
+        .onChange(of: selectedTab) { newTab in
+            // Store current tab as previous before processing the change
+            let oldTab = previousTab
+            previousTab = selectedTab
+
             // Smooth transition with haptic feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
@@ -85,14 +90,14 @@ struct MainTabView: View {
             Task {
                 await predictiveLoader.predictNextNavigation(
                     from: getTabName(newTab),
-                    userBehavior: ["previousTab": oldValue, "currentTab": newTab]
+                    userBehavior: ["previousTab": oldTab, "currentTab": newTab]
                 )
             }
 
             // Track tab switching analytics
-            trackTabSwitch(from: oldValue, to: newTab)
+            trackTabSwitch(from: oldTab, to: newTab)
         }
-        .withUniversalListingDetail()  // Enable universal listing navigation
+        // Universal listing detail is handled at the app root level
         .onReceive(NotificationCenter.default.publisher(for: .navigateToMessages)) { _ in
             print("🔔 MainTabView: Received navigateToMessages, switching to Chats tab")
             selectedTab = 3  // Chats tab

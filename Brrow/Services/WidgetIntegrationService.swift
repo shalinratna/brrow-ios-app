@@ -68,23 +68,23 @@ class WidgetIntegrationService: ObservableObject {
         do {
             // Fetch listings count
             if let listings = try? await APIClient.shared.fetchListings() {
-                let activeCount = listings.filter { $0.status == "available" }.count
+                let activeCount = listings.filter { $0.availabilityStatus == .available }.count
                 let nearbyCount = listings.filter { listing in
-                    // Calculate distance (simplified)
-                    return true // Would check actual distance
+                    // Calculate distance (simplified) - could use actual location here
+                    return listing.isActive
                 }.prefix(10).count
-                
+
                 WidgetDataManager.shared.updateWidgetData(
                     activeListings: activeCount,
                     nearbyItems: nearbyCount
                 )
             }
-            
+
             // Fetch messages count
             if let conversations = try? await APIClient.shared.fetchConversations() {
-                let unreadCount = conversations.reduce(0) { $0 + ($1.unreadCount ?? 0) }
+                let unreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
                 WidgetDataManager.shared.updateWidgetData(unreadMessages: unreadCount)
-                
+
                 // Update recent activity
                 if let lastConversation = conversations.first {
                     let activity = "Message from \(lastConversation.otherUser.username)"

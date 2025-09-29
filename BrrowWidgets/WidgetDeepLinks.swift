@@ -26,20 +26,20 @@ extension SmallWidgetView {
 }
 
 extension MediumWidgetView {
-    var deepLinkedBody: some View {
+    func deepLinkedBody(_ data: WidgetData) -> some View {
         ZStack {
             self
                 .widgetURL(WidgetDeepLink.listings) // Default tap
-            
+
             // Specific tap areas
             HStack {
                 // Left side - opens listings
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture { } // Handled by widgetURL
-                
+
                 Spacer()
-                
+
                 // Right side - opens messages if there are unread
                 if data.unreadMessages > 0 {
                     Link(destination: WidgetDeepLink.messages) {
@@ -131,3 +131,4 @@ extension BrrowWidget {
         #endif
     }
 }
+

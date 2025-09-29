@@ -1093,6 +1093,9 @@ class APIClient: ObservableObject {
 
         let bodyData = try JSONSerialization.data(withJSONObject: uploadRequest)
 
+        // Add debug logging for profile picture upload
+        print("📸 Profile picture upload request: \(String(data: bodyData, encoding: .utf8)?.prefix(200) ?? "nil")")
+
         let response = try await performRequest(
             endpoint: "api/profile/upload-picture",
             method: .POST,
@@ -1100,17 +1103,108 @@ class APIClient: ObservableObject {
             responseType: ImageUploadResponse.self,
             cachePolicy: .ignoreCache
         )
+
+        print("📸 Profile picture upload response: \(response)")
         
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to upload profile picture")
         }
 
         // The backend returns profilePictureUrl in the response
-        let url = response.profilePictureUrl ?? response.url ?? response.data?.user.profilePicture ?? ""
+        let url = response.profilePictureUrl ?? response.url ?? response.data?.url ?? response.user?.profilePicture ?? ""
 
-        // Update local user data if available
-        if let userData = response.data?.user {
-            authManager.updateUser(userData)
+        // Update local user data if available (user is now at root level) - on main thread
+        if let userData = response.user {
+            await MainActor.run {
+                authManager.updateUser(userData)
+            }
+        }
+
+        return url
+    }
+
+    // MARK: - Profile Picture Upload with Crop Data
+    func uploadProfilePictureWithCrop(imageData: Data, cropData: CropData? = nil) async throws -> String {
+        // Get current user's API ID for organization
+        let userApiId = authManager.currentUser?.apiId ?? "unknown_user"
+
+        // AGGRESSIVE compression to prevent timeouts
+        var compressedData = imageData
+        let maxSize = 100 * 1024  // 100KB max for profile pictures with crop data
+
+        // If data is too large, compress it
+        if imageData.count > maxSize {
+            guard let image = UIImage(data: imageData) else {
+                throw BrrowAPIError.validationError("Invalid image data")
+            }
+
+            // Resize to optimal profile picture size
+            let maxDimension: CGFloat = 600  // Higher quality for cropped images
+            let resizedImage = image.resizedWithAspectRatio(maxDimension: maxDimension)
+
+            // Try different compression levels
+            for quality in stride(from: 0.8, to: 0.3, by: -0.1) {
+                if let data = resizedImage.jpegData(compressionQuality: quality) {
+                    if data.count <= maxSize {
+                        compressedData = data
+                        print("📸 Profile pic with crop data compressed to \(data.count / 1024)KB")
+                        break
+                    }
+                }
+            }
+
+            // Last resort - use minimum quality
+            if compressedData.count > maxSize {
+                if let minData = resizedImage.jpegData(compressionQuality: 0.3) {
+                    compressedData = minData
+                    print("⚠️ Profile pic still \(compressedData.count / 1024)KB at min quality")
+                }
+            }
+        }
+
+        // Create upload request with optional crop data
+        var uploadRequest: [String: Any] = [
+            "imageData": "data:image/jpeg;base64,\(compressedData.base64EncodedString())",
+            "fileName": "profile_picture.jpg"
+        ]
+
+        // Add crop data if available
+        if let cropData = cropData {
+            uploadRequest["cropData"] = [
+                "offsetX": cropData.offsetX,
+                "offsetY": cropData.offsetY,
+                "scale": cropData.scale,
+                "cropSize": cropData.cropSize
+            ]
+        }
+
+        let bodyData = try JSONSerialization.data(withJSONObject: uploadRequest)
+
+        // Add debug logging for profile picture upload
+        print("📸 Profile picture upload with crop data request: \(String(data: bodyData, encoding: .utf8)?.prefix(300) ?? "nil")")
+
+        let response = try await performRequest(
+            endpoint: "api/profile/upload-picture",
+            method: .POST,
+            body: bodyData,
+            responseType: ImageUploadResponse.self,
+            cachePolicy: .ignoreCache
+        )
+
+        print("📸 Profile picture upload response: \(response)")
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to upload profile picture")
+        }
+
+        // The backend returns profilePictureUrl in the response
+        let url = response.profilePictureUrl ?? response.url ?? response.data?.url ?? response.user?.profilePicture ?? ""
+
+        // Update local user data if available (user is now at root level) - on main thread
+        if let userData = response.user {
+            await MainActor.run {
+                authManager.updateUser(userData)
+            }
         }
 
         return url
@@ -2084,7 +2178,7 @@ class APIClient: ObservableObject {
     
     // MARK: - Fetch Listings from Server  
     /// Fetches all active listings from the server
-    /// Endpoint: https://brrowapp.com/api/listings/fetch.php
+    /// Endpoint: /api/listings
     /// NEW CLEAN STRUCTURE - All APIs in /api/ directory
     /// - Direct database connection
     /// - Automatic temp/misc image replacement
@@ -2493,11 +2587,12 @@ class APIClient: ObservableObject {
         let message: String?
         let url: String?
         let profilePictureUrl: String?
-        let data: ProfileUpdateData?
+        let data: ImageData?
+        let user: User?  // Add user at root level to match server response
 
-        struct ProfileUpdateData: Codable {
-            let user: User
-            let usernameChangeInfo: UsernameChangeInfo?
+        struct ImageData: Codable {
+            let url: String?
+            let thumbnailUrl: String?
         }
         
         struct UsernameChangeInfo: Codable {

@@ -200,8 +200,8 @@ struct FullScreenListingDetailView: View {
                 
                 Spacer()
                 
-                if "listing" == "rental" {
-                    Label("For Rent", systemImage: "clock.arrow.circlepath")
+                if listing.listingType == "rental" {
+                    Label(listing.listingTypeDisplay, systemImage: "clock.arrow.circlepath")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
@@ -209,7 +209,7 @@ struct FullScreenListingDetailView: View {
                         .background(Theme.Colors.primary)
                         .cornerRadius(20)
                 } else {
-                    Label("For Sale", systemImage: "tag.fill")
+                    Label(listing.listingTypeDisplay, systemImage: "tag.fill")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)

@@ -135,33 +135,29 @@ struct EnhancedEditListingView: View {
             }
             .navigationTitle("Edit Listing")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        presentationMode.wrappedValue.dismiss()
+            .navigationBarItems(leading:
+                Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                },
+                trailing:
+                Menu {
+                    Button("Preview") { showPreview = true }
+                    Button("Auto-save: \(autoSaveEnabled ? "On" : "Off")") {
+                        autoSaveEnabled.toggle()
                     }
+                    Button("Save") { saveChanges() }
+                        .disabled(isLoading || !hasChanges())
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button("Preview") { showPreview = true }
-                        Button("Auto-save: \(autoSaveEnabled ? "On" : "Off")") {
-                            autoSaveEnabled.toggle()
-                        }
-                        Button("Save") { saveChanges() }
-                            .disabled(isLoading || !hasChanges())
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
+            )
             .photosPicker(
                 isPresented: $showingImagePicker,
                 selection: $selectedImages,
                 maxSelectionCount: 5,
                 matching: .images
             )
-            .onChange(of: selectedImages) { _, items in
+            .onChange(of: selectedImages) { items in
                 loadSelectedImages(items)
             }
             .sheet(isPresented: $showLocationPicker) {
@@ -249,7 +245,7 @@ struct EnhancedEditListingView: View {
                 }
                 TextField("Item name", text: $title)
                     .textFieldStyle(EnhancedTextFieldStyle())
-                    .onChange(of: title) { _, _ in
+                    .onChange(of: title) { _ in
                         if autoSaveEnabled { scheduleAutoSave() }
                     }
             }
@@ -273,7 +269,7 @@ struct EnhancedEditListingView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Theme.Colors.border, lineWidth: 1)
                     )
-                    .onChange(of: description) { _, _ in
+                    .onChange(of: description) { _ in
                         if autoSaveEnabled { scheduleAutoSave() }
                     }
             }

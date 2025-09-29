@@ -11,6 +11,7 @@ class ChatListViewModel: ObservableObject {
     @Published var unreadCount = 0
     @Published var selectedChatId: String?
     @Published var navigatedListing: Listing?
+    @Published var initialMessageForSelectedChat: String?
     @Published var searchQuery = ""
 
     private var cancellables = Set<AnyCancellable>()
@@ -188,7 +189,7 @@ class ChatListViewModel: ObservableObject {
             id: user.id,
             username: user.username,
             profilePicture: user.profilePicture,
-            isVerified: user.isVerified
+            isVerified: user.isVerified ?? false
         )
 
         let conversation = Conversation(
@@ -228,14 +229,24 @@ class ChatListViewModel: ObservableObject {
 
     // Navigate to a specific chat
     func navigateToChat(chatId: String, listing: Listing?) {
-        selectedChatId = chatId
+        print("🔄 Navigating to chat: \(chatId)")
+
         navigatedListing = listing
+
+        // Generate helpful initial message if coming from a listing
+        if let listing = listing {
+            initialMessageForSelectedChat = "Hi! I'm interested in your listing '\(listing.title)'. Is it still available?"
+        } else {
+            initialMessageForSelectedChat = nil
+        }
 
         // Find the conversation in the list
         if let conversation = conversations.first(where: { $0.id == chatId }) {
+            print("✅ Found existing conversation: \(conversation.id)")
             // Mark as selected for navigation
             selectedChatId = conversation.id
         } else {
+            print("🔄 Conversation not found, attempting to create...")
             // If conversation doesn't exist, try to create it from chatId
             // ChatId format: "listing_{listingId}_{userId1}_{userId2}"
             if chatId.hasPrefix("listing_") {
@@ -243,13 +254,8 @@ class ChatListViewModel: ObservableObject {
                     await createConversationFromChatId(chatId: chatId, listing: listing)
                 }
             } else {
-                // If conversation doesn't exist in the list, fetch it
-                Task {
-                    await fetchConversations()
-                    await MainActor.run {
-                        self.selectedChatId = chatId
-                    }
-                }
+                // For non-listing chats, set the chatId and let the UI handle it
+                selectedChatId = chatId
             }
         }
     }
@@ -273,17 +279,16 @@ class ChatListViewModel: ObservableObject {
         let userId2String = components[components.count - 1]
 
         // Determine which user is the "other" user
-        let currentUserId = Int(currentUser.id) ?? 0
-        let userId1 = Int(userId1String) ?? 0
-        let userId2 = Int(userId2String) ?? 0
+        let currentUserId = currentUser.id
         let otherUserId: String
 
-        if currentUserId == userId1 {
-            otherUserId = String(userId2)
-        } else if currentUserId == userId2 {
-            otherUserId = String(userId1)
+        if currentUserId == userId1String {
+            otherUserId = userId2String
+        } else if currentUserId == userId2String {
+            otherUserId = userId1String
         } else {
             print("❌ Current user not found in chat ID: \(chatId)")
+            print("❌ Current user ID: \(currentUserId), Chat users: \(userId1String), \(userId2String)")
             return
         }
 
@@ -302,8 +307,17 @@ class ChatListViewModel: ObservableObject {
             )
 
             await MainActor.run {
-                // Add the new conversation to the list
-                self.conversations.insert(conversation, at: 0)
+                // Check if conversation already exists to prevent duplicates
+                if !self.conversations.contains(where: { $0.id == conversation.id }) {
+                    // Add the new conversation to the list
+                    self.conversations.insert(conversation, at: 0)
+                } else {
+                    // Update existing conversation if it already exists
+                    if let existingIndex = self.conversations.firstIndex(where: { $0.id == conversation.id }) {
+                        self.conversations[existingIndex] = conversation
+                    }
+                }
+
                 if self.searchQuery.isEmpty {
                     self.filteredConversations = self.conversations
                 }

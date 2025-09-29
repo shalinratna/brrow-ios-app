@@ -140,7 +140,7 @@ struct LoginView: View {
                 )
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .onChange(of: viewModel.username) { _, newValue in
+                .onChange(of: viewModel.username) { newValue in
                     // 🚀 PREDICTIVE LOADING: Start preloading as user types username
                     if !newValue.isEmpty {
                         predictiveLoader.startPredictiveLoading(for: newValue)
@@ -166,7 +166,7 @@ struct LoginView: View {
             )
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-            .onChange(of: viewModel.email) { _, newValue in
+            .onChange(of: viewModel.email) { newValue in
                 // 🚀 PREDICTIVE LOADING: Start preloading as user types email
                 if !newValue.isEmpty && newValue.contains("@") {
                     predictiveLoader.startPredictiveLoading(for: newValue)

@@ -207,7 +207,7 @@ struct PaymentView: View {
                     HStack {
                         TextField("1234 5678 9012 3456", text: $cardNumber)
                             .keyboardType(.numberPad)
-                            .onChange(of: cardNumber) { _, newValue in
+                            .onChange(of: cardNumber) { newValue in
                                 // Format card number with spaces
                                 let filtered = newValue.replacingOccurrences(of: " ", with: "")
                                 if filtered.count <= 16 {
@@ -236,7 +236,7 @@ struct PaymentView: View {
                             .foregroundColor(.gray)
                         TextField("MM/YY", text: $expiryDate)
                             .keyboardType(.numberPad)
-                            .onChange(of: expiryDate) { _, newValue in
+                            .onChange(of: expiryDate) { newValue in
                                 // Format expiry date
                                 let filtered = newValue.replacingOccurrences(of: "/", with: "")
                                 if filtered.count <= 4 {
@@ -259,7 +259,7 @@ struct PaymentView: View {
                             .foregroundColor(.gray)
                         TextField("123", text: $cvv)
                             .keyboardType(.numberPad)
-                            .onChange(of: cvv) { _, newValue in
+                            .onChange(of: cvv) { newValue in
                                 if newValue.count > 4 {
                                     cvv = String(newValue.prefix(4))
                                 }

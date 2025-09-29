@@ -56,6 +56,7 @@ struct Listing: Codable, Identifiable, Equatable {
     let condition: String  // Changed from ItemCondition to String
     let price: Double
     let dailyRate: Double?  // Optional daily rental rate
+    let pricingType: String?  // Explicit pricing type from backend
     let isNegotiable: Bool
     let availabilityStatus: ListingStatus
     let location: Location
@@ -132,7 +133,7 @@ struct Listing: Codable, Identifiable, Equatable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, title, description, categoryId, condition, price, dailyRate
+        case id, title, description, categoryId, condition, price, dailyRate, pricingType
         case isNegotiable, availabilityStatus, location, userId
         case viewCount, favoriteCount, isActive, isPremium
         case premiumExpiresAt, deliveryOptions, tags, metadata
@@ -153,6 +154,7 @@ struct Listing: Codable, Identifiable, Equatable {
         condition = try container.decode(String.self, forKey: .condition)
         price = try container.decode(Double.self, forKey: .price)
         dailyRate = try container.decodeIfPresent(Double.self, forKey: .dailyRate)
+        pricingType = try container.decodeIfPresent(String.self, forKey: .pricingType)
         isNegotiable = try container.decode(Bool.self, forKey: .isNegotiable)
         availabilityStatus = try container.decode(ListingStatus.self, forKey: .availabilityStatus)
 
@@ -174,16 +176,16 @@ struct Listing: Codable, Identifiable, Equatable {
         }
 
         userId = try container.decode(String.self, forKey: .userId)
-        viewCount = try container.decode(Int.self, forKey: .viewCount)
-        favoriteCount = try container.decode(Int.self, forKey: .favoriteCount)
-        isActive = try container.decode(Bool.self, forKey: .isActive)
-        isPremium = try container.decode(Bool.self, forKey: .isPremium)
+        viewCount = try container.decodeIfPresent(Int.self, forKey: .viewCount) ?? 0
+        favoriteCount = try container.decodeIfPresent(Int.self, forKey: .favoriteCount) ?? 0
+        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
+        isPremium = try container.decodeIfPresent(Bool.self, forKey: .isPremium) ?? false
         premiumExpiresAt = try container.decodeIfPresent(String.self, forKey: .premiumExpiresAt)
         deliveryOptions = try container.decodeIfPresent(DeliveryOptions.self, forKey: .deliveryOptions)
-        tags = try container.decode([String].self, forKey: .tags)
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
         metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
-        createdAt = try container.decode(String.self, forKey: .createdAt)
-        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt) ?? ""
         user = try container.decodeIfPresent(UserInfo.self, forKey: .user)
         category = try container.decodeIfPresent(CategoryModel.self, forKey: .category)
 
@@ -235,8 +237,23 @@ struct Listing: Codable, Identifiable, Equatable {
     }
 
     // Computed property to determine if this is for sale or rent
-    // TODO: This should ideally come from the backend as an explicit field
     var listingType: String {
+        // First, use explicit pricing type from backend if available
+        if let explicitType = pricingType, !explicitType.isEmpty {
+            switch explicitType.lowercased() {
+            case "for_sale", "sale":
+                return "sale"
+            case "for_rent", "rental", "rent":
+                return "rental"
+            case "free":
+                return "free"
+            default:
+                // Fall through to legacy logic
+                break
+            }
+        }
+
+        // Legacy logic for backward compatibility
         // If daily rate exists and > 0, it's for rent (Brrow's primary business model)
         if let dailyRate = dailyRate, dailyRate > 0 {
             return "rental"
@@ -269,6 +286,20 @@ struct Listing: Codable, Identifiable, Equatable {
         // This would be populated from API
         return []
     }
+
+    // Determine if this is an item or service based on category
+    var itemType: String {
+        guard let categoryName = category?.name else { return "Item" }
+
+        // Services are typically intangible offerings
+        let serviceCategories = [
+            "Services", "Professional Services", "Home Services",
+            "Tutoring", "Consulting", "Repair Services", "Cleaning",
+            "Photography", "Design", "Writing", "Entertainment"
+        ]
+
+        return serviceCategories.contains(categoryName) ? "Service" : "Item"
+    }
     
     // Example for preview
     static var example: Listing {
@@ -281,6 +312,7 @@ struct Listing: Codable, Identifiable, Equatable {
             "condition": "GOOD",
             "price": 25.0,
             "dailyRate": null,
+            "pricingType": "sale",
             "isNegotiable": true,
             "availabilityStatus": "AVAILABLE",
             "location": {
@@ -317,6 +349,68 @@ struct Listing: Codable, Identifiable, Equatable {
             },
             "isOwner": false,
             "isFavorite": false
+        }
+        """
+
+        let data = jsonString.data(using: .utf8)!
+        return try! JSONDecoder().decode(Listing.self, from: data)
+    }
+
+    // MARK: - Static Factory Methods
+    static func temporaryFromId(listingId: String, title: String) -> Listing {
+        // Create a minimal JSON string and decode it
+        let jsonString = """
+        {
+            "id": "temp_\(listingId)",
+            "title": "\(title)",
+            "description": "",
+            "categoryId": "temp",
+            "condition": "Used",
+            "price": 0.0,
+            "dailyRate": null,
+            "pricingType": "daily",
+            "isNegotiable": false,
+            "availabilityStatus": "AVAILABLE",
+            "location": {
+                "latitude": 0.0,
+                "longitude": 0.0,
+                "address": "Loading...",
+                "city": "Loading...",
+                "state": "Loading...",
+                "zipCode": "00000",
+                "country": "US"
+            },
+            "userId": "temp",
+            "viewCount": 0,
+            "favoriteCount": 0,
+            "isActive": true,
+            "isPremium": false,
+            "premiumExpiresAt": null,
+            "deliveryOptions": null,
+            "tags": [],
+            "metadata": null,
+            "createdAt": "\(ISO8601DateFormatter().string(from: Date()))",
+            "updatedAt": "\(ISO8601DateFormatter().string(from: Date()))",
+            "user": {
+                "id": "temp",
+                "username": "Loading...",
+                "profilePicture": null,
+                "emailVerifiedAt": null,
+                "idmeVerified": false,
+                "averageRating": 0.0
+            },
+            "category": {
+                "id": "temp",
+                "name": "General",
+                "icon": "📦"
+            },
+            "images": [],
+            "videos": null,
+            "imageUrl": null,
+            "imageUrls": [],
+            "_count": {
+                "favorites": 0
+            }
         }
         """
 

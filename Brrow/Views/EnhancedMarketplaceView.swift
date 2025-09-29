@@ -104,7 +104,7 @@ struct EnhancedMarketplaceView: View {
                     
                     TextField("Search for anything...", text: $searchText)
                         .focused($isSearchFocused)
-                        .onChange(of: searchText) { _, newValue in
+                        .onChange(of: searchText) { newValue in
                             viewModel.updateSearch(query: newValue)
                             showingSuggestions = !newValue.isEmpty
                         }

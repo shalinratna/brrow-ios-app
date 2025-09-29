@@ -168,7 +168,7 @@ struct SmallWidgetView: View {
             }
         }
         .padding()
-        .containerBackground(.fill.tertiary, for: .widget)
+        .conditionalContainerBackground()
     }
 }
 
@@ -228,7 +228,7 @@ struct MediumWidgetView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
-        .containerBackground(.fill.tertiary, for: .widget)
+        .conditionalContainerBackground()
     }
 }
 
@@ -297,7 +297,7 @@ struct LargeWidgetView: View {
             Spacer()
         }
         .padding()
-        .containerBackground(.fill.tertiary, for: .widget)
+        .conditionalContainerBackground()
     }
 }
 
@@ -315,7 +315,7 @@ struct CircularWidgetView: View {
                     .font(.system(size: 10))
             }
         }
-        .containerBackground(.fill, for: .widget)
+        .conditionalContainerBackgroundFill()
     }
 }
 
@@ -330,7 +330,7 @@ struct RectangularWidgetView: View {
             Text("\(data.activeListings) listings • $\(String(format: "%.0f", data.todaysEarnings)) today")
                 .font(.system(size: 12))
         }
-        .containerBackground(.fill, for: .widget)
+        .conditionalContainerBackgroundFill()
     }
 }
 
@@ -339,7 +339,7 @@ struct InlineWidgetView: View {
     
     var body: some View {
         Label("\(data.activeListings) listings • \(data.unreadMessages) msgs", systemImage: "cube.box.fill")
-            .containerBackground(.clear, for: .widget)
+            .conditionalContainerBackgroundClear()
     }
 }
 
@@ -410,6 +410,7 @@ struct BrrowWidget: Widget {
 }
 
 // MARK: - Widget Bundle
+// @main - Disabled, using SimpleWidgetBundle
 struct BrrowWidgets: WidgetBundle {
     var body: some Widget {
         BrrowWidget()
@@ -458,6 +459,36 @@ struct BrrowWidget_Previews: PreviewProvider {
             ))
             .previewContext(WidgetPreviewContext(family: .systemLarge))
             .previewDisplayName("Large")
+        }
+    }
+}
+
+// MARK: - View Extension for conditional modifiers
+extension View {
+    @ViewBuilder
+    func conditionalContainerBackground() -> some View {
+        if #available(iOS 17.0, *) {
+            self.conditionalContainerBackground()
+        } else {
+            self.background(Color(.systemBackground))
+        }
+    }
+
+    @ViewBuilder
+    func conditionalContainerBackgroundClear() -> some View {
+        if #available(iOS 17.0, *) {
+            self.conditionalContainerBackgroundClear()
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func conditionalContainerBackgroundFill() -> some View {
+        if #available(iOS 17.0, *) {
+            self.conditionalContainerBackgroundFill()
+        } else {
+            self.background(Color(.systemBackground))
         }
     }
 }

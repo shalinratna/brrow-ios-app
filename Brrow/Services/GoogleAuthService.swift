@@ -63,7 +63,8 @@ class GoogleAuthService: ObservableObject {
             let firstName = user.profile?.givenName ?? ""
             let lastName = user.profile?.familyName ?? ""
             let fullName = user.profile?.name ?? "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
-            let profilePictureUrl = user.profile?.imageURL(withDimension: 200)?.absoluteString
+            // Disabled: Don't fetch Google profile pictures - use platform-only profile system
+            let profilePictureUrl: String? = nil
             let googleId = user.userID ?? ""
             
             print("🔐 Google Sign-In successful for: \(email)")

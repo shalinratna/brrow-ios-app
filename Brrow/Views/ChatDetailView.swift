@@ -37,7 +37,7 @@ struct ChatDetailView: View {
         .onAppear {
             viewModel.loadMessages(for: conversation.id)
         }
-        .onChange(of: selectedPhotosItem) { _, newItem in
+        .onChange(of: selectedPhotosItem) { newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self) {
                     await uploadMedia(data: data, isVideo: false)
@@ -153,7 +153,7 @@ struct ChatDetailView: View {
             .background(Theme.Colors.background)
 
             messagesContent
-                .onChange(of: viewModel.messages.count) { _, _ in
+                .onChange(of: viewModel.messages.count) { _ in
                     if let lastMessage = viewModel.messages.last {
                         withAnimation {
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)

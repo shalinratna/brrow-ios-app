@@ -16,16 +16,16 @@ struct StandaloneEditGarageSaleView: View {
     let garageSale: GarageSale
     
     // Form fields
-    @State private var title: String
-    @State private var description: String
-    @State private var address: String
-    @State private var saleDate: Date
-    @State private var startTime: Date
-    @State private var endTime: Date
-    @State private var tags: Set<String>
-    
+    @State private var title: String = ""
+    @State private var description: String = ""
+    @State private var address: String = ""
+    @State private var saleDate: Date = Date()
+    @State private var startTime: Date = Date()
+    @State private var endTime: Date = Date()
+    @State private var tags: Set<String> = []
+
     // Images
-    @State private var existingImages: [String]
+    @State private var existingImages: [String] = []
     @State private var selectedImages: [PhotosPickerItem] = []
     @State private var newImages: [UIImage] = []
     @State private var imagesToDelete: Set<String> = []
@@ -40,22 +40,6 @@ struct StandaloneEditGarageSaleView: View {
     
     init(garageSale: GarageSale) {
         self.garageSale = garageSale
-        self._title = State(initialValue: garageSale.title)
-        self._description = State(initialValue: garageSale.description ?? "")
-        self._address = State(initialValue: garageSale.address ?? "")
-        
-        // Parse dates from strings
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        self._saleDate = State(initialValue: formatter.date(from: garageSale.saleDate) ?? Date())
-        
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm:ss"
-        self._startTime = State(initialValue: timeFormatter.date(from: garageSale.startTime) ?? Date())
-        self._endTime = State(initialValue: timeFormatter.date(from: garageSale.endTime) ?? Date())
-        
-        self._tags = State(initialValue: Set(garageSale.tags))
-        self._existingImages = State(initialValue: garageSale.images)
     }
     
     var body: some View {
@@ -101,7 +85,7 @@ struct StandaloneEditGarageSaleView: View {
                 maxSelectionCount: 10,
                 matching: .images
             )
-            .onChange(of: selectedImages) { _, items in
+            .onChange(of: selectedImages) { items in
                 loadSelectedImages(items)
             }
             .alert("Error", isPresented: $showError) {
@@ -132,6 +116,25 @@ struct StandaloneEditGarageSaleView: View {
                         .cornerRadius(10)
                         .shadow(radius: 5)
                 }
+            }
+            .onAppear {
+                // Initialize form fields with garage sale data
+                title = garageSale.title
+                description = garageSale.description ?? ""
+                address = garageSale.address ?? ""
+
+                // Parse dates from strings
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                saleDate = formatter.date(from: garageSale.saleDate) ?? Date()
+
+                let timeFormatter = DateFormatter()
+                timeFormatter.dateFormat = "HH:mm:ss"
+                startTime = timeFormatter.date(from: garageSale.startTime) ?? Date()
+                endTime = timeFormatter.date(from: garageSale.endTime) ?? Date()
+
+                tags = Set(garageSale.tags)
+                existingImages = garageSale.images
             }
         }
     }

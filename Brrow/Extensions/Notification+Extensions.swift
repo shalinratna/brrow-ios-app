@@ -27,4 +27,7 @@ extension Notification.Name {
     static let transactionUpdate = Notification.Name("transactionUpdate")
     static let rentalUpdate = Notification.Name("rentalUpdate")
     static let paymentUpdate = Notification.Name("paymentUpdate")
+
+    // Profile Updates
+    static let profilePictureUpdated = Notification.Name("profilePictureUpdated")
 }

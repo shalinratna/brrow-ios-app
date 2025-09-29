@@ -25,9 +25,13 @@ struct BrrowAsyncImage<Content: View, Placeholder: View>: View {
 
         print("🖼️ BrrowAsyncImage: Input URL = '\(urlString)'")
 
-        // If already a full URL, return as-is
-        if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
-            print("🖼️ BrrowAsyncImage: Already full URL, returning as-is")
+        // If already a full URL (especially Cloudinary) or base64 data URL, return as-is
+        if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") || urlString.hasPrefix("data:image/") {
+            if urlString.hasPrefix("data:image/") {
+                print("🖼️ BrrowAsyncImage: Base64 data URL detected, returning as-is")
+            } else {
+                print("🖼️ BrrowAsyncImage: Already full URL, returning as-is")
+            }
             return urlString
         }
 
@@ -51,8 +55,22 @@ struct BrrowAsyncImage<Content: View, Placeholder: View>: View {
     }
 
     var body: some View {
-        // Use CachedAsyncImage which has comprehensive URL handling
-        CachedAsyncImage(url: properURL, content: content, placeholder: placeholder)
+        if let urlString = properURL, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    placeholder()
+                case .success(let image):
+                    content(image)
+                case .failure(_):
+                    placeholder()
+                @unknown default:
+                    placeholder()
+                }
+            }
+        } else {
+            placeholder()
+        }
     }
 }
 
@@ -73,9 +91,42 @@ extension BrrowAsyncImage where Content == AnyView, Placeholder == AnyView {
                 AnyView(
                     ZStack {
                         Color.gray.opacity(0.1)
-                        placeholder
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray.opacity(0.3))
+                        VStack(spacing: 8) {
+                            placeholder
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray.opacity(0.4))
+                            Text("Image Unavailable")
+                                .font(.caption2)
+                                .foregroundColor(.gray.opacity(0.6))
+                        }
+                    }
+                )
+            }
+        )
+    }
+
+    /// Specialized initializer for profile images with avatar fallback
+    static func profileImage(url urlString: String?, size: CGFloat = 50) -> BrrowAsyncImage<AnyView, AnyView> {
+        return BrrowAsyncImage(
+            url: urlString,
+            content: { image in
+                AnyView(
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: size, height: size)
+                        .clipShape(Circle())
+                )
+            },
+            placeholder: {
+                AnyView(
+                    ZStack {
+                        Circle()
+                            .fill(Color.gray.opacity(0.1))
+                            .frame(width: size, height: size)
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: size * 0.8))
+                            .foregroundColor(.gray.opacity(0.6))
                     }
                 )
             }

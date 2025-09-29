@@ -230,7 +230,7 @@ struct ReviewSubmissionView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(8)
                 .textInputAutocapitalization(.sentences)
-                .onChange(of: content) { oldValue, newValue in
+                .onChange(of: content) { newValue in
                     if newValue.count > 500 {
                         content = String(newValue.prefix(500))
                     }
@@ -265,7 +265,7 @@ struct ReviewSubmissionView: View {
                 .foregroundColor(.blue)
                 .cornerRadius(8)
             }
-            .onChange(of: selectedImages) { oldValue, newValue in
+            .onChange(of: selectedImages) { newValue in
                 loadImages()
             }
 
@@ -369,7 +369,7 @@ struct ReviewSubmissionView: View {
 
         Task {
             do {
-                let attachmentUploads: [ReviewAttachmentUpload] = attachmentImages.compactMap { image in
+                let attachmentUploads: [ReviewAttachmentUpload] = attachmentImages.compactMap { image -> ReviewAttachmentUpload? in
                     guard let imageData = image.jpegData(compressionQuality: 0.8) else { return nil }
                     return ReviewAttachmentUpload(
                         fileData: imageData.base64EncodedString(),

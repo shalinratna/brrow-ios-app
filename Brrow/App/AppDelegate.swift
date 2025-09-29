@@ -8,6 +8,8 @@
 import UIKit
 import UserNotifications
 import GoogleSignIn
+import FirebaseCore
+import FirebaseMessaging
 // import OneSignalFramework // Temporarily disabled - install via Xcode
 
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -16,22 +18,28 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Initialize Firebase first
+        FirebaseApp.configure()
+
         // Initialize language settings early
         if let savedLanguage = UserDefaults.standard.string(forKey: "AppLanguage") {
             Bundle.setLanguage(savedLanguage)
             UserDefaults.standard.set([savedLanguage], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
         }
-        
+
         // Initialize caching system for fast loading
         initializeCaching()
-        
+
         // Initialize notification manager
         NotificationManager.shared.initialize()
-        
+
         // Check permission status
         NotificationManager.shared.checkPermissionStatus()
-        
+
+        // Configure Firebase Messaging
+        configureFirebaseMessaging()
+
         // Initialize Google Sign-In
         configureGoogleSignIn()
         
@@ -70,6 +78,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
+        // Pass device token to Firebase Messaging
+        Messaging.messaging().apnsToken = deviceToken
+
+        // Also pass to our NotificationManager
         NotificationManager.shared.setDeviceToken(deviceToken)
     }
     
@@ -139,8 +151,26 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         print("✅ Caching system initialized for fast loading")
     }
     
+    // MARK: - Firebase Messaging Configuration
+
+    private func configureFirebaseMessaging() {
+        Messaging.messaging().delegate = self
+        UNUserNotificationCenter.current().delegate = self
+
+        // Register for remote notifications
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+            if granted {
+                DispatchQueue.main.async {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            }
+        }
+
+        print("✅ Firebase Messaging configured")
+    }
+
     // MARK: - Google Sign-In Configuration
-    
+
     private func configureGoogleSignIn() {
         // Use the actual Google Client ID provided
         let clientId = "13144810708-cdf0vg3j0u7krgff4m68pjj6qb6n2dlr.apps.googleusercontent.com"
@@ -183,13 +213,65 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
 // MARK: - API Client Extensions
 
+// MARK: - Firebase Messaging Delegate
+extension AppDelegate: MessagingDelegate {
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let token = fcmToken else { return }
+
+        print("✅ Firebase FCM token received: \(String(token.prefix(20)))...")
+
+        // Send token to your server
+        Task {
+            do {
+                let tokenData: [String: Any] = [
+                    "device_token": token,
+                    "platform": "ios",
+                    "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
+                    "device_model": UIDevice.current.model,
+                    "os_version": UIDevice.current.systemVersion
+                ]
+
+                let _ = try await APIClient.shared.registerDeviceToken(parameters: tokenData)
+                print("✅ FCM token registered with server")
+            } catch {
+                print("❌ Failed to register FCM token: \(error)")
+            }
+        }
+    }
+}
+
+// MARK: - UNUserNotificationCenter Delegate
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Show notification even when app is in foreground
+        completionHandler([.alert, .badge, .sound])
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+
+        // Handle notification tap
+        if let chatId = userInfo["chatId"] as? String {
+            // Navigate to specific chat
+            NotificationCenter.default.post(
+                name: .navigateToChat,
+                object: nil,
+                userInfo: ["chatId": chatId]
+            )
+        }
+
+        completionHandler()
+    }
+}
+
+// MARK: - API Client Extensions
 extension APIClient {
     func checkForNewMessages(userId: String) async throws -> [ChatMessage] {
         // Implementation would check for new messages
         try await Task.sleep(nanoseconds: 500_000_000)
         return []
     }
-    
+
     func getUnreadMessageCount(userId: String) async throws -> Int {
         // Implementation would get unread count
         try await Task.sleep(nanoseconds: 300_000_000)

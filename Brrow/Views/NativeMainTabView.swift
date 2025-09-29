@@ -210,7 +210,7 @@ struct NativeMainTabView: View {
             Text("Guest users can only browse the marketplace. Sign in to access all features including posting items, messaging, and your profile.")
         }
         .toastOverlay()
-        .withUniversalListingDetail()  // Enable universal listing navigation
+        // Universal listing detail is handled at the app root level
         // CRITICAL: Preload marketplace content when app launches
         // This ensures marketplace is populated BEFORE user taps on it
         .task {

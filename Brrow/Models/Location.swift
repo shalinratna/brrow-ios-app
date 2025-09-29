@@ -70,12 +70,12 @@ struct Location: Codable {
 
         country = try container.decodeIfPresent(String.self, forKey: .country) ?? "US"
 
-        // Handle latitude with precision rounding
-        let latValue = try container.decode(Double.self, forKey: .latitude)
+        // Handle latitude with precision rounding (optional for API compatibility)
+        let latValue = try container.decodeIfPresent(Double.self, forKey: .latitude) ?? 0.0
         latitude = round(latValue * 1000000) / 1000000  // Round to 6 decimal places
 
-        // Handle longitude with precision rounding
-        let lonValue = try container.decode(Double.self, forKey: .longitude)
+        // Handle longitude with precision rounding (optional for API compatibility)
+        let lonValue = try container.decodeIfPresent(Double.self, forKey: .longitude) ?? 0.0
         longitude = round(lonValue * 1000000) / 1000000  // Round to 6 decimal places
     }
     

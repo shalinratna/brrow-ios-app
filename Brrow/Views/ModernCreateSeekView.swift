@@ -1,59 +1,24 @@
 import SwiftUI
 import MapKit
+import PhotosUI
+
+struct MapAnnotation: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+}
 
 struct ModernCreateSeekView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel = EnhancedSeekCreationViewModel()
     @State private var currentSection = 0
     @State private var showLocationPicker = false
     @State private var showDatePicker = false
     @State private var animateHeader = false
-    @State private var selectedUrgency: Urgency = .normal
     @State private var bounceAnimation = false
-    
-    // Form data
-    @State private var title = ""
-    @State private var description = ""
-    @State private var category = ""
-    @State private var deadline = Date().addingTimeInterval(7 * 24 * 60 * 60)
-    @State private var budget: Double = 100
-    @State private var urgency = "Normal"
-    @State private var location: SeekLocation?
+    @State private var selectedItems: [PhotosPickerItem] = []
     @State private var isRemote = false
     @State private var timePreference = "Flexible"
     
-    enum Urgency: String, CaseIterable {
-        case low = "Low"
-        case normal = "Normal"
-        case high = "High"
-        case urgent = "Urgent"
-        
-        var color: Color {
-            switch self {
-            case .low: return .green
-            case .normal: return .blue
-            case .high: return .orange
-            case .urgent: return .red
-            }
-        }
-        
-        var icon: String {
-            switch self {
-            case .low: return "tortoise.fill"
-            case .normal: return "hare.fill"
-            case .high: return "flame.fill"
-            case .urgent: return "exclamationmark.triangle.fill"
-            }
-        }
-        
-        var description: String {
-            switch self {
-            case .low: return "Flexible timeline"
-            case .normal: return "Within a week"
-            case .high: return "Within 2-3 days"
-            case .urgent: return "ASAP - Within 24 hours"
-            }
-        }
-    }
     
     var body: some View {
         NavigationView {
@@ -73,7 +38,10 @@ struct ModernCreateSeekView: View {
                             
                             // What section with animated cards
                             whatSection
-                            
+
+                            // Images section
+                            imagesSection
+
                             // When section with calendar
                             whenSection
                             
@@ -96,10 +64,25 @@ struct ModernCreateSeekView: View {
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showLocationPicker) {
-                SeekLocationPickerView(selectedLocation: $location)
+                SeekLocationPickerView { location, latitude, longitude in
+                    viewModel.updateLocation(location, latitude: latitude, longitude: longitude)
+                }
             }
             .onAppear {
                 startAnimations()
+            }
+            .onChange(of: viewModel.showSuccess) { showSuccess in
+                if showSuccess {
+                    HapticManager.notification(type: .success)
+                    dismiss()
+                }
+            }
+            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("OK") {
+                    viewModel.errorMessage = nil
+                }
+            } message: {
+                Text(viewModel.errorMessage ?? "")
             }
         }
     }
@@ -182,7 +165,7 @@ struct ModernCreateSeekView: View {
             
             // Title input with floating label
             FloatingLabelTextField(
-                text: $title,
+                text: $viewModel.title,
                 placeholder: "e.g., Professional photographer for wedding",
                 title: "Title"
             )
@@ -197,12 +180,12 @@ struct ModernCreateSeekView: View {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(Color(.systemGray6))
                     
-                    TextEditor(text: $description)
+                    TextEditor(text: $viewModel.description)
                         .padding(12)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 120)
                     
-                    if description.isEmpty {
+                    if viewModel.description.isEmpty {
                         Text("Describe what you're looking for in detail...")
                             .foregroundColor(.secondary.opacity(0.6))
                             .padding(16)
@@ -218,10 +201,10 @@ struct ModernCreateSeekView: View {
                     ForEach(seekCategories, id: \.title) { seekCategory in
                         CategoryCard(
                             category: seekCategory,
-                            isSelected: category == seekCategory.title
+                            isSelected: viewModel.category == seekCategory.title
                         ) {
                             withAnimation(.spring()) {
-                                category = seekCategory.title
+                                viewModel.category = seekCategory.title
                                 HapticManager.impact(style: .light)
                             }
                         }
@@ -230,7 +213,89 @@ struct ModernCreateSeekView: View {
             }
         }
     }
-    
+
+    private var imagesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Reference Photos", systemImage: "photo.on.rectangle")
+                .font(.headline)
+                .foregroundColor(Theme.Colors.primary)
+
+            Text("Add photos to help others understand what you're looking for")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            // Image grid
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                // Selected images
+                ForEach(Array(viewModel.selectedImages.enumerated()), id: \.offset) { index, image in
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 80)
+                            .clipped()
+                            .cornerRadius(12)
+
+                        Button(action: {
+                            viewModel.removeImage(at: index)
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.white)
+                                .background(Color.black.opacity(0.5))
+                                .clipShape(Circle())
+                        }
+                        .padding(4)
+                    }
+                }
+
+                // Add photo button
+                if viewModel.selectedImages.count < 5 {
+                    PhotosPicker(selection: $selectedItems, maxSelectionCount: 5 - viewModel.selectedImages.count, matching: .images) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(Theme.Colors.primary)
+
+                            Text("Add Photo")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(height: 80)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
+                }
+            }
+
+            if viewModel.isUploadingImages {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Uploading images...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 8)
+            }
+        }
+        .onChange(of: selectedItems) { newItems in
+            Task {
+                var newImages: [UIImage] = []
+                for item in newItems {
+                    if let data = try? await item.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        newImages.append(image)
+                    }
+                }
+                await MainActor.run {
+                    viewModel.addImages(newImages)
+                    selectedItems.removeAll()
+                }
+            }
+        }
+    }
+
     private var whenSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label("When do you need it?", systemImage: "calendar")
@@ -245,7 +310,7 @@ struct ModernCreateSeekView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text(deadline, style: .date)
+                        Text(viewModel.deadline, style: .date)
                             .font(.subheadline.weight(.medium))
                     }
                     
@@ -271,7 +336,7 @@ struct ModernCreateSeekView: View {
                 .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
             }
             .sheet(isPresented: $showDatePicker) {
-                DatePickerSheet(selectedDate: $deadline)
+                DatePickerSheet(selectedDate: $viewModel.deadline)
             }
             
             // Time preference pills
@@ -300,18 +365,15 @@ struct ModernCreateSeekView: View {
             Button(action: { showLocationPicker = true }) {
                 VStack(spacing: 12) {
                     // Mini map preview
-                    if let location = location {
+                    if let latitude = viewModel.latitude, let longitude = viewModel.longitude {
+                        let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                        let annotations = [MapAnnotation(coordinate: coordinate)]
+
                         Map(coordinateRegion: .constant(MKCoordinateRegion(
-                            center: CLLocationCoordinate2D(
-                                latitude: location.latitude,
-                                longitude: location.longitude
-                            ),
+                            center: coordinate,
                             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                        )), annotationItems: [location]) { _ in
-                            MapPin(coordinate: CLLocationCoordinate2D(
-                                latitude: location.latitude,
-                                longitude: location.longitude
-                            ), tint: Theme.Colors.primary)
+                        )), annotationItems: annotations) { annotation in
+                            MapPin(coordinate: annotation.coordinate, tint: Theme.Colors.primary)
                         }
                         .frame(height: 120)
                         .cornerRadius(12)
@@ -338,9 +400,9 @@ struct ModernCreateSeekView: View {
                         Image(systemName: "location.circle.fill")
                             .foregroundColor(Theme.Colors.primary)
                         
-                        Text(location?.address ?? "Choose location")
+                        Text(viewModel.location.isEmpty ? "Choose location" : viewModel.location)
                             .font(.subheadline)
-                            .foregroundColor(location != nil ? .primary : .secondary)
+                            .foregroundColor(!viewModel.location.isEmpty ? .primary : .secondary)
                         
                         Spacer()
                         
@@ -394,12 +456,12 @@ struct ModernCreateSeekView: View {
                         .frame(height: 80)
                     
                     VStack(spacing: 4) {
-                        Text("$\(Int(budget))")
+                        Text(viewModel.formattedBudgetRange)
                             .font(.largeTitle.bold())
                             .foregroundColor(Theme.Colors.primary)
                             .contentTransition(.numericText())
-                        
-                        Text("Maximum budget")
+
+                        Text(viewModel.hasBudgetRange ? "Budget range" : "Not specified")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -416,19 +478,20 @@ struct ModernCreateSeekView: View {
                         // Fill
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Theme.Colors.primary)
-                            .frame(width: geometry.size.width * CGFloat(budget / 1000), height: 8)
+                            .frame(width: geometry.size.width * CGFloat((viewModel.maxBudget ?? 100) / 1000), height: 8)
                         
                         // Thumb
                         Circle()
                             .fill(Color.white)
                             .frame(width: 28, height: 28)
                             .shadow(color: .black.opacity(0.2), radius: 4)
-                            .offset(x: geometry.size.width * CGFloat(budget / 1000) - 14)
+                            .offset(x: geometry.size.width * CGFloat((viewModel.maxBudget ?? 100) / 1000) - 14)
                             .gesture(
                                 DragGesture()
                                     .onChanged { value in
                                         let newValue = value.location.x / geometry.size.width * 1000
-                                        budget = min(max(0, newValue), 1000)
+                                        viewModel.maxBudget = min(max(0, newValue), 1000)
+                                        viewModel.hasBudgetRange = true
                                     }
                             )
                     }
@@ -440,17 +503,18 @@ struct ModernCreateSeekView: View {
                     ForEach([50, 100, 250, 500, 1000], id: \.self) { amount in
                         Button(action: {
                             withAnimation(.spring()) {
-                                budget = Double(amount)
+                                viewModel.maxBudget = Double(amount)
+                                viewModel.hasBudgetRange = true
                             }
                         }) {
                             Text("$\(amount)")
                                 .font(.caption.weight(.medium))
-                                .foregroundColor(Int(budget) == amount ? .white : Theme.Colors.primary)
+                                .foregroundColor(Int(viewModel.maxBudget ?? 0) == amount ? .white : Theme.Colors.primary)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(
                                     Capsule()
-                                        .fill(Int(budget) == amount ? Theme.Colors.primary : Theme.Colors.primary.opacity(0.1))
+                                        .fill(Int(viewModel.maxBudget ?? 0) == amount ? Theme.Colors.primary : Theme.Colors.primary.opacity(0.1))
                                 )
                         }
                     }
@@ -467,14 +531,13 @@ struct ModernCreateSeekView: View {
             
             // Urgency cards
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(Urgency.allCases, id: \.self) { urgencyOption in
+                ForEach(SeekUrgency.allCases, id: \.self) { urgencyOption in
                     UrgencyCard(
                         urgency: urgencyOption,
-                        isSelected: selectedUrgency == urgencyOption
+                        isSelected: viewModel.urgency == urgencyOption
                     ) {
                         withAnimation(.spring()) {
-                            selectedUrgency = urgencyOption
-                            urgency = urgencyOption.rawValue
+                            viewModel.urgency = urgencyOption
                             HapticManager.impact(style: .medium)
                         }
                     }
@@ -486,8 +549,14 @@ struct ModernCreateSeekView: View {
     private var createButton: some View {
         Button(action: createSeek) {
             HStack {
-                Image(systemName: "magnifyingglass")
-                Text("Create Seek")
+                if viewModel.isCreating {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .foregroundColor(.white)
+                } else {
+                    Image(systemName: "magnifyingglass")
+                }
+                Text(viewModel.isCreating ? "Creating..." : "Create Seek")
                     .font(.headline)
             }
             .foregroundColor(.white)
@@ -505,27 +574,21 @@ struct ModernCreateSeekView: View {
             )
             .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 10, y: 5)
         }
-        .disabled(!isFormValid)
-        .opacity(isFormValid ? 1.0 : 0.6)
+        .disabled(!viewModel.canCreate || viewModel.isCreating)
+        .opacity(viewModel.canCreate && !viewModel.isCreating ? 1.0 : 0.6)
     }
     
-    private var isFormValid: Bool {
-        !title.isEmpty &&
-        !description.isEmpty &&
-        !category.isEmpty &&
-        budget > 0
-    }
     
     private var dayOfMonth: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "d"
-        return formatter.string(from: deadline)
+        return formatter.string(from: viewModel.deadline)
     }
-    
+
     private var monthName: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM"
-        return formatter.string(from: deadline).uppercased()
+        return formatter.string(from: viewModel.deadline).uppercased()
     }
     
     private func startAnimations() {
@@ -535,13 +598,7 @@ struct ModernCreateSeekView: View {
     }
     
     private func createSeek() {
-        // In a real app, this would make an API call
-        
-        // Track achievement for posting seek
-        AchievementManager.shared.trackSeekPosted()
-        
-        HapticManager.notification(type: .success)
-        dismiss()
+        viewModel.createSeek()
     }
 }
 
@@ -683,7 +740,7 @@ struct TimePill: View {
 }
 
 struct UrgencyCard: View {
-    let urgency: ModernCreateSeekView.Urgency
+    let urgency: SeekUrgency
     let isSelected: Bool
     let action: () -> Void
     @State private var pulse = false
@@ -715,7 +772,7 @@ struct UrgencyCard: View {
                 }
                 
                 VStack(spacing: 4) {
-                    Text(urgency.rawValue)
+                    Text(urgency.displayName)
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(isSelected ? urgency.color : .primary)
                     
@@ -778,7 +835,7 @@ struct DatePickerSheet: View {
 }
 
 struct SeekLocationPickerView: View {
-    @Binding var selectedLocation: SeekLocation?
+    let onLocationSelected: (String, Double, Double) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
@@ -806,10 +863,10 @@ struct SeekLocationPickerView: View {
                     
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button("Select") {
-                            selectedLocation = SeekLocation(
-                                latitude: region.center.latitude,
-                                longitude: region.center.longitude,
-                                address: "Selected Location"
+                            onLocationSelected(
+                                "Selected Location",
+                                region.center.latitude,
+                                region.center.longitude
                             )
                             dismiss()
                         }

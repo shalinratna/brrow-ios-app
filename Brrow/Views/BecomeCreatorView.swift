@@ -173,12 +173,13 @@ struct BecomeCreatorView: View {
             }
             .navigationTitle("Creator Application")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            .navigationBarBackButtonHidden(true)
+            .overlay(alignment: .topLeading) {
+                Button("Cancel") {
+                    dismiss()
                 }
+                .padding(.top, 10)
+                .padding(.leading, 16)
             }
             .alert("Application Submitted!", isPresented: $showSuccessAlert) {
                 Button("OK") {
@@ -194,7 +195,7 @@ struct BecomeCreatorView: View {
             } message: {
                 Text(viewModel.error ?? "")
             }
-            .onChange(of: viewModel.applicationSubmitted) { _, submitted in
+            .onChange(of: viewModel.applicationSubmitted) { submitted in
                 if submitted {
                     showSuccessAlert = true
                 }

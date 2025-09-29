@@ -93,7 +93,7 @@ struct EnhancedEditProfileView: View {
             loadUserData()
         }
         .photosPicker(isPresented: $showingImagePicker, selection: $selectedImage, matching: .images)
-        .onChange(of: selectedImage) { _, newItem in
+        .onChange(of: selectedImage) { newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self) {
                     profileImage = UIImage(data: data)
@@ -231,7 +231,7 @@ struct EnhancedEditProfileView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .disabled(!canChangeUsername)
-                    .onChange(of: username) { _, newValue in
+                    .onChange(of: username) { newValue in
                         // Debounce username checking
                         usernameCheckTimer?.invalidate()
                         if newValue != authManager.currentUser?.username {
@@ -348,7 +348,7 @@ struct EnhancedEditProfileView: View {
                 .padding(8)
                 .background(Color(.systemGray6))
                 .cornerRadius(10)
-                .onChange(of: bio) { _, newValue in
+                .onChange(of: bio) { newValue in
                     if newValue.count > 250 {
                         bio = String(newValue.prefix(250))
                     }
@@ -409,7 +409,7 @@ struct EnhancedEditProfileView: View {
                         .keyboardType(.phonePad)
                         .disabled(authManager.currentUser?.phoneVerified == true)
                         .opacity(authManager.currentUser?.phoneVerified == true ? 0.7 : 1.0)
-                        .onChange(of: phone) { _, newValue in
+                        .onChange(of: phone) { newValue in
                             phone = formatPhoneNumber(newValue)
                         }
 

@@ -9,6 +9,7 @@ import WidgetKit
 import SwiftUI
 import Charts
 
+
 // MARK: - 1. Quick Stats Widget (Small/Medium)
 struct QuickStatsWidget: View {
     let data: WidgetData
@@ -58,9 +59,7 @@ struct SmallQuickStats: View {
             }
         }
         .padding()
-        .containerBackground(for: .widget) {
-            Color.clear
-        }
+        .conditionalContainerBackgroundClear()
     }
 }
 
@@ -100,9 +99,7 @@ struct MediumQuickStats: View {
             }
             .padding()
         }
-        .containerBackground(for: .widget) {
-            Color.clear
-        }
+        .conditionalContainerBackgroundClear()
     }
 }
 
@@ -119,9 +116,7 @@ struct EarningsWidget: View {
                 LargeEarningsView(earnings: earnings)
             }
         }
-        .containerBackground(for: .widget) {
-            Color.clear
-        }
+        .conditionalContainerBackgroundClear()
     }
 }
 
@@ -927,3 +922,4 @@ struct CommunityData {
     let moneySavedCommunity: Double
     let topCategories: [String]
 }
+

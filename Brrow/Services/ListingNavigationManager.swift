@@ -32,10 +32,19 @@ class ListingNavigationManager: ObservableObject {
     
     /// Show a listing detail view with preloaded data
     func showListing(_ listing: Listing) {
-        print("🟢 ListingNavigationManager.showListing called for: \(listing.title)")
-        print("🟢 Setting selectedListing and showingListingDetail = true")
+        print("🟢 ListingNavigationManager.showListing called for: \(listing.title) (ID: \(listing.listingId))")
+        print("🟢 Current selectedListing before change: \(selectedListing?.title ?? "nil") (ID: \(selectedListing?.listingId ?? "nil"))")
+        print("🟢 Setting selectedListing to: \(listing.title) and showingListingDetail = true")
+
+        // Clear any existing state first to prevent conflicts
+        selectedListing = nil
+        pendingListingId = nil
+
+        // Set new state
         selectedListing = listing
         showingListingDetail = true
+
+        print("🟢 Final selectedListing: \(selectedListing?.title ?? "nil") (ID: \(selectedListing?.listingId ?? "nil"))")
         print("🟢 showingListingDetail is now: \(showingListingDetail)")
     }
     
@@ -86,15 +95,23 @@ class ListingNavigationManager: ObservableObject {
 // MARK: - View Modifier for Universal Listing Detail
 
 struct UniversalListingDetailModifier: ViewModifier {
-    @StateObject private var navigationManager = ListingNavigationManager.shared
-    
+    @ObservedObject private var navigationManager = ListingNavigationManager.shared
+
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $navigationManager.showingListingDetail) {
                 if let listing = navigationManager.selectedListing {
                     UniversalListingDetailView(listing: listing)
+                        .onDisappear {
+                            print("🔶 Sheet dismissed, clearing navigation state")
+                            navigationManager.clearListing()
+                        }
                 } else if let listingId = navigationManager.pendingListingId {
                     DeepLinkedListingView(listingId: listingId)
+                        .onDisappear {
+                            print("🔶 Deep linked sheet dismissed, clearing navigation state")
+                            navigationManager.clearListing()
+                        }
                 }
             }
     }

@@ -88,7 +88,7 @@ struct SocialMediaProfileView: View {
                 }
             }
             .sheet(item: $listingToEdit) { listing in
-                EditListingView(listing: listing)
+                EnhancedEditListingView(listing: listing)
                     .environmentObject(AuthManager.shared)
             }
             .sheet(isPresented: $showShareSheet) {

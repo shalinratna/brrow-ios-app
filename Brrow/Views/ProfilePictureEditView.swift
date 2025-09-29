@@ -8,11 +8,19 @@
 import SwiftUI
 import PhotosUI
 
+// Helper struct for fullScreenCover with item
+struct ImageWrapper: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
 struct ProfilePictureEditView: View {
     @StateObject private var viewModel = ProfilePictureEditViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var selectedItem: PhotosPickerItem?
     @State private var showCamera = false
+    @State private var showCircularCropper = false
+    @State private var imageForCropping: UIImage?
     
     var body: some View {
         NavigationView {
@@ -39,14 +47,13 @@ struct ProfilePictureEditView: View {
             }
             .navigationTitle("Update Profile Picture")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(Theme.Colors.primary)
+            .navigationBarBackButtonHidden(true)
+            .navigationBarItems(leading:
+                Button("Cancel") {
+                    dismiss()
                 }
-            }
+                .foregroundColor(Theme.Colors.primary)
+            )
             .photosPicker(
                 isPresented: $viewModel.showPhotoPicker,
                 selection: $selectedItem,
@@ -54,16 +61,58 @@ struct ProfilePictureEditView: View {
                 photoLibrary: .shared()
             )
             .onChange(of: selectedItem) { newItem in
+                print("🖼️ ProfilePictureEdit: selectedItem changed, newItem: \(newItem != nil ? "present" : "nil")")
                 Task {
                     if let newItem = newItem {
-                        await viewModel.loadPhoto(from: newItem)
+                        print("🖼️ ProfilePictureEdit: Starting photo loading task for newItem")
+                        await loadPhotoForCropping(from: newItem)
+                    } else {
+                        print("🖼️ ProfilePictureEdit: newItem is nil, skipping photo loading")
                     }
                 }
             }
             .sheet(isPresented: $showCamera) {
                 CameraView { image in
-                    viewModel.selectedImage = image
+                    imageForCropping = image
                     showCamera = false
+                    showCircularCropper = true
+                }
+            }
+            .fullScreenCover(item: Binding<ImageWrapper?>(
+                get: {
+                    if showCircularCropper, let image = imageForCropping {
+                        return ImageWrapper(image: image)
+                    }
+                    return nil
+                },
+                set: { wrapper in
+                    if wrapper == nil {
+                        showCircularCropper = false
+                        imageForCropping = nil
+                    }
+                }
+            )) { wrapper in
+                CircularImageCropper(
+                    image: wrapper.image,
+                    onCropComplete: { croppedImage, cropData in
+                        print("🖼️ ProfilePictureEdit: Crop completed successfully")
+                        viewModel.selectedImage = croppedImage
+                        viewModel.cropData = cropData
+                        showCircularCropper = false
+                        imageForCropping = nil
+                    },
+                    onCancel: {
+                        print("🖼️ ProfilePictureEdit: Crop cancelled")
+                        showCircularCropper = false
+                        imageForCropping = nil
+                    }
+                )
+                .onAppear {
+                    print("✅ ProfilePictureEdit: CircularImageCropper view appeared successfully!")
+                    print("🖼️ ProfilePictureEdit: Image size: \(wrapper.image.size)")
+                }
+                .onDisappear {
+                    print("🔄 ProfilePictureEdit: CircularImageCropper view disappeared")
                 }
             }
             .alert("Error", isPresented: $viewModel.showError) {
@@ -149,7 +198,9 @@ struct ProfilePictureEditView: View {
     private var uploadOptionsSection: some View {
         VStack(spacing: Theme.Spacing.sm) {
             Button {
+                print("🖼️ ProfilePictureEdit: Choose from Library button pressed")
                 viewModel.showPhotoPicker = true
+                print("🖼️ ProfilePictureEdit: Set showPhotoPicker to true")
             } label: {
                 HStack {
                     Image(systemName: "photo.on.rectangle")
@@ -226,7 +277,7 @@ struct ProfilePictureEditView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                 } else {
-                    Text("Upload Photo")
+                    Text(viewModel.cropData != nil ? "Upload Cropped Photo" : "Select Photo to Upload")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -253,6 +304,65 @@ struct ProfilePictureEditView: View {
             }
         }
     }
+
+    // MARK: - Photo Loading for Cropping
+    private func loadPhotoForCropping(from item: PhotosPickerItem) async {
+        print("🖼️ ProfilePictureEdit: Starting to load photo for cropping")
+        do {
+            print("🖼️ ProfilePictureEdit: Loading transferable data...")
+            if let data = try await item.loadTransferable(type: Data.self) {
+                print("🖼️ ProfilePictureEdit: Data loaded, size: \(data.count) bytes")
+                if let image = UIImage(data: data) {
+                    print("🖼️ ProfilePictureEdit: UIImage created successfully, size: \(image.size)")
+
+                    // Resize large images for better performance in the cropper
+                    let resizedImage = self.resizeImageForCropping(image)
+                    print("🖼️ ProfilePictureEdit: Resized image to: \(resizedImage.size)")
+
+                    await MainActor.run {
+                        print("🖼️ ProfilePictureEdit: Setting imageForCropping and showing cropper")
+                        self.imageForCropping = resizedImage
+                        self.showCircularCropper = true
+                        print("🖼️ ProfilePictureEdit: Both imageForCropping and showCircularCropper set")
+                    }
+                } else {
+                    print("❌ ProfilePictureEdit: Failed to create UIImage from data")
+                    await MainActor.run {
+                        viewModel.errorMessage = "Failed to process selected image"
+                        viewModel.showError = true
+                    }
+                }
+            } else {
+                print("❌ ProfilePictureEdit: Failed to load transferable data")
+                await MainActor.run {
+                    viewModel.errorMessage = "Failed to load selected photo"
+                    viewModel.showError = true
+                }
+            }
+        } catch {
+            print("❌ ProfilePictureEdit: Error loading photo: \(error)")
+            await MainActor.run {
+                viewModel.errorMessage = "Failed to load photo for cropping: \(error.localizedDescription)"
+                viewModel.showError = true
+            }
+        }
+    }
+
+    // MARK: - Image Resize Helper
+    private func resizeImageForCropping(_ image: UIImage) -> UIImage {
+        let maxDimension: CGFloat = 1200 // Reasonable size for cropping UI
+        let currentSize = image.size
+
+        // Only resize if the image is larger than our max dimension
+        if currentSize.width <= maxDimension && currentSize.height <= maxDimension {
+            return image
+        }
+
+        let scale = min(maxDimension / currentSize.width, maxDimension / currentSize.height)
+        let newSize = CGSize(width: currentSize.width * scale, height: currentSize.height * scale)
+
+        return image.resized(to: newSize) ?? image
+    }
 }
 
 // MARK: - View Model
@@ -265,12 +375,29 @@ class ProfilePictureEditViewModel: ObservableObject {
     @Published var showError = false
     @Published var errorMessage = ""
     @Published var showFullscreenPreview = false
+
+    // Crop data for Instagram-style cropping
+    var cropData: CropData?
     
     private let apiClient = APIClient.shared
     private let authManager = AuthManager.shared
     
     init() {
         loadCurrentProfilePicture()
+        setupNotificationListeners()
+    }
+
+    private func setupNotificationListeners() {
+        NotificationCenter.default.addObserver(
+            forName: .profilePictureUpdated,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let newProfilePictureUrl = notification.object as? String {
+                self?.currentProfilePicture = newProfilePictureUrl
+                print("🔄 Profile picture view refreshed with new URL: \(newProfilePictureUrl)")
+            }
+        }
     }
     
     private func loadCurrentProfilePicture() {
@@ -308,19 +435,49 @@ class ProfilePictureEditViewModel: ObservableObject {
                   let imageData = resizedImage.jpegData(compressionQuality: 0.8) else {
                 throw NSError(domain: "ImageError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to compress image"])
             }
-            
-            // Upload to server
-            let fileName = "profile_\(Date().timeIntervalSince1970).jpg"
-            let response = try await apiClient.uploadProfilePicture(imageData, fileName: fileName)
-            
+
+            // Upload to server - use the new method with crop data support
+            let profilePictureUrl = try await apiClient.uploadProfilePictureWithCrop(
+                imageData: imageData,
+                cropData: cropData
+            )
+
             // Update the current user with the new profile picture URL
             await MainActor.run {
+                print("✅ Profile upload successful! New URL: \(profilePictureUrl)")
+
                 if var currentUser = authManager.currentUser {
-                    currentUser.profilePicture = response.data?.url ?? response.data?.thumbnailUrl
+                    currentUser.profilePicture = profilePictureUrl
                     authManager.updateUser(currentUser)
 
                     // Clear all image cache to ensure the new profile picture is shown
                     ImageCacheManager.shared.clearCache()
+
+                    // Also clear iOS URL cache to prevent old image from being served
+                    URLCache.shared.removeAllCachedResponses()
+                    print("🧹 Cleared both ImageCache and URLCache")
+
+                    // Clear the selected image to show the uploaded version
+                    self.selectedImage = nil
+
+                    // Force refresh by clearing current picture and then setting new one
+                    self.currentProfilePicture = nil
+
+                    // Small delay to ensure cache clearing takes effect before setting new URL
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        self.currentProfilePicture = profilePictureUrl
+                        print("🔄 Profile picture display updated to: \(profilePictureUrl)")
+                    }
+
+                    print("✅ Local user updated with new profile picture")
+                    print("✅ Image cache cleared")
+                    print("✅ Current profile picture updated to: \(profilePictureUrl)")
+
+                    // Send notifications to refresh any profile views
+                    NotificationCenter.default.post(name: .profilePictureUpdated, object: profilePictureUrl)
+
+                    // Also trigger a general UI refresh for profile-related views
+                    NotificationCenter.default.post(name: NSNotification.Name("RefreshUserProfile"), object: nil)
                 }
             }
             
@@ -334,8 +491,20 @@ class ProfilePictureEditViewModel: ObservableObject {
                 }
             }
         } catch {
+            print("❌ Profile picture upload error: \(error)")
+            print("❌ Error details: \(error.localizedDescription)")
+
             await MainActor.run {
-                self.errorMessage = error.localizedDescription
+                // Provide more helpful error messages
+                if error.localizedDescription.contains("data couldn't be read") {
+                    self.errorMessage = "Server response error. Please try again in a moment."
+                } else if error.localizedDescription.contains("timeout") {
+                    self.errorMessage = "Upload timed out. Please check your connection and try again."
+                } else if error.localizedDescription.contains("network") {
+                    self.errorMessage = "Network error. Please check your internet connection."
+                } else {
+                    self.errorMessage = "Upload failed: \(error.localizedDescription)"
+                }
                 self.showError = true
                 self.isUploading = false
             }

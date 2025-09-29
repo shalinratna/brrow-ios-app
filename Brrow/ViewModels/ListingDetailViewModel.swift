@@ -26,7 +26,12 @@ class ListingDetailViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
     private let authManager = AuthManager.shared
-    
+
+    // Expose guest user status
+    var isGuestUser: Bool {
+        return authManager.isGuestUser
+    }
+
     init(listing: Listing) {
         print("📱 ListingDetailViewModel init with listing: \(listing.listingId)")
         print("  Initial images count: \(listing.images.count)")
@@ -506,13 +511,16 @@ class ListingDetailViewModel: ObservableObject {
             return
         }
 
-        // Create chat ID based on user IDs and listing
-        let currentUserId = Int(currentUser.id) ?? 0
-        let ownerUserId = Int(listing.userId) ?? 0
-        let chatId = "listing_\(String(listing.id))_\(min(currentUserId, ownerUserId))_\(max(currentUserId, ownerUserId))"
+        // Create chat ID based on user IDs and listing using string IDs
+        let currentUserId = currentUser.id
+        let ownerUserId = listing.userId
+
+        // Create a consistent chat ID by sorting the user IDs alphabetically
+        let sortedUserIds = [currentUserId, ownerUserId].sorted()
+        let chatId = "listing_\(listing.id)_\(sortedUserIds[0])_\(sortedUserIds[1])"
 
         print("🔔 Posting navigateToChat notification with chatId: \(chatId)")
-        print("🔔 Current user: \(currentUser.username), Owner: \(listing.userId)")
+        print("🔔 Current user: \(currentUser.username ?? "unknown"), Owner: \(listing.userId)")
         print("🔔 User IDs - Current: \(currentUserId), Owner: \(ownerUserId)")
 
         // Navigate to chat with the listing owner

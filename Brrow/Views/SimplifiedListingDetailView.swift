@@ -58,7 +58,7 @@ struct SimplifiedListingDetailView: View {
             ProfileView()
         }
         .sheet(isPresented: $showingEditView) {
-            EditListingView(listing: viewModel.listing)
+            EnhancedEditListingView(listing: viewModel.listing)
                 .environmentObject(authManager)
         }
         .alert("Delete Listing", isPresented: $showingDeleteAlert) {

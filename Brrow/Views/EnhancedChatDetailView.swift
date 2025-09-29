@@ -11,8 +11,15 @@ import CallKit
 
 struct EnhancedChatDetailView: View {
     let conversation: Conversation
+    let initialMessage: String?
     @StateObject private var viewModel = ChatDetailViewModel()
     @State private var messageText = ""
+
+    init(conversation: Conversation, initialMessage: String? = nil) {
+        self.conversation = conversation
+        self.initialMessage = initialMessage
+        self._messageText = State(initialValue: initialMessage ?? "")
+    }
     @State private var showingImagePicker = false
     @State private var showingCamera = false
     @State private var isRecordingVoice = false
@@ -46,6 +53,7 @@ struct EnhancedChatDetailView: View {
         .fullScreenCover(isPresented: $showingVideoCall) {
             VideoCallView(conversation: conversation)
         }
+        #if !targetEnvironment(macCatalyst) && !os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
             if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
                 keyboardHeight = keyboardFrame.height
@@ -54,6 +62,7 @@ struct EnhancedChatDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             keyboardHeight = 0
         }
+        #endif
     }
     
     // MARK: - Chat Header
@@ -148,7 +157,7 @@ struct EnhancedChatDetailView: View {
             }
 
             scrollContent
-                .onChange(of: viewModel.messages.count) { _, _ in
+                .onChange(of: viewModel.messages.count) { _ in
                     if let lastMessage = viewModel.messages.last {
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)

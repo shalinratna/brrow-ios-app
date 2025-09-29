@@ -2,8 +2,9 @@
 platform :ios, '15.0'
 
 target 'Brrow' do
-  # Comment the next line if you don't want to use dynamic frameworks
+  # Optimized for M4 Pro Max parallel building
   use_frameworks!
+  use_modular_headers!
 
   # Pods for Brrow
   pod 'Socket.IO-Client-Swift', '~> 16.1.0'
@@ -27,13 +28,35 @@ end
 
 target 'BrrowWidgetsExtension' do
   use_frameworks!
-  # Pods for BrrowWidgetsExtension
+  # Pods for BrrowWidgetsExtension - minimal dependencies for widgets
+  # SDWebImage not needed for widgets (using system images only)
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+
+      # 🚀 M4 PRO MAX SPEED OPTIMIZATIONS
+      if config.name == 'Debug'
+        # Debug builds: MAXIMUM SPEED
+        config.build_settings['SWIFT_COMPILATION_MODE'] = 'Incremental'
+        config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+        config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+        # Enable maximum parallel compilation
+        config.build_settings['SWIFT_ENABLE_BATCH_MODE'] = 'YES'
+        config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '0'
+      else
+        # Release builds: PERFORMANCE
+        config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
+        config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-O'
+      end
+
+      # Universal optimizations for M4 Pro Max
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      config.build_settings['VALIDATES_PRODUCT'] = 'NO'
+      config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'NO'
     end
     
     # Fix Alamofire bundle issue

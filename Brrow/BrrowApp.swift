@@ -136,6 +136,11 @@ struct BrrowApp: App {
 
         // Initialize Shaiitech systems
         initializeShaiitech()
+
+        // Initialize widget data on app launch
+        if authManager.isAuthenticated {
+            WidgetIntegrationService.shared.updateAllWidgetData()
+        }
     }
     
     private func initializeLanguage() {

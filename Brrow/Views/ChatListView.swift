@@ -15,6 +15,7 @@ struct ChatListView: View {
     @State private var selectedChat: Chat?
     @State private var cancellables = Set<AnyCancellable>()
     @State private var showingNewMessageSheet = false
+    @State private var navigateToSelectedChat = false
     
     var body: some View {
         NavigationView {
@@ -51,16 +52,81 @@ struct ChatListView: View {
 
                     print("🔔 ChatListView received openSpecificChat for: \(chatId)")
 
-                    // Navigate directly with chatId, don't need a full listing object
-                    viewModel.navigateToChat(chatId: chatId, listing: nil)
+                    // Create a minimal listing object for context
+                    let tempListing = Listing.temporaryFromId(
+                        listingId: listingId,
+                        title: listingTitle
+                    )
+
+                    viewModel.navigateToChat(chatId: chatId, listing: tempListing)
                 }
             }
+
+            // Hidden NavigationLink for automatic navigation
+            NavigationLink(
+                destination: destinationView(),
+                isActive: $navigateToSelectedChat
+            ) {
+                EmptyView()
+            }
+            .hidden()
         }
         .sheet(isPresented: $showingNewMessageSheet) {
             NewMessageSheet()
         }
+        .onChange(of: viewModel.selectedChatId) { selectedId in
+            if selectedId != nil {
+                print("🔄 ChatListView detected selectedChatId change: \(selectedId ?? "nil")")
+                // Use a slightly longer delay to ensure conversation is created
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    print("🔄 Triggering navigation to chat: \(selectedId ?? "nil")")
+                    navigateToSelectedChat = true
+                }
+            }
+        }
+        .onChange(of: navigateToSelectedChat) { isNavigating in
+            if !isNavigating {
+                // Reset the selected chat when navigation is done
+                viewModel.selectedChatId = nil
+                viewModel.initialMessageForSelectedChat = nil
+            }
+        }
     }
-    
+
+    // MARK: - Navigation Helper
+    @ViewBuilder
+    private func destinationView() -> some View {
+        if let selectedId = viewModel.selectedChatId {
+            // Try to find conversation in list first
+            if let conversation = viewModel.conversations.first(where: { $0.id == selectedId }) {
+                EnhancedChatDetailView(
+                    conversation: conversation,
+                    initialMessage: viewModel.initialMessageForSelectedChat
+                )
+            } else {
+                // If conversation doesn't exist yet, create a temporary one for navigation
+                // This handles the case where we're navigating to a new conversation
+                if let currentUser = AuthManager.shared.currentUser {
+                    let tempConversation = Conversation(
+                        id: selectedId,
+                        otherUser: ConversationUser.placeholder(), // Placeholder conversation user
+                        lastMessage: nil,
+                        unreadCount: 0,
+                        updatedAt: ISO8601DateFormatter().string(from: Date())
+                    )
+                    EnhancedChatDetailView(
+                        conversation: tempConversation,
+                        initialMessage: viewModel.initialMessageForSelectedChat
+                    )
+                } else {
+                    EmptyView()
+                }
+            }
+        } else {
+            EmptyView()
+        }
+    }
+
     // MARK: - Header Section
     private var headerSection: some View {
         HStack {
@@ -115,7 +181,7 @@ struct ChatListView: View {
     // MARK: - Conversations List
     private var conversationsList: some View {
         List(viewModel.conversations, id: \.id) { conversation in
-            NavigationLink(destination: ChatView(conversation: conversation)) {
+            NavigationLink(destination: EnhancedChatDetailView(conversation: conversation)) {
                 ConversationRow(conversation: conversation)
             }
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))

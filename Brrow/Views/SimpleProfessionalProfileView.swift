@@ -535,6 +535,19 @@ struct SimpleProfessionalProfileView: View {
             
             Spacer()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .profilePictureUpdated)) { notification in
+            // Force refresh the view when profile picture is updated
+            if let newURL = notification.object as? String {
+                print("🔄 SimpleProfessionalProfileView: Profile picture updated, refreshing view with: \(newURL)")
+                // Clear any local cache and refresh the viewModel
+                ImageCacheManager.shared.clearCache()
+                viewModel.loadUserProfile()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshUserProfile"))) { _ in
+            print("🔄 SimpleProfessionalProfileView: General profile refresh requested")
+            viewModel.loadUserProfile()
+        }
         .navigationBarTitle("Profile", displayMode: .large)
     }
 }

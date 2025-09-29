@@ -232,9 +232,24 @@ struct CreateSeekRequest: Codable {
     let title: String
     let description: String
     let category: String
-    let maxPrice: Double
-    let radius: Double
-    let location: Location
+    let location: String
+    let latitude: Double?
+    let longitude: Double?
+    let maxDistance: Double // in kilometers (formerly radius)
+    let minBudget: Double?
+    let maxBudget: Double? // formerly maxPrice
+    let urgency: String // "low", "medium", "high", "urgent"
+    let expiresAt: String? // ISO date string
+    let images: [String] // Array of image URLs
+    let tags: [String] // Array of tags
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, category, location, latitude, longitude, urgency, images, tags
+        case maxDistance = "max_distance"
+        case minBudget = "min_budget"
+        case maxBudget = "max_budget"
+        case expiresAt = "expires_at"
+    }
 }
 
 // MARK: - Send Message

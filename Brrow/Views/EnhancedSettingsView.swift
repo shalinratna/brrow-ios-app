@@ -20,6 +20,7 @@ struct EnhancedSettingsView: View {
     @State private var showingAppearance = false
     @State private var showingLanguage = false
     @State private var showingHelp = false
+    @State private var showingWidgetTest = false
     @State private var newUsername = ""
     @State private var isLoading = false
     @State private var errorMessage = ""
@@ -113,6 +114,9 @@ struct EnhancedSettingsView: View {
         .sheet(isPresented: $showingPrivacyPolicy) {
             PrivacyPolicyView()
         }
+        .sheet(isPresented: $showingWidgetTest) {
+            WidgetTestView()
+        }
         .alert("Error", isPresented: .constant(!errorMessage.isEmpty)) {
             Button("OK") {
                 errorMessage = ""
@@ -135,17 +139,7 @@ struct EnhancedSettingsView: View {
             HStack {
                 // Profile Image
                 if let user = authManager.currentUser {
-                    BrrowAsyncImage(url: user.profilePicture) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                    }
-                    .frame(width: 60, height: 60)
-                    .clipShape(Circle())
+                    BrrowAsyncImage.profileImage(url: user.profilePicture, size: 60)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(user.displayName ?? user.username ?? "User")
@@ -368,6 +362,16 @@ struct EnhancedSettingsView: View {
                     subtitle: nil
                 )
             }
+
+            #if DEBUG
+            Button(action: { showingWidgetTest = true }) {
+                SettingsRow(
+                    icon: "waveform.badge.plus",
+                    title: "Widget Tests",
+                    subtitle: "Test widget integration"
+                )
+            }
+            #endif
 
             Button(action: { showingAbout = true }) {
                 SettingsRow(

@@ -150,3 +150,4 @@ INTEGRATION ANALYSIS:
 - Data assumptions: [what data formats/schemas this expects]
 - Performance implications: [resource usage, caching needs]
 Remember: Perfect individual components can still create broken systems. Think like a production engineer, not just a code generator.
+- Do not tell me that our app is ready to go if it has build errors and does not build successfully.

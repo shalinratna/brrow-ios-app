@@ -323,9 +323,16 @@ struct CreateSeekView: View {
                     title: title,
                     description: description,
                     category: selectedCategory,
-                    maxPrice: maxBudget.isEmpty ? 0 : Double(maxBudget) ?? 0,
-                    radius: searchRadius,
-                    location: location
+                    location: location.address,
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    maxDistance: searchRadius,
+                    minBudget: nil,
+                    maxBudget: maxBudget.isEmpty ? nil : Double(maxBudget),
+                    urgency: "medium",
+                    expiresAt: nil,
+                    images: [],
+                    tags: []
                 )
                 
                 // Call API to create seek

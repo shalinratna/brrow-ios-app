@@ -16,18 +16,18 @@ struct EditListingView: View {
     let listing: Listing
     
     // Form fields
-    @State private var title: String
-    @State private var description: String
-    @State private var price: String
-    @State private var pricingType: String
-    @State private var category: String
-    @State private var condition: String
-    @State private var location: String
-    @State private var securityDeposit: String
-    @State private var deliveryAvailable: Bool
-    
+    @State private var title: String = ""
+    @State private var description: String = ""
+    @State private var price: String = ""
+    @State private var pricingType: String = ""
+    @State private var category: String = ""
+    @State private var condition: String = ""
+    @State private var location: String = ""
+    @State private var securityDeposit: String = ""
+    @State private var deliveryAvailable: Bool = false
+
     // Images
-    @State private var existingImages: [String]
+    @State private var existingImages: [String] = []
     @State private var selectedImages: [PhotosPickerItem] = []
     @State private var newImages: [UIImage] = []
     @State private var imagesToDelete: Set<String> = []
@@ -42,16 +42,6 @@ struct EditListingView: View {
     
     init(listing: Listing) {
         self.listing = listing
-        self._title = State(initialValue: listing.title)
-        self._description = State(initialValue: listing.description)
-        self._price = State(initialValue: String(format: "%.2f", listing.price))
-        self._pricingType = State(initialValue: "fixed")  // Default to fixed since priceType is computed
-        self._category = State(initialValue: listing.category?.name ?? "Other")
-        self._condition = State(initialValue: listing.condition)
-        self._location = State(initialValue: "\(listing.location.city), \(listing.location.state)")
-        self._securityDeposit = State(initialValue: String(format: "%.2f", 0))  // securityDeposit doesn't exist in new model
-        self._deliveryAvailable = State(initialValue: listing.deliveryAvailable ?? false)
-        self._existingImages = State(initialValue: listing.imageUrls)
     }
     
     var body: some View {
@@ -100,7 +90,7 @@ struct EditListingView: View {
                 maxSelectionCount: 5,
                 matching: .images
             )
-            .onChange(of: selectedImages) { _, items in
+            .onChange(of: selectedImages) { items in
                 loadSelectedImages(items)
             }
             .alert("Error", isPresented: $showError) {
@@ -131,6 +121,19 @@ struct EditListingView: View {
                         .cornerRadius(10)
                         .shadow(radius: 5)
                 }
+            }
+            .onAppear {
+                // Initialize form fields with listing data
+                title = listing.title
+                description = listing.description
+                price = String(format: "%.2f", listing.price)
+                pricingType = "fixed"
+                category = listing.category?.name ?? "Other"
+                condition = listing.condition
+                location = "\(listing.location.city), \(listing.location.state)"
+                securityDeposit = String(format: "%.2f", 0)
+                deliveryAvailable = listing.deliveryAvailable ?? false
+                existingImages = listing.imageUrls
             }
         }
     }

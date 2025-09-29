@@ -30,6 +30,7 @@ class ModernProfileViewModel: ObservableObject {
     
     private func setupUserObserver() {
         authManager.$currentUser
+            .receive(on: DispatchQueue.main)  // Ensure main thread execution
             .sink { [weak self] user in
                 self?.user = user
                 // Only load profile data if user is authenticated with a token

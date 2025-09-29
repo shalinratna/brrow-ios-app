@@ -244,7 +244,8 @@ class AuthManager: ObservableObject {
                 
                 do {
                     // Make a direct API call to refresh token
-                    guard let url = URL(string: "https://brrowapp.com/api/auth/refresh-token") else {
+                    let baseURL = await APIClient.shared.getBaseURL()
+                    guard let url = URL(string: "\(baseURL)/api/auth/refresh-token") else {
                         promise(.failure(.networkError("Invalid URL")))
                         return
                     }

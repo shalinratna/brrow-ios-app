@@ -148,7 +148,7 @@ struct SMSVerificationView: View {
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                         .font(.title2)
-                        .onChange(of: phoneNumber) { _, newValue in
+                        .onChange(of: phoneNumber) { newValue in
                             // Format phone number as user types
                             phoneNumber = formatPhoneNumberInput(newValue)
                         }
@@ -190,7 +190,7 @@ struct SMSVerificationView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(Color.blue.opacity(0.3), lineWidth: 1)
                     )
-                    .onChange(of: verificationCode) { _, newValue in
+                    .onChange(of: verificationCode) { newValue in
                         // Limit to 6 digits
                         if newValue.count > 6 {
                             verificationCode = String(newValue.prefix(6))

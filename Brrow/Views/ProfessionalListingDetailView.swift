@@ -1,6 +1,12 @@
 import SwiftUI
 import MapKit
 
+// MARK: - Map Location for iOS 16 Map compatibility
+struct ListingMapLocation: Identifiable {
+    let id: Int
+    let coordinate: CLLocationCoordinate2D
+}
+
 // MARK: - Scroll Offset Preference Key
 struct ListingScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
@@ -27,6 +33,7 @@ struct ProfessionalListingDetailView: View {
     @State private var showingMarkAsSold = false
     @State private var showingBuyNow = false
     @State private var showingInsuranceInfo = false
+    @State private var showingMessageComposer = false
     @State private var mapRegion = MKCoordinateRegion()
     @State private var scrollOffset: CGFloat = 0
     @State private var imageScale: CGFloat = 1.0
@@ -201,7 +208,7 @@ struct ProfessionalListingDetailView: View {
         }
         .sheet(isPresented: $showingEditView) {
             NavigationView {
-                EditListingView(listing: viewModel.listing)
+                EnhancedEditListingView(listing: viewModel.listing)
             }
         }
         .alert("Delete Listing", isPresented: $showingDeleteConfirmation) {
@@ -220,6 +227,12 @@ struct ProfessionalListingDetailView: View {
         }
         .sheet(isPresented: $showingInquiry) {
             ListingInquiryView(listing: viewModel.listing)
+        }
+        .sheet(isPresented: $showingMessageComposer) {
+            ModernMessageComposer(
+                recipient: viewModel.seller,
+                listing: viewModel.listing
+            )
         }
         .sheet(isPresented: $showingShareSheet) {
             if let url = URL(string: "https://brrowapp.com/listing/\(viewModel.listing.id)") {
@@ -348,7 +361,7 @@ struct ProfessionalListingDetailView: View {
             }
             
             // Title
-            Text(viewModel.listing.title.isEmpty ? "Unnamed Item" : viewModel.listing.title)
+            Text(viewModel.listing.title.isEmpty ? "Unnamed \(viewModel.listing.itemType)" : viewModel.listing.title)
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
                 .lineLimit(2)
@@ -421,14 +434,12 @@ struct ProfessionalListingDetailView: View {
             viewModel.listing.user?.id == currentUser?.id
         )
 
-        // Debug ownership detection
-        let _ = print("🔍 OWNERSHIP DEBUG:")
-        let _ = print("  Current user ID: \(currentUser?.id ?? "nil")")
-        let _ = print("  Current user API ID: \(currentUser?.apiId ?? "nil")")
-        let _ = print("  Listing userId: \(viewModel.listing.userId)")
-        let _ = print("  Listing user?.apiId: \(viewModel.listing.user?.apiId ?? "nil")")
-        let _ = print("  Listing user?.id: \(viewModel.listing.user?.id ?? "nil")")
-        let _ = print("  Is Owner: \(isOwner)")
+        // Debug ownership detection (only in debug builds)
+        #if DEBUG
+        if isOwner {
+            print("🔍 User owns listing: \(viewModel.listing.title)")
+        }
+        #endif
 
         return VStack(spacing: 12) {
 
@@ -486,8 +497,12 @@ struct ProfessionalListingDetailView: View {
                 // Simple action buttons
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
-                        Button(action: { 
-                            viewModel.messageOwner() 
+                        Button(action: {
+                            if viewModel.isGuestUser {
+                                viewModel.showGuestAlert = true
+                            } else {
+                                showingMessageComposer = true
+                            }
                         }) {
                             HStack {
                                 Image(systemName: "message.fill")
@@ -688,15 +703,16 @@ struct ProfessionalListingDetailView: View {
                 .foregroundColor(Theme.Colors.secondaryText)
             
             VStack(alignment: .leading, spacing: 8) {
-                // Map Preview with circular region for privacy (iOS 17+ compatible)
-                Map(position: .constant(.region(mapRegion))) {
-                    // Add a circle annotation for the approximate location
-                    MapCircle(center: CLLocationCoordinate2D(
-                        latitude: viewModel.listing.latitude,
-                        longitude: viewModel.listing.longitude
-                    ), radius: CLLocationDistance(500))
-                    .foregroundStyle(Theme.Colors.primary.opacity(0.2))
-                    .stroke(Theme.Colors.primary, lineWidth: 2)
+                // Map Preview for approximate location (iOS 16 compatible)
+                Map(coordinateRegion: .constant(mapRegion),
+                    annotationItems: [ListingMapLocation(
+                        id: 0,
+                        coordinate: CLLocationCoordinate2D(
+                            latitude: viewModel.listing.latitude,
+                            longitude: viewModel.listing.longitude
+                        )
+                    )]) { location in
+                    MapPin(coordinate: location.coordinate, tint: .blue)
                 }
                 .frame(height: 200)
                 .cornerRadius(12)
@@ -929,7 +945,13 @@ struct ProfessionalListingDetailView: View {
                     }
                 } else {
                     // Non-owner actions
-                    Button(action: { viewModel.messageOwner() }) {
+                    Button(action: {
+                        if viewModel.isGuestUser {
+                            viewModel.showGuestAlert = true
+                        } else {
+                            showingMessageComposer = true
+                        }
+                    }) {
                         Image(systemName: "message.fill")
                             .font(.system(size: 20))
                             .foregroundColor(.white)

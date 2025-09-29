@@ -37,7 +37,7 @@ struct SearchView: View {
         .onSubmit(of: .search) {
             viewModel.search(query: searchText, category: selectedCategory)
         }
-        .onChange(of: searchText) { _, newValue in
+        .onChange(of: searchText) { newValue in
             if newValue.isEmpty {
                 viewModel.clearSearch()
             }
@@ -217,7 +217,10 @@ struct BasicSearchResultCard: View {
                     .lineLimit(2)
                 
                 HStack {
-                    Text(listing.isFree ? "FREE" : "$\(Int(listing.price))/day")
+                    Text(listing.isFree ? "FREE" :
+                         (listing.listingType == "rental" || listing.dailyRate != nil ?
+                          "$\(Int(listing.price))/\(listing.rentalPeriod ?? "day")" :
+                          "$\(Int(listing.price))"))
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(listing.isFree ? Theme.Colors.success : Theme.Colors.primary)
                     

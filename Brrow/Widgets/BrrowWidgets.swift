@@ -114,7 +114,7 @@ struct EarningsWidgetView: View {
             }
         }
         .padding()
-        .containerBackground(.ultraThinMaterial, for: .widget)
+        .background(.ultraThinMaterial)
         .widgetURL(URL(string: "brrow://earnings"))
     }
     
@@ -164,7 +164,7 @@ struct EarningsWidgetView: View {
             }
         }
         .padding()
-        .containerBackground(.ultraThinMaterial, for: .widget)
+        .background(.ultraThinMaterial)
         .widgetURL(URL(string: "brrow://earnings"))
     }
     
@@ -191,13 +191,13 @@ struct EarningsWidgetView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .containerBackground(.clear, for: .widget)
+        .background(.clear)
         .widgetURL(URL(string: "brrow://earnings"))
     }
     
     private var inlineEarningsWidget: some View {
         Text("Brrow: $\(entry.totalEarnings, specifier: "%.0f") (+$\(entry.todayEarnings, specifier: "%.0f") today)")
-            .containerBackground(.clear, for: .widget)
+            .background(.clear)
             .widgetURL(URL(string: "brrow://earnings"))
     }
 }
@@ -307,7 +307,7 @@ struct NearbyWidgetView: View {
             Spacer()
         }
         .padding()
-        .containerBackground(.ultraThinMaterial, for: .widget)
+        .background(.ultraThinMaterial)
         .widgetURL(URL(string: "brrow://discover"))
     }
 }
@@ -402,7 +402,7 @@ struct KarmaWidgetView: View {
             }
         }
         .padding()
-        .containerBackground(.ultraThinMaterial, for: .widget)
+        .background(.ultraThinMaterial)
         .widgetURL(URL(string: "brrow://profile"))
     }
     
@@ -427,7 +427,7 @@ struct KarmaWidgetView: View {
                     .foregroundColor(.orange)
             }
         }
-        .containerBackground(.clear, for: .widget)
+        .background(.clear)
         .widgetURL(URL(string: "brrow://profile"))
     }
 }
@@ -526,7 +526,7 @@ struct ActivityWidgetView: View {
             Spacer()
         }
         .padding()
-        .containerBackground(.ultraThinMaterial, for: .widget)
+        .background(.ultraThinMaterial)
         .widgetURL(URL(string: "brrow://notifications"))
     }
 }

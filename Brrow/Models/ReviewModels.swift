@@ -133,7 +133,7 @@ struct ReviewAttachment: Codable, Identifiable {
     let reviewId: String
     let fileUrl: String
     let thumbnailUrl: String?
-    let fileType: AttachmentType
+    let fileType: ReviewAttachmentType
     let fileName: String
     let fileSize: Int
     let uploadedAt: String
@@ -144,7 +144,7 @@ struct ReviewAttachment: Codable, Identifiable {
     }
 }
 
-enum AttachmentType: String, Codable {
+enum ReviewAttachmentType: String, Codable {
     case image = "IMAGE"
     case video = "VIDEO"
     case document = "DOCUMENT"
@@ -413,7 +413,7 @@ struct CreateReviewRequest: Codable {
 struct ReviewAttachmentUpload: Codable {
     let fileData: String  // base64 encoded
     let fileName: String
-    let fileType: AttachmentType
+    let fileType: ReviewAttachmentType
 }
 
 struct UpdateReviewRequest: Codable {

@@ -9,7 +9,7 @@ import WidgetKit
 import SwiftUI
 
 // MARK: - Advanced Widget Bundle
-@main
+// @main - Commented out to avoid conflicts, use BrrowWidgets as main bundle
 struct BrrowAdvancedWidgetBundle: WidgetBundle {
     var body: some Widget {
         // Basic stats widget

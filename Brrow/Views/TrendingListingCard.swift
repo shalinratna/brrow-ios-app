@@ -33,7 +33,9 @@ struct TrendingListingCard: View {
                     .foregroundColor(Theme.Colors.text)
                     .lineLimit(1)
                 
-                Text("$\(listing.price, specifier: "%.0f")/day")
+                Text(listing.listingType == "rental" || listing.dailyRate != nil ?
+                     "$\(listing.price, specifier: "%.0f")/\(listing.rentalPeriod ?? "day")" :
+                     "$\(listing.price, specifier: "%.0f")")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(Theme.Colors.primary)
             }

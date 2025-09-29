@@ -137,7 +137,7 @@ struct PostsAnalyticsView: View {
         }
         .pickerStyle(SegmentedPickerStyle())
         .padding(.horizontal)
-        .onChange(of: viewModel.selectedTimeframe) { _, newTimeframe in
+        .onChange(of: viewModel.selectedTimeframe) { newTimeframe in
             Task {
                 await viewModel.selectTimeframe(newTimeframe)
             }

@@ -15,10 +15,11 @@ struct ProfileUpdateData: Codable {
     let phone: String?
     let bio: String?
     let birthdate: String?
+    let profilePicture: String?
 
     enum CodingKeys: String, CodingKey {
         case username, email, phone, bio
-        case birthdate
+        case birthdate, profilePicture
     }
 }
 
@@ -84,17 +85,17 @@ struct EditProfileView: View {
             .photosPicker(isPresented: $showingImagePicker, selection: $selectedImage, matching: .images)
             .toolbarBackground(Color.white, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-        .onChange(of: selectedImage) { _, newItem in
+        .onChange(of: selectedImage) { newItem in
             handleImageSelection(newItem)
         }
-        .onChange(of: username) { _, _ in hasChanges = true }
+        .onChange(of: username) { _ in hasChanges = true }
         // .onChange(of: displayName) removed
-        .onChange(of: bio) { _, _ in hasChanges = true }
-        .onChange(of: email) { _, _ in hasChanges = true }
-        .onChange(of: phone) { _, _ in hasChanges = true }
-        .onChange(of: location) { _, _ in hasChanges = true }
-        .onChange(of: website) { _, _ in hasChanges = true }
-        .onChange(of: birthdate) { _, _ in hasChanges = true }
+        .onChange(of: bio) { _ in hasChanges = true }
+        .onChange(of: email) { _ in hasChanges = true }
+        .onChange(of: phone) { _ in hasChanges = true }
+        .onChange(of: location) { _ in hasChanges = true }
+        .onChange(of: website) { _ in hasChanges = true }
+        .onChange(of: birthdate) { _ in hasChanges = true }
         .alert(getAlertTitle(for: errorMessage), isPresented: $showError) {
             Button("OK") { }
         } message: {
@@ -341,7 +342,7 @@ struct EditProfileView: View {
                 .foregroundColor(bio.count > 250 ? .red : Theme.Colors.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .onChange(of: bio) { _, newValue in
+        .onChange(of: bio) { newValue in
             if newValue.count > 250 {
                 bio = String(newValue.prefix(250))
             }
@@ -757,7 +758,8 @@ struct EditProfileView: View {
                     email: email,
                     phone: phone.isEmpty ? nil : phone,
                     bio: bio.isEmpty ? nil : bio,
-                    birthdate: ISO8601DateFormatter().string(from: birthdate)
+                    birthdate: ISO8601DateFormatter().string(from: birthdate),
+                    profilePicture: user.profilePicture  // Preserve existing profile picture
                 )
 
                 // Update profile via API (without username)

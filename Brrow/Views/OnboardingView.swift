@@ -165,7 +165,7 @@ struct OnboardingPageView: View {
                 Image(systemName: icon)
                     .font(.system(size: 70))
                     .foregroundColor(iconColor)
-                    .symbolEffect(.pulse)
+                    // .symbolEffect(.pulse) // iOS 17+ only
             }
             .padding(.bottom, 20)
             

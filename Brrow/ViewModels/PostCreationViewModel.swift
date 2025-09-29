@@ -159,9 +159,16 @@ class PostCreationViewModel: ObservableObject {
             title: seekTitle,
             description: seekDescription,
             category: selectedCategory,
-            maxPrice: Double(maxBudget) ?? 0.0,
-            radius: 25.0, // Default 25 mile radius
-            location: locationObj
+            location: locationObj.address,
+            latitude: locationObj.latitude,
+            longitude: locationObj.longitude,
+            maxDistance: 25.0, // Default 25 km radius
+            minBudget: nil,
+            maxBudget: Double(maxBudget),
+            urgency: "medium",
+            expiresAt: nil,
+            images: [],
+            tags: []
         )
         
         _ = try await apiClient.createSeek(seek)

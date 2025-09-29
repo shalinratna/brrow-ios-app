@@ -60,7 +60,7 @@ extension UIImage {
     /// Get human-readable file size
     var readableFileSize: String? {
         guard let bytes = fileSize else { return nil }
-        
+
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         return formatter.string(fromByteCount: Int64(bytes))

@@ -55,10 +55,11 @@ struct EnhancedMyPostsView: View {
         }
         .sheet(isPresented: $showingEditView) {
             if let post = selectedPost {
-                EditPostSheet(post: post) {
-                    viewModel.loadPosts()
-                    showingEditView = false
-                }
+                EnhancedEditListingView(listing: convertPostToListing(post))
+                    .onDisappear {
+                        viewModel.loadPosts()
+                        showingEditView = false
+                    }
             }
         }
     }
@@ -212,6 +213,51 @@ struct EnhancedMyPostsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // Convert UserPost to Listing for editing using JSON encoding/decoding
+    private func convertPostToListing(_ post: UserPost) -> Listing {
+        // Create a JSON representation of the post data
+        let listingJSON: [String: Any] = [
+            "id": post.id,
+            "title": post.title,
+            "description": post.content,
+            "categoryId": post.category ?? "other",
+            "condition": "good",
+            "price": post.price ?? 0.0,
+            "isNegotiable": false,
+            "availabilityStatus": "AVAILABLE",
+            "location": [
+                "address": "Unknown",
+                "city": "Unknown",
+                "state": "Unknown",
+                "zipCode": "00000",
+                "country": "Unknown",
+                "latitude": 0.0,
+                "longitude": 0.0
+            ],
+            "userId": AuthManager.shared.currentUser?.apiId ?? "",
+            "viewCount": 0,
+            "favoriteCount": 0,
+            "isActive": post.status == "active",
+            "isPremium": false,
+            "tags": [],
+            "createdAt": post.createdAt,
+            "updatedAt": post.updatedAt,
+            "images": [],
+            "imageUrl": post.imageUrl ?? ""
+        ]
+
+        // Convert to JSON data and decode as Listing
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: listingJSON)
+            let listing = try JSONDecoder().decode(Listing.self, from: jsonData)
+            return listing
+        } catch {
+            print("Error converting post to listing: \(error)")
+            // Return a basic example listing as fallback
+            return Listing.example
+        }
     }
 }
 
@@ -419,16 +465,71 @@ struct PostStatusBadge: View {
     }
 }
 
-// MARK: - Post Detail Sheet
+// MARK: - Universal Post Detail Panel
 struct PostDetailSheet: View {
     let post: UserPost
     let onEdit: () -> Void
     let onDelete: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedImageIndex = 0
+    @State private var showingStats = false
 
-    // MARK: - Computed Properties
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Enhanced Image Gallery
+                    imageGallerySection
 
-    private var imageSection: some View {
+                    // Content Container
+                    VStack(spacing: 24) {
+                        // Header Info Section
+                        headerInfoSection
+
+                        // Stats and Performance Section
+                        statsSection
+
+                        // Details Grid Section
+                        detailsGridSection
+
+                        // Description Section
+                        descriptionSection
+
+                        // Action Buttons
+                        actionButtonsSection
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(Theme.Colors.primary)
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(action: onEdit) {
+                            Label("Edit Listing", systemImage: "pencil")
+                        }
+
+                        Button(role: .destructive, action: onDelete) {
+                            Label("Delete Listing", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundColor(Theme.Colors.primary)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Enhanced Image Gallery
+    private var imageGallerySection: some View {
         Group {
             if let thumbnail = post.thumbnail {
                 BrrowAsyncImage(url: thumbnail) { image in
@@ -437,137 +538,278 @@ struct PostDetailSheet: View {
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Rectangle()
-                        .fill(Theme.Colors.secondaryBackground)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Theme.Colors.primary.opacity(0.1),
+                                    Theme.Colors.primary.opacity(0.05)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .overlay(
-                            ProgressView()
+                            VStack {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(Theme.Colors.primary.opacity(0.5))
+                                Text("Loading image...")
+                                    .font(.caption)
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
                         )
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 300)
+                .frame(height: 350)
                 .clipped()
-                .cornerRadius(16)
+            } else {
+                Rectangle()
+                    .fill(Theme.Colors.secondaryBackground)
+                    .frame(height: 350)
+                    .overlay(
+                        VStack {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 40))
+                                .foregroundColor(Theme.Colors.primary.opacity(0.5))
+                            Text("No image available")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+                    )
             }
         }
     }
 
-    private var infoSection: some View {
+    // MARK: - Header Info Section
+    private var headerInfoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(post.title)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Theme.Colors.text)
+                        .lineLimit(3)
+
+                    if let category = post.category {
+                        Text(category.capitalized)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Theme.Colors.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(
+                                Theme.Colors.primary.opacity(0.1)
+                                    .clipShape(Capsule())
+                            )
+                    }
+                }
+
+                Spacer()
+
+                if let price = post.price, price > 0 {
+                    VStack(alignment: .trailing) {
+                        Text("$\(Int(price))")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(Theme.Colors.primary)
+
+                        Text(post.postType.capitalized)
+                            .font(.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Stats Section
+    private var statsSection: some View {
+        HStack(spacing: 16) {
+            StatCardView(
+                title: "Views",
+                value: "0",
+                icon: "eye",
+                color: Theme.Colors.primary
+            )
+
+            StatCardView(
+                title: "Saves",
+                value: "0",
+                icon: "heart",
+                color: .red
+            )
+
+            StatCardView(
+                title: "Status",
+                value: "\(post.status.capitalized)",
+                icon: "checkmark.circle",
+                color: .green
+            )
+
+            StatCardView(
+                title: "Status",
+                value: post.status.capitalized,
+                icon: post.status == "active" ? "checkmark.circle" : "clock",
+                color: post.status == "active" ? .green : .orange
+            )
+        }
+    }
+
+    // MARK: - Details Grid
+    private var detailsGridSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(post.title)
-                .font(.system(size: 28, weight: .bold))
+            Text("Details")
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
 
-            Text(post.content)
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                DetailRowView(title: "Created", value: formatDate(post.createdAt))
+                DetailRowView(title: "Updated", value: formatDate(post.updatedAt))
+                DetailRowView(title: "Post ID", value: "#\(post.id)")
+                DetailRowView(title: "Type", value: post.postType.capitalized)
+            }
+        }
+    }
+
+    // MARK: - Description Section
+    private var descriptionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Description")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(Theme.Colors.text)
+
+            Text(post.content.isEmpty ? "No description provided" : post.content)
                 .font(.system(size: 16))
-                .foregroundColor(Theme.Colors.text)
+                .foregroundColor(post.content.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.text)
                 .lineLimit(nil)
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Theme.Colors.secondaryBackground)
+                )
+        }
+    }
 
-            if let price = post.price, price > 0 {
-                Text("$\(Int(price))")
-                    .font(.system(size: 24, weight: .bold))
+    // MARK: - Action Buttons
+    private var actionButtonsSection: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Button(action: onEdit) {
+                    HStack {
+                        Image(systemName: "pencil")
+                        Text("Edit Listing")
+                    }
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Theme.Colors.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                Button(action: { showingStats.toggle() }) {
+                    HStack {
+                        Image(systemName: "chart.bar")
+                        Text("Analytics")
+                    }
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(Theme.Colors.primary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Theme.Colors.primary, lineWidth: 2)
+                    )
+                }
             }
 
-            // Edit restrictions
-            if !(post.editRestrictions?.isEmpty ?? true) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Edit Restrictions", systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.orange)
-
-                    ForEach(post.editRestrictions ?? [], id: \.self) { restriction in
-                        Text("• \(restriction)")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
+            Button(role: .destructive, action: onDelete) {
+                HStack {
+                    Image(systemName: "trash")
+                    Text("Delete Listing")
                 }
-                .padding()
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.red, lineWidth: 2)
+                )
             }
         }
     }
 
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Images section
-                    imageSection
+    // MARK: - Helper Functions
+    private func formatDate(_ dateString: String?) -> String {
+        guard let dateString = dateString else { return "Unknown" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
 
-                    // Info section
-                    infoSection
-                    
-                    // Action buttons
-                    VStack(spacing: 12) {
-                        if post.canEdit ?? false {
-                            Button(action: onEdit) {
-                                Label("Edit Post", systemImage: "pencil")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Theme.Colors.primary)
-                                    .cornerRadius(12)
-                            }
-                        }
-                        
-                        Button(action: onDelete) {
-                            Label("Delete Post", systemImage: "trash")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(Color.red)
-                                .cornerRadius(12)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, 20)
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(Theme.Colors.primary)
-                }
-            }
+        if let date = formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            return displayFormatter.string(from: date)
         }
+
+        return dateString
     }
 }
 
-// MARK: - Edit Post Sheet
-struct EditPostSheet: View {
-    let post: UserPost
-    let onComplete: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    
+// MARK: - Supporting Components
+struct StatCardView: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+
     var body: some View {
-        // Placeholder for edit functionality
-        NavigationView {
-            VStack {
-                Text("Edit \(post.title)")
-                    .font(.title)
-                
-                Button("Save Changes") {
-                    onComplete()
-                }
-                .padding()
-            }
-            .navigationTitle("Edit Post")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(color)
+
+            Text(value)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(Theme.Colors.text)
+
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundColor(Theme.Colors.secondaryText)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Theme.Colors.secondaryBackground)
+        )
     }
 }
+
+struct DetailRowView: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Theme.Colors.secondaryText)
+
+            Text(value)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(Theme.Colors.text)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Theme.Colors.secondaryBackground)
+        )
+    }
+}
+
 
 // MARK: - Post Filter Extension
 extension PostFilter {

@@ -93,17 +93,17 @@ struct SpecialRequestsView: View {
             .padding()
             .navigationTitle("Special Requests")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+            .toolbar(content: {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
-            }
+            })
             .onAppear {
                 localText = requests
             }
-            .onChange(of: localText) { oldValue, newValue in
+            .onChange(of: localText) { newValue in
                 if newValue.count > 500 {
                     localText = String(newValue.prefix(500))
                 }

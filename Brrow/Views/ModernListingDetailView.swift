@@ -120,7 +120,7 @@ struct ModernListingDetailView: View {
             }
         }
         .sheet(isPresented: $showingEditSheet) {
-            EditListingView(listing: listing)
+            EnhancedEditListingView(listing: listing)
         }
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
@@ -395,7 +395,7 @@ struct ModernListingDetailView: View {
             DetailCard(
                 icon: viewModel.listing.price == 0 ? "gift" : "tag",
                 title: "Type",
-                value: viewModel.listing.price == 0 ? "Free" : "For Sale",
+                value: viewModel.listing.listingTypeDisplay,
                 color: Theme.Colors.primary
             )
             

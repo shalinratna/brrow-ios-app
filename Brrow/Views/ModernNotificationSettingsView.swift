@@ -25,7 +25,7 @@ struct ModernNotificationSettingsView: View {
                             .foregroundColor(Theme.Colors.primary)
                     }
                 }
-                .onChange(of: settings.pushEnabled) { oldValue, newValue in
+                .onChange(of: settings.pushEnabled) { newValue in
                     if newValue {
                         requestNotificationPermission()
                     }
@@ -113,15 +113,13 @@ struct ModernNotificationSettingsView: View {
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Save") {
-                    saveSettings()
-                }
-                .fontWeight(.semibold)
-                .disabled(isLoading)
+        .navigationBarItems(trailing:
+            Button("Save") {
+                saveSettings()
             }
-        }
+            .fontWeight(.semibold)
+            .disabled(isLoading)
+        )
         .overlay(
             Group {
                 if showingSaveConfirmation {

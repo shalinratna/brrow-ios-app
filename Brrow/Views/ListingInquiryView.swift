@@ -167,7 +167,7 @@ struct ListingInquiryView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     TemplateButton(text: "Is this still available?") {
-                        let listingType = listing.dailyRate != nil ? "for rent" : "for sale"
+                        let listingType = listing.listingTypeDisplay.lowercased()
                         message = "Hi! I'm interested in \(listing.title). Is it still available \(listingType)?"
                     }
                     

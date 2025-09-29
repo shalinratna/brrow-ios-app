@@ -21,7 +21,7 @@ struct MessageComposerView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Recipient info
+                // Recipient info (stays at top)
                 HStack(spacing: 12) {
                     if let profilePicture = recipient?.profilePicture {
                         BrrowAsyncImage(url: profilePicture) { image in
@@ -40,94 +40,109 @@ struct MessageComposerView: View {
                             .font(.system(size: 40))
                             .foregroundColor(Theme.Colors.secondary)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(recipient?.username ?? "User")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(Theme.Colors.text)
-                            
+
                             if recipient?.isVerified == true {
                                 Image(systemName: "checkmark.seal.fill")
                                     .font(.system(size: 12))
                                     .foregroundColor(Theme.Colors.primary)
                             }
                         }
-                        
+
                         Text("About: \(listing.title)")
                             .font(.system(size: 14))
                             .foregroundColor(Theme.Colors.secondaryText)
                             .lineLimit(1)
                     }
-                    
+
                     Spacer()
                 }
                 .padding(16)
                 .background(Theme.Colors.secondaryBackground)
-                
-                // Quick responses
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        QuickResponseButton(text: "Is this still available?") {
-                            messageText = "Hi! Is this \(listing.title) still available for rent?"
+
+                // Scrollable content area
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Quick responses (now scrollable when keyboard appears)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Quick Responses")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                                .padding(.horizontal, 16)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    QuickResponseButton(text: "Is this still available?") {
+                                        messageText = "Hi! Is this \(listing.title) still available for rent?"
+                                    }
+
+                                    QuickResponseButton(text: "What's the condition?") {
+                                        messageText = "Hi! Can you tell me more about the condition of the \(listing.title)?"
+                                    }
+
+                                    QuickResponseButton(text: "Negotiate price") {
+                                        messageText = "Hi! I'm interested in renting the \(listing.title). Would you consider $\(Int(listing.price * 0.8))/day?"
+                                    }
+
+                                    QuickResponseButton(text: "Schedule pickup") {
+                                        messageText = "Hi! I'd like to rent the \(listing.title). When would be a good time to pick it up?"
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                            }
                         }
-                        
-                        QuickResponseButton(text: "What's the condition?") {
-                            messageText = "Hi! Can you tell me more about the condition of the \(listing.title)?"
+                        .padding(.vertical, 12)
+
+                        Divider()
+
+                        // Message input area
+                        VStack(spacing: 16) {
+                            TextEditor(text: $messageText)
+                                .padding(12)
+                                .background(Theme.Colors.secondaryBackground)
+                                .cornerRadius(12)
+                                .frame(minHeight: 120)
+
+                            Text("\(messageText.count)/500")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                         }
-                        
-                        QuickResponseButton(text: "Negotiate price") {
-                            messageText = "Hi! I'm interested in renting the \(listing.title). Would you consider $\(Int(listing.price * 0.8))/day?"
-                        }
-                        
-                        QuickResponseButton(text: "Schedule pickup") {
-                            messageText = "Hi! I'd like to rent the \(listing.title). When would be a good time to pick it up?"
-                        }
+                        .padding(16)
+                        .padding(.bottom, 80) // Extra padding to account for send button
                     }
-                    .padding(.horizontal, 16)
                 }
-                .padding(.vertical, 12)
-                
-                Divider()
-                
-                // Message input
-                VStack(spacing: 16) {
-                    TextEditor(text: $messageText)
-                        .padding(12)
-                        .background(Theme.Colors.secondaryBackground)
+
+                // Send button (stays at bottom, above keyboard)
+                VStack {
+                    Divider()
+                    Button(action: { sendMessage() }) {
+                        HStack {
+                            Text("Send Message")
+                                .font(.system(size: 18, weight: .semibold))
+
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Theme.Colors.primary)
                         .cornerRadius(12)
-                        .frame(minHeight: 120)
-                    
-                    Text("\(messageText.count)/500")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .padding(16)
-                
-                Spacer()
-                
-                // Send button
-                Button(action: { sendMessage() }) {
-                    HStack {
-                        Text("Send Message")
-                            .font(.system(size: 18, weight: .semibold))
-                        
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.8)
-                        }
+                        .opacity(messageText.isEmpty || isLoading ? 0.6 : 1)
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(Theme.Colors.primary)
-                    .cornerRadius(12)
-                    .opacity(messageText.isEmpty || isLoading ? 0.6 : 1)
+                    .disabled(messageText.isEmpty || isLoading || messageText.count > 500)
+                    .padding(16)
                 }
-                .disabled(messageText.isEmpty || isLoading || messageText.count > 500)
-                .padding(16)
+                .background(Theme.Colors.background)
             }
             .navigationTitle("Send Message")
             .navigationBarTitleDisplayMode(.inline)
@@ -137,6 +152,7 @@ struct MessageComposerView: View {
                     dismiss()
                 }
             )
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .alert("Error", isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -150,7 +166,7 @@ struct MessageComposerView: View {
                     id: recipient?.apiId ?? "",
                     username: recipient?.displayName ?? recipient?.username ?? "User",
                     profilePicture: recipient?.profilePicture,
-                    isVerified: recipient?.isVerified
+                    isVerified: recipient?.isVerified ?? false
                 )
                 let tempMessage = ChatMessage(
                     id: "",

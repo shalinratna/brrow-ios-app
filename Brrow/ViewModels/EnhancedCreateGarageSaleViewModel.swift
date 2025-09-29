@@ -16,6 +16,8 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
     // Basic info
     @Published var title = ""
     @Published var description = ""
+    @Published var selectedCategories: Set<String> = []
+    @Published var customTags: [String] = []
     
     // Date & time
     @Published var startDate = Date()
@@ -70,8 +72,11 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // Available categories for garage sales
+    let availableCategories = ["Electronics", "Furniture", "Clothing", "Books", "Toys", "Sports", "Tools", "Kitchen", "Home Decor", "Other"]
+
     // MARK: - Computed Properties
-    
+
     var hasValidLocation: Bool {
         return isAddressValid && formattedAddress != nil
     }
@@ -281,16 +286,16 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
                     location: formatted.standardFormat, // Added location field
                     latitude: mapRegion.center.latitude,
                     longitude: mapRegion.center.longitude,
-                    categories: [],
+                    categories: Array(selectedCategories),
                     photos: photoURLs,
                     images: photoURLs, // Also send as images
-                    tags: [], // Empty tags for now
+                    tags: customTags + Array(selectedCategories), // Combine custom tags with categories
                     showExactAddress: showExactAddress,
                     showPinOnMap: true,
                     isPublic: true,
                     startTime: startTimeStr,
                     endTime: endTimeStr,
-                    linkedListingIds: nil // No linked listings for now
+                    linkedListingIds: [] // Empty array instead of nil
                 )
                 
                 _ = try await apiClient.createGarageSale(request)

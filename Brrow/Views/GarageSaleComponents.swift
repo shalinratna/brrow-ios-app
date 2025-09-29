@@ -211,13 +211,7 @@ struct GarageSaleFullMapView: View {
         ZStack {
             // Map
             Map(coordinateRegion: $viewModel.region, annotationItems: viewModel.filteredGarageSales) { sale in
-                MapAnnotation(coordinate: sale.coordinate) {
-                    GarageSaleMapPin(sale: sale)
-                        .onTapGesture {
-                            selectedSale = sale
-                            showDetails = true
-                        }
-                }
+                MapPin(coordinate: sale.coordinate, tint: .red)
             }
             .ignoresSafeArea()
             .overlay(
