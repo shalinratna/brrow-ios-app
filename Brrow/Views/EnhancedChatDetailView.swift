@@ -22,9 +22,12 @@ struct EnhancedChatDetailView: View {
     }
     @State private var showingImagePicker = false
     @State private var showingCamera = false
+    @State private var showingVideoPicker = false
     @State private var isRecordingVoice = false
     @State private var showingVideoCall = false
     @State private var keyboardHeight: CGFloat = 0
+    @State private var isTyping = false
+    @State private var typingTimer: Timer?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -49,6 +52,11 @@ struct EnhancedChatDetailView: View {
         }
         .sheet(isPresented: $showingCamera) {
             BrrowCameraView()
+        }
+        .sheet(isPresented: $showingVideoPicker) {
+            VideoPicker { videoURL in
+                viewModel.uploadAndSendVideo(videoURL, to: conversation.id)
+            }
         }
         .fullScreenCover(isPresented: $showingVideoCall) {
             VideoCallView(conversation: conversation)
@@ -143,13 +151,27 @@ struct EnhancedChatDetailView: View {
         ScrollViewReader { proxy in
             let scrollContent = ScrollView {
                 LazyVStack(spacing: 12) {
+                    // Listing Context Banner (for listing conversations)
+                    if conversation.isListingChat, let listing = conversation.listing {
+                        ListingContextBanner(listing: listing)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                    }
+
+                    // Messages
                     ForEach(viewModel.messages, id: \.id) { message in
                         let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.apiId
                         EnhancedMessageBubble(
-                            message: message.toEnhancedChatMessage(),
+                            message: message,
                             isFromCurrentUser: isFromCurrentUser
                         )
                         .id(message.id)
+                    }
+
+                    // Typing Indicator
+                    if viewModel.otherUserIsTyping {
+                        TypingIndicator(username: conversation.otherUser.username)
+                            .transition(.opacity)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -162,6 +184,12 @@ struct EnhancedChatDetailView: View {
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)
                         }
+                    }
+                }
+                .onChange(of: viewModel.otherUserIsTyping) { _ in
+                    // Scroll to bottom when typing indicator appears
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        proxy.scrollTo("typing", anchor: .bottom)
                     }
                 }
         }
@@ -180,11 +208,15 @@ struct EnhancedChatDetailView: View {
                     Button(action: { showingImagePicker = true }) {
                         Label("Photo Library", systemImage: "photo")
                     }
-                    
+
+                    Button(action: { showingVideoPicker = true }) {
+                        Label("Video", systemImage: "video")
+                    }
+
                     Button(action: { showingCamera = true }) {
                         Label("Camera", systemImage: "camera")
                     }
-                    
+
                     Button(action: { /* Send location */ }) {
                         Label("Location", systemImage: "location")
                     }
@@ -201,6 +233,9 @@ struct EnhancedChatDetailView: View {
                         .font(.system(size: 16))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
+                        .onChange(of: messageText) { newValue in
+                            handleTextChange(newValue)
+                        }
                     
                     if messageText.isEmpty {
                         // Voice recording button
@@ -316,58 +351,194 @@ struct EnhancedChatDetailView: View {
         // In a real app, this would initiate a video call
         showingVideoCall = true
     }
+
+    // MARK: - Typing Indicator Handling
+    private func handleTextChange(_ newValue: String) {
+        // Cancel existing timer
+        typingTimer?.invalidate()
+
+        if !newValue.isEmpty && !isTyping {
+            // Start typing
+            isTyping = true
+            viewModel.sendTypingIndicator(chatId: conversation.id, isTyping: true)
+        }
+
+        if !newValue.isEmpty {
+            // Set timer to auto-stop typing after 3 seconds
+            typingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                stopTyping()
+            }
+        } else {
+            // Stop typing immediately if text is empty
+            stopTyping()
+        }
+    }
+
+    private func stopTyping() {
+        if isTyping {
+            isTyping = false
+            viewModel.sendTypingIndicator(chatId: conversation.id, isTyping: false)
+        }
+        typingTimer?.invalidate()
+        typingTimer = nil
+    }
+}
+
+// MARK: - Listing Context Banner
+struct ListingContextBanner: View {
+    let listing: ListingPreview
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Listing Thumbnail
+            if let imageUrl = listing.imageUrl {
+                BrrowAsyncImage(url: imageUrl) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .foregroundColor(Theme.Colors.divider)
+                }
+                .frame(width: 60, height: 60)
+                .cornerRadius(Theme.CornerRadius.sm)
+            }
+
+            // Listing Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(listing.title)
+                    .font(Theme.Typography.callout)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.text)
+                    .lineLimit(2)
+
+                if let price = listing.price {
+                    Text("$\(String(format: "%.2f", price))")
+                        .font(Theme.Typography.body)
+                        .fontWeight(.bold)
+                        .foregroundColor(Theme.Colors.primary)
+                }
+
+                Text(listing.availabilityStatus)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(listing.availabilityStatus == "AVAILABLE" ? .green : .orange)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12))
+                .foregroundColor(Theme.Colors.secondaryText)
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.md)
+    }
+}
+
+// MARK: - Typing Indicator
+struct TypingIndicator: View {
+    let username: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("\(username) is typing")
+                .font(Theme.Typography.caption)
+                .foregroundColor(Theme.Colors.secondaryText)
+                .italic()
+
+            HStack(spacing: 4) {
+                ForEach(0..<3) { index in
+                    Circle()
+                        .fill(Theme.Colors.secondaryText)
+                        .frame(width: 6, height: 6)
+                        .opacity(0.3)
+                        .animation(
+                            Animation.easeInOut(duration: 0.6)
+                                .repeatForever()
+                                .delay(Double(index) * 0.2),
+                            value: UUID()
+                        )
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
 }
 
 // MARK: - Enhanced Message Bubble
 struct EnhancedMessageBubble: View {
-    let message: EnhancedChatMessage
+    let message: ChatMessage
     let isFromCurrentUser: Bool
-    
+
     var body: some View {
         HStack {
             if isFromCurrentUser {
                 Spacer(minLength: 50)
             }
-            
+
             VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
                 // Message content based on type
                 messageContent
-                
-                // Message metadata
+
+                // Message metadata with enhanced read receipts
                 HStack(spacing: 4) {
                     Text(timeString)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                    
+
                     if isFromCurrentUser {
-                        Image(systemName: message.isRead ? "checkmark.circle.fill" : "checkmark.circle")
-                            .font(.system(size: 11))
-                            .foregroundColor(message.isRead ? Theme.Colors.primary : .secondary)
+                        // Enhanced delivery status icons
+                        deliveryStatusIcon
+
+                        // Show formatted read time on tap/hover
+                        if let readTime = message.formattedReadTime {
+                            Text(readTime)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
-            
+
             if !isFromCurrentUser {
                 Spacer(minLength: 50)
             }
         }
     }
+
+    // MARK: - Delivery Status Icon
+    @ViewBuilder
+    private var deliveryStatusIcon: some View {
+        switch message.deliveryStatus {
+        case .sent:
+            Image(systemName: "checkmark")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        case .delivered:
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        case .read:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 11))
+                .foregroundColor(Theme.Colors.primary)
+        }
+    }
     
     @ViewBuilder
     private var messageContent: some View {
-        switch message.type {
+        switch message.messageType {
         case .text:
             textMessageView
         case .image:
             imageMessageView
         case .video:
             videoMessageView
-        case .voice:
-            voiceMessageView
         case .location:
             locationMessageView
-        case .system:
-            systemMessageView
+        case .listing, .listingReference:
+            listingMessageView
         }
     }
     
@@ -416,61 +587,63 @@ struct EnhancedMessageBubble: View {
     
     private var videoMessageView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let url = URL(string: message.content) {
-                AsyncImage(url: url) { image in
+            // Video thumbnail with play button
+            if let thumbnailUrl = message.thumbnailUrl {
+                BrrowAsyncImage(url: thumbnailUrl) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .overlay(
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(.white)
-                                .shadow(radius: 4)
-                        )
                 } placeholder: {
                     Rectangle()
                         .fill(Theme.Colors.surface)
-                        .overlay(
-                            ProgressView()
-                        )
+                        .overlay(ProgressView())
                 }
                 .frame(maxWidth: 200, maxHeight: 150)
                 .cornerRadius(12)
-                .clipped()
+                .overlay(
+                    ZStack {
+                        // Play button overlay
+                        Circle()
+                            .fill(Color.black.opacity(0.5))
+                            .frame(width: 50, height: 50)
+
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                    }
+                )
+                .overlay(
+                    // Video duration badge
+                    Group {
+                        if let duration = message.videoDuration {
+                            Text(formatDuration(duration))
+                                .font(.system(size: 11))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(4)
+                        }
+                    },
+                    alignment: .bottomTrailing
+                )
+                .padding(4)
+            }
+
+            if !message.content.isEmpty {
+                Text(message.content)
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.text)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
             }
         }
     }
-    
-    private var voiceMessageView: some View {
-        HStack(spacing: 12) {
-            Button(action: {
-                // Play/pause voice message
-            }) {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(isFromCurrentUser ? .white : Theme.Colors.primary)
-            }
-            
-            // Waveform visualization
-            HStack(spacing: 2) {
-                ForEach(0..<20, id: \.self) { _ in
-                    Rectangle()
-                        .fill(isFromCurrentUser ? Color.white.opacity(0.7) : Theme.Colors.primary.opacity(0.7))
-                        .frame(width: 2, height: CGFloat.random(in: 4...16))
-                        .cornerRadius(1)
-                }
-            }
-            
-            Text("0:15")
-                .font(.system(size: 12))
-                .foregroundColor(isFromCurrentUser ? .white.opacity(0.8) : Theme.Colors.secondaryText)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(isFromCurrentUser ? Theme.Colors.primary : Theme.Colors.surface)
-        )
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%d:%02d", mins, secs)
     }
     
     private var locationMessageView: some View {
@@ -490,51 +663,41 @@ struct EnhancedMessageBubble: View {
                             .foregroundColor(Theme.Colors.text)
                     }
                 )
-            
+
             Text("Current Location")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(Theme.Colors.text)
         }
         .frame(width: 200)
     }
-    
-    private var systemMessageView: some View {
-        Text(message.content)
-            .font(.system(size: 12))
-            .foregroundColor(Theme.Colors.secondaryText)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Theme.Colors.surface.opacity(0.5))
-            )
-    }
-    
-    private var timeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: Date()) // Would use message.createdAt
-    }
-}
 
-// MARK: - Enhanced Chat Message Model
-struct EnhancedChatMessage: Identifiable, Codable {
-    let id: String
-    let senderId: String
-    let receiverId: String
-    let content: String
-    let type: MessageType
-    let mediaUrl: String?
-    let createdAt: Date
-    let isRead: Bool
-    
-    enum MessageType: String, Codable {
-        case text = "text"
-        case image = "image"
-        case video = "video"
-        case voice = "voice"
-        case location = "location"
-        case system = "system"
+    private var listingMessageView: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "tag.fill")
+                .font(.system(size: 20))
+                .foregroundColor(Theme.Colors.primary)
+
+            Text("Shared a listing")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Theme.Colors.text)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(isFromCurrentUser ? Theme.Colors.primary.opacity(0.1) : Theme.Colors.surface)
+        )
+    }
+
+    private var timeString: String {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: message.createdAt) else {
+            return "Now"
+        }
+
+        let timeFormatter = DateFormatter()
+        timeFormatter.timeStyle = .short
+        return timeFormatter.string(from: date)
     }
 }
 

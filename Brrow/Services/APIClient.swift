@@ -1434,24 +1434,30 @@ class APIClient: ObservableObject {
     
     func updateListing(listingId: String, updates: [String: Any]) async throws -> Listing {
         let bodyData = try JSONSerialization.data(withJSONObject: updates)
-        
+
         struct UpdateListingAPIResponse: Codable {
             let success: Bool
             let listing: Listing?
             let error: String?
         }
-        
+
         let response = try await performRequest(
             endpoint: "api/listings/\(listingId)",
             method: .PUT,
             body: bodyData,
-            responseType: UpdateListingAPIResponse.self
+            responseType: UpdateListingAPIResponse.self,
+            cachePolicy: .ignoreCache // Don't use cache for updates
         )
-        
+
         guard response.success, let updatedListing = response.listing else {
             throw BrrowAPIError.serverError(response.error ?? "Failed to update listing")
         }
-        
+
+        // CRITICAL FIX: Clear cache for this specific listing to force fresh data on next read
+        let cacheKey = CacheManager.shared.apiCacheKey(endpoint: "api/listings/\(listingId)", parameters: nil)
+        CacheManager.shared.remove(forKey: cacheKey)
+        debugLog("🗑️ Cleared cache for listing: \(listingId)")
+
         return updatedListing
     }
     
@@ -1552,17 +1558,23 @@ class APIClient: ObservableObject {
     
     func updateListingField(listingId: String, field: String, value: Any) async throws {
         let body: [String: Any] = [field: value]
-        
+
         let response = try await performRequest(
             endpoint: "api/listings/\(listingId)",
             method: "PATCH",
             body: try JSONSerialization.data(withJSONObject: body),
-            responseType: APIResponse<EmptyResponse>.self
+            responseType: APIResponse<EmptyResponse>.self,
+            cachePolicy: .ignoreCache // Don't use cache for updates
         )
-        
+
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to update listing")
         }
+
+        // CRITICAL FIX: Clear cache for this specific listing to force fresh data on next read
+        let cacheKey = CacheManager.shared.apiCacheKey(endpoint: "api/listings/\(listingId)", parameters: nil)
+        CacheManager.shared.remove(forKey: cacheKey)
+        debugLog("🗑️ Cleared cache for listing: \(listingId)")
     }
     
     func updateListingBulk(listingId: String, updates: [String: Any]) async throws {
@@ -1570,12 +1582,18 @@ class APIClient: ObservableObject {
             endpoint: "api/listings/\(listingId)",
             method: "PATCH",
             body: try JSONSerialization.data(withJSONObject: updates),
-            responseType: APIResponse<EmptyResponse>.self
+            responseType: APIResponse<EmptyResponse>.self,
+            cachePolicy: .ignoreCache // Don't use cache for updates
         )
-        
+
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to update listing")
         }
+
+        // CRITICAL FIX: Clear cache for this specific listing to force fresh data on next read
+        let cacheKey = CacheManager.shared.apiCacheKey(endpoint: "api/listings/\(listingId)", parameters: nil)
+        CacheManager.shared.remove(forKey: cacheKey)
+        debugLog("🗑️ Cleared cache for listing: \(listingId)")
     }
     
     // MARK: - Rental Transaction Operations
@@ -3083,43 +3101,122 @@ class APIClient: ObservableObject {
         return data
     }
     
-    // MARK: - Chat
+    // MARK: - Chat (Enhanced Dual Messaging System)
+
+    /// Legacy method for backward compatibility
     func fetchConversations() async throws -> [Conversation] {
+        let result = try await fetchConversations(type: nil, limit: 20, offset: 0, search: nil)
+        return result.conversations
+    }
+
+    /// Enhanced method with dual messaging support
+    func fetchConversations(type: String?, limit: Int = 20, offset: Int = 0, search: String?) async throws -> (conversations: [Conversation], hasMore: Bool) {
+        var endpoint = "api/messages/chats?limit=\(limit)&offset=\(offset)"
+
+        if let type = type {
+            endpoint += "&type=\(type)"
+        }
+
+        if let search = search, !search.isEmpty {
+            endpoint += "&search=\(search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? search)"
+        }
+
+        struct PaginatedConversationsResponse: Codable {
+            let success: Bool
+            let data: [Conversation]
+            let pagination: PaginationInfo
+        }
+
+        struct PaginationInfo: Codable {
+            let total: Int
+            let limit: Int
+            let offset: Int
+            let hasMore: Bool
+        }
+
         do {
-            // Try the new format first
             let response = try await performRequest(
-                endpoint: "api/conversations",
+                endpoint: endpoint,
                 method: .GET,
-                responseType: FetchConversationsResponse.self
+                responseType: PaginatedConversationsResponse.self
             )
-            return response.data.conversations
-        } catch let decodingError {
-            // Log the actual error for debugging
-            print("❌ Conversations decoding error: \(decodingError)")
-            
-            // If that fails, try the alternative format with count instead of pagination
-            struct AlternativeConversationsResponse: Codable {
-                let success: Bool
-                let data: AlternativeConversationsData
-                let message: String?  // Make message optional
-            }
-            
-            struct AlternativeConversationsData: Codable {
-                let conversations: [Conversation]
-                let count: Int?  // Make count optional
-            }
-            
-            do {
-                let response = try await performRequest(
-                    endpoint: "api/conversations",
-                    method: .GET,
-                    responseType: AlternativeConversationsResponse.self
-                )
-                return response.data.conversations
-            } catch {
-                // Return empty array if no conversations found
-                return []
-            }
+            return (conversations: response.data, hasMore: response.pagination.hasMore)
+        } catch {
+            print("❌ Error fetching conversations: \(error)")
+            return (conversations: [], hasMore: false)
+        }
+    }
+
+    /// Fetch unread counts by type
+    func fetchUnreadCounts() async throws -> UnreadCounts {
+        let response = try await performRequest(
+            endpoint: "api/messages/unread-counts",
+            method: .GET,
+            responseType: APIResponse<UnreadCounts>.self
+        )
+
+        guard response.success, let counts = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch unread counts")
+        }
+
+        return counts
+    }
+
+    /// Create or get listing conversation
+    func createListingConversation(listingId: String) async throws -> Conversation {
+        let bodyDict = ["listingId": listingId]
+        let bodyData = try JSONEncoder().encode(bodyDict)
+
+        let response = try await performRequest(
+            endpoint: "api/messages/chats/listing",
+            method: .POST,
+            body: bodyData,
+            responseType: APIResponse<Conversation>.self
+        )
+
+        guard response.success, let conversation = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to create listing conversation")
+        }
+
+        return conversation
+    }
+
+    /// Hide chat (soft delete)
+    func hideChat(chatId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/messages/chats/\(chatId)/hide",
+            method: .DELETE,
+            responseType: APIResponse<String>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to hide chat")
+        }
+    }
+
+    /// Block user
+    func blockUser(userId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/messages/\(userId)/block",
+            method: .POST,
+            responseType: APIResponse<String>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to block user")
+        }
+    }
+
+    /// Unblock user
+    func unblockUser(userId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/messages/\(userId)/block",
+            method: .DELETE,
+            responseType: APIResponse<String>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to unblock user")
         }
     }
     
