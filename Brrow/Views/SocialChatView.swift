@@ -11,15 +11,17 @@ struct SocialChatView: View {
     @EnvironmentObject var viewModel: ChatListViewModel
     @State private var searchText = ""
     @State private var showingFeedbackHelp = false
-    
+    @State private var showDeleteConfirmation = false
+    @State private var conversationToDelete: Conversation?
+
     var body: some View {
         VStack(spacing: 0) {
                 // Header
                 chatHeader
-                
+
                 // Search bar
                 searchBar
-                
+
                 // Chat list
                 chatList
             }
@@ -27,6 +29,11 @@ struct SocialChatView: View {
             .navigationBarHidden(true)
             .sheet(isPresented: $showingFeedbackHelp) {
                 FeedbackHelpView()
+            }
+            .onAppear {
+                // CRITICAL: Refresh conversations when view appears to show newly created conversations
+                print("📱 [SocialChatView] View appeared, refreshing conversations with cache bypass")
+                viewModel.fetchConversations(bypassCache: true)
             }
     }
     
@@ -77,9 +84,28 @@ struct SocialChatView: View {
                             SocialConversationRow(conversation: conversation)
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                conversationToDelete = conversation
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash.fill")
+                            }
+                        }
                     }
                 }
             }
+        }
+        .alert("Delete Conversation?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let conversation = conversationToDelete {
+                    viewModel.deleteConversation(conversation)
+                    conversationToDelete = nil
+                }
+            }
+        } message: {
+            Text("This conversation will be deleted. This action cannot be undone.")
         }
     }
     
