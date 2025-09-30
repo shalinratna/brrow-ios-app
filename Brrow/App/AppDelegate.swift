@@ -250,14 +250,24 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
 
+        print("🔔 [AppDelegate] Notification tapped, userInfo: \(userInfo)")
+
         // Handle notification tap
         if let chatId = userInfo["chatId"] as? String {
-            // Navigate to specific chat
-            NotificationCenter.default.post(
-                name: .navigateToChat,
-                object: nil,
-                userInfo: ["chatId": chatId]
-            )
+            print("🔔 [AppDelegate] Extracted chatId: \(chatId)")
+
+            // CRITICAL FIX: Delay navigation to ensure app UI is fully loaded
+            // This prevents race conditions when app launches from notification
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                print("🔔 [AppDelegate] Posting navigateToChat notification")
+                NotificationCenter.default.post(
+                    name: .navigateToChat,
+                    object: nil,
+                    userInfo: ["chatId": chatId]
+                )
+            }
+        } else {
+            print("⚠️ [AppDelegate] No chatId found in notification payload")
         }
 
         completionHandler()

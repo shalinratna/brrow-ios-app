@@ -31,6 +31,9 @@ class WebSocketManager: NSObject, ObservableObject {
     private var typingUsers: [String: Date] = [:]
     private var connectedUsers: Set<String> = []
 
+    // CRITICAL FIX: Queue chat joins that happen before connection is ready
+    private var pendingChatJoins: Set<String> = []
+
     enum ConnectionStatus {
         case disconnected
         case connecting
@@ -186,14 +189,24 @@ class WebSocketManager: NSObject, ObservableObject {
     }
 
     func joinChat(chatId: String) {
-        guard isConnected, let socket = socket else {
-            print("⚠️ [WebSocket] Cannot join chat - not connected")
+        guard let socket = socket else {
+            print("⚠️ [WebSocket] Socket not initialized")
+            return
+        }
+
+        if !isConnected {
+            // CRITICAL FIX: Queue the join request to execute after connection
+            print("⏳ [WebSocket] Not connected yet, queuing chat join: \(chatId)")
+            pendingChatJoins.insert(chatId)
             return
         }
 
         // CRITICAL FIX: Backend expects chatId as a string, not {chatId: "xxx"}
         socket.emit("join_chat", chatId)
         print("🚪 [WebSocket] Joined chat \(chatId)")
+
+        // Remove from pending if it was queued
+        pendingChatJoins.remove(chatId)
     }
 
     func leaveChat(chatId: String) {
@@ -343,6 +356,18 @@ class WebSocketManager: NSObject, ObservableObject {
         NotificationCenter.default.post(name: .webSocketConnected, object: nil)
 
         print("✅ WebSocket connected successfully")
+
+        // CRITICAL FIX: Process any pending chat joins that were queued before connection
+        if !pendingChatJoins.isEmpty {
+            print("🔄 [WebSocket] Processing \(pendingChatJoins.count) pending chat joins...")
+            let chatsToJoin = Array(pendingChatJoins)
+            pendingChatJoins.removeAll()
+
+            // Join all queued chats
+            for chatId in chatsToJoin {
+                joinChat(chatId: chatId)
+            }
+        }
     }
 
     private func handleDisconnection() {
