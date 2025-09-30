@@ -54,6 +54,21 @@ class ChatListViewModel: ObservableObject {
                 self?.fetchConversations(bypassCache: true)
             }
             .store(in: &cancellables)
+
+        // CRITICAL FIX: Listen for sent messages to update conversation preview
+        NotificationCenter.default.publisher(for: .messageSent)
+            .sink { [weak self] notification in
+                guard let conversationId = notification.object as? String,
+                      let userInfo = notification.userInfo,
+                      let message = userInfo["message"] as? Message else {
+                    return
+                }
+
+                print("✅ [ChatListViewModel] messageSent received for conversation: \(conversationId)")
+                print("   Message content: \(message.content)")
+                self?.updateConversationPreview(conversationId: conversationId, message: message)
+            }
+            .store(in: &cancellables)
     }
     
     func loadConversations() {
@@ -202,15 +217,58 @@ class ChatListViewModel: ObservableObject {
                 unreadCount: message.senderId != (authManager.currentUser?.id ?? "") ? 1 : 0,
                 updatedAt: message.createdAt
             )
-            
+
             // Remove old conversation and insert updated one at top
             conversations.remove(at: index)
             conversations.insert(updatedConversation, at: 0)
-            
+
             unreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
         }
     }
-    
+
+    private func updateConversationPreview(conversationId: String, message: Message) {
+        // Find the conversation by ID
+        guard let index = conversations.firstIndex(where: { $0.id == conversationId }) else {
+            print("⚠️ [ChatListViewModel] Conversation not found: \(conversationId)")
+            return
+        }
+
+        print("✅ [ChatListViewModel] Updating conversation at index \(index)")
+
+        // Convert Message to ChatMessage for the conversation preview
+        let chatMessage = ChatMessage(
+            id: message.id,
+            senderId: message.senderId,
+            receiverId: message.receiverId,
+            content: message.content,
+            messageType: message.messageType,
+            createdAt: message.createdAt,
+            isRead: message.isRead
+        )
+
+        // Create updated conversation with new lastMessage
+        let updatedConversation = Conversation(
+            id: conversations[index].id,
+            otherUser: conversations[index].otherUser,
+            lastMessage: chatMessage,
+            unreadCount: 0, // Don't increment unread for our own messages
+            updatedAt: message.createdAt
+        )
+
+        // Remove old conversation and insert updated one at top (like iMessage)
+        conversations.remove(at: index)
+        conversations.insert(updatedConversation, at: 0)
+
+        // Also update filtered conversations if search is active
+        if !searchQuery.isEmpty {
+            searchConversations(query: searchQuery)
+        } else {
+            filteredConversations = conversations
+        }
+
+        print("✅ [ChatListViewModel] Conversation preview updated and moved to top")
+    }
+
     func startConversation(with user: User, about item: Listing? = nil) -> Conversation {
         let otherUser = ConversationUser(
             id: user.id,

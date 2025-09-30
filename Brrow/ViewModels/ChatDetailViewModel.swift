@@ -103,12 +103,29 @@ class ChatDetailViewModel: ObservableObject {
             sender: nil,
             reactions: nil
         )
-        
+
         messages.append(message)
-        
+
         // Send to server
         Task {
-            try await sendMessageToServer(message, conversationId: conversationId)
+            do {
+                try await sendMessageToServer(message, conversationId: conversationId)
+
+                // CRITICAL FIX: Update conversation preview with latest message
+                await MainActor.run {
+                    print("✅ [ChatDetailViewModel] Message sent successfully, updating conversation list")
+                    NotificationCenter.default.post(
+                        name: .messageSent,
+                        object: conversationId,
+                        userInfo: [
+                            "message": message,
+                            "conversationId": conversationId
+                        ]
+                    )
+                }
+            } catch {
+                print("❌ [ChatDetailViewModel] Failed to send message: \(error)")
+            }
         }
     }
     
