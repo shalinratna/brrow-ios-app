@@ -97,7 +97,7 @@ class WebSocketManager: NSObject, ObservableObject {
         connectionStatus = .connecting
 
         // Configure Socket.io with authentication
-        // CRITICAL: Use .auth() to send token in socket.handshake.auth
+        // CRITICAL: Socket.io auth is sent via extraHeaders and connectParams
         let config: SocketIOClientConfiguration = [
             .log(true),
             .compress,
@@ -106,7 +106,8 @@ class WebSocketManager: NSObject, ObservableObject {
             .reconnects(true),
             .reconnectAttempts(-1),
             .reconnectWait(2),
-            .auth(["token": token])  // This sends token in socket.handshake.auth
+            .extraHeaders(["Authorization": "Bearer \(token)"]),
+            .connectParams(["token": token])
         ]
 
         manager = SocketManager(socketURL: URL(string: serverURL)!, config: config)
@@ -209,14 +210,10 @@ class WebSocketManager: NSObject, ObservableObject {
     }
 
     func updatePresence(status: String) {
-        let messageData: [String: Any] = [
-            "event": SocketEvent.updatePresence.rawValue,
-            "data": [
-                "status": status
-            ]
-        ]
+        guard isConnected, let socket = socket else { return }
 
-        sendMessage(messageData)
+        socket.emit("update_presence", ["status": status])
+        print("🟢 [WebSocket] Updated presence to \(status)")
     }
 
     // Removed: Old URLSessionWebSocketTask-based sendMessage - now using Socket.io emit()
@@ -480,6 +477,42 @@ class WebSocketManager: NSObject, ObservableObject {
             name: .userOnline,
             object: userId
         )
+    }
+
+    private func handleUserOffline(_ data: Any) {
+        guard let offlineData = data as? [String: Any],
+              let userId = offlineData["userId"] as? String else { return }
+
+        connectedUsers.remove(userId)
+
+        NotificationCenter.default.post(
+            name: .contactStatusChanged,
+            object: userId,
+            userInfo: ["isOnline": false]
+        )
+    }
+
+    private func handleTypingIndicator(_ data: Any) {
+        guard let typingData = data as? [String: Any],
+              let chatId = typingData["chatId"] as? String,
+              let userId = typingData["userId"] as? String,
+              let isTyping = typingData["isTyping"] as? Bool else { return }
+
+        if isTyping {
+            typingUsers[chatId] = Date()
+            NotificationCenter.default.post(
+                name: .userTyping,
+                object: chatId,
+                userInfo: ["userId": userId]
+            )
+        } else {
+            typingUsers.removeValue(forKey: chatId)
+            NotificationCenter.default.post(
+                name: .userStoppedTyping,
+                object: chatId,
+                userInfo: ["userId": userId]
+            )
+        }
     }
 
     private func handleContactStatus(_ data: Any) {
