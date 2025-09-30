@@ -63,6 +63,17 @@ struct ModernChatView: View {
                     keyboardHeight = height
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .newMessageReceived)) { notification in
+                // CRITICAL: Handle real-time messages from WebSocket
+                guard let message = notification.object as? Message,
+                      let chatId = notification.userInfo?["chatId"] as? String,
+                      chatId == conversation.id else { return }
+
+                print("💬 [ModernChatView] Received real-time message for chat \(chatId)")
+
+                // Reload messages to show the new message
+                viewModel.loadMessages(for: conversation.id)
+            }
         }
         .sheet(isPresented: $showingAttachmentMenu) {
             ModernAttachmentMenu { attachment in

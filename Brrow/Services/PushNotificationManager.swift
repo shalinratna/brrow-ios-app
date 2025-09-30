@@ -193,27 +193,28 @@ class PushNotificationManager: NSObject, ObservableObject {
     
     func handleNotificationAction(_ notification: AppNotification) {
         // Navigate based on notification type
-        switch notification.type {
-        case "rental_request", "rental_accepted", "rental_rejected":
+        switch notification.type.uppercased() {  // CRITICAL FIX: Backend sends uppercase types
+        case "RENTAL_REQUEST", "RENTAL_ACCEPTED", "RENTAL_REJECTED":
             if let transactionId = notification.data["transaction_id"] as? String {
                 navigateToRental(transactionId: transactionId)
             }
-            
-        case "message":
-            if let conversationId = notification.data["conversation_id"] as? String {
-                navigateToConversation(conversationId: conversationId)
+
+        case "MESSAGE":  // CRITICAL FIX: Backend sends "MESSAGE" not "message"
+            // CRITICAL FIX: Backend sends "chatId" not "conversation_id"
+            if let chatId = notification.data["chatId"] as? String {
+                navigateToConversation(conversationId: chatId)
             }
-            
-        case "new_listing":
+
+        case "NEW_LISTING":
             if let listingId = notification.data["listing_id"] as? String {
                 navigateToListing(listingId: listingId)
             }
-            
-        case "garage_sale":
+
+        case "GARAGE_SALE":
             if let saleId = notification.data["sale_id"] as? String {
                 navigateToGarageSale(saleId: saleId)
             }
-            
+
         default:
             break
         }
@@ -228,10 +229,12 @@ class PushNotificationManager: NSObject, ObservableObject {
     }
     
     private func navigateToConversation(conversationId: String) {
+        // CRITICAL FIX: Post .navigateToChat (not .navigateToConversation)
+        // because NativeMainTabView listens for .navigateToChat
         NotificationCenter.default.post(
-            name: .navigateToConversation,
+            name: .navigateToChat,
             object: nil,
-            userInfo: ["conversationId": conversationId]
+            userInfo: ["chatId": conversationId]  // Changed key from conversationId to chatId
         )
     }
     
