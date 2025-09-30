@@ -15,26 +15,46 @@ struct SocialChatView: View {
     @State private var conversationToDelete: Conversation?
 
     var body: some View {
-        VStack(spacing: 0) {
-                // Header
-                chatHeader
+        ZStack {
+            VStack(spacing: 0) {
+                    // Header
+                    chatHeader
 
-                // Search bar
-                searchBar
+                    // Search bar
+                    searchBar
 
-                // Chat list
-                chatList
+                    // Chat list
+                    chatList
+                }
+                .background(Theme.Colors.background)
+                .navigationBarHidden(true)
+                .sheet(isPresented: $showingFeedbackHelp) {
+                    FeedbackHelpView()
+                }
+                .onAppear {
+                    // CRITICAL: Refresh conversations when view appears to show newly created conversations
+                    print("📱 [SocialChatView] View appeared, refreshing conversations with cache bypass")
+                    viewModel.fetchConversations(bypassCache: true)
+                }
+
+            // CRITICAL: Hidden NavigationLink for programmatic navigation from notifications
+            if let selectedId = viewModel.selectedChatId,
+               let selectedConversation = viewModel.conversations.first(where: { $0.id == selectedId }) {
+                NavigationLink(
+                    destination: ChatDetailView(conversation: selectedConversation),
+                    isActive: Binding(
+                        get: { viewModel.selectedChatId != nil },
+                        set: { if !$0 { viewModel.selectedChatId = nil } }
+                    )
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+                .onAppear {
+                    print("🔔 [SocialChatView] Programmatically navigating to chat: \(selectedId)")
+                }
             }
-            .background(Theme.Colors.background)
-            .navigationBarHidden(true)
-            .sheet(isPresented: $showingFeedbackHelp) {
-                FeedbackHelpView()
-            }
-            .onAppear {
-                // CRITICAL: Refresh conversations when view appears to show newly created conversations
-                print("📱 [SocialChatView] View appeared, refreshing conversations with cache bypass")
-                viewModel.fetchConversations(bypassCache: true)
-            }
+        }
     }
     
     // MARK: - Chat Header

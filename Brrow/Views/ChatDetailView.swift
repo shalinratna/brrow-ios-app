@@ -55,6 +55,23 @@ struct ChatDetailView: View {
         .background(Theme.Colors.background)
         .onAppear {
             viewModel.loadMessages(for: conversation.id)
+            // Join the WebSocket room for this chat
+            WebSocketManager.shared.joinChat(chatId: conversation.id)
+        }
+        .onDisappear {
+            // Leave the WebSocket room when exiting chat
+            WebSocketManager.shared.leaveChat(chatId: conversation.id)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .newMessageReceived)) { notification in
+            // CRITICAL: Handle real-time messages from WebSocket
+            guard let message = notification.object as? Message,
+                  let chatId = notification.userInfo?["chatId"] as? String,
+                  chatId == conversation.id else { return }
+
+            print("💬 [ChatDetailView] Received real-time message for chat \(chatId)")
+
+            // Reload messages to show the new message
+            viewModel.loadMessages(for: conversation.id)
         }
         .onChange(of: selectedPhotosItem) { newItem in
             Task {

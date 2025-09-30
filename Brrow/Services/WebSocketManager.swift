@@ -186,16 +186,21 @@ class WebSocketManager: NSObject, ObservableObject {
     }
 
     func joinChat(chatId: String) {
-        guard isConnected, let socket = socket else { return }
+        guard isConnected, let socket = socket else {
+            print("⚠️ [WebSocket] Cannot join chat - not connected")
+            return
+        }
 
-        socket.emit("join_chat", ["chatId": chatId])
+        // CRITICAL FIX: Backend expects chatId as a string, not {chatId: "xxx"}
+        socket.emit("join_chat", chatId)
         print("🚪 [WebSocket] Joined chat \(chatId)")
     }
 
     func leaveChat(chatId: String) {
         guard isConnected, let socket = socket else { return }
 
-        socket.emit("leave_chat", ["chatId": chatId])
+        // CRITICAL FIX: Backend expects chatId as a string, not {chatId: "xxx"}
+        socket.emit("leave_chat", chatId)
         print("🚪 [WebSocket] Left chat \(chatId)")
     }
 
@@ -213,7 +218,7 @@ class WebSocketManager: NSObject, ObservableObject {
         guard isConnected, let socket = socket else { return }
 
         socket.emit("update_presence", ["status": status])
-        print("🟢 [WebSocket] Updated presence to \(status)")
+        print("🟢 [WebSock3et] Updated presence to \(status)")
     }
 
     // Removed: Old URLSessionWebSocketTask-based sendMessage - now using Socket.io emit()
