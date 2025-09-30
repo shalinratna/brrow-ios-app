@@ -388,25 +388,39 @@ class WebSocketManager: NSObject, ObservableObject {
     }
 
     private func handleNewMessage(_ data: Any) {
-        guard let messageData = data as? [String: Any] else { return }
+        print("📩 [WebSocket] handleNewMessage called with data type: \(type(of: data))")
+
+        guard let messageData = data as? [String: Any] else {
+            print("❌ [WebSocket] Failed to cast data as [String: Any]")
+            return
+        }
+
+        print("📩 [WebSocket] Message data keys: \(messageData.keys.joined(separator: ", "))")
 
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: messageData)
             let message = try JSONDecoder().decode(Message.self, from: jsonData)
 
+            print("✅ [WebSocket] Successfully decoded message: \(message.id) in chat: \(message.chatId)")
+            print("📩 [WebSocket] Message content: \(message.content.prefix(50))...")
+
             // Update unread count
             if !message.isFromCurrentUser {
                 unreadMessageCount += 1
+                print("📊 [WebSocket] Updated unread count to: \(unreadMessageCount)")
             }
 
+            print("📢 [WebSocket] Posting .newMessageReceived notification for chat: \(message.chatId)")
             NotificationCenter.default.post(
                 name: .newMessageReceived,
                 object: message,
                 userInfo: ["chatId": message.chatId]
             )
+            print("✅ [WebSocket] Notification posted successfully")
 
         } catch {
-            print("❌ Failed to decode new message: \(error)")
+            print("❌ [WebSocket] Failed to decode new message: \(error)")
+            print("❌ [WebSocket] Message data: \(messageData)")
         }
     }
 
