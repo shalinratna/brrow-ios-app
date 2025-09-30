@@ -386,33 +386,64 @@ struct ModernMessageComposer: View {
 
     // MARK: - Actions
     private func sendMessage() {
+        print("🚀 [ModernMessageComposer] sendMessage() called")
+
         let trimmedMessage = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedMessage.isEmpty, !isLoading else { return }
+        print("🚀 [ModernMessageComposer] Message length: \(trimmedMessage.count)")
+
+        guard !trimmedMessage.isEmpty, !isLoading else {
+            print("❌ [ModernMessageComposer] Message empty or already loading, returning")
+            return
+        }
+
+        let recipientIdToUse = recipient?.apiId ?? recipient?.id ?? ""
+        print("✅ [ModernMessageComposer] Recipient ID validated: \(recipientIdToUse)")
 
         isLoading = true
 
         Task {
             do {
+                print("🔄 [ModernMessageComposer] Creating conversation...")
                 // Create conversation and send message
                 let conversation = try await APIClient.shared.createConversation(
-                    otherUserId: recipient?.apiId ?? recipient?.id ?? "",
+                    otherUserId: recipientIdToUse,
                     listingId: listing.listingId
                 )
+                print("✅ [ModernMessageComposer] Conversation created: \(conversation.id)")
 
-                await MainActor.run {
-                    conversationId = conversation.id
-                    showingChatView = true
-                    dismiss()
-                }
-
-                // Send the message
-                try await APIClient.shared.sendMessage(
+                print("🔄 [ModernMessageComposer] Sending message...")
+                // Send the message FIRST
+                let message = try await APIClient.shared.sendMessage(
                     conversationId: conversation.id,
                     content: trimmedMessage,
                     messageType: .text
                 )
+                print("✅ [ModernMessageComposer] Message sent successfully: \(message.id)")
+
+                await MainActor.run {
+                    print("🎬 [ModernMessageComposer] Entered MainActor.run block")
+                    isLoading = false
+                    conversationId = conversation.id
+                    print("💾 [ModernMessageComposer] Stored conversation ID: \(conversation.id)")
+
+                    print("📢 [ModernMessageComposer] Posting conversationDidUpdate notification")
+                    NotificationCenter.default.post(name: .conversationDidUpdate, object: nil)
+                    print("✅ [ModernMessageComposer] Notification posted")
+
+                    print("👋 [ModernMessageComposer] Dismissing composer")
+                    dismiss()
+                    print("✅ [ModernMessageComposer] Dismiss called")
+
+                    print("⏰ [ModernMessageComposer] Scheduling tab switch in 0.5s")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("🔀 [ModernMessageComposer] Executing tab switch NOW")
+                        TabSelectionManager.shared.switchToMessages()
+                        print("✅ [ModernMessageComposer] Tab switch completed")
+                    }
+                }
 
             } catch {
+                print("❌ [ModernMessageComposer] Error occurred: \(error)")
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                     showingError = true
