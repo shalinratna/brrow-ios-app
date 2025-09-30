@@ -88,10 +88,7 @@ extension Chat: Codable {
     }
 }
 
-enum ChatType: String, Codable {
-    case direct = "DIRECT"
-    case group = "GROUP"
-}
+// ChatType moved to ConversationModels.swift to avoid duplication
 
 struct ChatParticipant: Codable {
     let id: String
@@ -204,17 +201,9 @@ extension Message: Codable {
     }
 }
 
-enum MessageType: String, Codable {
-    case text = "TEXT"
-    case image = "IMAGE"
-    case video = "VIDEO"
-    case audio = "AUDIO"
-    case file = "FILE"
-    case listing = "LISTING"
-    case system = "SYSTEM"
-    case voice = "VOICE"
-    case offer = "OFFER"
-}
+// MessageType moved to ConversationModels.swift to avoid duplication
+// Additional types from old system: audio, file, system, voice, offer
+// Can be added to ConversationModels.swift if needed
 
 enum MessageSendStatus: String, Codable {
     case sending

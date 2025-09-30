@@ -14,6 +14,7 @@ enum HTTPMethod: String {
     case GET = "GET"
     case POST = "POST"
     case PUT = "PUT"
+    case PATCH = "PATCH"
     case DELETE = "DELETE"
 }
 
@@ -1561,7 +1562,7 @@ class APIClient: ObservableObject {
 
         let response = try await performRequest(
             endpoint: "api/listings/\(listingId)",
-            method: "PATCH",
+            method: .PATCH,
             body: try JSONSerialization.data(withJSONObject: body),
             responseType: APIResponse<EmptyResponse>.self,
             cachePolicy: .ignoreCache // Don't use cache for updates
@@ -1580,7 +1581,7 @@ class APIClient: ObservableObject {
     func updateListingBulk(listingId: String, updates: [String: Any]) async throws {
         let response = try await performRequest(
             endpoint: "api/listings/\(listingId)",
-            method: "PATCH",
+            method: .PATCH,
             body: try JSONSerialization.data(withJSONObject: updates),
             responseType: APIResponse<EmptyResponse>.self,
             cachePolicy: .ignoreCache // Don't use cache for updates
@@ -3282,15 +3283,18 @@ class APIClient: ObservableObject {
     }
     
     func createConversation(otherUserId: String, listingId: String? = nil) async throws -> Conversation {
-        let bodyDict = [
-            "otherUserId": otherUserId,
-            "listingId": listingId
-        ].compactMapValues { $0 }
+        // Use NEW dual messaging endpoint
+        let endpoint = listingId != nil ? "api/messages/chats/listing" : "api/messages/chats/direct"
 
-        let body = try JSONEncoder().encode(bodyDict)
+        // CRITICAL FIX: Backend expects "recipientId" not "otherUserId" for direct chats
+        let bodyDict: [String: Any] = listingId != nil
+            ? ["listingId": listingId!]
+            : ["recipientId": otherUserId]
+
+        let body = try JSONSerialization.data(withJSONObject: bodyDict)
 
         let response = try await performRequest(
-            endpoint: "api/conversations",
+            endpoint: endpoint,
             method: .POST,
             body: body,
             responseType: APIResponse<Conversation>.self

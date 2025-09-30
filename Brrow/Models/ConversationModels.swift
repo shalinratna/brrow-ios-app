@@ -20,6 +20,11 @@ enum MessageType: String, Codable {
     case text = "TEXT"
     case image = "IMAGE"
     case video = "VIDEO"
+    case audio = "AUDIO"
+    case voice = "VOICE"  // Legacy support
+    case file = "FILE"    // Legacy support
+    case system = "SYSTEM" // Legacy support
+    case offer = "OFFER"   // Legacy support
     case location = "LOCATION"
     case listing = "LISTING"
     case listingReference = "LISTING_REFERENCE"
@@ -63,8 +68,8 @@ struct ListingPreview: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id, title, price
-        case imageUrl = "imageUrl"
-        case availabilityStatus = "availabilityStatus"
+        case imageUrl = "thumbnail"  // Backend sends "thumbnail"
+        case availabilityStatus = "status"  // Backend sends "status"
     }
 }
 
@@ -156,17 +161,32 @@ struct Conversation: Codable, Identifiable {
     let unreadCount: Int
     let updatedAt: String
     let listing: ListingPreview?  // For listing conversations
+    let listingId: String?  // Backend may send listingId instead of full listing
     let isActive: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, unreadCount, type, listing, isActive
+        case id, unreadCount, type, listing, listingId, isActive
         case otherUser = "other_user"     // Fix: JSON has "other_user"
         case lastMessage                  // Fix: JSON has "lastMessage" not "last_message"
         case updatedAt                    // Fix: JSON has "updatedAt" not "updated_at"
     }
 
+    // MARK: - Custom Decoder to handle missing isActive field
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        type = try container.decode(ChatType.self, forKey: .type)
+        otherUser = try container.decode(ConversationUser.self, forKey: .otherUser)
+        lastMessage = try container.decodeIfPresent(ChatMessage.self, forKey: .lastMessage)
+        unreadCount = try container.decode(Int.self, forKey: .unreadCount)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        listing = try container.decodeIfPresent(ListingPreview.self, forKey: .listing)
+        listingId = try container.decodeIfPresent(String.self, forKey: .listingId)
+        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true  // Default to true
+    }
+
     // MARK: - Manual Initializer
-    init(id: String, type: ChatType = .direct, otherUser: ConversationUser, lastMessage: ChatMessage? = nil, unreadCount: Int = 0, updatedAt: String, listing: ListingPreview? = nil, isActive: Bool = true) {
+    init(id: String, type: ChatType = .direct, otherUser: ConversationUser, lastMessage: ChatMessage? = nil, unreadCount: Int = 0, updatedAt: String, listing: ListingPreview? = nil, listingId: String? = nil, isActive: Bool = true) {
         self.id = id
         self.type = type
         self.otherUser = otherUser
@@ -174,6 +194,7 @@ struct Conversation: Codable, Identifiable {
         self.unreadCount = unreadCount
         self.updatedAt = updatedAt
         self.listing = listing
+        self.listingId = listingId
         self.isActive = isActive
     }
 
@@ -246,6 +267,14 @@ struct ChatMessage: Codable, Identifiable {
             return "📷 Photo"
         case .video:
             return "🎥 Video"
+        case .audio, .voice:
+            return "🎤 Voice Message"
+        case .file:
+            return "📎 File"
+        case .system:
+            return content
+        case .offer:
+            return "💰 Offer"
         case .location:
             return "📍 Location"
         case .listing, .listingReference:
@@ -285,5 +314,69 @@ struct ChatMessage: Codable, Identifiable {
         self.deliveredAt = deliveredAt
         self.readAt = readAt
         self.sender = sender
+    }
+}
+
+// MARK: - Conversion from Message to ChatMessage
+extension ChatMessage {
+    /// Convert from Message (ChatModels) to ChatMessage (ConversationModels)
+    static func from(_ message: Message) -> ChatMessage {
+        return ChatMessage(
+            id: message.id,
+            senderId: message.senderId,
+            receiverId: message.receiverId,
+            content: message.content,
+            messageType: message.messageType,
+            createdAt: message.createdAt,
+            isRead: message.isRead,
+            mediaUrl: message.mediaUrl,
+            thumbnailUrl: message.thumbnailUrl,
+            videoDuration: nil, // Not in Message model
+            deliveredAt: message.sentAt,
+            readAt: nil, // Not in Message model
+            sender: message.sender.map { ConversationUser.fromUser($0) }
+        )
+    }
+}
+
+// MARK: - Conversion from ChatMessage to Message
+extension Message {
+    /// Convert from ChatMessage (ConversationModels) to Message (ChatModels)
+    static func from(_ chatMessage: ChatMessage) -> Message {
+        var message = Message(
+            id: chatMessage.id,
+            chatId: "", // Not available in ChatMessage
+            senderId: chatMessage.senderId,
+            receiverId: chatMessage.receiverId,
+            content: chatMessage.content,
+            messageType: chatMessage.messageType,
+            mediaUrl: chatMessage.mediaUrl,
+            thumbnailUrl: chatMessage.thumbnailUrl,
+            listingId: nil,
+            isRead: chatMessage.isRead,
+            isEdited: false,
+            editedAt: nil,
+            deletedAt: nil,
+            sentAt: chatMessage.deliveredAt,
+            createdAt: chatMessage.createdAt,
+            sender: chatMessage.sender.map { User.from($0) },
+            reactions: nil
+        )
+        // Set var properties after initialization
+        message.tempId = nil
+        message.sendStatus = chatMessage.deliveryStatus == .read ? .read : (chatMessage.deliveryStatus == .delivered ? .delivered : .sent)
+        return message
+    }
+}
+
+// MARK: - User conversion helper
+extension User {
+    static func from(_ conversationUser: ConversationUser) -> User {
+        return User(
+            id: conversationUser.id,
+            username: conversationUser.username,
+            email: "",  // ConversationUser doesn't have email
+            profilePicture: conversationUser.profilePicture
+        )
     }
 }

@@ -73,7 +73,7 @@ struct EnhancedChatListView: View {
     private var tabSelectorSection: some View {
         HStack(spacing: 0) {
             // Direct Tab
-            TabButton(
+            ChatTabButton(
                 title: "Direct",
                 badgeCount: viewModel.unreadCounts.direct,
                 isSelected: selectedTab == .direct
@@ -85,7 +85,7 @@ struct EnhancedChatListView: View {
             }
 
             // Listing Tab
-            TabButton(
+            ChatTabButton(
                 title: "Listings",
                 badgeCount: viewModel.unreadCounts.listing,
                 isSelected: selectedTab == .listing
@@ -230,8 +230,8 @@ struct EnhancedChatListView: View {
     }
 }
 
-// MARK: - Tab Button Component
-struct TabButton: View {
+// MARK: - Chat Tab Button Component
+struct ChatTabButton: View {
     let title: String
     let badgeCount: Int
     let isSelected: Bool

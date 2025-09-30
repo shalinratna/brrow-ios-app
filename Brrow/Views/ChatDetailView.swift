@@ -8,6 +8,25 @@
 import SwiftUI
 import PhotosUI
 
+// MARK: - Enhanced Chat Message (Legacy Support)
+struct EnhancedChatMessage: Identifiable {
+    let id: String
+    let senderId: String
+    let receiverId: String
+    let content: String
+    let type: MessageType
+    let mediaUrl: String?
+    let createdAt: Date
+    let isRead: Bool
+
+    enum MessageType {
+        case text
+        case image
+        case video
+        case voice
+    }
+}
+
 struct ChatDetailView: View {
     let conversation: Conversation
     @StateObject private var viewModel = ChatDetailViewModel()
@@ -385,8 +404,10 @@ extension Message {
             enhancedType = .voice // map audio to voice
         case .file:
             enhancedType = .text // fallback to text for file type
-        case .listing:
+        case .listing, .listingReference:
             enhancedType = .text // fallback to text for listing type
+        case .location:
+            enhancedType = .text // fallback to text for location type
         case .system:
             enhancedType = .text // fallback to text for system type
         case .offer:

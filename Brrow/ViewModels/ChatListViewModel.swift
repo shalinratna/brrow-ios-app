@@ -200,7 +200,7 @@ class ChatListViewModel: ObservableObject {
                 senderId: authManager.currentUser?.id ?? "0",
                 receiverId: user.id,
                 content: "",
-                messageType: "text",
+                messageType: .text,
                 createdAt: ISO8601DateFormatter().string(from: Date()),
                 isRead: false
             ),

@@ -53,11 +53,12 @@ struct EnhancedChatDetailView: View {
         .sheet(isPresented: $showingCamera) {
             BrrowCameraView()
         }
-        .sheet(isPresented: $showingVideoPicker) {
-            VideoPicker { videoURL in
-                viewModel.uploadAndSendVideo(videoURL, to: conversation.id)
-            }
-        }
+        // TODO: Implement VideoPicker
+        // .sheet(isPresented: $showingVideoPicker) {
+        //     VideoPicker { videoURL in
+        //         viewModel.sendVideoMessage(videoURL, to: conversation.id)
+        //     }
+        // }
         .fullScreenCover(isPresented: $showingVideoCall) {
             VideoCallView(conversation: conversation)
         }
@@ -162,7 +163,7 @@ struct EnhancedChatDetailView: View {
                     ForEach(viewModel.messages, id: \.id) { message in
                         let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.apiId
                         EnhancedMessageBubble(
-                            message: message,
+                            message: ChatMessage.from(message),
                             isFromCurrentUser: isFromCurrentUser
                         )
                         .id(message.id)
@@ -535,6 +536,14 @@ struct EnhancedMessageBubble: View {
             imageMessageView
         case .video:
             videoMessageView
+        case .audio, .voice:
+            textMessageView  // TODO: Implement audio player
+        case .file:
+            textMessageView  // TODO: Implement file viewer
+        case .system:
+            textMessageView  // System messages shown as text
+        case .offer:
+            textMessageView  // TODO: Implement offer card
         case .location:
             locationMessageView
         case .listing, .listingReference:

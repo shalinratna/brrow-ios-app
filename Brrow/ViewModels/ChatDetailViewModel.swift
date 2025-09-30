@@ -22,6 +22,7 @@ class ChatDetailViewModel: ObservableObject {
     @Published var isUserOnline = false
     @Published var isRecording = false
     @Published var recordingDuration = 0
+    @Published var otherUserIsTyping = false
 
     private var conversation: Conversation?
     private var cancellables = Set<AnyCancellable>()
@@ -256,13 +257,47 @@ class ChatDetailViewModel: ObservableObject {
             sender: nil,
             reactions: nil
         )
-        
+
         messages.append(message)
-        
+
         // Upload audio and send to server
         Task {
             try await uploadAndSendVoice(audioURL, message: message, conversationId: conversationId)
         }
+    }
+
+    func sendVideoMessage(_ videoURL: URL, to conversationId: String) {
+        let message = Message(
+            id: UUID().uuidString,
+            chatId: conversationId,
+            senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
+            receiverId: "other_user",
+            content: "",
+            messageType: .video,
+            mediaUrl: videoURL.absoluteString,
+            thumbnailUrl: nil,
+            listingId: nil,
+            isRead: false,
+            isEdited: false,
+            editedAt: nil,
+            deletedAt: nil,
+            sentAt: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            sender: nil,
+            reactions: nil
+        )
+
+        messages.append(message)
+
+        // Upload video and send to server
+        Task {
+            try await uploadAndSendVideo(videoURL, message: message, conversationId: conversationId)
+        }
+    }
+
+    func sendTypingIndicator(chatId: String, isTyping: Bool) {
+        // Send typing indicator via WebSocket
+        webSocketManager.sendTypingIndicator(chatId: chatId, isTyping: isTyping)
     }
     
     func startVoiceRecording() {
@@ -337,6 +372,11 @@ class ChatDetailViewModel: ObservableObject {
     private func uploadAndSendVoice(_ audioURL: URL, message: Message, conversationId: String) async throws {
         // TODO: Implement real voice upload via APIClient
         print("Voice upload not yet implemented")
+    }
+
+    private func uploadAndSendVideo(_ videoURL: URL, message: Message, conversationId: String) async throws {
+        // TODO: Implement real video upload via APIClient
+        print("Video upload not yet implemented")
     }
     
     private func getDocumentsDirectory() -> URL {

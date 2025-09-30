@@ -68,8 +68,8 @@ struct FullSellerProfileView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingMessageView) {
-            SellerMessageComposerView(recipient: user)
+        .fullScreenCover(isPresented: $showingMessageView) {
+            DirectMessageComposerView(recipient: user)
         }
         .sheet(isPresented: $showingReportUser) {
             ReportUserView(user: user)
@@ -793,50 +793,6 @@ struct SellerReview: Identifiable {
     let comment: String
     let date: Date
     let itemName: String?
-}
-
-// MARK: - Message Composer
-struct SellerMessageComposerView: View {
-    let recipient: User
-    @State private var messageText = ""
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                TextEditor(text: $messageText)
-                    .padding(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                    .padding()
-                
-                Spacer()
-            }
-            .navigationTitle("Message \(recipient.name)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Send") {
-                        sendMessage()
-                    }
-                    .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-    }
-    
-    private func sendMessage() {
-        // Send message implementation
-        dismiss()
-    }
 }
 
 // MARK: - Report User View
