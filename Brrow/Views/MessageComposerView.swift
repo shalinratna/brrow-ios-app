@@ -17,6 +17,8 @@ struct MessageComposerView: View {
     @State private var errorMessage = ""
     @State private var showingChatView = false
     @State private var conversationId: String?
+    @State private var showCustomMessageInput = false
+    @FocusState private var isTextEditorFocused: Bool
     
     var body: some View {
         NavigationView {
@@ -67,54 +69,148 @@ struct MessageComposerView: View {
 
                 // Scrollable content area
                 ScrollView {
-                    VStack(spacing: 0) {
-                        // Quick responses (now scrollable when keyboard appears)
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Quick Responses")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Theme.Colors.secondaryText)
-                                .padding(.horizontal, 16)
+                    VStack(spacing: 16) {
+                        if !showCustomMessageInput {
+                            // Quick responses as full-width cards
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Choose a message to send")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Theme.Colors.text)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 16)
 
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    QuickResponseButton(text: "Is this still available?") {
+                                VStack(spacing: 12) {
+                                    QuickResponseCard(
+                                        title: "Is this still available?",
+                                        message: "Hi! Is this \(listing.title) still available for rent?"
+                                    ) {
+                                        // Send immediately - don't trigger keyboard
                                         messageText = "Hi! Is this \(listing.title) still available for rent?"
+                                        sendMessage()
                                     }
 
-                                    QuickResponseButton(text: "What's the condition?") {
+                                    QuickResponseCard(
+                                        title: "What's the condition?",
+                                        message: "Hi! Can you tell me more about the condition of the \(listing.title)?"
+                                    ) {
+                                        // Send immediately - don't trigger keyboard
                                         messageText = "Hi! Can you tell me more about the condition of the \(listing.title)?"
+                                        sendMessage()
                                     }
 
-                                    QuickResponseButton(text: "Negotiate price") {
+                                    QuickResponseCard(
+                                        title: "Negotiate price",
+                                        message: "Hi! I'm interested in renting the \(listing.title). Would you consider $\(Int(listing.price * 0.8))/day?"
+                                    ) {
+                                        // Send immediately - don't trigger keyboard
                                         messageText = "Hi! I'm interested in renting the \(listing.title). Would you consider $\(Int(listing.price * 0.8))/day?"
+                                        sendMessage()
                                     }
 
-                                    QuickResponseButton(text: "Schedule pickup") {
+                                    QuickResponseCard(
+                                        title: "Schedule pickup",
+                                        message: "Hi! I'd like to rent the \(listing.title). When would be a good time to pick it up?"
+                                    ) {
+                                        // Send immediately - don't trigger keyboard
                                         messageText = "Hi! I'd like to rent the \(listing.title). When would be a good time to pick it up?"
+                                        sendMessage()
+                                    }
+
+                                    // Write custom message button
+                                    Button(action: {
+                                        withAnimation {
+                                            showCustomMessageInput = true
+                                            // TextEditor will auto-focus on its own .onAppear
+                                        }
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "square.and.pencil")
+                                                .font(.system(size: 18))
+                                            Text("Write custom message")
+                                                .font(.system(size: 16, weight: .semibold))
+                                            Spacer()
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 14, weight: .semibold))
+                                        }
+                                        .foregroundColor(Theme.Colors.primary)
+                                        .padding(16)
+                                        .background(Theme.Colors.secondaryBackground)
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Theme.Colors.primary, lineWidth: 2)
+                                        )
                                     }
                                 }
                                 .padding(.horizontal, 16)
                             }
                         }
-                        .padding(.vertical, 12)
 
-                        Divider()
+                        // CRITICAL FIX: Only render TextEditor when explicitly requested
+                        // This prevents ANY auto-focus issues
+                        if showCustomMessageInput {
+                            // Custom message input area
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text("Write your message")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(Theme.Colors.text)
 
-                        // Message input area
-                        VStack(spacing: 16) {
-                            TextEditor(text: $messageText)
-                                .padding(12)
-                                .background(Theme.Colors.secondaryBackground)
-                                .cornerRadius(12)
-                                .frame(minHeight: 120)
+                                    Spacer()
 
-                            Text("\(messageText.count)/500")
-                                .font(.system(size: 12))
-                                .foregroundColor(Theme.Colors.secondaryText)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                    Button(action: {
+                                        withAnimation {
+                                            showCustomMessageInput = false
+                                            isTextEditorFocused = false
+                                            messageText = ""
+                                        }
+                                    }) {
+                                        Text("Back to quick responses")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(Theme.Colors.primary)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.top, 16)
+
+                                VStack(spacing: 8) {
+                                    TextEditor(text: $messageText)
+                                        .focused($isTextEditorFocused)
+                                        .padding(12)
+                                        .background(Theme.Colors.secondaryBackground)
+                                        .cornerRadius(12)
+                                        .frame(minHeight: 150)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(isTextEditorFocused ? Theme.Colors.primary : Color.clear, lineWidth: 2)
+                                        )
+                                        .onAppear {
+                                            // Auto-focus ONLY when TextEditor appears
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                isTextEditorFocused = true
+                                            }
+                                        }
+
+                                    HStack {
+                                        Text("\(messageText.count)/500")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(Theme.Colors.secondaryText)
+
+                                        Spacer()
+
+                                        if messageText.count > 500 {
+                                            Text("Message too long")
+                                                .font(.system(size: 12, weight: .medium))
+                                                .foregroundColor(.red)
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                            }
                         }
-                        .padding(16)
-                        .padding(.bottom, 80) // Extra padding to account for send button
+
+                        // Extra padding at bottom for send button
+                        Color.clear.frame(height: 80)
                     }
                 }
 
@@ -153,6 +249,12 @@ struct MessageComposerView: View {
                 }
             )
             .ignoresSafeArea(.keyboard, edges: .bottom)
+            .onAppear {
+                // CRITICAL FIX: TextEditor doesn't exist until user taps "Write custom message"
+                // No need to dismiss keyboard - it won't appear
+                showCustomMessageInput = false
+                isTextEditorFocused = false
+            }
             .alert("Error", isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
             } message: {
@@ -173,7 +275,7 @@ struct MessageComposerView: View {
                     senderId: "",
                     receiverId: "",
                     content: "",
-                    messageType: "text",
+                    messageType: .text,
                     createdAt: "",
                     isRead: false
                 )
@@ -211,14 +313,11 @@ struct MessageComposerView: View {
                 
                 await MainActor.run {
                     isLoading = false
-                    // Set conversation ID for navigation - use message ID as fallback
-                    self.conversationId = message.id
-                    dismiss()
+                    // CRITICAL FIX: Use conversation.id NOT message.id
+                    self.conversationId = conversation.id
 
-                    // Navigate to chat view with this conversation
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self.showingChatView = true
-                    }
+                    // Dismiss the composer - message sent successfully
+                    dismiss()
                 }
             } catch {
                 await MainActor.run {
@@ -231,19 +330,39 @@ struct MessageComposerView: View {
     }
 }
 
-struct QuickResponseButton: View {
-    let text: String
+struct QuickResponseCard: View {
+    let title: String
+    let message: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
-            Text(text)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Theme.Colors.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Theme.Colors.primary.opacity(0.1))
-                .cornerRadius(20)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+                    Spacer()
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Theme.Colors.primary)
+                }
+
+                Text(message)
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(Theme.Colors.secondaryBackground)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Theme.Colors.border.opacity(0.3), lineWidth: 1)
+            )
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
