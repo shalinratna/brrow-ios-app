@@ -195,7 +195,7 @@ struct DirectMessageComposerView: View {
             do {
                 // Create or find a direct conversation (no listing)
                 guard let recipientId = recipient.apiId else {
-                    throw BrrowAPIError.invalidInput("Recipient ID is required")
+                    throw BrrowAPIError.validationError("Recipient ID is required")
                 }
 
                 let conversation = try await APIClient.shared.createConversation(
