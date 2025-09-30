@@ -14,8 +14,7 @@ struct DirectMessageComposerView: View {
     @State private var isLoading = false
     @State private var showingError = false
     @State private var errorMessage = ""
-    @State private var conversationId: String?
-    @State private var navigateToChatDetail = false
+    @State private var showingSuccess = false
     @FocusState private var isTextEditorFocused: Bool
 
     var body: some View {
@@ -155,34 +154,33 @@ struct DirectMessageComposerView: View {
             } message: {
                 Text(errorMessage)
             }
-        }
-        .fullScreenCover(isPresented: $navigateToChatDetail) {
-            if let conversationId = conversationId {
-                // Create a temporary conversation object for ChatDetailView
-                let tempUser = ConversationUser(
-                    id: recipient.apiId ?? "",
-                    username: recipient.displayName ?? recipient.username,
-                    profilePicture: recipient.profilePicture,
-                    isVerified: recipient.isVerified ?? false
-                )
-                let tempMessage = ChatMessage(
-                    id: "",
-                    senderId: "",
-                    receiverId: "",
-                    content: "",
-                    messageType: .text,
-                    createdAt: "",
-                    isRead: false
-                )
-                let tempConversation = Conversation(
-                    id: conversationId,
-                    otherUser: tempUser,
-                    lastMessage: tempMessage,
-                    unreadCount: 0,
-                    updatedAt: ""
-                )
-                ChatDetailView(conversation: tempConversation)
-            }
+            .overlay(
+                Group {
+                    if showingSuccess {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                            .overlay(
+                                VStack(spacing: 16) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 60))
+                                        .foregroundColor(.green)
+
+                                    Text("Message Sent!")
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundColor(.white)
+
+                                    Text("Check your Messages tab")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.white.opacity(0.8))
+                                }
+                                .padding(40)
+                                .background(Color.black.opacity(0.8))
+                                .cornerRadius(20)
+                            )
+                            .transition(.opacity)
+                    }
+                }
+            )
         }
     }
 
@@ -212,10 +210,16 @@ struct DirectMessageComposerView: View {
 
                 await MainActor.run {
                     isLoading = false
-                    self.conversationId = conversation.id
 
-                    // Dismiss the composer - message sent successfully
-                    dismiss()
+                    // Show success message
+                    withAnimation {
+                        showingSuccess = true
+                    }
+
+                    // Auto-dismiss after showing success
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        dismiss()
+                    }
                 }
             } catch {
                 await MainActor.run {
