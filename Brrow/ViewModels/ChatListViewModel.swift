@@ -48,7 +48,9 @@ class ChatListViewModel: ObservableObject {
         // Listen for conversation updates (new conversation created or updated)
         NotificationCenter.default.publisher(for: .conversationDidUpdate)
             .sink { [weak self] _ in
+                print("📬 [ChatListViewModel] conversationDidUpdate notification received!")
                 // CRITICAL: Bypass cache when refreshing after new conversation created
+                print("🔄 [ChatListViewModel] Calling fetchConversations(bypassCache: true)")
                 self?.fetchConversations(bypassCache: true)
             }
             .store(in: &cancellables)
@@ -100,22 +102,28 @@ class ChatListViewModel: ObservableObject {
     }
     
     func fetchConversations(bypassCache: Bool = false) {
+        print("🔍 [ChatListViewModel] fetchConversations called with bypassCache: \(bypassCache)")
+
         // Check if user is authenticated and not a guest
         guard authManager.isAuthenticated && !authManager.isGuestUser else {
+            print("⚠️ [ChatListViewModel] User not authenticated or is guest, clearing conversations")
             conversations = []
             filteredConversations = []
             unreadCount = 0
             isLoading = false
             return
         }
-        
+
+        print("✅ [ChatListViewModel] User authenticated, proceeding with fetch")
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
+                print("📡 [ChatListViewModel] Calling API fetchConversations with bypassCache: \(bypassCache)")
                 let result = try await apiClient.fetchConversations(type: nil, limit: 20, offset: 0, search: nil, bypassCache: bypassCache)
                 let fetchedConversations = result.conversations
+                print("✅ [ChatListViewModel] Fetched \(fetchedConversations.count) conversations from API")
                 
                 await MainActor.run {
                     let sortedConversations = fetchedConversations.sorted {

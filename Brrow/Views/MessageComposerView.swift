@@ -292,42 +292,59 @@ struct MessageComposerView: View {
     }
     
     private func sendMessage() {
-        guard let recipientId = recipient?.apiId else { return }
-        
+        print("🚀 [MessageComposer] sendMessage() called")
+        print("🚀 [MessageComposer] recipient?.apiId = \(recipient?.apiId ?? "nil")")
+
+        guard let recipientId = recipient?.apiId else {
+            print("❌ [MessageComposer] No recipient API ID, returning early")
+            return
+        }
+
+        print("✅ [MessageComposer] Recipient ID validated: \(recipientId)")
         isLoading = true
-        
+
         Task {
             do {
+                print("🔄 [MessageComposer] Creating conversation...")
                 // First create or find a conversation
                 let conversation = try await APIClient.shared.createConversation(
                     otherUserId: recipientId,
                     listingId: listing.listingId
                 )
+                print("✅ [MessageComposer] Conversation created: \(conversation.id)")
 
+                print("🔄 [MessageComposer] Sending message...")
                 // Then send the message
                 let message = try await APIClient.shared.sendMessage(
                     conversationId: conversation.id,
                     content: messageText,
                     messageType: .text
                 )
-                
+                print("✅ [MessageComposer] Message sent successfully: \(message.id)")
+
                 await MainActor.run {
+                    print("🎬 [MessageComposer] Entered MainActor.run block")
                     isLoading = false
-                    // CRITICAL FIX: Use conversation.id NOT message.id
                     self.conversationId = conversation.id
+                    print("💾 [MessageComposer] Stored conversation ID: \(conversation.id)")
 
-                    // Notify chat list to refresh - new conversation created
+                    print("📢 [MessageComposer] Posting conversationDidUpdate notification")
                     NotificationCenter.default.post(name: .conversationDidUpdate, object: nil)
+                    print("✅ [MessageComposer] Notification posted")
 
-                    // Dismiss the composer first
+                    print("👋 [MessageComposer] Dismissing composer")
                     dismiss()
+                    print("✅ [MessageComposer] Dismiss called")
 
-                    // Navigate to Messages tab after brief delay for dismiss animation
+                    print("⏰ [MessageComposer] Scheduling tab switch in 0.5s")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("🔀 [MessageComposer] Executing tab switch NOW")
                         TabSelectionManager.shared.switchToMessages()
+                        print("✅ [MessageComposer] Tab switch completed")
                     }
                 }
             } catch {
+                print("❌ [MessageComposer] Error occurred: \(error)")
                 await MainActor.run {
                     isLoading = false
                     errorMessage = error.localizedDescription

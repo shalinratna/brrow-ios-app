@@ -32,7 +32,9 @@ class TabSelectionManager: ObservableObject {
     }
     
     func switchToMessages() {
+        print("🔀 [TabSelectionManager] switchToMessages() called - changing from tab \(selectedTab) to tab 3")
         selectedTab = 3
+        print("✅ [TabSelectionManager] selectedTab is now: \(selectedTab)")
     }
     
     func switchToProfile() {
