@@ -124,6 +124,16 @@ class ChatListViewModel: ObservableObject {
                 let result = try await apiClient.fetchConversations(type: nil, limit: 20, offset: 0, search: nil, bypassCache: bypassCache)
                 let fetchedConversations = result.conversations
                 print("✅ [ChatListViewModel] Fetched \(fetchedConversations.count) conversations from API")
+
+                // DETAILED LOGGING: Show all conversation IDs and details
+                print("📋 [ChatListViewModel] Conversation details:")
+                for (index, conv) in fetchedConversations.enumerated() {
+                    print("  [\(index + 1)] ID: \(conv.id)")
+                    print("      Other user: \(conv.otherUser.username) (ID: \(conv.otherUser.id))")
+                    print("      Last message: \"\(conv.lastMessage?.content.prefix(50) ?? "")\"")
+                    print("      Updated: \(conv.updatedAt)")
+                    print("      Unread: \(conv.unreadCount)")
+                }
                 
                 await MainActor.run {
                     let sortedConversations = fetchedConversations.sorted {

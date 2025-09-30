@@ -336,11 +336,11 @@ struct MessageComposerView: View {
                     dismiss()
                     print("✅ [MessageComposer] Dismiss called")
 
-                    print("⏰ [MessageComposer] Scheduling tab switch in 0.5s")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("🔀 [MessageComposer] Executing tab switch NOW")
-                        TabSelectionManager.shared.switchToMessages()
-                        print("✅ [MessageComposer] Tab switch completed")
+                    print("⏰ [MessageComposer] Scheduling tab switch in 0.8s")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        print("🔀 [MessageComposer] Posting switchToMessagesTab notification")
+                        NotificationCenter.default.post(name: .switchToMessagesTab, object: nil)
+                        print("✅ [MessageComposer] Tab switch notification posted")
                     }
                 }
             } catch {

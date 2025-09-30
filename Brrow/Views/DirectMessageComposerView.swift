@@ -225,7 +225,8 @@ struct DirectMessageComposerView: View {
 
                         // Navigate to Messages tab after brief delay for dismiss animation
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            TabSelectionManager.shared.switchToMessages()
+                            print("🔀 [DirectMessageComposer] Posting switchToMessagesTab notification")
+                            NotificationCenter.default.post(name: .switchToMessagesTab, object: nil)
                         }
                     }
                 }

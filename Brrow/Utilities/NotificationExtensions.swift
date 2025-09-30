@@ -61,6 +61,7 @@ extension Notification.Name {
     static let typingIndicatorChanged = Notification.Name("typingIndicatorChanged")
     static let newMessageReceived = Notification.Name("newMessageReceived")
     static let messageRead = Notification.Name("messageRead")
+    static let switchToMessagesTab = Notification.Name("switchToMessagesTab")
     
     // MARK: - Location
     static let locationDidUpdate = Notification.Name("locationDidUpdate")

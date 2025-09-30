@@ -434,11 +434,11 @@ struct ModernMessageComposer: View {
                     dismiss()
                     print("✅ [ModernMessageComposer] Dismiss called")
 
-                    print("⏰ [ModernMessageComposer] Scheduling tab switch in 0.5s")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("🔀 [ModernMessageComposer] Executing tab switch NOW")
-                        TabSelectionManager.shared.switchToMessages()
-                        print("✅ [ModernMessageComposer] Tab switch completed")
+                    print("⏰ [ModernMessageComposer] Scheduling tab switch in 0.8s")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        print("🔀 [ModernMessageComposer] Posting switchToMessagesTab notification")
+                        NotificationCenter.default.post(name: .switchToMessagesTab, object: nil)
+                        print("✅ [ModernMessageComposer] Tab switch notification posted")
                     }
                 }
 

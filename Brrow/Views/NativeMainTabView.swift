@@ -178,6 +178,13 @@ struct NativeMainTabView: View {
                 print("❌ Invalid notification data for navigateToChat")
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .switchToMessagesTab)) { _ in
+            print("🔔 [NativeMainTabView] Received switchToMessagesTab notification")
+            print("🔔 [NativeMainTabView] Current tab: \(tabSelectionManager.selectedTab)")
+            print("🔀 [NativeMainTabView] Switching to Messages tab (3)...")
+            tabSelectionManager.selectedTab = 3
+            print("✅ [NativeMainTabView] Tab switched to: \(tabSelectionManager.selectedTab)")
+        }
         .sheet(isPresented: $listingNavManager.showingListingDetail, onDismiss: {
             print("🔴 Sheet dismissed")
             listingNavManager.clearListing()
