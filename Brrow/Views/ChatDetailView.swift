@@ -185,15 +185,10 @@ struct ChatDetailView: View {
                         // Messages for this date
                         ForEach(groupedMessagesByDate[date] ?? []) { message in
                             let isOwnMessage = message.senderId == AuthManager.shared.currentUser?.apiId
-                            let previousMessage = getPreviousMessage(for: message)
-                            let showTimestamp = shouldShowTimestamp(current: message, previous: previousMessage)
 
                             MessageBubbleView(
                                 message: message.toEnhancedChatMessage(),
-                                isOwnMessage: isOwnMessage,
-                                showTimestamp: showTimestamp,
-                                isFirstInGroup: isFirstInGroup(message: message, previous: previousMessage),
-                                isLastInGroup: isLastInGroup(message: message)
+                                isOwnMessage: isOwnMessage
                             )
                             .id(message.id)
                         }
@@ -202,7 +197,7 @@ struct ChatDetailView: View {
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
             }
-            .background(Color(red: 0.95, green: 0.95, blue: 0.97)) // Light gray background like iMessage
+            .background(Color.white) // Clean white background
 
             messagesContent
                 .onChange(of: viewModel.messages.count) { _ in
@@ -402,28 +397,19 @@ struct MessageBubbleView: View {
     @State private var showingFullScreenImage = false
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             HStack(alignment: .bottom, spacing: 8) {
-                if isOwnMessage { Spacer(minLength: 60) }
+                if isOwnMessage { Spacer(minLength: 50) }
 
-                VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 2) {
+                VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 4) {
                     if message.type == .text || message.content.contains("inquiry") {
                         Text(message.content)
                             .font(.system(size: 16))
-                            .foregroundColor(isOwnMessage ? .white : Color.black)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                isOwnMessage
-                                    ? LinearGradient(colors: [Color(red: 0.0, green: 0.48, blue: 1.0), Color(red: 0.0, green: 0.55, blue: 1.0)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing)
-                                    : LinearGradient(colors: [Color(red: 0.92, green: 0.92, blue: 0.95), Color(red: 0.92, green: 0.92, blue: 0.95)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing)
-                            )
+                            .foregroundColor(isOwnMessage ? .white : Theme.Colors.text)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(isOwnMessage ? Theme.Colors.primary : Color(red: 0.95, green: 0.95, blue: 0.97))
                             .cornerRadius(20)
-                            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
                     } else if message.type == .image {
                         if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
                             BrrowAsyncImage(url: mediaData.url) { image in
@@ -432,18 +418,16 @@ struct MessageBubbleView: View {
                                     .aspectRatio(contentMode: .fill)
                                     .frame(maxWidth: 250, maxHeight: 300)
                                     .clipped()
-                                    .cornerRadius(18)
-                                    .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+                                    .cornerRadius(16)
                                     .onTapGesture {
                                         showingFullScreenImage = true
                                     }
                             } placeholder: {
-                                RoundedRectangle(cornerRadius: 18)
+                                RoundedRectangle(cornerRadius: 16)
                                     .fill(Color.gray.opacity(0.2))
                                     .frame(width: 250, height: 200)
                                     .overlay(
                                         ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle())
                                     )
                             }
                             .fullScreenCover(isPresented: $showingFullScreenImage) {
@@ -454,29 +438,21 @@ struct MessageBubbleView: View {
                         if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
                             VideoThumbnailView(videoUrl: "https://brrowapp.com/brrow" + mediaData.url)
                                 .frame(maxWidth: 250, maxHeight: 300)
-                                .cornerRadius(18)
-                                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+                                .cornerRadius(16)
                         }
                     }
-                }
 
-                if !isOwnMessage { Spacer(minLength: 60) }
-            }
-
-            // Show timestamp only if needed (every 5 minutes)
-            if showTimestamp {
-                HStack {
-                    if isOwnMessage { Spacer() }
+                    // ALWAYS show timestamp on each message for clarity
                     Text(formatTime(message.createdAt))
                         .font(.system(size: 11))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Theme.Colors.secondaryText)
                         .padding(.top, 2)
-                        .padding(.bottom, 4)
-                    if !isOwnMessage { Spacer() }
                 }
+
+                if !isOwnMessage { Spacer(minLength: 50) }
             }
         }
-        .padding(.vertical, isFirstInGroup ? 4 : 1)
+        .padding(.vertical, 4)
     }
 
     private func formatTime(_ date: Date) -> String {
