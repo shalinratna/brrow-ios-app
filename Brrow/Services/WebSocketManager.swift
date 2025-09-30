@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import Network
+import SocketIO
 
 class WebSocketManager: NSObject, ObservableObject {
     static let shared = WebSocketManager()
@@ -16,9 +17,9 @@ class WebSocketManager: NSObject, ObservableObject {
     @Published var connectionStatus: ConnectionStatus = .disconnected
     @Published var unreadMessageCount = 0
 
-    private var webSocketTask: URLSessionWebSocketTask?
-    private var urlSession: URLSession?
-    private let socketURL = URL(string: "wss://brrow-backend-nodejs-production.up.railway.app/socket.io/")!
+    private var manager: SocketManager?
+    private var socket: SocketIOClient?
+    private let serverURL = "https://brrow-backend-nodejs-production.up.railway.app"
 
     private var cancellables = Set<AnyCancellable>()
     private var reconnectTimer: Timer?
@@ -79,6 +80,7 @@ class WebSocketManager: NSObject, ObservableObject {
 
     func connect() {
         guard let token = AuthManager.shared.authToken else {
+            print("❌ [WebSocket] No auth token available")
             connectionStatus = .error("No authentication token")
             return
         }
@@ -86,43 +88,52 @@ class WebSocketManager: NSObject, ObservableObject {
         authToken = token
 
         if isConnected {
+            print("ℹ️ [WebSocket] Already connected")
             return
         }
 
+        print("🔌 [WebSocket] Connecting to \(serverURL)...")
+        print("🔑 [WebSocket] Using auth token: \(token.prefix(20))...")
         connectionStatus = .connecting
 
-        let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = 60
+        // Configure Socket.io with authentication
+        // CRITICAL: Use .auth() to send token in socket.handshake.auth
+        let config: SocketIOClientConfiguration = [
+            .log(true),
+            .compress,
+            .secure(true),
+            .forceWebsockets(true),
+            .reconnects(true),
+            .reconnectAttempts(-1),
+            .reconnectWait(2),
+            .auth(["token": token])  // This sends token in socket.handshake.auth
+        ]
 
-        urlSession = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        manager = SocketManager(socketURL: URL(string: serverURL)!, config: config)
+        socket = manager?.defaultSocket
 
-        var request = URLRequest(url: socketURL)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        setupSocketHandlers()
+        socket?.connect()
 
-        webSocketTask = urlSession?.webSocketTask(with: request)
-        webSocketTask?.resume()
-
-        startReceiving()
-        startPingTimer()
-
-        // Send authentication message
-        sendAuthMessage()
+        print("✅ [WebSocket] Connection initiated with auth token")
     }
 
     func disconnect() {
+        print("🔌 [WebSocket] Disconnecting...")
         connectionStatus = .disconnected
         isConnected = false
 
-        webSocketTask?.cancel(with: .normalClosure, reason: nil)
-        webSocketTask = nil
-        urlSession = nil
+        socket?.disconnect()
+        socket = nil
+        manager = nil
 
         reconnectTimer?.invalidate()
         pingTimer?.invalidate()
 
         typingUsers.removeAll()
         connectedUsers.removeAll()
+
+        print("✅ [WebSocket] Disconnected")
     }
 
     private func reconnect() {
@@ -144,64 +155,57 @@ class WebSocketManager: NSObject, ObservableObject {
     // MARK: - Message Sending
 
     func sendMessage(chatId: String, content: String, messageType: MessageType = .text, listingId: String? = nil) {
-        let messageData: [String: Any] = [
-            "event": SocketEvent.sendMessage.rawValue,
-            "data": [
-                "chatId": chatId,
-                "content": content,
-                "messageType": messageType.rawValue,
-                "listingId": listingId as Any,
-                "tempId": UUID().uuidString
-            ]
+        guard isConnected, let socket = socket else {
+            print("⚠️ [WebSocket] Not connected, falling back to REST API")
+            sendMessageViaREST(chatId: chatId, content: content)
+            return
+        }
+
+        var data: [String: Any] = [
+            "chatId": chatId,
+            "content": content,
+            "messageType": messageType.rawValue,
+            "tempId": UUID().uuidString
         ]
 
-        sendMessage(messageData)
+        if let listingId = listingId {
+            data["listingId"] = listingId
+        }
+
+        socket.emit("send_message", data)
+        print("📤 [WebSocket] Sent message to chat \(chatId)")
     }
 
     func sendTypingIndicator(chatId: String, isTyping: Bool) {
-        let event = isTyping ? SocketEvent.typingStart.rawValue : SocketEvent.typingStop.rawValue
-        let messageData: [String: Any] = [
-            "event": event,
-            "data": [
-                "chatId": chatId
-            ]
-        ]
+        guard isConnected, let socket = socket else { return }
 
-        sendMessage(messageData)
+        let event = isTyping ? "typing_start" : "typing_stop"
+        socket.emit(event, ["chatId": chatId])
+        print("⌨️ [WebSocket] Sent \(event) for chat \(chatId)")
     }
 
     func joinChat(chatId: String) {
-        let messageData: [String: Any] = [
-            "event": SocketEvent.joinChat.rawValue,
-            "data": [
-                "chatId": chatId
-            ]
-        ]
+        guard isConnected, let socket = socket else { return }
 
-        sendMessage(messageData)
+        socket.emit("join_chat", ["chatId": chatId])
+        print("🚪 [WebSocket] Joined chat \(chatId)")
     }
 
     func leaveChat(chatId: String) {
-        let messageData: [String: Any] = [
-            "event": SocketEvent.leaveChat.rawValue,
-            "data": [
-                "chatId": chatId
-            ]
-        ]
+        guard isConnected, let socket = socket else { return }
 
-        sendMessage(messageData)
+        socket.emit("leave_chat", ["chatId": chatId])
+        print("🚪 [WebSocket] Left chat \(chatId)")
     }
 
     func markMessageAsRead(messageId: String, chatId: String) {
-        let messageData: [String: Any] = [
-            "event": SocketEvent.markRead.rawValue,
-            "data": [
-                "messageId": messageId,
-                "chatId": chatId
-            ]
-        ]
+        guard isConnected, let socket = socket else { return }
 
-        sendMessage(messageData)
+        socket.emit("mark_read", [
+            "messageId": messageId,
+            "chatId": chatId
+        ])
+        print("👁️ [WebSocket] Marked message \(messageId) as read")
     }
 
     func updatePresence(status: String) {
@@ -215,34 +219,7 @@ class WebSocketManager: NSObject, ObservableObject {
         sendMessage(messageData)
     }
 
-    private func sendMessage(_ data: [String: Any]) {
-        guard isConnected else {
-            print("⚠️ WebSocket not connected, cannot send message")
-            // Fallback to REST API for sending messages
-            if let eventData = data["data"] as? [String: Any],
-               let chatId = eventData["chatId"] as? String,
-               let content = eventData["content"] as? String {
-                sendMessageViaREST(chatId: chatId, content: content)
-            }
-            return
-        }
-
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: data)
-            let message = URLSessionWebSocketTask.Message.data(jsonData)
-
-            webSocketTask?.send(message) { [weak self] error in
-                if let error = error {
-                    print("❌ WebSocket send error: \(error)")
-                    DispatchQueue.main.async {
-                        self?.handleConnectionError(error)
-                    }
-                }
-            }
-        } catch {
-            print("❌ Failed to serialize message: \(error)")
-        }
-    }
+    // Removed: Old URLSessionWebSocketTask-based sendMessage - now using Socket.io emit()
 
     // REST API fallback for sending messages
     private func sendMessageViaREST(chatId: String, content: String) {
@@ -289,71 +266,13 @@ class WebSocketManager: NSObject, ObservableObject {
         }
     }
 
-    private func sendAuthMessage() {
-        guard let token = authToken else { return }
-
-        let authData: [String: Any] = [
-            "event": "authenticate",
-            "data": [
-                "token": token
-            ]
-        ]
-
-        sendMessage(authData)
-    }
-
-    // MARK: - Message Receiving
-
-    private func startReceiving() {
-        webSocketTask?.receive { [weak self] result in
-            switch result {
-            case .success(let message):
-                self?.handleReceivedMessage(message)
-                // Continue receiving
-                self?.startReceiving()
-
-            case .failure(let error):
-                print("❌ WebSocket receive error: \(error)")
-                DispatchQueue.main.async {
-                    self?.handleConnectionError(error)
-                }
-            }
-        }
-    }
-
-    private func handleReceivedMessage(_ message: URLSessionWebSocketTask.Message) {
-        switch message {
-        case .data(let data):
-            handleDataMessage(data)
-
-        case .string(let string):
-            if let data = string.data(using: .utf8) {
-                handleDataMessage(data)
-            }
-
-        @unknown default:
-            print("⚠️ Unknown WebSocket message type received")
-        }
-    }
-
-    private func handleDataMessage(_ data: Data) {
-        do {
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let event = json["event"] as? String,
-               let eventData = json["data"] {
-
-                DispatchQueue.main.async { [weak self] in
-                    self?.processSocketEvent(event: event, data: eventData)
-                }
-            }
-        } catch {
-            print("❌ Failed to parse WebSocket message: \(error)")
-        }
-    }
-
     // MARK: - Event Processing
+    // Socket.io handles message parsing and event routing automatically via setupSocketHandlers()
 
-    private func processSocketEvent(event: String, data: Any) {
+    // Legacy processSocketEvent removed - now using Socket.io event handlers
+
+    private func processSocketEventLegacy(event: String, data: Any) {
+        // This function is kept for compatibility but not used with Socket.io
         guard let socketEvent = SocketEvent(rawValue: event) else {
             print("⚠️ Unknown socket event: \(event)")
             return
@@ -634,19 +553,77 @@ class WebSocketManager: NSObject, ObservableObject {
         // Default message handlers can be set up here
     }
 
-    private func startPingTimer() {
-        pingTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            self?.sendPing()
+    private func setupSocketHandlers() {
+        guard let socket = socket else { return }
+
+        // Connection events
+        socket.on(clientEvent: .connect) { [weak self] data, ack in
+            print("✅ [WebSocket] Connected successfully!")
+            DispatchQueue.main.async {
+                self?.handleConnectionSuccess()
+            }
+        }
+
+        socket.on(clientEvent: .disconnect) { [weak self] data, ack in
+            print("🔌 [WebSocket] Disconnected")
+            DispatchQueue.main.async {
+                self?.handleDisconnection()
+            }
+        }
+
+        socket.on(clientEvent: .error) { [weak self] data, ack in
+            print("❌ [WebSocket] Error: \(data)")
+            DispatchQueue.main.async {
+                self?.connectionStatus = .error("Connection error")
+            }
+        }
+
+        socket.on(clientEvent: .reconnect) { [weak self] data, ack in
+            print("🔄 [WebSocket] Reconnecting...")
+            DispatchQueue.main.async {
+                self?.connectionStatus = .reconnecting
+            }
+        }
+
+        // Custom events
+        socket.on("new_message") { [weak self] data, ack in
+            print("📩 [WebSocket] Received new_message event")
+            if let messageData = data.first {
+                self?.handleNewMessage(messageData)
+            }
+        }
+
+        socket.on("message_read") { [weak self] data, ack in
+            print("👁️ [WebSocket] Received message_read event")
+            if let readData = data.first {
+                self?.handleMessageRead(readData)
+            }
+        }
+
+        socket.on("typing") { [weak self] data, ack in
+            print("⌨️ [WebSocket] Received typing event")
+            if let typingData = data.first {
+                self?.handleTypingIndicator(typingData)
+            }
+        }
+
+        socket.on("user_online") { [weak self] data, ack in
+            print("🟢 [WebSocket] User online event")
+            if let userData = data.first {
+                self?.handleUserOnline(userData)
+            }
+        }
+
+        socket.on("user_offline") { [weak self] data, ack in
+            print("⚪ [WebSocket] User offline event")
+            if let userData = data.first {
+                self?.handleUserOffline(userData)
+            }
         }
     }
 
-    private func sendPing() {
-        let pingMessage = URLSessionWebSocketTask.Message.string("ping")
-        webSocketTask?.send(pingMessage) { error in
-            if let error = error {
-                print("❌ Ping failed: \(error)")
-            }
-        }
+    private func startPingTimer() {
+        // Socket.io handles ping/pong automatically, no need for manual implementation
     }
 
     private func handleConnectionError(_ error: Error) {
@@ -660,22 +637,6 @@ class WebSocketManager: NSObject, ObservableObject {
         reconnectTimer?.invalidate()
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in
             self?.reconnect()
-        }
-    }
-}
-
-// MARK: - URLSessionWebSocketDelegate
-
-extension WebSocketManager: URLSessionWebSocketDelegate {
-    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-        DispatchQueue.main.async { [weak self] in
-            self?.handleConnectionSuccess()
-        }
-    }
-
-    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        DispatchQueue.main.async { [weak self] in
-            self?.handleDisconnection()
         }
     }
 }
