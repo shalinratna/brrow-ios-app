@@ -48,7 +48,8 @@ class ChatListViewModel: ObservableObject {
         // Listen for conversation updates (new conversation created or updated)
         NotificationCenter.default.publisher(for: .conversationDidUpdate)
             .sink { [weak self] _ in
-                self?.refreshConversations()
+                // CRITICAL: Bypass cache when refreshing after new conversation created
+                self?.fetchConversations(bypassCache: true)
             }
             .store(in: &cancellables)
     }
@@ -98,7 +99,7 @@ class ChatListViewModel: ObservableObject {
         filteredConversations = conversations
     }
     
-    func fetchConversations() {
+    func fetchConversations(bypassCache: Bool = false) {
         // Check if user is authenticated and not a guest
         guard authManager.isAuthenticated && !authManager.isGuestUser else {
             conversations = []
@@ -113,7 +114,8 @@ class ChatListViewModel: ObservableObject {
         
         Task {
             do {
-                let fetchedConversations = try await apiClient.fetchConversations()
+                let result = try await apiClient.fetchConversations(type: nil, limit: 20, offset: 0, search: nil, bypassCache: bypassCache)
+                let fetchedConversations = result.conversations
                 
                 await MainActor.run {
                     let sortedConversations = fetchedConversations.sorted {

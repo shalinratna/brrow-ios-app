@@ -3111,7 +3111,7 @@ class APIClient: ObservableObject {
     }
 
     /// Enhanced method with dual messaging support
-    func fetchConversations(type: String?, limit: Int = 20, offset: Int = 0, search: String?) async throws -> (conversations: [Conversation], hasMore: Bool) {
+    func fetchConversations(type: String?, limit: Int = 20, offset: Int = 0, search: String?, bypassCache: Bool = false) async throws -> (conversations: [Conversation], hasMore: Bool) {
         var endpoint = "api/messages/chats?limit=\(limit)&offset=\(offset)"
 
         if let type = type {
@@ -3139,7 +3139,8 @@ class APIClient: ObservableObject {
             let response = try await performRequest(
                 endpoint: endpoint,
                 method: .GET,
-                responseType: PaginatedConversationsResponse.self
+                responseType: PaginatedConversationsResponse.self,
+                cachePolicy: bypassCache ? .ignoreCache : .networkFirst
             )
             return (conversations: response.data, hasMore: response.pagination.hasMore)
         } catch {

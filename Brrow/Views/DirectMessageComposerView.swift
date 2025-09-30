@@ -222,6 +222,11 @@ struct DirectMessageComposerView: View {
                     // Auto-dismiss after showing success
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         dismiss()
+
+                        // Navigate to Messages tab after brief delay for dismiss animation
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            TabSelectionManager.shared.switchToMessages()
+                        }
                     }
                 }
             } catch {

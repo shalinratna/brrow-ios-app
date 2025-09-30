@@ -319,8 +319,13 @@ struct MessageComposerView: View {
                     // Notify chat list to refresh - new conversation created
                     NotificationCenter.default.post(name: .conversationDidUpdate, object: nil)
 
-                    // Dismiss the composer - message sent successfully
+                    // Dismiss the composer first
                     dismiss()
+
+                    // Navigate to Messages tab after brief delay for dismiss animation
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        TabSelectionManager.shared.switchToMessages()
+                    }
                 }
             } catch {
                 await MainActor.run {
