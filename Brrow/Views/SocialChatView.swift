@@ -94,26 +94,50 @@ struct SocialChatView: View {
     
     // MARK: - Chat List
     private var chatList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                if viewModel.conversations.isEmpty {
+        Group {
+            if viewModel.conversations.isEmpty {
+                ScrollView {
                     emptyChatState
-                } else {
+                }
+            } else {
+                // Use List for swipe actions to work
+                List {
                     ForEach(filteredConversations, id: \.id) { conversation in
-                        NavigationLink(destination: ChatDetailView(conversation: conversation)) {
+                        ZStack {
+                            // Hidden NavigationLink for navigation
+                            NavigationLink(destination: ChatDetailView(conversation: conversation)) {
+                                EmptyView()
+                            }
+                            .opacity(0)
+
+                            // Visible content
                             SocialConversationRow(conversation: conversation)
+                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 conversationToDelete = conversation
                                 showDeleteConfirmation = true
                             } label: {
                                 Label("Delete", systemImage: "trash.fill")
                             }
+
+                            Button {
+                                // Archive functionality
+                                print("Archive conversation: \(conversation.id)")
+                            } label: {
+                                Label("Archive", systemImage: "archivebox.fill")
+                            }
+                            .tint(.orange)
                         }
                     }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(Theme.Colors.background)
             }
         }
         .alert("Delete Conversation?", isPresented: $showDeleteConfirmation) {

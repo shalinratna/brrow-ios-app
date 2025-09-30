@@ -314,7 +314,8 @@ class ChatListViewModel: ObservableObject {
 
     // Navigate to a specific chat
     func navigateToChat(chatId: String, listing: Listing?) {
-        print("🔄 Navigating to chat: \(chatId)")
+        print("🔄 [navigateToChat] Starting navigation to chat: \(chatId)")
+        print("🔄 [navigateToChat] Current conversations count: \(conversations.count)")
 
         navigatedListing = listing
 
@@ -327,19 +328,63 @@ class ChatListViewModel: ObservableObject {
 
         // Find the conversation in the list
         if let conversation = conversations.first(where: { $0.id == chatId }) {
-            print("✅ Found existing conversation: \(conversation.id)")
+            print("✅ [navigateToChat] Found existing conversation: \(conversation.id)")
             // Mark as selected for navigation
             selectedChatId = conversation.id
         } else {
-            print("🔄 Conversation not found, attempting to create...")
-            // If conversation doesn't exist, try to create it from chatId
-            // ChatId format: "listing_{listingId}_{userId1}_{userId2}"
-            if chatId.hasPrefix("listing_") {
-                Task {
-                    await createConversationFromChatId(chatId: chatId, listing: listing)
+            print("🔄 [navigateToChat] Conversation not found in current list")
+            print("🔄 [navigateToChat] Fetching conversations from API...")
+
+            // CRITICAL FIX: Fetch conversations from API to ensure we have the latest data
+            // This is essential for notification deep linking when app launches
+            Task {
+                await fetchConversationsAndNavigate(chatId: chatId, listing: listing)
+            }
+        }
+    }
+
+    // Fetch conversations and then navigate to the specific chat
+    private func fetchConversationsAndNavigate(chatId: String, listing: Listing?) async {
+        print("📡 [fetchConversationsAndNavigate] Fetching conversations for chatId: \(chatId)")
+
+        do {
+            // Fetch conversations directly from API
+            let result = try await apiClient.fetchConversations(type: nil, limit: 20, offset: 0, search: nil, bypassCache: true)
+            let fetchedConversations = result.conversations
+
+            await MainActor.run {
+                let sortedConversations = fetchedConversations.sorted {
+                    let formatter = ISO8601DateFormatter()
+                    let timestamp1 = formatter.date(from: $0.lastMessage?.createdAt ?? $0.updatedAt) ?? Date()
+                    let timestamp2 = formatter.date(from: $1.lastMessage?.createdAt ?? $1.updatedAt) ?? Date()
+                    return timestamp1 > timestamp2
                 }
-            } else {
-                // For non-listing chats, set the chatId and let the UI handle it
+                self.conversations = sortedConversations
+                if self.searchQuery.isEmpty {
+                    self.filteredConversations = sortedConversations
+                }
+
+                print("📡 [fetchConversationsAndNavigate] After fetch, conversations count: \(conversations.count)")
+
+                // Try to find the conversation again
+                if let conversation = conversations.first(where: { $0.id == chatId }) {
+                    print("✅ [fetchConversationsAndNavigate] Found conversation after fetch: \(conversation.id)")
+                    selectedChatId = conversation.id
+                } else if chatId.hasPrefix("listing_") {
+                    print("🔄 [fetchConversationsAndNavigate] Listing conversation not found, attempting to create...")
+                    Task {
+                        await createConversationFromChatId(chatId: chatId, listing: listing)
+                    }
+                } else {
+                    print("⚠️ [fetchConversationsAndNavigate] Conversation still not found after fetch: \(chatId)")
+                    // Set it anyway and let the UI try to handle it
+                    selectedChatId = chatId
+                }
+            }
+        } catch {
+            print("❌ [fetchConversationsAndNavigate] Error fetching conversations: \(error)")
+            await MainActor.run {
+                // Still try to navigate even if fetch fails
                 selectedChatId = chatId
             }
         }

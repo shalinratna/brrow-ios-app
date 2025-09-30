@@ -173,20 +173,36 @@ struct ChatDetailView: View {
     private var messagesScrollView: some View {
         ScrollViewReader { proxy in
             let messagesContent = ScrollView {
-                LazyVStack(spacing: Theme.Spacing.sm) {
-                    ForEach(viewModel.messages) { message in
-                        let isOwnMessage = message.senderId == AuthManager.shared.currentUser?.apiId
-                        MessageBubbleView(
-                            message: message.toEnhancedChatMessage(),
-                            isOwnMessage: isOwnMessage
-                        )
-                        .id(message.id)
+                LazyVStack(spacing: 2) {
+                    ForEach(Array(groupedMessagesByDate.keys.sorted(by: >)), id: \.self) { date in
+                        // Date header (like iMessage)
+                        Text(formatDateHeader(date))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                            .padding(.vertical, 16)
+                            .padding(.top, 8)
+
+                        // Messages for this date
+                        ForEach(groupedMessagesByDate[date] ?? []) { message in
+                            let isOwnMessage = message.senderId == AuthManager.shared.currentUser?.apiId
+                            let previousMessage = getPreviousMessage(for: message)
+                            let showTimestamp = shouldShowTimestamp(current: message, previous: previousMessage)
+
+                            MessageBubbleView(
+                                message: message.toEnhancedChatMessage(),
+                                isOwnMessage: isOwnMessage,
+                                showTimestamp: showTimestamp,
+                                isFirstInGroup: isFirstInGroup(message: message, previous: previousMessage),
+                                isLastInGroup: isLastInGroup(message: message)
+                            )
+                            .id(message.id)
+                        }
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
             }
-            .background(Theme.Colors.background)
+            .background(Color(red: 0.95, green: 0.95, blue: 0.97)) // Light gray background like iMessage
 
             messagesContent
                 .onChange(of: viewModel.messages.count) { _ in
@@ -197,6 +213,67 @@ struct ChatDetailView: View {
                     }
                 }
         }
+    }
+
+    // Group messages by date
+    private var groupedMessagesByDate: [Date: [Message]] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: viewModel.messages) { message in
+            let dateFormatter = ISO8601DateFormatter()
+            let date = dateFormatter.date(from: message.createdAt) ?? Date()
+            return calendar.startOfDay(for: date)
+        }
+        return grouped
+    }
+
+    // Format date header like iMessage (Today, Yesterday, or date)
+    private func formatDateHeader(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else if calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE" // Day name (Monday, Tuesday, etc.)
+            return formatter.string(from: date)
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            return formatter.string(from: date)
+        }
+    }
+
+    // Get previous message for comparison
+    private func getPreviousMessage(for message: Message) -> Message? {
+        guard let index = viewModel.messages.firstIndex(where: { $0.id == message.id }),
+              index > 0 else { return nil }
+        return viewModel.messages[index - 1]
+    }
+
+    // Check if timestamp should be shown (show every 5 minutes)
+    private func shouldShowTimestamp(current: Message, previous: Message?) -> Bool {
+        guard let previous = previous else { return true }
+
+        let dateFormatter = ISO8601DateFormatter()
+        let currentDate = dateFormatter.date(from: current.createdAt) ?? Date()
+        let previousDate = dateFormatter.date(from: previous.createdAt) ?? Date()
+
+        let timeDifference = currentDate.timeIntervalSince(previousDate)
+        return timeDifference > 300 // 5 minutes
+    }
+
+    // Check if this is the first message in a group from the same sender
+    private func isFirstInGroup(message: Message, previous: Message?) -> Bool {
+        guard let previous = previous else { return true }
+        return message.senderId != previous.senderId
+    }
+
+    // Check if this is the last message in a group (simplified - checks if it's the last overall)
+    private func isLastInGroup(message: Message) -> Bool {
+        return message.id == viewModel.messages.last?.id
     }
     
     private var messageInputBar: some View {
@@ -319,63 +396,89 @@ struct ChatDetailView: View {
 struct MessageBubbleView: View {
     let message: EnhancedChatMessage
     let isOwnMessage: Bool
+    var showTimestamp: Bool = true
+    var isFirstInGroup: Bool = true
+    var isLastInGroup: Bool = true
     @State private var showingFullScreenImage = false
-    
+
     var body: some View {
-        HStack {
-            if isOwnMessage { Spacer() }
-            
-            VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 4) {
-                if message.type == .text || message.content.contains("inquiry") {
-                    Text(message.content)
-                        .font(.system(size: 16))
-                        .foregroundColor(isOwnMessage ? .white : Theme.Colors.text)
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.vertical, Theme.Spacing.sm)
-                        .background(isOwnMessage ? Theme.Colors.primary : Theme.Colors.surface)
-                        .cornerRadius(18)
-                } else if message.type == .image {
-                    if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
-                        BrrowAsyncImage(url: mediaData.url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
+        VStack(spacing: 2) {
+            HStack(alignment: .bottom, spacing: 8) {
+                if isOwnMessage { Spacer(minLength: 60) }
+
+                VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 2) {
+                    if message.type == .text || message.content.contains("inquiry") {
+                        Text(message.content)
+                            .font(.system(size: 16))
+                            .foregroundColor(isOwnMessage ? .white : Color.black)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                isOwnMessage
+                                    ? LinearGradient(colors: [Color(red: 0.0, green: 0.48, blue: 1.0), Color(red: 0.0, green: 0.55, blue: 1.0)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing)
+                                    : LinearGradient(colors: [Color(red: 0.92, green: 0.92, blue: 0.95), Color(red: 0.92, green: 0.92, blue: 0.95)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing)
+                            )
+                            .cornerRadius(20)
+                            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    } else if message.type == .image {
+                        if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
+                            BrrowAsyncImage(url: mediaData.url) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(maxWidth: 250, maxHeight: 300)
+                                    .clipped()
+                                    .cornerRadius(18)
+                                    .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+                                    .onTapGesture {
+                                        showingFullScreenImage = true
+                                    }
+                            } placeholder: {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: 250, height: 200)
+                                    .overlay(
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle())
+                                    )
+                            }
+                            .fullScreenCover(isPresented: $showingFullScreenImage) {
+                                ImageViewerView(imageUrl: "https://brrowapp.com/brrow" + mediaData.url)
+                            }
+                        }
+                    } else if message.type == .video {
+                        if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
+                            VideoThumbnailView(videoUrl: "https://brrowapp.com/brrow" + mediaData.url)
                                 .frame(maxWidth: 250, maxHeight: 300)
-                                .clipped()
-                                .cornerRadius(12)
-                                .onTapGesture {
-                                    showingFullScreenImage = true
-                                }
-                        } placeholder: {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Theme.Colors.surface)
-                                .frame(width: 250, height: 200)
-                                .overlay(
-                                    ProgressView()
-                                )
+                                .cornerRadius(18)
+                                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
                         }
-                        .fullScreenCover(isPresented: $showingFullScreenImage) {
-                            ImageViewerView(imageUrl: "https://brrowapp.com/brrow" + mediaData.url)
-                        }
-                    }
-                } else if message.type == .video {
-                    if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
-                        VideoThumbnailView(videoUrl: "https://brrowapp.com/brrow" + mediaData.url)
-                            .frame(maxWidth: 250, maxHeight: 300)
-                            .cornerRadius(12)
                     }
                 }
-                
-                Text(formatTime(message.createdAt))
-                    .font(.system(size: 11))
-                    .foregroundColor(Theme.Colors.tertiaryText)
+
+                if !isOwnMessage { Spacer(minLength: 60) }
             }
-            .frame(maxWidth: UIScreen.main.bounds.width * 0.75, alignment: isOwnMessage ? .trailing : .leading)
-            
-            if !isOwnMessage { Spacer() }
+
+            // Show timestamp only if needed (every 5 minutes)
+            if showTimestamp {
+                HStack {
+                    if isOwnMessage { Spacer() }
+                    Text(formatTime(message.createdAt))
+                        .font(.system(size: 11))
+                        .foregroundColor(Color.gray)
+                        .padding(.top, 2)
+                        .padding(.bottom, 4)
+                    if !isOwnMessage { Spacer() }
+                }
+            }
         }
+        .padding(.vertical, isFirstInGroup ? 4 : 1)
     }
-    
+
     private func formatTime(_ date: Date) -> String {
         let timeFormatter = DateFormatter()
         timeFormatter.timeStyle = .short
