@@ -35,13 +35,20 @@ class ChatListViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
-        
+
         // Listen for message read status updates
         NotificationCenter.default.publisher(for: .messageRead)
             .sink { [weak self] notification in
                 if let conversationId = notification.object as? String {
                     self?.markConversationAsRead(conversationId)
                 }
+            }
+            .store(in: &cancellables)
+
+        // Listen for conversation updates (new conversation created or updated)
+        NotificationCenter.default.publisher(for: .conversationDidUpdate)
+            .sink { [weak self] _ in
+                self?.refreshConversations()
             }
             .store(in: &cancellables)
     }

@@ -211,6 +211,9 @@ struct DirectMessageComposerView: View {
                 await MainActor.run {
                     isLoading = false
 
+                    // Notify chat list to refresh - new conversation created
+                    NotificationCenter.default.post(name: .conversationDidUpdate, object: nil)
+
                     // Show success message
                     withAnimation {
                         showingSuccess = true

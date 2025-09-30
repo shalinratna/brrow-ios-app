@@ -316,6 +316,9 @@ struct MessageComposerView: View {
                     // CRITICAL FIX: Use conversation.id NOT message.id
                     self.conversationId = conversation.id
 
+                    // Notify chat list to refresh - new conversation created
+                    NotificationCenter.default.post(name: .conversationDidUpdate, object: nil)
+
                     // Dismiss the composer - message sent successfully
                     dismiss()
                 }
