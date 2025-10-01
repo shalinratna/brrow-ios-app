@@ -2382,20 +2382,13 @@ class APIClient: ObservableObject {
     
     // MARK: - User Profile
     func fetchUserProfile(userId: String? = nil, username: String? = nil) async throws -> User {
-        var endpoint = "fetch_user_profile.php"
-        var params: [String] = []
-        
-        if let userId = userId {
-            params.append("user_id=\(userId)")
+        // Use Node.js endpoint to fetch user profile by ID
+        guard let userId = userId else {
+            throw ValidationError(message: "User ID is required")
         }
-        if let username = username {
-            params.append("username=\(username)")
-        }
-        
-        if !params.isEmpty {
-            endpoint += "?" + params.joined(separator: "&")
-        }
-        
+
+        let endpoint = "api/users/\(userId)"
+
         return try await performRequest(
             endpoint: endpoint,
             method: .GET,
