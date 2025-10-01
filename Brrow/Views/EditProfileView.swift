@@ -72,14 +72,26 @@ struct EditProfileView: View {
         self._phone = State(initialValue: "") // Add phone to User model later
         self._location = State(initialValue: "") // Add location to User model later
         self._website = State(initialValue: "") // Add website to User model later
-        
+
         // Parse birthdate if available
         if let birthdateString = user.birthdate {
             let formatter = ISO8601DateFormatter()
             self._birthdate = State(initialValue: formatter.date(from: birthdateString) ?? Date())
         }
     }
-    
+
+    // CRITICAL: Check if user is on username change cooldown
+    private var usernameChangeCooldown: (isOnCooldown: Bool, daysRemaining: Int) {
+        guard let lastChange = user.lastUsernameChange else {
+            return (false, 0)
+        }
+
+        let daysSinceChange = Int(Date().timeIntervalSince(lastChange) / (24 * 60 * 60))
+        let daysRemaining = max(0, 90 - daysSinceChange)
+
+        return (daysRemaining > 0, daysRemaining)
+    }
+
     var body: some View {
         mainContent
             .photosPicker(isPresented: $showingImagePicker, selection: $selectedImage, matching: .images)
@@ -280,7 +292,13 @@ struct EditProfileView: View {
         VStack(alignment: .leading, spacing: 8) {
             formField(title: "Username", text: $username, placeholder: "Enter username")
 
-            if username != originalUsername && !username.isEmpty {
+            // Show cooldown warning if user is on cooldown
+            if usernameChangeCooldown.isOnCooldown {
+                Text("🔒 Username locked for \(usernameChangeCooldown.daysRemaining) more days (90-day policy)")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.horizontal, Theme.Spacing.md)
+            } else if username != originalUsername && !username.isEmpty {
                 Text("⚠️ Usernames can only be changed once every 90 days")
                     .font(.caption)
                     .foregroundColor(.orange)
@@ -711,6 +729,12 @@ struct EditProfileView: View {
 
         // Check if username is being changed
         if username != originalUsername && !username.isEmpty {
+            // CRITICAL: Check if user is on cooldown
+            if usernameChangeCooldown.isOnCooldown {
+                errorMessage = "Username is locked for \(usernameChangeCooldown.daysRemaining) more days. You can only change your username once every 90 days."
+                showError = true
+                return
+            }
             showUsernameChangeAlert = true
             return
         }
