@@ -19,6 +19,9 @@ struct ModernChatView: View {
     @State private var isTyping = false
     @State private var showingAttachmentMenu = false
     @FocusState private var isMessageFieldFocused: Bool
+    @State private var showingUserProfile = false
+    @State private var otherUserProfile: User?
+    @State private var isLoadingProfile = false
 
     init(conversation: Conversation, initialMessage: String? = nil) {
         self.conversation = conversation
@@ -80,6 +83,24 @@ struct ModernChatView: View {
                 handleAttachment(attachment)
             }
         }
+        .sheet(isPresented: $showingUserProfile) {
+            if let user = otherUserProfile {
+                NavigationView {
+                    SocialProfileView(user: user)
+                        .navigationBarItems(trailing: Button("Done") {
+                            showingUserProfile = false
+                        })
+                }
+            } else {
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Loading profile...")
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Colors.background)
+            }
+        }
     }
 
     // MARK: - Modern Header
@@ -95,44 +116,50 @@ struct ModernChatView: View {
                     .frame(width: 32, height: 32)
             }
 
-            // User avatar
-            BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(Theme.Colors.primary.opacity(0.2))
+            // CRITICAL: Make avatar and user info tappable for Instagram-style profile view
+            Button(action: { fetchAndShowProfile() }) {
+                HStack(spacing: 12) {
+                    // User avatar
+                    BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(Theme.Colors.primary.opacity(0.2))
+                            .overlay(
+                                Text(String(conversation.otherUser.username.prefix(1)).uppercased())
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(Theme.Colors.primary)
+                            )
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
                     .overlay(
-                        Text(String(conversation.otherUser.username.prefix(1)).uppercased())
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(Theme.Colors.primary)
+                        // Online status indicator
+                        Circle()
+                            .fill(viewModel.isUserOnline ? Color.green : Color.clear)
+                            .frame(width: 12, height: 12)
+                            .offset(x: 12, y: 12)
                     )
-            }
-            .frame(width: 36, height: 36)
-            .clipShape(Circle())
-            .overlay(
-                // Online status indicator
-                Circle()
-                    .fill(viewModel.isUserOnline ? Color.green : Color.clear)
-                    .frame(width: 12, height: 12)
-                    .offset(x: 12, y: 12)
-            )
 
-            // User info
-            VStack(alignment: .leading, spacing: 0) {
-                Text(conversation.otherUser.username)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
+                    // User info
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(conversation.otherUser.username)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
 
-                if isTyping {
-                    TypingIndicatorView()
-                } else {
-                    Text(viewModel.isUserOnline ? "Active now" : "Offline")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        if isTyping {
+                            TypingIndicatorView()
+                        } else {
+                            Text(viewModel.isUserOnline ? "Active now" : "Offline")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
             }
+            .buttonStyle(PlainButtonStyle())
 
             Spacer()
 
@@ -372,6 +399,31 @@ struct ModernChatView: View {
         case .event:
             // Handle event scheduling
             print("📅 Event scheduling")
+        }
+    }
+
+    // MARK: - Profile Fetching
+    private func fetchAndShowProfile() {
+        guard !isLoadingProfile else { return }
+
+        isLoadingProfile = true
+        showingUserProfile = true
+
+        Task {
+            do {
+                let profile = try await APIClient.shared.fetchUserProfile(userId: conversation.otherUser.id)
+
+                await MainActor.run {
+                    self.otherUserProfile = profile
+                    self.isLoadingProfile = false
+                }
+            } catch {
+                print("❌ Failed to fetch user profile: \(error)")
+                await MainActor.run {
+                    self.isLoadingProfile = false
+                    self.showingUserProfile = false
+                }
+            }
         }
     }
 }

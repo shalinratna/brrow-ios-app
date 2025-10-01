@@ -2,6 +2,14 @@ import Foundation
 import Combine
 import SwiftUI
 
+// Profile chart data point for analytics
+struct ProfileChartDataPoint: Identifiable, Codable {
+    let id = UUID()
+    let date: String
+    let value: Double
+    let label: String?
+}
+
 @MainActor
 class ProfileViewModel: ObservableObject {
     @Published var user: User?
@@ -11,10 +19,11 @@ class ProfileViewModel: ObservableObject {
     @Published var showingEditProfile = false
     @Published var showingSettings = false
     @Published var userListings: [Listing] = []
+    @Published var userPosts: [UserPost] = []
     @Published var userRating: Double = 0.0
     @Published var reviewCount: Int = 0
     
-    // Additional properties for UltraModernProfileView2
+    // Additional properties for analytics and stats
     @Published var activities: [ProfileActivity] = []
     @Published var reviews: [ProfileReview] = []
     @Published var totalEarned: Double = 0.0
@@ -263,7 +272,7 @@ struct ProfileStatsData {
     let reviewCount: Int
 }
 
-// Additional models for UltraModernProfileView2
+// Additional models for profile analytics
 struct ProfileActivity: Identifiable {
     let id = UUID()
     let icon: String

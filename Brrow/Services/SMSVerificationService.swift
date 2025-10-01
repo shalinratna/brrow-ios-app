@@ -115,41 +115,7 @@ class SMSVerificationService: ObservableObject {
     }
 }
 
-// MARK: - API Extension
-
-extension APIClient {
-
-    func sendSMSVerificationCode(phoneNumber: String) async throws -> SMSVerificationResponse {
-        let requestData = [
-            "phoneNumber": phoneNumber
-        ]
-
-        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
-
-        return try await performRequest(
-            endpoint: "api/verify/send-sms",
-            method: "POST",
-            body: bodyData,
-            responseType: SMSVerificationResponse.self
-        )
-    }
-
-    func verifySMSCode(code: String, phoneNumber: String) async throws -> SMSVerificationResponse {
-        let requestData = [
-            "code": code,
-            "phoneNumber": phoneNumber
-        ]
-
-        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
-
-        return try await performRequest(
-            endpoint: "api/verify/verify-sms",
-            method: "POST",
-            body: bodyData,
-            responseType: SMSVerificationResponse.self
-        )
-    }
-}
+// MARK: - API Extension removed - using APIClient's built-in SMS verification methods
 
 // MARK: - Response Models
 

@@ -16,10 +16,12 @@ struct ProfileUpdateData: Codable {
     let bio: String?
     let birthdate: String?
     let profilePicture: String?
+    let location: String?
+    let website: String?
 
     enum CodingKeys: String, CodingKey {
         case username, email, phone, bio
-        case birthdate, profilePicture
+        case birthdate, profilePicture, location, website
     }
 }
 
@@ -53,6 +55,10 @@ struct EditProfileView: View {
     @State private var showUsernameChangeAlert = false
     @State private var originalUsername: String = ""
 
+    // SMS Verification states
+    @State private var showSMSVerification = false
+    @State private var pendingPhoneNumber = ""
+
     // Loading states
     @State private var isLoading = false
     @State private var showError = false
@@ -69,9 +75,9 @@ struct EditProfileView: View {
         // Display name removed - using username only
         self._bio = State(initialValue: user.bio ?? "")
         self._email = State(initialValue: user.email)
-        self._phone = State(initialValue: "") // Add phone to User model later
-        self._location = State(initialValue: "") // Add location to User model later
-        self._website = State(initialValue: "") // Add website to User model later
+        self._phone = State(initialValue: user.phone ?? "")
+        self._location = State(initialValue: user.location ?? "")
+        self._website = State(initialValue: user.website ?? "")
 
         // Parse birthdate if available
         if let birthdateString = user.birthdate {
@@ -121,13 +127,6 @@ struct EditProfileView: View {
         } message: {
             Text("⚠️ Important Username Policy:\n\n• You can only change your username once every 90 days\n• Your old username becomes available for others\n• This change cannot be undone\n\nNew username: @\(username)")
         }
-        .alert("Success", isPresented: $showSuccess) {
-            Button("OK") {
-                presentationMode.wrappedValue.dismiss()
-            }
-        } message: {
-            Text("Your profile has been updated successfully!")
-        }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordView()
         }
@@ -146,26 +145,62 @@ struct EditProfileView: View {
         .sheet(isPresented: $showDeleteAccount) {
             DeleteAccountView()
         }
-    }
-    
-    // MARK: - Main Content
-    private var mainContent: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                profileContent
+        .sheet(isPresented: $showSMSVerification) {
+            SMSVerificationView(initialPhoneNumber: pendingPhoneNumber) { user in
+                // Verification complete - update local state
+                Task {
+                    await authManager.refreshUserProfile()
+                    await MainActor.run {
+                        phone = pendingPhoneNumber
+                        showSuccess = true
+                        showSMSVerification = false
+                    }
+                }
             }
         }
-        .background(Theme.Colors.background)
-        .navigationTitle("Edit Profile")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            toolbarContent
-        }
-        .toolbarColorScheme(.light, for: .navigationBar)
-        .onTapGesture {
-            // Dismiss keyboard when tapping outside
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    // MARK: - Main Content
+    private var mainContent: some View {
+        ZStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    profileContent
+                }
+            }
+            .background(Theme.Colors.background)
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                toolbarContent
+            }
+            .toolbarColorScheme(.light, for: .navigationBar)
+            .onTapGesture {
+                // Dismiss keyboard when tapping outside
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
+            .disabled(isLoading)
+
+            // Loading overlay
+            if isLoading {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .overlay(
+                        VStack(spacing: Theme.Spacing.md) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(1.5)
+
+                            Text("Saving profile...")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                        }
+                        .padding(Theme.Spacing.xl)
+                        .background(Color.black.opacity(0.8))
+                        .cornerRadius(16)
+                    )
+            }
         }
     }
     
@@ -202,8 +237,9 @@ struct EditProfileView: View {
                 presentationMode.wrappedValue.dismiss()
             }
             .foregroundColor(Theme.Colors.primary)
+            .disabled(isLoading)
         }
-        
+
         ToolbarItem(placement: .navigationBarTrailing) {
             Button("Save") {
                 saveProfile()
@@ -739,12 +775,16 @@ struct EditProfileView: View {
             return
         }
 
-        // OPTIMISTIC UI: Dismiss immediately for better UX
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            presentationMode.wrappedValue.dismiss()
+        // Check if phone number is being changed
+        let phoneChanged = phone != (user.phone ?? "") && !phone.isEmpty
+        if phoneChanged {
+            // Trigger SMS verification flow
+            pendingPhoneNumber = phone
+            sendSMSVerificationCode()
+            return
         }
 
-        // Perform save in background
+        // FIXED: Wait for save to complete before dismissing
         performSave()
     }
 
@@ -781,6 +821,8 @@ struct EditProfileView: View {
                 let hasNonUsernameChanges = email != user.email ||
                                           phone != (user.phone ?? "") ||
                                           bio != (user.bio ?? "") ||
+                                          location != (user.location ?? "") ||
+                                          website != (user.website ?? "") ||
                                           profileImage != nil
 
                 if hasNonUsernameChanges {
@@ -793,7 +835,9 @@ struct EditProfileView: View {
                         phone: phone.isEmpty ? nil : phone,
                         bio: bio.isEmpty ? nil : bio,
                         birthdate: ISO8601DateFormatter().string(from: birthdate),
-                        profilePicture: user.profilePicture
+                        profilePicture: user.profilePicture,
+                        location: location.isEmpty ? nil : location,
+                        website: website.isEmpty ? nil : website
                     )
 
                     // Update profile via API
@@ -810,11 +854,15 @@ struct EditProfileView: View {
 
                 await MainActor.run {
                     isLoading = false
-                    showSuccess = true
 
                     // CRITICAL FIX: Notify other views to refresh user data
                     // This ensures conversations, messages, and other views show updated username/profile picture
                     NotificationCenter.default.post(name: .userDidUpdate, object: nil)
+
+                    // FIXED: Dismiss only after successful save
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
 
             } catch {
@@ -863,6 +911,12 @@ struct EditProfileView: View {
         } else {
             return "Notice"
         }
+    }
+
+    // MARK: - SMS Verification Methods
+    private func sendSMSVerificationCode() {
+        // Just show the SMS verification sheet - it handles the rest
+        showSMSVerification = true
     }
 }
 
@@ -1347,7 +1401,7 @@ struct ToggleRow: View {
 struct ProfileLanguageSettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var localizationManager = LocalizationManager.shared
-    
+
     var body: some View {
         NavigationView {
             List(localizationManager.availableLanguages, id: \.self) { languageCode in
@@ -1355,9 +1409,9 @@ struct ProfileLanguageSettingsView: View {
                     Text(localizationManager.languageName(for: languageCode))
                         .font(.system(size: 16))
                         .foregroundColor(Theme.Colors.text)
-                    
+
                     Spacer()
-                    
+
                     if languageCode == localizationManager.currentLanguage.code {
                         Image(systemName: "checkmark")
                             .font(.system(size: 16, weight: .medium))
@@ -1384,3 +1438,4 @@ struct ProfileLanguageSettingsView: View {
         }
     }
 }
+

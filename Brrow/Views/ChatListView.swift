@@ -310,12 +310,27 @@ struct ConversationRow: View {
     }
     
     private func timeAgo(_ dateString: String) -> String {
+        // CRITICAL FIX: Parse timestamps with fractional seconds support
+        // PostgreSQL/Prisma returns timestamps like "2025-10-01T14:30:45.123Z"
         let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: dateString) else { return "Now" }
-        
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        var date = formatter.date(from: dateString)
+
+        // Fallback: Try without fractional seconds
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: dateString)
+        }
+
+        guard let parsedDate = date else {
+            print("⚠️ [ChatListView] Failed to parse timestamp: \(dateString)")
+            return "Now"
+        }
+
         let now = Date()
-        let components = Calendar.current.dateComponents([.day, .hour, .minute], from: date, to: now)
-        
+        let components = Calendar.current.dateComponents([.day, .hour, .minute], from: parsedDate, to: now)
+
         if let days = components.day, days > 0 {
             return "\(days)d"
         } else if let hours = components.hour, hours > 0 {

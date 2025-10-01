@@ -28,7 +28,12 @@ struct EnhancedChatDetailView: View {
     @State private var keyboardHeight: CGFloat = 0
     @State private var isTyping = false
     @State private var typingTimer: Timer?
-    
+    @State private var showingUserProfile = false
+    @State private var otherUserProfile: User?
+    @State private var isLoadingProfile = false
+    @State private var showScrollToBottom = false
+    @State private var scrollProxy: ScrollViewProxy?
+
     var body: some View {
         VStack(spacing: 0) {
             // Chat header with video call button
@@ -62,6 +67,24 @@ struct EnhancedChatDetailView: View {
         .fullScreenCover(isPresented: $showingVideoCall) {
             VideoCallView(conversation: conversation)
         }
+        .sheet(isPresented: $showingUserProfile) {
+            if let user = otherUserProfile {
+                NavigationView {
+                    SocialProfileView(user: user)
+                        .navigationBarItems(trailing: Button("Done") {
+                            showingUserProfile = false
+                        })
+                }
+            } else {
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Loading profile...")
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Colors.background)
+            }
+        }
         #if !targetEnvironment(macCatalyst) && !os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
             if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
@@ -84,40 +107,46 @@ struct EnhancedChatDetailView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(Theme.Colors.primary)
             }
-            
-            // Profile picture
-            BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(Theme.Colors.primary.opacity(0.2))
-                    .overlay(
-                        Text(String(conversation.otherUser.username.prefix(1)).uppercased())
+
+            // CRITICAL: Make profile picture and name tappable for Instagram-style profile view
+            Button(action: { fetchAndShowProfile() }) {
+                HStack(spacing: 12) {
+                    // Profile picture
+                    BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(Theme.Colors.primary.opacity(0.2))
+                            .overlay(
+                                Text(String(conversation.otherUser.username.prefix(1)).uppercased())
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Theme.Colors.primary)
+                            )
+                    }
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(conversation.otherUser.username)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Theme.Colors.primary)
-                    )
-            }
-            .frame(width: 40, height: 40)
-            .clipShape(Circle())
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(conversation.otherUser.username)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Theme.Colors.text)
-                
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(viewModel.isUserOnline ? Color.green : Color.gray)
-                        .frame(width: 6, height: 6)
-                    
-                    Text(viewModel.isUserOnline ? "Online" : "Offline")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.secondaryText)
+                            .foregroundColor(Theme.Colors.text)
+
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(viewModel.isUserOnline ? Color.green : Color.gray)
+                                .frame(width: 6, height: 6)
+
+                            Text(viewModel.isUserOnline ? "Online" : "Offline")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+                    }
                 }
             }
-            
+            .buttonStyle(PlainButtonStyle())
+
             Spacer()
             
             // Video call button
@@ -149,9 +178,10 @@ struct EnhancedChatDetailView: View {
     
     // MARK: - Messages Scroll View
     private var messagesScrollView: some View {
-        ScrollViewReader { proxy in
-            let scrollContent = ScrollView {
-                LazyVStack(spacing: 12) {
+        ZStack(alignment: .bottomTrailing) {
+            ScrollViewReader { proxy in
+                let scrollContent = ScrollView {
+                    LazyVStack(spacing: 12) {
                     // Listing Context Banner (for listing conversations)
                     if conversation.isListingChat, let listing = conversation.listing {
                         ListingContextBanner(listing: listing)
@@ -160,13 +190,25 @@ struct EnhancedChatDetailView: View {
                     }
 
                     // Messages
-                    ForEach(viewModel.messages, id: \.id) { message in
+                    ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                         let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.id // CRITICAL FIX: Use User.id (CUID), not apiId
+
+                        // Determine if we should show avatar (first message in group)
+                        let previousMessage = index > 0 ? viewModel.messages[index - 1] : nil
+                        let showAvatar = !isFromCurrentUser && (previousMessage == nil || previousMessage?.senderId != message.senderId)
+
                         EnhancedMessageBubble(
                             message: ChatMessage.from(message),
-                            isFromCurrentUser: isFromCurrentUser
+                            isFromCurrentUser: isFromCurrentUser,
+                            showAvatar: showAvatar,
+                            senderProfilePicture: message.sender?.fullProfilePictureURL
                         )
                         .id(message.id)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: isFromCurrentUser ? .trailing : .leading)
+                                .combined(with: .opacity),
+                            removal: .opacity
+                        ))
                     }
 
                     // Typing Indicator
@@ -179,23 +221,55 @@ struct EnhancedChatDetailView: View {
                 .padding(.vertical, 8)
             }
 
-            scrollContent
-                .onChange(of: viewModel.messages.count) { _ in
-                    if let lastMessage = viewModel.messages.last {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                scrollContent
+                    .onChange(of: viewModel.messages.count) { _ in
+                        // Animate new message appearance and scroll
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if let lastMessage = viewModel.messages.last {
+                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                            }
                         }
                     }
-                }
-                .onChange(of: viewModel.otherUserIsTyping) { _ in
-                    // Scroll to bottom when typing indicator appears
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        proxy.scrollTo("typing", anchor: .bottom)
+                    .onChange(of: viewModel.otherUserIsTyping) { isTyping in
+                        // Scroll to bottom when typing indicator appears
+                        if isTyping {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                if let lastMessage = viewModel.messages.last {
+                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                }
+                            }
+                        }
                     }
+                    .onAppear {
+                        scrollProxy = proxy
+                    }
+            }
+            .padding(.bottom, keyboardHeight)
+            .animation(.easeOut(duration: 0.25), value: keyboardHeight)
+
+            // Scroll to bottom button
+            if showScrollToBottom {
+                Button(action: scrollToBottom) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(Theme.Colors.primary)
+                        .background(Circle().fill(Color.white))
+                        .shadow(radius: 4)
                 }
+                .padding(.trailing, 16)
+                .padding(.bottom, keyboardHeight + 16)
+                .transition(.scale.combined(with: .opacity))
+            }
         }
-        .padding(.bottom, keyboardHeight)
-        .animation(.easeOut(duration: 0.25), value: keyboardHeight)
+    }
+
+    private func scrollToBottom() {
+        if let lastMessage = viewModel.messages.last, let proxy = scrollProxy {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                showScrollToBottom = false
+            }
+        }
     }
     
     // MARK: - Message Input
@@ -383,6 +457,31 @@ struct EnhancedChatDetailView: View {
         typingTimer?.invalidate()
         typingTimer = nil
     }
+
+    // MARK: - Profile Fetching
+    private func fetchAndShowProfile() {
+        guard !isLoadingProfile else { return }
+
+        isLoadingProfile = true
+        showingUserProfile = true
+
+        Task {
+            do {
+                let profile = try await APIClient.shared.fetchUserProfile(userId: conversation.otherUser.id)
+
+                await MainActor.run {
+                    self.otherUserProfile = profile
+                    self.isLoadingProfile = false
+                }
+            } catch {
+                print("❌ Failed to fetch user profile: \(error)")
+                await MainActor.run {
+                    self.isLoadingProfile = false
+                    self.showingUserProfile = false
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Listing Context Banner
@@ -440,6 +539,7 @@ struct ListingContextBanner: View {
 // MARK: - Typing Indicator
 struct TypingIndicator: View {
     let username: String
+    @State private var animationPhase: CGFloat = 0
 
     var body: some View {
         HStack(spacing: 8) {
@@ -449,21 +549,33 @@ struct TypingIndicator: View {
                 .italic()
 
             HStack(spacing: 4) {
-                ForEach(0..<3) { index in
+                ForEach(0..<3, id: \.self) { index in
+                    let delay = Double(index) * 0.4
+                    let scale = calculateScale(phase: animationPhase, delay: delay)
+                    let opacity = calculateOpacity(phase: animationPhase, delay: delay)
+
                     Circle()
                         .fill(Theme.Colors.secondaryText)
                         .frame(width: 6, height: 6)
-                        .opacity(0.3)
-                        .animation(
-                            Animation.easeInOut(duration: 0.6)
-                                .repeatForever()
-                                .delay(Double(index) * 0.2),
-                            value: UUID()
-                        )
+                        .scaleEffect(scale)
+                        .opacity(opacity)
                 }
             }
         }
         .padding(.vertical, 8)
+        .onAppear {
+            withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                animationPhase = .pi * 2
+            }
+        }
+    }
+
+    private func calculateScale(phase: CGFloat, delay: Double) -> CGFloat {
+        return 1.0 + sin(phase + delay) * 0.5
+    }
+
+    private func calculateOpacity(phase: CGFloat, delay: Double) -> Double {
+        return 0.4 + sin(phase + delay) * 0.4
     }
 }
 
@@ -471,9 +583,37 @@ struct TypingIndicator: View {
 struct EnhancedMessageBubble: View {
     let message: ChatMessage
     let isFromCurrentUser: Bool
+    let showAvatar: Bool
+    let senderProfilePicture: String?
 
     var body: some View {
-        HStack {
+        HStack(alignment: .bottom, spacing: 8) {
+            // Profile picture for received messages (left side)
+            if !isFromCurrentUser {
+                if showAvatar {
+                    BrrowAsyncImage(url: senderProfilePicture) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(Theme.Colors.primary.opacity(0.2))
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Theme.Colors.primary)
+                            )
+                    }
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+                } else {
+                    // Invisible spacer to maintain alignment when avatar is hidden
+                    Color.clear
+                        .frame(width: 32, height: 32)
+                }
+            }
+
+            // Message content
             if isFromCurrentUser {
                 Spacer(minLength: 50)
             }
@@ -508,22 +648,33 @@ struct EnhancedMessageBubble: View {
         }
     }
 
-    // MARK: - Delivery Status Icon
+    // MARK: - Delivery Status Icon (WhatsApp-style)
     @ViewBuilder
     private var deliveryStatusIcon: some View {
         switch message.deliveryStatus {
         case .sent:
+            // Single gray checkmark
             Image(systemName: "checkmark")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.gray)
         case .delivered:
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+            // Double gray checkmarks
+            HStack(spacing: -4) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .medium))
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(.gray)
         case .read:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 11))
-                .foregroundColor(Theme.Colors.primary)
+            // Double blue checkmarks
+            HStack(spacing: -4) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .medium))
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(Theme.Colors.primary)
         }
     }
     
@@ -565,21 +716,28 @@ struct EnhancedMessageBubble: View {
     
     private var imageMessageView: some View {
         VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 8) {
-            BrrowAsyncImage(url: message.mediaUrl) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle()
-                    .fill(Theme.Colors.surface)
-                    .overlay(
-                        ProgressView()
-                    )
+            Button(action: {
+                // TODO: Show full-screen image viewer
+                print("Tapped image: \(message.mediaUrl ?? "")")
+            }) {
+                BrrowAsyncImage(url: message.mediaUrl) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Theme.Colors.surface)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.primary))
+                        )
+                }
+                .frame(maxWidth: 200, maxHeight: 200)
+                .cornerRadius(12)
+                .clipped()
             }
-            .frame(maxWidth: 200, maxHeight: 200)
-            .cornerRadius(12)
-            .clipped()
-            
+            .buttonStyle(PlainButtonStyle())
+
             if !message.content.isEmpty {
                 Text(message.content)
                     .font(.system(size: 14))
@@ -699,14 +857,28 @@ struct EnhancedMessageBubble: View {
     }
 
     private var timeString: String {
+        // CRITICAL FIX: Parse timestamps with fractional seconds support
+        // PostgreSQL/Prisma returns timestamps like "2025-10-01T14:30:45.123Z"
         let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: message.createdAt) else {
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        var date = formatter.date(from: message.createdAt)
+
+        // Fallback: Try without fractional seconds
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: message.createdAt)
+        }
+
+        guard let parsedDate = date else {
+            print("⚠️ [EnhancedMessageBubble] Failed to parse timestamp: \(message.createdAt)")
             return "Now"
         }
 
         let timeFormatter = DateFormatter()
         timeFormatter.timeStyle = .short
-        return timeFormatter.string(from: date)
+        timeFormatter.timeZone = TimeZone.current // Use local timezone for display
+        return timeFormatter.string(from: parsedDate)
     }
 }
 

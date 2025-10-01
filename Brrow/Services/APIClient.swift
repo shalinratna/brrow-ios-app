@@ -1809,38 +1809,33 @@ class APIClient: ObservableObject {
     
     func getNotifications(type: String = "all", limit: Int = 20, offset: Int = 0) async throws -> (notifications: [AppNotification], unreadCount: Int) {
         let baseURL = await self.baseURL
-        var components = URLComponents(string: "\(baseURL)/api_get_notifications.php")!
+        var components = URLComponents(string: "\(baseURL)/api/notifications")!
         components.queryItems = [
-            URLQueryItem(name: "type", value: type),
             URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "offset", value: String(offset))
+            URLQueryItem(name: "unread_only", value: type == "unread" ? "true" : "false")
         ]
-        
+
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
+
         let (responseData, _) = try await URLSession.shared.data(for: request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
-        if response["success"] as? Bool != true {
-            throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to fetch notifications")
-        }
-        
-        guard let data = response["data"] as? [[String: Any]],
-              let jsonData = try? JSONSerialization.data(withJSONObject: data),
+
+        guard let notificationsData = response["notifications"] as? [[String: Any]],
+              let jsonData = try? JSONSerialization.data(withJSONObject: notificationsData),
               let notifications = try? JSONDecoder().decode([AppNotification].self, from: jsonData) else {
             throw BrrowAPIError.decodingError(NSError(domain: "BrrowAPIClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]))
         }
-        
-        let unreadCount = response["unread_count"] as? Int ?? 0
-        
+
+        let unreadCount = response["unreadCount"] as? Int ?? 0
+
         return (notifications, unreadCount)
     }
     
@@ -1848,28 +1843,25 @@ class APIClient: ObservableObject {
     
     func markAllNotificationsAsRead_OLD() async throws -> [String: Any] {
         let baseURL = await self.baseURL
-        let url = URL(string: "\(baseURL)/api_get_notifications.php")!
+        let url = URL(string: "\(baseURL)/api/notifications/read-all")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
-        let body = ["mark_all_read": true]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
+
         let (responseData, _) = try await URLSession.shared.data(for: request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to mark all notifications as read")
         }
-        
+
         return response
     }
     
@@ -2384,7 +2376,7 @@ class APIClient: ObservableObject {
     func fetchUserProfile(userId: String? = nil, username: String? = nil) async throws -> User {
         // Use Node.js endpoint to fetch user profile by ID
         guard let userId = userId else {
-            throw ValidationError(message: "User ID is required")
+            throw BrrowAPIError.validationError("User ID is required")
         }
 
         let endpoint = "api/users/\(userId)"
@@ -2518,15 +2510,15 @@ class APIClient: ObservableObject {
     
     func fetchFavorites(limit: Int = 20, offset: Int = 0) async throws -> FavoritesResponse {
         return try await performRequest(
-            endpoint: "fetch_favorites.php?limit=\(limit)&offset=\(offset)",
+            endpoint: "api/favorites?limit=\(limit)&offset=\(offset)",
             method: .GET,
             responseType: FavoritesResponse.self
         )
     }
-    
+
     func fetchUserPosts(limit: Int = 20, offset: Int = 0) async throws -> UserPostsResponse {
         return try await performRequest(
-            endpoint: "get_user_posts.php?limit=\(limit)&offset=\(offset)",
+            endpoint: "api/users/posts?limit=\(limit)&offset=\(offset)",
             method: .GET,
             responseType: UserPostsResponse.self
         )
@@ -2641,6 +2633,91 @@ class APIClient: ObservableObject {
         let available: Bool
         let status: String
         let message: String
+    }
+
+    // MARK: - SMS Verification Methods
+    func sendPhoneVerification(phoneNumber: String) async throws -> SMSVerificationResponse {
+        let requestData = ["phoneNumber": phoneNumber]
+        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
+
+        return try await performRequest(
+            endpoint: "api/users/send-phone-verification",
+            method: .POST,
+            body: bodyData,
+            responseType: SMSVerificationResponse.self
+        )
+    }
+
+    func verifyPhone(phoneNumber: String, code: String) async throws -> PhoneVerificationResponse {
+        let requestData = [
+            "phoneNumber": phoneNumber,
+            "code": code
+        ]
+        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
+
+        return try await performRequest(
+            endpoint: "api/users/verify-phone",
+            method: .POST,
+            body: bodyData,
+            responseType: PhoneVerificationResponse.self
+        )
+    }
+
+    struct SMSVerificationResponse: Codable {
+        let success: Bool
+        let message: String
+        let testMode: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case success, message
+            case testMode = "testMode"
+        }
+    }
+
+    struct PhoneVerificationResponse: Codable {
+        let success: Bool
+        let message: String
+        let user: User
+    }
+
+    // Response type for SMS verification that matches SMSVerificationService expectations
+    struct SMSVerificationServiceResponse: Codable {
+        let success: Bool
+        let message: String?
+        let error: String?
+        let user: User?
+        let status: String?
+        let testMode: Bool?
+    }
+
+    // SMS Verification methods for SMSVerificationService compatibility
+    func sendSMSVerificationCode(phoneNumber: String) async throws -> SMSVerificationServiceResponse {
+        let requestData = [
+            "phoneNumber": phoneNumber
+        ]
+        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
+
+        return try await performRequest(
+            endpoint: "api/verify/send-sms",
+            method: .POST,
+            body: bodyData,
+            responseType: SMSVerificationServiceResponse.self
+        )
+    }
+
+    func verifySMSCode(code: String, phoneNumber: String) async throws -> SMSVerificationServiceResponse {
+        let requestData = [
+            "code": code,
+            "phoneNumber": phoneNumber
+        ]
+        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
+
+        return try await performRequest(
+            endpoint: "api/verify/verify-sms",
+            method: .POST,
+            body: bodyData,
+            responseType: SMSVerificationServiceResponse.self
+        )
     }
 
     // MARK: - Analytics Methods
@@ -2825,17 +2902,17 @@ class APIClient: ObservableObject {
             let isFavorited: Bool
             let message: String?
         }
-        
+
         let response = try await performRequest(
-            endpoint: "check_favorite.php?listing_id=\(listingId)&user_id=\(userId)",
+            endpoint: "api/favorites/check?listing_id=\(listingId)&user_id=\(userId)",
             method: .GET,
             responseType: APIResponse<CheckFavoriteResponse>.self
         )
-        
+
         guard response.success, let data = response.data else {
             return false // Default to not favorited if error
         }
-        
+
         return data.isFavorited
     }
     
@@ -2843,9 +2920,9 @@ class APIClient: ObservableObject {
         // Deprecated - use toggleFavoriteByListingId instead
         let request = ToggleFavoriteRequest(listingId: listingId, userId: userId)
         let bodyData = try JSONEncoder().encode(request)
-        
+
         let response = try await performRequest(
-            endpoint: "toggle_favorite.php",
+            endpoint: "api/favorites/toggle",
             method: .POST,
             body: bodyData,
             responseType: FavoriteStatusResponse.self
@@ -2857,18 +2934,18 @@ class APIClient: ObservableObject {
         struct ToggleFavoriteByIdRequest: Codable {
             let listingId: String
             let userId: Int
-            
+
             enum CodingKeys: String, CodingKey {
                 case listingId = "listing_id"
                 case userId = "user_id"
             }
         }
-        
+
         let request = ToggleFavoriteByIdRequest(listingId: listingId, userId: userId)
         let bodyData = try JSONEncoder().encode(request)
-        
+
         let response = try await performRequest(
-            endpoint: "toggle_favorite.php",
+            endpoint: "api/favorites/toggle",
             method: .POST,
             body: bodyData,
             responseType: FavoriteStatusResponse.self
@@ -3261,18 +3338,18 @@ class APIClient: ObservableObject {
     
     func sendListingInquiry(_ request: SendListingInquiryRequest) async throws -> ListingInquiryResponse {
         let bodyData = try JSONEncoder().encode(request)
-        
+
         let response = try await performRequest(
-            endpoint: "send_listing_inquiry.php",
+            endpoint: "api/conversations/inquiry",
             method: .POST,
             body: bodyData,
             responseType: APIResponse<ListingInquiryResponse>.self
         )
-        
+
         guard response.success, let data = response.data else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to send inquiry")
         }
-        
+
         return data
     }
     
@@ -3303,7 +3380,7 @@ class APIClient: ObservableObject {
     
     func deleteConversation(id: Int) async throws -> Void {
         _ = try await performRequest(
-            endpoint: "delete_conversation.php?id=\(id)",
+            endpoint: "api/conversations/\(id)",
             method: .DELETE,
             responseType: EmptyResponse.self
         )
@@ -3513,7 +3590,7 @@ class APIClient: ObservableObject {
     // MARK: - User Stats and Home Data
     func fetchUserStats() async throws -> APIUserStats {
         return try await performRequest(
-            endpoint: "get_user_stats.php",
+            endpoint: "api/users/stats",
             method: .GET,
             responseType: APIUserStats.self
         )
@@ -3534,17 +3611,17 @@ class APIClient: ObservableObject {
     }
     
     func fetchNotifications(limit: Int = 20, unreadOnly: Bool = false) async throws -> [APIUserNotification] {
-        var endpoint = "get_notifications.php?limit=\(limit)"
+        var endpoint = "api/notifications?limit=\(limit)"
         if unreadOnly {
             endpoint += "&unread_only=true"
         }
-        
+
         let response = try await performRequest(
             endpoint: endpoint,
             method: .GET,
             responseType: NotificationsResponse.self
         )
-        
+
         return response.notifications
     }
     
@@ -4340,18 +4417,18 @@ class APIClient: ObservableObject {
     func markNotificationAsRead(notificationId: String) async throws -> APIResponse<EmptyResponse> {
         let body = ["notification_id": notificationId]
         let bodyData = try JSONSerialization.data(withJSONObject: body)
-        
+
         return try await performRequest(
-            endpoint: "mark_notification_read.php",
+            endpoint: "api/notifications/\(notificationId)/read",
             method: .POST,
             body: bodyData,
             responseType: APIResponse<EmptyResponse>.self
         )
     }
-    
+
     func markAllNotificationsAsRead() async throws -> APIResponse<EmptyResponse> {
         return try await performRequest(
-            endpoint: "mark_all_notifications_read.php",
+            endpoint: "api/notifications/read-all",
             method: .POST,
             responseType: APIResponse<EmptyResponse>.self
         )

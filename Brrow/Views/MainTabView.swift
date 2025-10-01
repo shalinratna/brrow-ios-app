@@ -64,7 +64,7 @@ struct MainTabView: View {
                 .tag(3)
             
             // Profile Tab
-            SocialMediaProfileView()
+            SimpleProfessionalProfileView()
                 .environmentObject(authManager)
                 .tabItem {
                     Image(systemName: selectedTab == 4 ? "person.fill" : "person")

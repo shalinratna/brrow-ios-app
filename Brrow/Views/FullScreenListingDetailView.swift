@@ -83,7 +83,9 @@ struct FullScreenListingDetailView: View {
         }
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
-                BasicUserProfileView(user: seller)
+                NavigationView {
+                    FullSellerProfileView(user: seller)
+                }
             }
         }
         .sheet(isPresented: $showingShareSheet) {

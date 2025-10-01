@@ -55,7 +55,9 @@ struct SimplifiedListingDetailView: View {
             BorrowFlowView(listing: viewModel.listing)
         }
         .sheet(isPresented: $showingSellerProfile) {
-            ProfileView()
+            if let seller = viewModel.seller {
+                FullSellerProfileView(user: seller)
+            }
         }
         .sheet(isPresented: $showingEditView) {
             EnhancedEditListingView(listing: viewModel.listing)

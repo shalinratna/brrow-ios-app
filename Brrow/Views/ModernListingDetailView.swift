@@ -125,7 +125,7 @@ struct ModernListingDetailView: View {
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
                 NavigationView {
-                    ProfileView()
+                    FullSellerProfileView(user: seller)
                 }
             }
         }

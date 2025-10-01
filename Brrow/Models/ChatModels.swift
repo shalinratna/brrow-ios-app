@@ -133,7 +133,24 @@ struct Message: Identifiable, Equatable {
     var sendStatus: MessageSendStatus = .sent
     
     var timestamp: Date {
-        ISO8601DateFormatter().date(from: createdAt) ?? Date()
+        // CRITICAL FIX: Parse timestamps with fractional seconds support
+        // PostgreSQL/Prisma returns timestamps like "2025-10-01T14:30:45.123Z"
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        if let date = formatter.date(from: createdAt) {
+            return date
+        }
+
+        // Fallback: Try without fractional seconds
+        formatter.formatOptions = [.withInternetDateTime]
+        if let date = formatter.date(from: createdAt) {
+            return date
+        }
+
+        // Last resort: Return current date (should never happen if backend is working)
+        print("⚠️ [Message] Failed to parse timestamp from createdAt: \(createdAt)")
+        return Date()
     }
     
     var isFromCurrentUser: Bool {

@@ -541,8 +541,26 @@ struct MediaMessageData: Codable {
 // MARK: - Message Conversion Extension
 extension Message {
     func toEnhancedChatMessage() -> EnhancedChatMessage {
+        // CRITICAL FIX: Parse timestamps with fractional seconds support
+        // PostgreSQL/Prisma returns timestamps like "2025-10-01T14:30:45.123Z"
         let dateFormatter = ISO8601DateFormatter()
-        let createdDate = dateFormatter.date(from: self.createdAt) ?? Date()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        var createdDate = dateFormatter.date(from: self.createdAt)
+
+        // Fallback: Try without fractional seconds
+        if createdDate == nil {
+            dateFormatter.formatOptions = [.withInternetDateTime]
+            createdDate = dateFormatter.date(from: self.createdAt)
+        }
+
+        // Last resort: Use current date (should never happen)
+        if createdDate == nil {
+            print("⚠️ [ChatDetailView] Failed to parse message timestamp: \(self.createdAt)")
+            createdDate = Date()
+        }
+
+        let finalCreatedDate = createdDate!
 
         // Convert MessageType to EnhancedChatMessage.MessageType
         let enhancedType: EnhancedChatMessage.MessageType
@@ -576,7 +594,7 @@ extension Message {
             content: self.content,
             type: enhancedType,
             mediaUrl: self.mediaUrl,
-            createdAt: createdDate,
+            createdAt: finalCreatedDate,
             isRead: self.isRead
         )
     }

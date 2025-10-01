@@ -248,7 +248,21 @@ struct SimpleProfessionalProfileView: View {
             .opacity(animateContent ? 1 : 0)
             .offset(y: animateContent ? 0 : 20)
             .animation(.easeOut(duration: 0.6).delay(0.1), value: animateContent)
-            
+
+            // Bio Section (Instagram-style)
+            if let bio = viewModel.user?.bio, !bio.isEmpty {
+                Text(bio)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#8E8E8E") ?? Theme.Colors.secondaryText)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .opacity(animateContent ? 1 : 0)
+                    .offset(y: animateContent ? 0 : 20)
+                    .animation(.easeOut(duration: 0.6).delay(0.15), value: animateContent)
+            }
+
             // Edit Profile Button
             Group {
                 if let user = viewModel.user {
@@ -396,7 +410,7 @@ struct SimpleProfessionalProfileView: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            NavigationLink(destination: UltraModernProfileView2()) {
+            NavigationLink(destination: PostsAnalyticsView(posts: viewModel.userPosts)) {
                 ProfileMenuRow(
                     icon: "chart.line.uptrend.xyaxis",
                     title: LocalizationHelper.localizedString("analytics")

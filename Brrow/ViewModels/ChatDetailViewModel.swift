@@ -60,6 +60,49 @@ class ChatDetailViewModel: ObservableObject {
             }
         }
 
+        // CRITICAL FIX: Listen for user profile updates to refresh message sender info
+        // When a user updates their username or profile picture, refresh messages
+        // to show the updated information in the chat
+        NotificationCenter.default.publisher(for: .userDidUpdate)
+            .sink { [weak self] _ in
+                print("👤 [ChatDetailViewModel] userDidUpdate notification received!")
+                print("🔄 [ChatDetailViewModel] Refreshing messages to show updated profile")
+                self?.refreshMessages(for: conversationId)
+            }
+            .store(in: &cancellables)
+
+        // Listen for typing indicators via WebSocket
+        NotificationCenter.default.publisher(for: .userTyping)
+            .sink { [weak self] notification in
+                if let chatId = notification.userInfo?["chatId"] as? String,
+                   chatId == conversationId {
+                    print("⌨️ [ChatDetailViewModel] Other user is typing in chat \(chatId)")
+                    self?.otherUserIsTyping = true
+                }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .userStoppedTyping)
+            .sink { [weak self] notification in
+                if let chatId = notification.userInfo?["chatId"] as? String,
+                   chatId == conversationId {
+                    print("⌨️ [ChatDetailViewModel] Other user stopped typing in chat \(chatId)")
+                    self?.otherUserIsTyping = false
+                }
+            }
+            .store(in: &cancellables)
+
+        // Listen for new messages via WebSocket
+        NotificationCenter.default.publisher(for: .newMessageReceived)
+            .sink { [weak self] notification in
+                if let message = notification.object as? Message,
+                   message.chatId == conversationId {
+                    print("📩 [ChatDetailViewModel] New message received for this chat")
+                    self?.refreshMessages(for: conversationId)
+                }
+            }
+            .store(in: &cancellables)
+
         Task {
             do {
                 let loadedMessages = try await fetchMessages(conversationId: conversationId)
@@ -382,18 +425,205 @@ class ChatDetailViewModel: ObservableObject {
     }
     
     private func uploadAndSendImage(_ image: UIImage, message: Message, conversationId: String) async throws {
-        // TODO: Implement real image upload via APIClient
-        print("Image upload not yet implemented")
+        // Compress image before upload
+        guard let imageData = image.jpegData(compressionQuality: 0.7) else {
+            print("❌ Failed to compress image")
+            return
+        }
+
+        // Upload image to backend
+        let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+        guard let url = URL(string: "\(baseURL)/api/messages/upload/image") else {
+            print("❌ Invalid upload URL")
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+
+        // Add auth headers
+        if let token = AuthManager.shared.authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Create multipart form data
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+
+        // Add image file
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"image\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+
+        do {
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                print("❌ Upload failed with status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                return
+            }
+
+            // Parse response to get image URL
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let success = json["success"] as? Bool,
+               success,
+               let data = json["data"] as? [String: Any],
+               let imageUrl = data["url"] as? String {
+
+                // Send message with image URL
+                let _ = try await apiClient.sendMessage(
+                    conversationId: conversationId,
+                    content: "",
+                    messageType: .image,
+                    mediaUrl: imageUrl,
+                    thumbnailUrl: nil,
+                    listingId: nil
+                )
+
+                print("✅ Image message sent successfully")
+
+                // Refresh messages to show the sent image
+                await refreshMessages(for: conversationId)
+            }
+        } catch {
+            print("❌ Image upload error: \(error)")
+        }
     }
 
     private func uploadAndSendVoice(_ audioURL: URL, message: Message, conversationId: String) async throws {
-        // TODO: Implement real voice upload via APIClient
-        print("Voice upload not yet implemented")
+        // Read audio file data
+        guard let audioData = try? Data(contentsOf: audioURL) else {
+            print("❌ Failed to read audio file")
+            return
+        }
+
+        // Upload to backend (using same pattern as image)
+        let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+        guard let url = URL(string: "\(baseURL)/api/messages/upload/audio") else {
+            print("❌ Invalid upload URL")
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+
+        if let token = AuthManager.shared.authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"audio\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
+        body.append(audioData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+
+        do {
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                print("❌ Upload failed")
+                return
+            }
+
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let success = json["success"] as? Bool,
+               success,
+               let data = json["data"] as? [String: Any],
+               let audioUrl = data["url"] as? String {
+
+                let _ = try await apiClient.sendMessage(
+                    conversationId: conversationId,
+                    content: "",
+                    messageType: .audio,
+                    mediaUrl: audioUrl,
+                    thumbnailUrl: nil,
+                    listingId: nil
+                )
+
+                await refreshMessages(for: conversationId)
+            }
+        } catch {
+            print("❌ Audio upload error: \(error)")
+        }
     }
 
     private func uploadAndSendVideo(_ videoURL: URL, message: Message, conversationId: String) async throws {
-        // TODO: Implement real video upload via APIClient
-        print("Video upload not yet implemented")
+        guard let videoData = try? Data(contentsOf: videoURL) else {
+            print("❌ Failed to read video file")
+            return
+        }
+
+        let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+        guard let url = URL(string: "\(baseURL)/api/messages/upload/video") else {
+            print("❌ Invalid upload URL")
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+
+        if let token = AuthManager.shared.authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"video\"; filename=\"video.mp4\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: video/mp4\r\n\r\n".data(using: .utf8)!)
+        body.append(videoData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+
+        do {
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                print("❌ Upload failed")
+                return
+            }
+
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let success = json["success"] as? Bool,
+               success,
+               let data = json["data"] as? [String: Any],
+               let videoUrl = data["url"] as? String {
+
+                let _ = try await apiClient.sendMessage(
+                    conversationId: conversationId,
+                    content: "",
+                    messageType: .video,
+                    mediaUrl: videoUrl,
+                    thumbnailUrl: data["thumbnailUrl"] as? String,
+                    listingId: nil
+                )
+
+                await refreshMessages(for: conversationId)
+            }
+        } catch {
+            print("❌ Video upload error: \(error)")
+        }
     }
     
     private func getDocumentsDirectory() -> URL {

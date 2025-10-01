@@ -217,26 +217,32 @@ struct SocialChatView: View {
 // MARK: - Social Conversation Row
 struct SocialConversationRow: View {
     let conversation: Conversation
-    
+    @State private var showingUserProfile = false
+    @State private var otherUserProfile: User?
+    @State private var isLoadingProfile = false
+
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
-            // Profile picture
-            BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(Theme.Colors.primary.opacity(0.2))
-                    .overlay(
-                        Text(String(conversation.otherUser.username.prefix(1)).uppercased())
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Theme.Colors.primary)
-                    )
+            // CRITICAL: Make profile picture tappable for Instagram-style profile view
+            Button(action: { fetchAndShowProfile() }) {
+                BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(Theme.Colors.primary.opacity(0.2))
+                        .overlay(
+                            Text(String(conversation.otherUser.username.prefix(1)).uppercased())
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Theme.Colors.primary)
+                        )
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(Circle())
             }
-            .frame(width: 56, height: 56)
-            .clipShape(Circle())
-            
+            .buttonStyle(PlainButtonStyle())
+
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -276,8 +282,50 @@ struct SocialConversationRow: View {
         .padding(.vertical, Theme.Spacing.sm)
         .background(Color.clear)
         .contentShape(Rectangle())
+        .sheet(isPresented: $showingUserProfile) {
+            if let user = otherUserProfile {
+                NavigationView {
+                    SocialProfileView(user: user)
+                        .navigationBarItems(trailing: Button("Done") {
+                            showingUserProfile = false
+                        })
+                }
+            } else {
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Loading profile...")
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Colors.background)
+            }
+        }
     }
-    
+
+    private func fetchAndShowProfile() {
+        guard !isLoadingProfile else { return }
+
+        isLoadingProfile = true
+        showingUserProfile = true
+
+        Task {
+            do {
+                let profile = try await APIClient.shared.fetchUserProfile(userId: conversation.otherUser.id)
+
+                await MainActor.run {
+                    self.otherUserProfile = profile
+                    self.isLoadingProfile = false
+                }
+            } catch {
+                print("❌ Failed to fetch user profile: \(error)")
+                await MainActor.run {
+                    self.isLoadingProfile = false
+                    self.showingUserProfile = false
+                }
+            }
+        }
+    }
+
     private func timeAgo(_ dateString: String) -> String {
         let formatter = ISO8601DateFormatter()
         guard let date = formatter.date(from: dateString) else { return "" }
