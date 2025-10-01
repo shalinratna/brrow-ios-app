@@ -802,10 +802,10 @@ struct EditProfileView: View {
                         }
                     }
 
-                    // Log error since panel is dismissed (user will see via network monitoring if needed)
+                    // CRITICAL FIX: Show error to user with alert
                     print("❌ Profile update error: \(alertMessage)")
-
-                    // For now, just log - in future could show toast notification
+                    errorMessage = alertMessage
+                    showError = true
                 }
             }
         }

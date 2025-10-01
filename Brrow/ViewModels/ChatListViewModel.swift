@@ -222,6 +222,13 @@ class ChatListViewModel: ObservableObject {
             conversations.remove(at: index)
             conversations.insert(updatedConversation, at: 0)
 
+            // CRITICAL FIX: Also update filtered conversations for UI refresh
+            if !searchQuery.isEmpty {
+                searchConversations(query: searchQuery)
+            } else {
+                filteredConversations = conversations
+            }
+
             unreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
         }
     }
