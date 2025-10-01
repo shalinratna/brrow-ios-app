@@ -137,8 +137,8 @@ struct Message: Identifiable, Equatable {
     }
     
     var isFromCurrentUser: Bool {
-        senderId == AuthManager.shared.currentUser?.id ||
-        senderId == AuthManager.shared.currentUser?.apiId
+        // CRITICAL FIX: Backend uses User.id (CUID), not apiId
+        senderId == AuthManager.shared.currentUser?.id
     }
     
     static func == (lhs: Self, rhs: Self) -> Bool {

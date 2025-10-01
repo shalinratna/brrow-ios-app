@@ -69,6 +69,17 @@ class ChatListViewModel: ObservableObject {
                 self?.updateConversationPreview(conversationId: conversationId, message: message)
             }
             .store(in: &cancellables)
+
+        // CRITICAL FIX: Listen for user profile updates to refresh conversations
+        // When a user updates their username or profile picture, refresh all conversations
+        // to show the updated information to other users
+        NotificationCenter.default.publisher(for: .userDidUpdate)
+            .sink { [weak self] _ in
+                print("👤 [ChatListViewModel] userDidUpdate notification received!")
+                print("🔄 [ChatListViewModel] Refreshing conversations to show updated profile")
+                self?.fetchConversations(bypassCache: true)
+            }
+            .store(in: &cancellables)
     }
     
     func loadConversations() {

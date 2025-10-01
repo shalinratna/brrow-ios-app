@@ -87,7 +87,7 @@ class ChatDetailViewModel: ObservableObject {
         let message = Message(
             id: UUID().uuidString,
             chatId: conversationId,
-            senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
+            senderId: AuthManager.shared.currentUser?.id ?? "current_user", // CRITICAL FIX: Use User.id (CUID), not apiId
             receiverId: "other_user",
             content: text,
             messageType: .text,
@@ -133,7 +133,7 @@ class ChatDetailViewModel: ObservableObject {
         let message = Message(
             id: UUID().uuidString,
             chatId: conversationId,
-            senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
+            senderId: AuthManager.shared.currentUser?.id ?? "current_user", // CRITICAL FIX: Use User.id (CUID), not apiId
             receiverId: "other_user",
             content: "",
             messageType: .image,
@@ -168,7 +168,7 @@ class ChatDetailViewModel: ObservableObject {
         if let token = AuthManager.shared.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        if let userId = AuthManager.shared.currentUser?.apiId {
+        if let userId = AuthManager.shared.currentUser?.id { // CRITICAL FIX: Use User.id (CUID), not apiId
             request.setValue(userId, forHTTPHeaderField: "X-User-API-ID")
         }
         
@@ -232,7 +232,7 @@ class ChatDetailViewModel: ObservableObject {
         let message = Message(
             id: uploadData.messageId,
             chatId: conversationId,
-            senderId: AuthManager.shared.currentUser?.apiId ?? "",
+            senderId: AuthManager.shared.currentUser?.id ?? "", // CRITICAL FIX: Use User.id (CUID), not apiId
             receiverId: receiverId,
             content: mediaDataString,
             messageType: isVideo ? .video : .image,
@@ -258,7 +258,7 @@ class ChatDetailViewModel: ObservableObject {
         let message = Message(
             id: UUID().uuidString,
             chatId: conversationId,
-            senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
+            senderId: AuthManager.shared.currentUser?.id ?? "current_user", // CRITICAL FIX: Use User.id (CUID), not apiId
             receiverId: "other_user",
             content: "",
             messageType: .audio,
@@ -287,7 +287,7 @@ class ChatDetailViewModel: ObservableObject {
         let message = Message(
             id: UUID().uuidString,
             chatId: conversationId,
-            senderId: AuthManager.shared.currentUser?.apiId ?? "current_user",
+            senderId: AuthManager.shared.currentUser?.id ?? "current_user", // CRITICAL FIX: Use User.id (CUID), not apiId
             receiverId: "other_user",
             content: "",
             messageType: .video,

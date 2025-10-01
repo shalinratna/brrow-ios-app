@@ -181,7 +181,7 @@ struct ModernChatView: View {
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(viewModel.messages, id: \.id) { message in
-                        let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.apiId
+                        let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.id // CRITICAL FIX: Use User.id (CUID), not apiId
                         ModernMessageBubble(
                             message: message.toEnhancedChatMessage(),
                             isFromCurrentUser: isFromCurrentUser,

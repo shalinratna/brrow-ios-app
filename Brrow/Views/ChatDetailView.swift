@@ -39,7 +39,10 @@ struct ChatDetailView: View {
     @State private var isUploadingMedia = false
     @State private var showingErrorAlert = false
     @State private var errorMessage = ""
-    
+    @State private var showingUserProfile = false  // For click-to-profile navigation
+    @State private var otherUserProfile: User?  // Will be fetched when button tapped
+    @State private var isLoadingProfile = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Navigation Header
@@ -106,6 +109,24 @@ struct ChatDetailView: View {
         } message: {
             Text(errorMessage)
         }
+        .sheet(isPresented: $showingUserProfile) {
+            if let user = otherUserProfile {
+                NavigationView {
+                    SocialProfileView(user: user)
+                        .navigationBarItems(trailing: Button("Done") {
+                            showingUserProfile = false
+                        })
+                }
+            } else {
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Loading profile...")
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Colors.background)
+            }
+        }
     }
     
     private var chatHeader: some View {
@@ -115,47 +136,53 @@ struct ChatDetailView: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(Theme.Colors.primary)
             }
-            
-            // User Avatar
-            if let profilePicture = conversation.otherUser.profilePicture, !profilePicture.isEmpty {
-                BrrowAsyncImage(url: profilePicture) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Theme.Colors.surface)
-                }
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Theme.Colors.surface)
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Text(conversation.otherUser.username.prefix(1).uppercased())
+
+            // CRITICAL FIX: Make user avatar and name tappable to view profile (like Instagram DM)
+            Button(action: { fetchAndShowProfile() }) {
+                HStack(spacing: Theme.Spacing.md) {
+                    // User Avatar
+                    if let profilePicture = conversation.otherUser.profilePicture, !profilePicture.isEmpty {
+                        BrrowAsyncImage(url: profilePicture) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Circle()
+                                .fill(Theme.Colors.surface)
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .fill(Theme.Colors.surface)
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Text(conversation.otherUser.username.prefix(1).uppercased())
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(Theme.Colors.primary)
+                            )
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(conversation.otherUser.username)
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Theme.Colors.primary)
-                    )
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(conversation.otherUser.username)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(Theme.Colors.text)
-                
-                if conversation.otherUser.isVerified ?? false {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Theme.Colors.primary)
-                        Text("Verified")
-                            .font(.system(size: 12))
-                            .foregroundColor(Theme.Colors.secondaryText)
+                            .foregroundColor(Theme.Colors.text)
+
+                        if conversation.otherUser.isVerified ?? false {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Theme.Colors.primary)
+                                Text("Verified")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
+                        }
                     }
                 }
             }
-            
+            .buttonStyle(PlainButtonStyle())  // Prevent button from changing appearance
+
             Spacer()
             
             // More Options
@@ -184,7 +211,9 @@ struct ChatDetailView: View {
 
                         // Messages for this date
                         ForEach(groupedMessagesByDate[date] ?? []) { message in
-                            let isOwnMessage = message.senderId == AuthManager.shared.currentUser?.apiId
+                            // CRITICAL FIX: Compare with user.id (CUID), not apiId
+                            // Backend sends senderId as User.id (e.g., "clxyz123"), not User.apiId (e.g., "usr_abc")
+                            let isOwnMessage = message.senderId == AuthManager.shared.currentUser?.id
 
                             MessageBubbleView(
                                 message: message.toEnhancedChatMessage(),
@@ -384,6 +413,34 @@ struct ChatDetailView: View {
         errorMessage = "File size (\(String(format: "%.1f", currentMB))MB) exceeds your limit of \(Int(limitMB))MB. Please choose a smaller file."
         showingErrorAlert = true
         print("File size (\(String(format: "%.1f", currentMB))MB) exceeds your limit of \(Int(limitMB))MB")
+    }
+
+    // MARK: - Profile Fetching
+    private func fetchAndShowProfile() {
+        guard !isLoadingProfile else { return }
+
+        isLoadingProfile = true
+        showingUserProfile = true  // Show sheet immediately with loading state
+
+        Task {
+            do {
+                // Fetch full user profile from API using the user's ID
+                let profile = try await APIClient.shared.fetchUserProfile(userId: conversation.otherUser.id)
+
+                await MainActor.run {
+                    self.otherUserProfile = profile
+                    self.isLoadingProfile = false
+                }
+            } catch {
+                print("❌ Failed to fetch user profile: \(error)")
+                await MainActor.run {
+                    self.isLoadingProfile = false
+                    self.showingUserProfile = false
+                    self.errorMessage = "Failed to load user profile. Please try again."
+                    self.showingErrorAlert = true
+                }
+            }
+        }
     }
 }
 

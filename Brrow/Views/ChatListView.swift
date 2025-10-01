@@ -347,7 +347,7 @@ struct ChatView: View {
                         ForEach(viewModel.messages, id: \.id) { message in
                             MessageBubble(
                                 message: message,
-                                isCurrentUser: message.senderId == AuthManager.shared.currentUser?.apiId
+                                isCurrentUser: message.senderId == AuthManager.shared.currentUser?.id // CRITICAL FIX: Use User.id (CUID), not apiId
                             )
                             .id(message.id)
                         }

@@ -772,10 +772,14 @@ struct EditProfileView: View {
 
                 // Refresh auth manager with new data
                 await authManager.refreshUserProfile()
-                
+
                 await MainActor.run {
                     isLoading = false
                     showSuccess = true
+
+                    // CRITICAL FIX: Notify other views to refresh user data
+                    // This ensures conversations, messages, and other views show updated username/profile picture
+                    NotificationCenter.default.post(name: .userDidUpdate, object: nil)
                 }
 
             } catch {

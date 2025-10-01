@@ -161,7 +161,7 @@ struct EnhancedChatDetailView: View {
 
                     // Messages
                     ForEach(viewModel.messages, id: \.id) { message in
-                        let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.apiId
+                        let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.id // CRITICAL FIX: Use User.id (CUID), not apiId
                         EnhancedMessageBubble(
                             message: ChatMessage.from(message),
                             isFromCurrentUser: isFromCurrentUser
