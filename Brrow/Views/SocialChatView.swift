@@ -138,6 +138,11 @@ struct SocialChatView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(Theme.Colors.background)
+                .refreshable {
+                    // CRITICAL FIX: Add pull-to-refresh to update username/profile changes
+                    print("🔄 [SocialChatView] Pull-to-refresh triggered, bypassing cache")
+                    viewModel.fetchConversations(bypassCache: true)
+                }
             }
         }
         .alert("Delete Conversation?", isPresented: $showDeleteConfirmation) {

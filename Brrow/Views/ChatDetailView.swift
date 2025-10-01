@@ -515,6 +515,8 @@ struct MessageBubbleView: View {
     private func formatTime(_ date: Date) -> String {
         let timeFormatter = DateFormatter()
         timeFormatter.timeStyle = .short
+        // Explicitly use local timezone (should be default, but being explicit)
+        timeFormatter.timeZone = TimeZone.current
         return timeFormatter.string(from: date)
     }
 }
