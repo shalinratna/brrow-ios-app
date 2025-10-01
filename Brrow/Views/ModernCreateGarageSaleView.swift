@@ -1354,10 +1354,13 @@ class CreateGarageSaleViewModel: ObservableObject {
             let response = try await apiClient.fetchUserListings(userId: userId)
             let listings = response.allListings
             
-            // Include all active listings regardless of type - users can sell anything at garage sales
+            // CRITICAL: Only FOR-SALE listings (dailyRate == nil), NOT rentals
+            // Garage sales are for selling items, not renting them
             let availableListings = listings.filter { listing in
-                listing.status.lowercased() == "active" || 
-                listing.status.lowercased() == "available"
+                let isActive = listing.status.lowercased() == "active" ||
+                               listing.status.lowercased() == "available"
+                let isForSale = listing.dailyRate == nil  // No daily rate = for sale
+                return isActive && isForSale
             }
             
             print("📦 Found \(listings.count) total listings, \(availableListings.count) available for garage sale")
