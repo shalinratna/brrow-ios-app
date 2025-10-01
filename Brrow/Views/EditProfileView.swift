@@ -776,18 +776,29 @@ struct EditProfileView: View {
                     }
                 }
 
-                // Prepare update data (without username since it's handled separately)
-                let updateData = ProfileUpdateData(
-                    username: originalUsername,  // Keep original for now since username change is handled separately
-                    email: email,
-                    phone: phone.isEmpty ? nil : phone,
-                    bio: bio.isEmpty ? nil : bio,
-                    birthdate: ISO8601DateFormatter().string(from: birthdate),
-                    profilePicture: user.profilePicture  // Preserve existing profile picture
-                )
+                // CRITICAL FIX: Only call updateProfile if there are non-username changes
+                // If only username changed, skip the profile update to avoid overwriting the username
+                let hasNonUsernameChanges = email != user.email ||
+                                          phone != (user.phone ?? "") ||
+                                          bio != (user.bio ?? "") ||
+                                          profileImage != nil
 
-                // Update profile via API (without username)
-                try await APIClient.shared.updateProfile(data: updateData)
+                if hasNonUsernameChanges {
+                    // Prepare update data (DO NOT include username - it's handled separately)
+                    // Use the updated username if it was changed, otherwise use current username
+                    let currentUsername = usernameChanged ? username : originalUsername
+                    let updateData = ProfileUpdateData(
+                        username: currentUsername,
+                        email: email,
+                        phone: phone.isEmpty ? nil : phone,
+                        bio: bio.isEmpty ? nil : bio,
+                        birthdate: ISO8601DateFormatter().string(from: birthdate),
+                        profilePicture: user.profilePicture
+                    )
+
+                    // Update profile via API
+                    try await APIClient.shared.updateProfile(data: updateData)
+                }
 
                 // Handle profile image separately if changed
                 if let imageUrl = imageUrl {
