@@ -5007,7 +5007,7 @@ class APIClient: ObservableObject {
     }
 
     func setupTwoFactor() async throws -> TwoFactorSetupResponse {
-        return try await performRequest(
+        return try await performRequestNoCaching(
             endpoint: "api/auth/2fa/setup",
             method: .POST,
             responseType: TwoFactorSetupResponse.self
@@ -5019,10 +5019,12 @@ class APIClient: ObservableObject {
             let code: String
         }
 
-        return try await performRequest(
+        let bodyData = try JSONEncoder().encode(VerifyRequest(code: code))
+
+        return try await performRequestNoCaching(
             endpoint: "api/auth/2fa/verify",
             method: .POST,
-            body: VerifyRequest(code: code),
+            body: bodyData,
             responseType: TwoFactorVerifyResponse.self
         )
     }
@@ -5032,10 +5034,12 @@ class APIClient: ObservableObject {
             let code: String
         }
 
-        return try await performRequest(
+        let bodyData = try JSONEncoder().encode(VerifyRequest(code: code))
+
+        return try await performRequestNoCaching(
             endpoint: "api/auth/2fa/verify-login",
             method: .POST,
-            body: VerifyRequest(code: code),
+            body: bodyData,
             responseType: TwoFactorVerifyResponse.self
         )
     }
@@ -5045,10 +5049,12 @@ class APIClient: ObservableObject {
             let code: String
         }
 
-        return try await performRequest(
+        let bodyData = try JSONEncoder().encode(DisableRequest(code: code))
+
+        return try await performRequestNoCaching(
             endpoint: "api/auth/2fa/disable",
             method: .POST,
-            body: DisableRequest(code: code),
+            body: bodyData,
             responseType: TwoFactorVerifyResponse.self
         )
     }

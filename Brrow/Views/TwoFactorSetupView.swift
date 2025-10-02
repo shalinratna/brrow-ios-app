@@ -318,22 +318,26 @@ struct TwoFactorSetupView: View {
         isLoading = true
         errorMessage = ""
 
-        apiClient.setupTwoFactor(token: userToken) { result in
-            DispatchQueue.main.async {
-                isLoading = false
-                switch result {
-                case .success(let response):
-                    if let qrCode = response["qrCode"] as? String,
-                       let imageData = Data(base64Encoded: qrCode.replacingOccurrences(of: "data:image/png;base64,", with: "")),
-                       let image = UIImage(data: imageData) {
-                        self.qrCodeImage = image
-                    }
+        Task {
+            do {
+                let response = try await apiClient.setupTwoFactor()
 
-                    if let key = response["manualEntryKey"] as? String {
-                        self.manualEntryKey = key
-                    }
+                await MainActor.run {
+                    isLoading = false
 
-                case .failure(let error):
+                    if let data = response.data {
+                        if let imageData = Data(base64Encoded: data.qrCode.replacingOccurrences(of: "data:image/png;base64,", with: "")),
+                           let image = UIImage(data: imageData) {
+                            self.qrCodeImage = image
+                        }
+
+                        self.manualEntryKey = data.secret
+                        self.backupCodes = data.backupCodes
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
                     errorMessage = error.localizedDescription
                 }
             }
@@ -344,17 +348,25 @@ struct TwoFactorSetupView: View {
         isLoading = true
         errorMessage = ""
 
-        apiClient.verifyTwoFactor(token: userToken, code: verificationCode) { result in
-            DispatchQueue.main.async {
-                isLoading = false
-                switch result {
-                case .success(let response):
-                    if let codes = response["backupCodes"] as? [String] {
-                        self.backupCodes = codes
-                        self.currentStep = .complete
-                    }
+        Task {
+            do {
+                let response = try await apiClient.verifyTwoFactor(code: verificationCode)
 
-                case .failure(let error):
+                await MainActor.run {
+                    isLoading = false
+
+                    if response.success {
+                        // Note: Backend should return backup codes in setupTwoFactor, not verifyTwoFactor
+                        // For now, we'll show completion
+                        self.currentStep = .complete
+                    } else {
+                        errorMessage = response.message ?? "Verification failed"
+                        verificationCode = ""
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
                     errorMessage = error.localizedDescription
                     verificationCode = ""
                 }

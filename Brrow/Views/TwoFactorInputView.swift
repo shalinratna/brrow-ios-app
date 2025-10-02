@@ -184,27 +184,25 @@ struct TwoFactorInputView: View {
         errorMessage = ""
         isCodeFieldFocused = false
 
-        let codeToVerify = useBackupCode ? nil : code
-        let backupCodeToVerify = useBackupCode ? backupCode : nil
+        let codeToVerify = useBackupCode ? (backupCode ?? "") : code
 
-        apiClient.verifyTwoFactorLogin(
-            userId: userId,
-            code: codeToVerify,
-            backupCode: backupCodeToVerify
-        ) { result in
-            DispatchQueue.main.async {
-                isLoading = false
+        Task {
+            do {
+                let response = try await apiClient.verifyTwoFactorLogin(code: codeToVerify)
 
-                switch result {
-                case .success(let response):
-                    if let token = response["token"] as? String {
-                        onSuccess(token)
+                await MainActor.run {
+                    isLoading = false
+
+                    if response.success {
+                        onSuccess("")  // Token is handled by AuthManager
                         dismiss()
                     } else {
-                        errorMessage = "Invalid response from server"
+                        errorMessage = response.message ?? "Verification failed"
                     }
-
-                case .failure(let error):
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
                     errorMessage = error.localizedDescription
                     code = ""
                     backupCode = ""
