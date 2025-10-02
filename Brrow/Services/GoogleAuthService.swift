@@ -34,23 +34,18 @@ class GoogleAuthService: ObservableObject {
     }
     
     // MARK: - Sign In Methods
+    @MainActor
     func signIn() async {
-        await MainActor.run {
-            isLoading = true
-            errorMessage = ""
-        }
+        isLoading = true
+        errorMessage = ""
 
         do {
-            // Get view controller on main thread
-            let presentingViewController = await MainActor.run {
-                getCurrentViewController()
-            }
-
-            guard let viewController = presentingViewController else {
+            // Get view controller
+            guard let viewController = getCurrentViewController() else {
                 throw GoogleSignInError.noPresentingViewController
             }
 
-            // Present sign-in on main thread
+            // Present sign-in - must be on main thread
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: viewController)
             let user = result.user
             
@@ -81,12 +76,10 @@ class GoogleAuthService: ObservableObject {
                 profilePictureUrl: profilePictureUrl,
                 idToken: idToken
             )
-            
+
         } catch {
-            await MainActor.run {
-                isLoading = false
-                handleSignInError(error)
-            }
+            isLoading = false
+            handleSignInError(error)
         }
     }
     
@@ -121,12 +114,10 @@ class GoogleAuthService: ObservableObject {
         
         if httpResponse.statusCode == 200 {
             let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-            
-            await MainActor.run {
-                isLoading = false
-                AuthManager.shared.handleAuthSuccess(authResponse)
-            }
-            
+
+            isLoading = false
+            AuthManager.shared.handleAuthSuccess(authResponse)
+
             print("✅ Google Sign-In backend authentication successful")
         } else {
             // Try to parse error response

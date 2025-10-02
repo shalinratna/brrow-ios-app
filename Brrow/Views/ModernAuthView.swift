@@ -466,10 +466,8 @@ struct ModernAuthView: View {
         .signInWithAppleButtonStyle(.black)
         .frame(height: 56)
         .cornerRadius(14)
+        .disabled(viewModel.isLoading || isGoogleSignInLoading)
         .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
-        .scaleEffect(viewModel.isLoading ? 0.98 : 1.0)
-        .opacity(viewModel.isLoading ? 0.7 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.isLoading)
     }
     
     private var googleSignInButton: some View {

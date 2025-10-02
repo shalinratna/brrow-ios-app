@@ -196,12 +196,15 @@ struct SettingsView: View {
 
     // Letter Avatar for users without profile pictures
     private var letterAvatar: some View {
-        ZStack {
+        let username = authManager.currentUser?.username
+        let initial = username?.first.map { String($0).uppercased() } ?? "U"
+
+        return ZStack {
             Circle()
                 .fill(Theme.Colors.primary.opacity(0.2))
                 .frame(width: 60, height: 60)
 
-            Text(String(authManager.currentUser?.username?.prefix(1).uppercased() ?? "U"))
+            Text(initial)
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundColor(Theme.Colors.primary)

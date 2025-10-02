@@ -52,8 +52,7 @@ struct EditProfileView: View {
     @State private var showLanguageSettings = false
     @State private var showDeleteAccount = false
     @State private var showBusinessAccount = false
-    @State private var showUsernameChangeAlert = false
-    @State private var originalUsername: String = ""
+    // Username change alert removed - username changes now handled in Settings
 
     // SMS Verification states
     @State private var showSMSVerification = false
@@ -71,7 +70,6 @@ struct EditProfileView: View {
     init(user: User) {
         self.user = user
         self._username = State(initialValue: user.username)
-        self._originalUsername = State(initialValue: user.username)
         // Display name removed - using username only
         self._bio = State(initialValue: user.bio ?? "")
         self._email = State(initialValue: user.email)
@@ -86,17 +84,7 @@ struct EditProfileView: View {
         }
     }
 
-    // CRITICAL: Check if user is on username change cooldown
-    private var usernameChangeCooldown: (isOnCooldown: Bool, daysRemaining: Int) {
-        guard let lastChange = user.lastUsernameChange else {
-            return (false, 0)
-        }
-
-        let daysSinceChange = Int(Date().timeIntervalSince(lastChange) / (24 * 60 * 60))
-        let daysRemaining = max(0, 90 - daysSinceChange)
-
-        return (daysRemaining > 0, daysRemaining)
-    }
+    // Username change cooldown logic removed - username changes now handled in Settings
 
     var body: some View {
         mainContent
@@ -106,8 +94,7 @@ struct EditProfileView: View {
         .onChange(of: selectedImage) { newItem in
             handleImageSelection(newItem)
         }
-        .onChange(of: username) { _ in hasChanges = true }
-        // .onChange(of: displayName) removed
+        // Username onChange removed - username is no longer editable in this view
         .onChange(of: bio) { _ in hasChanges = true }
         .onChange(of: email) { _ in hasChanges = true }
         .onChange(of: phone) { _ in hasChanges = true }
@@ -119,14 +106,7 @@ struct EditProfileView: View {
         } message: {
             Text(errorMessage)
         }
-        .alert("Change Username?", isPresented: $showUsernameChangeAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Confirm", role: .destructive) {
-                performSave()
-            }
-        } message: {
-            Text("⚠️ Important Username Policy:\n\n• You can only change your username once every 90 days\n• Your old username becomes available for others\n• This change cannot be undone\n\nNew username: @\(username)")
-        }
+        // Username change alert removed - username changes now handled in Settings
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordView()
         }
@@ -326,20 +306,33 @@ struct EditProfileView: View {
     
     private var usernameField: some View {
         VStack(alignment: .leading, spacing: 8) {
-            formField(title: "Username", text: $username, placeholder: "Enter username")
+            Text("Username")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Theme.Colors.text)
 
-            // Show cooldown warning if user is on cooldown
-            if usernameChangeCooldown.isOnCooldown {
-                Text("🔒 Username locked for \(usernameChangeCooldown.daysRemaining) more days (90-day policy)")
+            // Non-editable username display
+            HStack {
+                Text("@\(username)")
+                    .foregroundColor(Theme.Colors.secondaryText)
+
+                Spacer()
+
+                Text("Not editable")
                     .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.horizontal, Theme.Spacing.md)
-            } else if username != originalUsername && !username.isEmpty {
-                Text("⚠️ Usernames can only be changed once every 90 days")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-                    .padding(.horizontal, Theme.Spacing.md)
+                    .foregroundColor(Theme.Colors.secondaryText)
             }
+            .padding(Theme.Spacing.md)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Theme.Colors.border.opacity(0.5), lineWidth: 1)
+            )
+
+            Text("Change your username in Settings")
+                .font(.caption)
+                .foregroundColor(Theme.Colors.primary)
+                .padding(.horizontal, Theme.Spacing.md)
         }
     }
     
@@ -763,17 +756,7 @@ struct EditProfileView: View {
             return
         }
 
-        // Check if username is being changed
-        if username != originalUsername && !username.isEmpty {
-            // CRITICAL: Check if user is on cooldown
-            if usernameChangeCooldown.isOnCooldown {
-                errorMessage = "Username is locked for \(usernameChangeCooldown.daysRemaining) more days. You can only change your username once every 90 days."
-                showError = true
-                return
-            }
-            showUsernameChangeAlert = true
-            return
-        }
+        // Username change logic removed - username changes now handled in Settings
 
         // Check if phone number is being changed
         let phoneChanged = phone != (user.phone ?? "") && !phone.isEmpty
@@ -804,45 +787,22 @@ struct EditProfileView: View {
                     imageUrl = uploadResponse.data?.url
                 }
 
-                // Handle username change separately if needed
-                let usernameChanged = username != originalUsername && !username.isEmpty
-                var updatedUser: User? = nil
-                if usernameChanged {
-                    // Use the separate username change endpoint and get updated user
-                    updatedUser = try await APIClient.shared.changeUsername(username)
-                    // Update AuthManager with the new user data
-                    if let updatedUser = updatedUser {
-                        await authManager.updateUser(updatedUser)
-                    }
-                }
+                // Username change logic removed - username changes now handled in Settings
 
-                // CRITICAL FIX: Only call updateProfile if there are non-username changes
-                // If only username changed, skip the profile update to avoid overwriting the username
-                let hasNonUsernameChanges = email != user.email ||
-                                          phone != (user.phone ?? "") ||
-                                          bio != (user.bio ?? "") ||
-                                          location != (user.location ?? "") ||
-                                          website != (user.website ?? "") ||
-                                          profileImage != nil
+                // Prepare update data
+                let updateData = ProfileUpdateData(
+                    username: username, // Keep current username (readonly)
+                    email: email,
+                    phone: phone.isEmpty ? nil : phone,
+                    bio: bio.isEmpty ? nil : bio,
+                    birthdate: ISO8601DateFormatter().string(from: birthdate),
+                    profilePicture: user.profilePicture,
+                    location: location.isEmpty ? nil : location,
+                    website: website.isEmpty ? nil : website
+                )
 
-                if hasNonUsernameChanges {
-                    // Prepare update data (DO NOT include username - it's handled separately)
-                    // Use the updated username if it was changed, otherwise use current username
-                    let currentUsername = usernameChanged ? username : originalUsername
-                    let updateData = ProfileUpdateData(
-                        username: currentUsername,
-                        email: email,
-                        phone: phone.isEmpty ? nil : phone,
-                        bio: bio.isEmpty ? nil : bio,
-                        birthdate: ISO8601DateFormatter().string(from: birthdate),
-                        profilePicture: user.profilePicture,
-                        location: location.isEmpty ? nil : location,
-                        website: website.isEmpty ? nil : website
-                    )
-
-                    // Update profile via API
-                    try await APIClient.shared.updateProfile(data: updateData)
-                }
+                // Update profile via API
+                try await APIClient.shared.updateProfile(data: updateData)
 
                 // Handle profile image separately if changed
                 if let imageUrl = imageUrl {

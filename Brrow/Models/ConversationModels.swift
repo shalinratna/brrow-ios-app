@@ -321,6 +321,16 @@ struct ChatMessage: Codable, Identifiable {
 extension ChatMessage {
     /// Convert from Message (ChatModels) to ChatMessage (ConversationModels)
     static func from(_ message: Message) -> ChatMessage {
+        // Format readAt timestamp if message is read
+        let readAtTimestamp: String? = {
+            if message.isRead {
+                // Use current time as readAt if not provided
+                // In a real implementation, the backend should provide this
+                return ISO8601DateFormatter().string(from: Date())
+            }
+            return nil
+        }()
+
         return ChatMessage(
             id: message.id,
             senderId: message.senderId,
@@ -333,7 +343,7 @@ extension ChatMessage {
             thumbnailUrl: message.thumbnailUrl,
             videoDuration: nil, // Not in Message model
             deliveredAt: message.sentAt,
-            readAt: nil, // Not in Message model
+            readAt: readAtTimestamp,
             sender: message.sender.map { ConversationUser.fromUser($0) }
         )
     }

@@ -16,6 +16,7 @@ class UnifiedNotificationService: ObservableObject {
 
     @Published var notifications: [NotificationHistoryItem] = []
     @Published var unreadCount = 0
+    @Published var unreadMessageCount = 0
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var notificationSettings = NotificationSettings.default
@@ -31,6 +32,7 @@ class UnifiedNotificationService: ObservableObject {
     private init() {
         setupNotificationObservers()
         loadNotificationHistory()
+        loadUnreadMessageCount()
         syncWithNotificationManager()
     }
 
@@ -40,12 +42,29 @@ class UnifiedNotificationService: ObservableObject {
         NotificationCenter.default.publisher(for: .newMessageReceived)
             .sink { [weak self] notification in
                 self?.handleInAppNotification(notification)
+                // Update unread message count when new message arrives
+                Task {
+                    await self?.loadUnreadMessageCount()
+                }
             }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .webSocketConnected)
             .sink { [weak self] _ in
                 self?.subscribeToRealTimeNotifications()
+                // Refresh unread count on reconnect
+                Task {
+                    await self?.loadUnreadMessageCount()
+                }
+            }
+            .store(in: &cancellables)
+
+        // Listen for messages being read
+        NotificationCenter.default.publisher(for: .messageRead)
+            .sink { [weak self] _ in
+                Task {
+                    await self?.loadUnreadMessageCount()
+                }
             }
             .store(in: &cancellables)
 
@@ -54,6 +73,9 @@ class UnifiedNotificationService: ObservableObject {
             .sink { [weak self] _ in
                 self?.refreshNotifications()
                 self?.updateBadgeCount()
+                Task {
+                    await self?.loadUnreadMessageCount()
+                }
             }
             .store(in: &cancellables)
     }
@@ -482,6 +504,125 @@ class UnifiedNotificationService: ObservableObject {
         notifications.removeAll { $0.type == type.rawValue }
         notificationManager.clearNotifications(ofType: type)
         updateUnreadCount()
+    }
+
+    // MARK: - Unread Message Count
+
+    func loadUnreadMessageCount() {
+        Task {
+            do {
+                struct UnreadCountsResponse: Codable {
+                    let success: Bool
+                    let data: UnreadCounts
+
+                    struct UnreadCounts: Codable {
+                        let direct: Int
+                        let listing: Int
+                        let total: Int
+                    }
+                }
+
+                let response = try await apiClient.performRequest(
+                    endpoint: "api/messages/unread-counts",
+                    method: "GET",
+                    responseType: UnreadCountsResponse.self
+                )
+
+                await MainActor.run {
+                    if response.success {
+                        self.unreadMessageCount = response.data.total
+                        // Update total unread count (notifications + messages)
+                        self.unreadCount = self.notifications.filter { !$0.isRead }.count + response.data.total
+                        // Update badge
+                        notificationManager.updateBadgeCount(self.unreadCount)
+                    }
+                }
+            } catch {
+                print("Failed to load unread message count: \(error)")
+            }
+        }
+    }
+
+    func getUnreadMessages() async -> [NotificationHistoryItem] {
+        do {
+            struct ChatListResponse: Codable {
+                let success: Bool
+                let data: [ChatData]
+
+                struct ChatData: Codable {
+                    let id: String
+                    let type: String
+                    let unreadCount: Int
+                    let lastMessage: LastMessage?
+                    let otherUser: OtherUser?
+                    let listing: Listing?
+
+                    struct LastMessage: Codable {
+                        let id: String
+                        let content: String
+                        let senderName: String
+                        let createdAt: String
+                    }
+
+                    struct OtherUser: Codable {
+                        let id: String
+                        let username: String
+                        let profilePicture: String?
+                    }
+
+                    struct Listing: Codable {
+                        let id: String
+                        let title: String
+                        let images: [String]?
+                    }
+                }
+            }
+
+            let response = try await apiClient.performRequest(
+                endpoint: "api/messages/chats?limit=50",
+                method: "GET",
+                responseType: ChatListResponse.self
+            )
+
+            guard response.success else {
+                return []
+            }
+
+            // Convert chats with unread messages to notification items
+            let unreadNotifications = response.data
+                .filter { $0.unreadCount > 0 }
+                .compactMap { chat -> NotificationHistoryItem? in
+                    guard let lastMessage = chat.lastMessage else { return nil }
+
+                    let title = "New message from \(lastMessage.senderName)"
+                    let body = lastMessage.content.prefix(100).description
+                    let imageUrl = chat.listing?.images?.first ?? chat.otherUser?.profilePicture
+
+                    return NotificationHistoryItem(
+                        id: "msg_\(chat.id)",
+                        userId: Int(AuthManager.shared.currentUser?.id ?? "0") ?? 0,
+                        type: "new_message",
+                        title: title,
+                        body: body,
+                        payload: [
+                            "chatId": chat.id,
+                            "senderId": chat.otherUser?.id ?? "",
+                            "senderName": lastMessage.senderName,
+                            "unreadCount": "\(chat.unreadCount)"
+                        ],
+                        imageUrl: imageUrl,
+                        actionUrl: "brrow://chat/\(chat.id)",
+                        isRead: false,
+                        createdAt: lastMessage.createdAt,
+                        readAt: nil
+                    )
+                }
+
+            return unreadNotifications
+        } catch {
+            print("Failed to fetch unread messages: \(error)")
+            return []
+        }
     }
 }
 

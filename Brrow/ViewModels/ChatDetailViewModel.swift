@@ -108,6 +108,9 @@ class ChatDetailViewModel: ObservableObject {
                 let loadedMessages = try await fetchMessages(conversationId: conversationId)
                 self.messages = loadedMessages
                 self.isUserOnline = true // TODO: Implement real online status
+
+                // Mark all unread messages as read when chat is opened
+                await markUnreadMessagesAsRead(conversationId: conversationId)
             } catch {
                 self.errorMessage = error.localizedDescription
             }
@@ -629,5 +632,94 @@ class ChatDetailViewModel: ObservableObject {
     private func getDocumentsDirectory() -> URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
+    }
+
+    // MARK: - Read Receipts
+
+    /// Mark all unread messages in a conversation as read
+    func markUnreadMessagesAsRead(conversationId: String) async {
+        guard let currentUserId = authManager.currentUser?.id else {
+            print("❌ [ChatDetailViewModel] No current user ID")
+            return
+        }
+
+        // Get unread messages that were sent to the current user
+        let unreadMessages = messages.filter { message in
+            !message.isRead && message.receiverId == currentUserId
+        }
+
+        guard !unreadMessages.isEmpty else {
+            print("✅ [ChatDetailViewModel] No unread messages to mark as read")
+            return
+        }
+
+        print("📖 [ChatDetailViewModel] Marking \(unreadMessages.count) messages as read")
+
+        // Mark each message as read via API
+        for message in unreadMessages {
+            await markMessageAsRead(messageId: message.id)
+        }
+
+        // Notify UnifiedNotificationService to refresh unread counts
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: .messageRead,
+                object: conversationId
+            )
+        }
+    }
+
+    /// Mark a single message as read
+    private func markMessageAsRead(messageId: String) async {
+        do {
+            struct MarkReadResponse: Codable {
+                let success: Bool
+                let data: Message?
+                let message: String?
+            }
+
+            let response = try await apiClient.performRequest(
+                endpoint: "api/messages/messages/\(messageId)/read",
+                method: "PUT",
+                responseType: MarkReadResponse.self
+            )
+
+            if response.success {
+                print("✅ [ChatDetailViewModel] Message \(messageId) marked as read")
+
+                // Update local message state
+                await MainActor.run {
+                    if let index = messages.firstIndex(where: { $0.id == messageId }) {
+                        var updatedMessage = messages[index]
+                        // Update via reflection or create new message with updated isRead
+                        // Since Message struct properties might be immutable, we need to replace
+                        let newMessage = Message(
+                            id: updatedMessage.id,
+                            chatId: updatedMessage.chatId,
+                            senderId: updatedMessage.senderId,
+                            receiverId: updatedMessage.receiverId,
+                            content: updatedMessage.content,
+                            messageType: updatedMessage.messageType,
+                            mediaUrl: updatedMessage.mediaUrl,
+                            thumbnailUrl: updatedMessage.thumbnailUrl,
+                            listingId: updatedMessage.listingId,
+                            isRead: true,
+                            isEdited: updatedMessage.isEdited,
+                            editedAt: updatedMessage.editedAt,
+                            deletedAt: updatedMessage.deletedAt,
+                            sentAt: updatedMessage.sentAt,
+                            createdAt: updatedMessage.createdAt,
+                            sender: updatedMessage.sender,
+                            reactions: updatedMessage.reactions
+                        )
+                        messages[index] = newMessage
+                    }
+                }
+            } else {
+                print("⚠️ [ChatDetailViewModel] Failed to mark message as read: \(response.message ?? "Unknown error")")
+            }
+        } catch {
+            print("❌ [ChatDetailViewModel] Error marking message as read: \(error)")
+        }
     }
 }

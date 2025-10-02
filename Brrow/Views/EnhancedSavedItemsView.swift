@@ -8,10 +8,11 @@
 import SwiftUI
 
 struct EnhancedSavedItemsView: View {
-    @StateObject private var viewModel = SavedItemsViewModel()
+    @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedCategory: String = "All"
+    @State private var selectedListing: Listing?
     @Environment(\.dismiss) private var dismiss
-    
+
     private let categories = ["All", "Items", "Garage Sales", "Seeks"]
     
     var body: some View {
@@ -29,7 +30,7 @@ struct EnhancedSavedItemsView: View {
                     .padding(.vertical, 12)
                 
                 // Content
-                if viewModel.isLoading {
+                if favoritesManager.isLoading {
                     loadingView
                 } else if filteredItems.isEmpty {
                     emptyState
@@ -39,7 +40,17 @@ struct EnhancedSavedItemsView: View {
             }
         }
         .onAppear {
-            viewModel.loadSavedItems()
+            Task {
+                await favoritesManager.loadFavorites()
+            }
+        }
+        .refreshable {
+            await favoritesManager.loadFavorites()
+        }
+        .sheet(item: $selectedListing) { listing in
+            NavigationView {
+                ListingDetailView(listing: listing)
+            }
         }
     }
     
@@ -115,10 +126,18 @@ struct EnhancedSavedItemsView: View {
     private var savedItemsGrid: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                ForEach(filteredItems) { item in
-                    SavedItemCard(item: item) {
-                        viewModel.toggleFavorite(item)
-                    }
+                ForEach(filteredItems) { listing in
+                    SavedListingCard(
+                        listing: listing,
+                        onTap: {
+                            selectedListing = listing
+                        },
+                        onToggleFavorite: {
+                            Task {
+                                await favoritesManager.toggleFavorite(listing: listing)
+                            }
+                        }
+                    )
                 }
             }
             .padding()
@@ -179,29 +198,21 @@ struct EnhancedSavedItemsView: View {
     }
     
     // MARK: - Helper Methods
-    private var filteredItems: [SavedItem] {
-        switch selectedCategory {
-        case "Items":
-            return viewModel.savedItems.filter { $0.type == .listing }
-        case "Garage Sales":
-            return viewModel.savedItems.filter { $0.type == .garageSale }
-        case "Seeks":
-            return viewModel.savedItems.filter { $0.type == .seek }
-        default:
-            return viewModel.savedItems
-        }
+    private var filteredItems: [Listing] {
+        // For now, only show listings (can add garage sales and seeks later)
+        return favoritesManager.favoriteListings
     }
-    
+
     private func getCount(for category: String) -> Int {
         switch category {
         case "Items":
-            return viewModel.savedItems.filter { $0.type == .listing }.count
+            return favoritesManager.favoriteListings.count
         case "Garage Sales":
-            return viewModel.savedItems.filter { $0.type == .garageSale }.count
+            return 0  // TODO: Add garage sales support
         case "Seeks":
-            return viewModel.savedItems.filter { $0.type == .seek }.count
+            return 0  // TODO: Add seeks support
         default:
-            return viewModel.savedItems.count
+            return favoritesManager.favoriteListings.count
         }
     }
 }
@@ -241,17 +252,18 @@ struct SavedItemsCategoryChip: View {
     }
 }
 
-// MARK: - Saved Item Card
-struct SavedItemCard: View {
-    let item: SavedItem
+// MARK: - Saved Listing Card
+struct SavedListingCard: View {
+    let listing: Listing
+    let onTap: () -> Void
     let onToggleFavorite: () -> Void
-    
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Image with favorite button
-            ZStack(alignment: .topTrailing) {
-                if let imageUrl = item.imageUrl {
-                    BrrowAsyncImage(url: imageUrl) { image in
+        Button(action: onTap) {
+            VStack(spacing: 0) {
+                // Image with favorite button
+                ZStack(alignment: .topTrailing) {
+                    BrrowAsyncImage(url: listing.imageUrls.first ?? "") { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -259,131 +271,65 @@ struct SavedItemCard: View {
                         Rectangle()
                             .fill(Theme.Colors.secondaryBackground)
                             .overlay(
-                                Image(systemName: item.icon)
+                                Image(systemName: "photo")
                                     .font(.title2)
                                     .foregroundColor(Theme.Colors.secondary)
                             )
                     }
                     .frame(height: 160)
                     .clipped()
-                }
-                
-                // Favorite button
-                Button(action: onToggleFavorite) {
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.red)
-                        .padding(8)
-                        .background(
-                            Circle()
-                                .fill(Color.white)
-                                .shadow(radius: 4)
-                        )
-                }
-                .padding(8)
-            }
-            
-            // Content
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Theme.Colors.text)
-                    .lineLimit(2)
-                
-                if item.price > 0 {
-                    Text("$\(Int(item.price))")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(Theme.Colors.primary)
-                }
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "location")
-                        .font(.caption2)
-                    Text(item.location)
-                        .font(.caption)
-                        .lineLimit(1)
-                }
-                .foregroundColor(Theme.Colors.secondaryText)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.Colors.cardBackground)
-                .shadow(color: Theme.Shadows.card, radius: 4, y: 2)
-        )
-    }
-}
 
-// MARK: - Saved Item Model
-struct SavedItem: Identifiable {
-    let id: String
-    let title: String
-    let price: Double
-    let location: String
-    let imageUrl: String?
-    let type: SavedItemType
-    var isFavorite: Bool = true
-    
-    var icon: String {
-        switch type {
-        case .listing: return "cube.box.fill"
-        case .garageSale: return "house.fill"
-        case .seek: return "magnifyingglass.circle.fill"
-        }
-    }
-}
-
-enum SavedItemType {
-    case listing
-    case garageSale
-    case seek
-}
-
-// MARK: - View Model
-class SavedItemsViewModel: ObservableObject {
-    @Published var savedItems: [SavedItem] = []
-    @Published var isLoading = false
-    
-    func loadSavedItems() {
-        isLoading = true
-        
-        Task {
-            do {
-                let favoritesResponse = try await APIClient.shared.fetchFavorites()
-                await MainActor.run {
-                    self.savedItems = (favoritesResponse.favorites ?? []).map { listing in
-                        SavedItem(
-                            id: listing.id,
-                            title: listing.title,
-                            price: listing.price,
-                            location: listing.location.city,
-                            imageUrl: listing.imageUrls.first,
-                            type: .listing
-                        )
+                    // Favorite button
+                    Button(action: onToggleFavorite) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.red)
+                            .padding(8)
+                            .background(
+                                Circle()
+                                    .fill(Color.white)
+                                    .shadow(radius: 4)
+                            )
                     }
-                    self.isLoading = false
+                    .padding(8)
                 }
-            } catch {
-                await MainActor.run {
-                    self.isLoading = false
+
+                // Content
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(listing.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+                        .lineLimit(2)
+
+                    HStack {
+                        Text("$\(Int(listing.price))")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(Theme.Colors.primary)
+
+                        Text("/day")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "location")
+                            .font(.caption2)
+                        Text(listing.location.city)
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(Theme.Colors.secondaryText)
                 }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Theme.Colors.cardBackground)
+                    .shadow(color: Theme.Shadows.card, radius: 4, y: 2)
+            )
         }
-    }
-    
-    func toggleFavorite(_ item: SavedItem) {
-        // Remove from saved items
-        savedItems.removeAll { $0.id == item.id }
-        
-        // Call API to unfavorite
-        Task {
-            if let listingId = Int(item.id),
-               let userId = AuthManager.shared.currentUser?.id,
-               let userIdInt = Int(userId) {
-                _ = try? await APIClient.shared.toggleFavorite(listingId: listingId, userId: userIdInt)
-            }
-        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
+

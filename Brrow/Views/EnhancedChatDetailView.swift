@@ -33,6 +33,11 @@ struct EnhancedChatDetailView: View {
     @State private var isLoadingProfile = false
     @State private var showScrollToBottom = false
     @State private var scrollProxy: ScrollViewProxy?
+    @State private var showingChatOptions = false
+    @State private var showingSearch = false
+    @State private var showingListingDetail = false
+    @State private var showingVoiceRecorder = false
+    @State private var selectedListing: Listing?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -163,7 +168,7 @@ struct EnhancedChatDetailView: View {
             
             // Menu button
             Button(action: {
-                // Show menu options
+                showingChatOptions = true
             }) {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16))
@@ -181,43 +186,63 @@ struct EnhancedChatDetailView: View {
         ZStack(alignment: .bottomTrailing) {
             ScrollViewReader { proxy in
                 let scrollContent = ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 0) {
                     // Listing Context Banner (for listing conversations)
                     if conversation.isListingChat, let listing = conversation.listing {
                         ListingContextBanner(listing: listing)
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
+                            .padding(.bottom, 16)
                     }
 
-                    // Messages
+                    // Messages with grouping
                     ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
-                        let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.id // CRITICAL FIX: Use User.id (CUID), not apiId
+                        let isFromCurrentUser = message.senderId == AuthManager.shared.currentUser?.id
 
-                        // Determine if we should show avatar (first message in group)
+                        // Message grouping logic
                         let previousMessage = index > 0 ? viewModel.messages[index - 1] : nil
-                        let showAvatar = !isFromCurrentUser && (previousMessage == nil || previousMessage?.senderId != message.senderId)
+                        let nextMessage = index < viewModel.messages.count - 1 ? viewModel.messages[index + 1] : nil
 
-                        EnhancedMessageBubble(
-                            message: ChatMessage.from(message),
-                            isFromCurrentUser: isFromCurrentUser,
-                            showAvatar: showAvatar,
-                            senderProfilePicture: message.sender?.fullProfilePictureURL
-                        )
-                        .id(message.id)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: isFromCurrentUser ? .trailing : .leading)
-                                .combined(with: .opacity),
-                            removal: .opacity
-                        ))
+                        let showDateHeader = shouldShowDateHeader(for: message, previous: previousMessage)
+                        let isFirstInGroup = isFirstMessageInGroup(message: message, previous: previousMessage)
+                        let isLastInGroup = isLastMessageInGroup(message: message, next: nextMessage)
+                        let showAvatar = !isFromCurrentUser && isLastInGroup
+
+                        VStack(spacing: 0) {
+                            // Date header
+                            if showDateHeader {
+                                DateHeaderView(date: message.timestamp)
+                                    .padding(.vertical, 16)
+                            }
+
+                            // Message bubble
+                            EnhancedMessageBubble(
+                                message: ChatMessage.from(message),
+                                isFromCurrentUser: isFromCurrentUser,
+                                showAvatar: showAvatar,
+                                senderProfilePicture: message.sender?.fullProfilePictureURL
+                            )
+                            .id(message.id)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, isLastInGroup ? 12 : 2)
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.8)
+                                    .combined(with: .opacity)
+                                    .combined(with: .move(edge: isFromCurrentUser ? .trailing : .leading)),
+                                removal: .scale(scale: 0.8).combined(with: .opacity)
+                            ))
+                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.messages.count)
+                        }
                     }
 
                     // Typing Indicator
                     if viewModel.otherUserIsTyping {
                         TypingIndicator(username: conversation.otherUser.username)
-                            .transition(.opacity)
+                            .padding(.horizontal, 16)
+                            .transition(.scale.combined(with: .opacity))
+                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.otherUserIsTyping)
                     }
                 }
-                .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
 
@@ -315,21 +340,11 @@ struct EnhancedChatDetailView: View {
                     if messageText.isEmpty {
                         // Voice recording button
                         Button(action: {
-                            if isRecordingVoice {
-                                stopVoiceRecording()
-                            } else {
-                                startVoiceRecording()
-                            }
+                            showingVoiceRecorder = true
                         }) {
-                            let iconName = isRecordingVoice ? "stop.circle.fill" : "mic.circle.fill"
-                            let iconColor = isRecordingVoice ? Color.red : Theme.Colors.primary
-                            let iconScale = isRecordingVoice ? 1.2 : 1.0
-
-                            Image(systemName: iconName)
+                            Image(systemName: "mic.circle.fill")
                                 .font(.system(size: 24))
-                                .foregroundColor(iconColor)
-                                .scaleEffect(iconScale)
-                                .animation(.easeInOut(duration: 0.1), value: isRecordingVoice)
+                                .foregroundColor(Theme.Colors.primary)
                         }
                     }
                 }
@@ -355,39 +370,18 @@ struct EnhancedChatDetailView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(Theme.Colors.background)
-            
-            if isRecordingVoice {
-                voiceRecordingIndicator
+
+            // Voice recorder overlay
+            if showingVoiceRecorder {
+                VoiceRecorderView(
+                    viewModel: viewModel,
+                    conversationId: conversation.id,
+                    isRecording: $showingVoiceRecorder
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showingVoiceRecorder)
             }
         }
-    }
-    
-    // MARK: - Voice Recording Indicator
-    private var voiceRecordingIndicator: some View {
-        HStack {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 8, height: 8)
-                    .opacity(viewModel.isRecording ? 1.0 : 0.3)
-                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: viewModel.isRecording)
-                
-                Text("Recording... \(viewModel.recordingDuration)s")
-                    .font(.system(size: 14))
-                    .foregroundColor(.red)
-            }
-            
-            Spacer()
-            
-            Button("Cancel") {
-                cancelVoiceRecording()
-            }
-            .font(.system(size: 14))
-            .foregroundColor(Theme.Colors.secondaryText)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.red.opacity(0.1))
     }
     
     // MARK: - Actions
@@ -401,25 +395,6 @@ struct EnhancedChatDetailView: View {
         AchievementManager.shared.trackMessageSent()
         
         messageText = ""
-    }
-    
-    private func startVoiceRecording() {
-        isRecordingVoice = true
-        viewModel.startVoiceRecording()
-    }
-    
-    private func stopVoiceRecording() {
-        isRecordingVoice = false
-        viewModel.stopVoiceRecording { audioURL in
-            if let url = audioURL {
-                viewModel.sendVoiceMessage(url, to: conversation.id)
-            }
-        }
-    }
-    
-    private func cancelVoiceRecording() {
-        isRecordingVoice = false
-        viewModel.cancelVoiceRecording()
     }
     
     private func startVideoCall() {
@@ -480,6 +455,137 @@ struct EnhancedChatDetailView: View {
                     self.showingUserProfile = false
                 }
             }
+        }
+    }
+
+    // MARK: - Message Grouping Helpers
+
+    private func shouldShowDateHeader(for message: Message, previous: Message?) -> Bool {
+        guard let previousMessage = previous else { return true }
+
+        let calendar = Calendar.current
+        let messageDate = calendar.startOfDay(for: message.timestamp)
+        let previousDate = calendar.startOfDay(for: previousMessage.timestamp)
+
+        return messageDate != previousDate
+    }
+
+    private func isFirstMessageInGroup(message: Message, previous: Message?) -> Bool {
+        guard let previousMessage = previous else { return true }
+
+        // Different sender = new group
+        if message.senderId != previousMessage.senderId {
+            return true
+        }
+
+        // More than 1 minute apart = new group
+        let timeDifference = message.timestamp.timeIntervalSince(previousMessage.timestamp)
+        return timeDifference > 60
+    }
+
+    private func isLastMessageInGroup(message: Message, next: Message?) -> Bool {
+        guard let nextMessage = next else { return true }
+
+        // Different sender = end of group
+        if message.senderId != nextMessage.senderId {
+            return true
+        }
+
+        // More than 1 minute apart = end of group
+        let timeDifference = nextMessage.timestamp.timeIntervalSince(message.timestamp)
+        return timeDifference > 60
+    }
+}
+
+// MARK: - Additional Sheet Presentations
+extension EnhancedChatDetailView {
+    var additionalSheets: some View {
+        Group {
+            // Chat options menu
+            EmptyView()
+                .sheet(isPresented: $showingChatOptions) {
+                    ChatOptionsSheet(
+                        conversation: conversation,
+                        showingUserProfile: $showingUserProfile,
+                        showingListingDetail: $showingListingDetail,
+                        showingSearch: $showingSearch
+                    )
+                }
+
+            // Search in conversation
+            EmptyView()
+                .fullScreenCover(isPresented: $showingSearch) {
+                    ChatSearchView(
+                        isPresented: $showingSearch,
+                        messages: viewModel.messages,
+                        onMessageSelected: { message in
+                            // Scroll to selected message
+                            if let proxy = scrollProxy {
+                                withAnimation {
+                                    proxy.scrollTo(message.id, anchor: .center)
+                                }
+                            }
+                        }
+                    )
+                }
+
+            // Listing detail (if available)
+            if let listing = conversation.listing {
+                EmptyView()
+                    .sheet(isPresented: $showingListingDetail) {
+                        NavigationView {
+                            // TODO: Navigate to actual listing detail view
+                            VStack {
+                                Text("Listing: \(listing.title)")
+                                    .font(.headline)
+                                if let price = listing.price {
+                                    Text("$\(String(format: "%.2f", price))")
+                                        .font(.title)
+                                }
+                            }
+                            .navigationBarItems(trailing: Button("Done") {
+                                showingListingDetail = false
+                            })
+                        }
+                    }
+            }
+        }
+    }
+}
+
+// MARK: - Date Header View
+struct DateHeaderView: View {
+    let date: Date
+
+    var body: some View {
+        Text(formattedDate)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(Theme.Colors.secondaryText)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Theme.Colors.surface)
+            .cornerRadius(12)
+    }
+
+    private var formattedDate: String {
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else if calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE" // Day name
+            return formatter.string(from: date)
+        } else if calendar.isDate(date, equalTo: Date(), toGranularity: .year) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d"
+            return formatter.string(from: date)
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d, yyyy"
+            return formatter.string(from: date)
         }
     }
 }
@@ -688,7 +794,7 @@ struct EnhancedMessageBubble: View {
         case .video:
             videoMessageView
         case .audio, .voice:
-            textMessageView  // TODO: Implement audio player
+            audioMessageView
         case .file:
             textMessageView  // TODO: Implement file viewer
         case .system:
@@ -836,6 +942,22 @@ struct EnhancedMessageBubble: View {
                 .foregroundColor(Theme.Colors.text)
         }
         .frame(width: 200)
+    }
+
+    private var audioMessageView: some View {
+        Group {
+            if let mediaUrl = message.mediaUrl {
+                AudioPlayerView(audioURL: mediaUrl)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(isFromCurrentUser ? Theme.Colors.primary : Theme.Colors.surface)
+                    )
+            } else {
+                textMessageView
+            }
+        }
     }
 
     private var listingMessageView: some View {

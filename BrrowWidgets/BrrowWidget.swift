@@ -468,7 +468,9 @@ extension View {
     @ViewBuilder
     func conditionalContainerBackground() -> some View {
         if #available(iOS 17.0, *) {
-            self.conditionalContainerBackground()
+            self.containerBackground(for: .widget) {
+                Color(.systemBackground)
+            }
         } else {
             self.background(Color(.systemBackground))
         }
@@ -477,7 +479,9 @@ extension View {
     @ViewBuilder
     func conditionalContainerBackgroundClear() -> some View {
         if #available(iOS 17.0, *) {
-            self.conditionalContainerBackgroundClear()
+            self.containerBackground(for: .widget) {
+                Color.clear
+            }
         } else {
             self
         }
@@ -486,7 +490,9 @@ extension View {
     @ViewBuilder
     func conditionalContainerBackgroundFill() -> some View {
         if #available(iOS 17.0, *) {
-            self.conditionalContainerBackgroundFill()
+            self.containerBackground(for: .widget) {
+                Color(.systemBackground)
+            }
         } else {
             self.background(Color(.systemBackground))
         }

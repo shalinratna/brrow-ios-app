@@ -596,10 +596,14 @@ struct ProfessionalStatCard: View {
 // MARK: - Professional Listing Card
 struct ProfessionalListingCard: View {
     let listing: Listing
-    @State private var isFavorited = false
+    @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var isPressed = false
     var onTap: (() -> Void)? = nil
-    
+
+    private var isFavorited: Bool {
+        favoritesManager.isFavorited(listing.id)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Image section
@@ -609,7 +613,7 @@ struct ProfessionalListingCard: View {
                     .frame(height: 140)
                     .clipped()
                     .background(Theme.Colors.secondaryBackground)
-                
+
                 // Heart button
                 Circle()
                     .fill(Color.white.opacity(0.9))
@@ -617,13 +621,15 @@ struct ProfessionalListingCard: View {
                     .overlay(
                         Image(systemName: isFavorited ? "heart.fill" : "heart")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(isFavorited ? Theme.Colors.accent : Theme.Colors.text)
+                            .foregroundColor(isFavorited ? .red : Theme.Colors.text)
                     )
                     .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                     .padding(8)
                     .onTapGesture {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            isFavorited.toggle()
+                            Task {
+                                await favoritesManager.toggleFavorite(listing: listing)
+                            }
                             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                             impactFeedback.impactOccurred()
                         }

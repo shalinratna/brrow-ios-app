@@ -10,145 +10,303 @@ import SwiftUI
 struct LinkedAccountsView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel = LinkedAccountsViewModel()
-    @StateObject private var authManager = AuthManager.shared
+    @EnvironmentObject var authManager: AuthManager
     @State private var showingUnlinkConfirmation = false
     @State private var providerToUnlink: OAuthProvider?
-    @State private var showingPasswordPrompt = false
-    @State private var password = ""
+    @State private var showingLastMethodWarning = false
 
     var body: some View {
-        List {
-            Section {
-                Text("Link your Google or Apple account to sign in with one tap")
-                    .font(.footnote)
-                    .foregroundColor(Theme.Colors.secondaryText)
-            }
+        NavigationView {
+            ZStack {
+                Theme.Colors.groupedBackground
+                    .ignoresSafeArea()
 
-            Section("Linked Accounts") {
-                // Google Account
-                if let googleAccount = viewModel.linkedAccounts.first(where: { $0.provider == "google" }) {
-                    linkedAccountRow(
-                        provider: .google,
-                        email: googleAccount.email,
-                        isLinked: true
-                    )
-                } else {
-                    unlinkableAccountRow(provider: .google)
+                ScrollView {
+                    VStack(spacing: Theme.Spacing.lg) {
+                        // Header Card
+                        headerSection
+
+                        // Loading indicator
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                                .padding(Theme.Spacing.xl)
+                        }
+
+                        // Error message
+                        if let error = viewModel.errorMessage {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.red)
+                                Text(error)
+                                    .font(Theme.Typography.footnote)
+                                    .foregroundColor(.red)
+                            }
+                            .padding(Theme.Spacing.md)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(Theme.CornerRadius.sm)
+                        }
+
+                        // Linked Accounts Section
+                        if !viewModel.isLoading {
+                            accountsSection
+                        }
+
+                        // Info Section
+                        infoSection
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.lg)
                 }
-
-                // Apple Account
-                if let appleAccount = viewModel.linkedAccounts.first(where: { $0.provider == "apple" }) {
-                    linkedAccountRow(
-                        provider: .apple,
-                        email: appleAccount.email,
-                        isLinked: true
-                    )
-                } else {
-                    unlinkableAccountRow(provider: .apple)
-                }
             }
-
-            if viewModel.isLoading {
-                Section {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
+            .navigationTitle("Linked Accounts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        presentationMode.wrappedValue.dismiss()
                     }
                 }
             }
-
-            if let error = viewModel.errorMessage {
-                Section {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundColor(.red)
-                }
-            }
-        }
-        .navigationTitle("Linked Accounts")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-            }
-        }
-        .onAppear {
-            Task {
-                await viewModel.fetchLinkedAccounts()
-            }
-        }
-        .alert("Unlink Account", isPresented: $showingUnlinkConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Unlink", role: .destructive) {
+            .onAppear {
                 Task {
-                    if let provider = providerToUnlink {
-                        await viewModel.unlinkAccount(provider: provider)
-                    }
+                    await viewModel.fetchLinkedAccounts()
                 }
             }
-        } message: {
-            Text("You'll still be able to sign in with your email and password. Are you sure you want to unlink this account?")
+            .alert("Cannot Unlink", isPresented: $showingLastMethodWarning) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("You cannot unlink your last sign-in method. Please link another account first or ensure you have an email/password login.")
+            }
+            .alert("Unlink Account", isPresented: $showingUnlinkConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Unlink", role: .destructive) {
+                    Task {
+                        if let provider = providerToUnlink {
+                            await viewModel.unlinkAccount(provider: provider)
+                        }
+                    }
+                }
+            } message: {
+                if let provider = providerToUnlink {
+                    Text("Are you sure you want to unlink your \(provider.displayName) account? You can re-link it at any time.")
+                } else {
+                    Text("Are you sure you want to unlink this account?")
+                }
+            }
         }
     }
 
-    private func linkedAccountRow(provider: OAuthProvider, email: String?, isLinked: Bool) -> some View {
-        HStack {
-            Image(systemName: provider.icon)
-                .foregroundColor(provider.color)
-                .frame(width: 24)
+    // MARK: - Header Section
+    private var headerSection: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "link.circle.fill")
+                .font(.system(size: 48))
+                .foregroundColor(Theme.Colors.primary)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(provider.displayName)
-                    .foregroundColor(Theme.Colors.text)
+            Text("One-Tap Sign In")
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-                if let email = email {
-                    Text(email)
-                        .font(.caption)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
+            Text("Link your accounts for quick and secure access")
+                .font(Theme.Typography.footnote)
+                .foregroundColor(Theme.Colors.secondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.card)
+        .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+    }
+
+    // MARK: - Accounts Section
+    private var accountsSection: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            // Google Account
+            if let googleAccount = viewModel.linkedAccounts.first(where: { $0.provider == "google" }) {
+                linkedAccountCard(
+                    provider: .google,
+                    email: googleAccount.email,
+                    linkedDate: googleAccount.createdAt
+                )
+            } else {
+                unlinkableAccountCard(provider: .google)
             }
 
-            Spacer()
+            // Apple Account
+            if let appleAccount = viewModel.linkedAccounts.first(where: { $0.provider == "apple" }) {
+                linkedAccountCard(
+                    provider: .apple,
+                    email: appleAccount.email,
+                    linkedDate: appleAccount.createdAt
+                )
+            } else {
+                unlinkableAccountCard(provider: .apple)
+            }
+        }
+    }
 
-            if isLinked {
-                Button(action: {
+    // MARK: - Linked Account Card
+    private func linkedAccountCard(provider: OAuthProvider, email: String?, linkedDate: String) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack(spacing: Theme.Spacing.md) {
+                // Provider Icon
+                ZStack {
+                    Circle()
+                        .fill(provider.color.opacity(0.1))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: provider.icon)
+                        .font(.system(size: 24))
+                        .foregroundColor(provider.color)
+                }
+
+                // Account Info
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(provider.displayName)
+                            .font(Theme.Typography.body)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Theme.Colors.text)
+
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.green)
+                    }
+
+                    if let email = email, !email.isEmpty {
+                        Text(email)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    } else {
+                        Text("Linked")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
+
+                Spacer()
+            }
+
+            // Unlink Button
+            Button(action: {
+                // Check if this is the last sign-in method
+                if viewModel.linkedAccounts.count <= 1 {
+                    showingLastMethodWarning = true
+                } else {
                     providerToUnlink = provider
                     showingUnlinkConfirmation = true
-                }) {
-                    Text("Unlink")
-                        .font(.subheadline)
-                        .foregroundColor(.red)
                 }
-                .buttonStyle(BorderlessButtonStyle())
+            }) {
+                HStack {
+                    Image(systemName: "link.badge.minus")
+                    Text("Unlink Account")
+                }
+                .font(Theme.Typography.callout)
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(Theme.CornerRadius.sm)
             }
+            .buttonStyle(PlainButtonStyle())
         }
-        .padding(.vertical, 4)
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.card)
+        .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
     }
 
-    private func unlinkableAccountRow(provider: OAuthProvider) -> some View {
+    // MARK: - Unlinkable Account Card
+    private func unlinkableAccountCard(provider: OAuthProvider) -> some View {
         Button(action: {
             Task {
                 await viewModel.linkAccount(provider: provider)
             }
         }) {
-            HStack {
-                Image(systemName: provider.icon)
-                    .foregroundColor(provider.color)
-                    .frame(width: 24)
+            HStack(spacing: Theme.Spacing.md) {
+                // Provider Icon
+                ZStack {
+                    Circle()
+                        .fill(provider.color.opacity(0.1))
+                        .frame(width: 50, height: 50)
 
-                Text("Link \(provider.displayName) Account")
-                    .foregroundColor(Theme.Colors.text)
+                    Image(systemName: provider.icon)
+                        .font(.system(size: 24))
+                        .foregroundColor(provider.color)
+                }
+
+                // Account Info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(provider.displayName)
+                        .font(Theme.Typography.body)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Theme.Colors.text)
+
+                    Text("Not linked")
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(Theme.Colors.secondaryText)
+                // Link Button
+                HStack {
+                    Text("Link")
+                        .font(Theme.Typography.callout)
+                        .fontWeight(.medium)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .foregroundColor(Theme.Colors.primary)
             }
-            .padding(.vertical, 4)
+            .padding(Theme.Spacing.md)
+            .background(Theme.Colors.surface)
+            .cornerRadius(Theme.CornerRadius.card)
+            .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    // MARK: - Info Section
+    private var infoSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(.blue)
+                Text("How it works")
+                    .font(Theme.Typography.callout)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.text)
+            }
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                infoRow(icon: "lock.shield.fill", text: "Your account security is maintained")
+                infoRow(icon: "hand.raised.fill", text: "You control which accounts are linked")
+                infoRow(icon: "arrow.triangle.2.circlepath", text: "Switch between accounts seamlessly")
+                infoRow(icon: "checkmark.seal.fill", text: "One tap to sign in from any device")
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(Theme.CornerRadius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    private func infoRow(icon: String, text: String) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundColor(.blue)
+                .frame(width: 20)
+
+            Text(text)
+                .font(Theme.Typography.footnote)
+                .foregroundColor(Theme.Colors.secondaryText)
         }
     }
 }

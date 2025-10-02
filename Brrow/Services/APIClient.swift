@@ -2857,22 +2857,72 @@ class APIClient: ObservableObject {
         )
     }
     
+    // MARK: - Password Management
+
+    /// Validate password against backend rules
+    func validatePassword(password: String) async throws -> PasswordValidationResponse {
+        struct ValidatePasswordRequest: Codable {
+            let password: String
+        }
+
+        let request = ValidatePasswordRequest(password: password)
+        let bodyData = try JSONEncoder().encode(request)
+
+        return try await performRequest(
+            endpoint: "api/auth/validate-password",
+            method: .POST,
+            body: bodyData,
+            responseType: PasswordValidationResponse.self
+        )
+    }
+
+    /// Check if user has a password (OAuth users may not have passwords)
+    func checkPasswordExists() async throws -> CheckPasswordExistsResponse {
+        return try await performRequest(
+            endpoint: "api/auth/check-password-exists",
+            method: .GET,
+            responseType: CheckPasswordExistsResponse.self
+        )
+    }
+
+    /// Change password for existing email users
     func changePassword(currentPassword: String, newPassword: String) async throws -> EmptyResponse {
         struct ChangePasswordRequest: Codable {
             let currentPassword: String
             let newPassword: String
-            
+
             enum CodingKeys: String, CodingKey {
                 case currentPassword = "current_password"
                 case newPassword = "new_password"
             }
         }
-        
+
         let request = ChangePasswordRequest(currentPassword: currentPassword, newPassword: newPassword)
         let bodyData = try JSONEncoder().encode(request)
-        
+
         return try await performRequest(
-            endpoint: "change_password.php",
+            endpoint: "api/auth/change-password",
+            method: .PUT,
+            body: bodyData,
+            responseType: EmptyResponse.self
+        )
+    }
+
+    /// Create password for OAuth users
+    func createPassword(newPassword: String) async throws -> EmptyResponse {
+        struct CreatePasswordRequest: Codable {
+            let newPassword: String
+
+            enum CodingKeys: String, CodingKey {
+                case newPassword = "new_password"
+            }
+        }
+
+        let request = CreatePasswordRequest(newPassword: newPassword)
+        let bodyData = try JSONEncoder().encode(request)
+
+        return try await performRequest(
+            endpoint: "api/auth/create-password",
             method: .POST,
             body: bodyData,
             responseType: EmptyResponse.self
@@ -3276,6 +3326,55 @@ class APIClient: ObservableObject {
 
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to block user")
+        }
+    }
+
+    /// Report user
+    func reportUser(userId: String, reason: String, details: String) async throws {
+        struct ReportUserRequest: Codable {
+            let userId: String
+            let reason: String
+            let details: String
+        }
+
+        let request = ReportUserRequest(userId: userId, reason: reason, details: details)
+        let bodyData = try JSONEncoder().encode(request)
+
+        let response = try await performRequest(
+            endpoint: "api/reports/user",
+            method: .POST,
+            body: bodyData,
+            responseType: APIResponse<String>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to report user")
+        }
+    }
+
+    /// Clear chat history
+    func clearChatHistory(conversationId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/messages/\(conversationId)/clear",
+            method: .POST,
+            responseType: APIResponse<String>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to clear chat history")
+        }
+    }
+
+    /// Delete conversation (overload for String ID)
+    func deleteConversation(conversationId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/conversations/\(conversationId)",
+            method: .DELETE,
+            responseType: APIResponse<String>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to delete conversation")
         }
     }
 
@@ -4881,5 +4980,76 @@ class APIClient: ObservableObject {
     func fetchRecentLegacyEarningsTransactions() async throws -> [LegacyEarningsTransaction] {
         // Placeholder implementation
         return []
+    }
+
+    // MARK: - Two-Factor Authentication
+
+    struct TwoFactorSetupResponse: Codable {
+        let success: Bool
+        let data: TwoFactorData?
+        let message: String?
+
+        struct TwoFactorData: Codable {
+            let qrCode: String
+            let secret: String
+            let backupCodes: [String]
+        }
+    }
+
+    struct TwoFactorVerifyResponse: Codable {
+        let success: Bool
+        let message: String?
+        let data: TwoFactorVerifyData?
+
+        struct TwoFactorVerifyData: Codable {
+            let enabled: Bool
+        }
+    }
+
+    func setupTwoFactor() async throws -> TwoFactorSetupResponse {
+        return try await performRequest(
+            endpoint: "api/auth/2fa/setup",
+            method: .POST,
+            responseType: TwoFactorSetupResponse.self
+        )
+    }
+
+    func verifyTwoFactor(code: String) async throws -> TwoFactorVerifyResponse {
+        struct VerifyRequest: Codable {
+            let code: String
+        }
+
+        return try await performRequest(
+            endpoint: "api/auth/2fa/verify",
+            method: .POST,
+            body: VerifyRequest(code: code),
+            responseType: TwoFactorVerifyResponse.self
+        )
+    }
+
+    func verifyTwoFactorLogin(code: String) async throws -> TwoFactorVerifyResponse {
+        struct VerifyRequest: Codable {
+            let code: String
+        }
+
+        return try await performRequest(
+            endpoint: "api/auth/2fa/verify-login",
+            method: .POST,
+            body: VerifyRequest(code: code),
+            responseType: TwoFactorVerifyResponse.self
+        )
+    }
+
+    func disableTwoFactor(code: String) async throws -> TwoFactorVerifyResponse {
+        struct DisableRequest: Codable {
+            let code: String
+        }
+
+        return try await performRequest(
+            endpoint: "api/auth/2fa/disable",
+            method: .POST,
+            body: DisableRequest(code: code),
+            responseType: TwoFactorVerifyResponse.self
+        )
     }
 }

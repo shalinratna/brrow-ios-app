@@ -41,8 +41,8 @@ struct CircularImageCropper: View {
 
         // Initialize with provided values or defaults
         self._currentOffset = State(initialValue: cropOffset.wrappedValue)
-        self._currentScale = State(initialValue: cropScale.wrappedValue == 1.0 ? calculateInitialScale(for: image, cropSize: cropSize) : cropScale.wrappedValue)
-        self._initialScale = State(initialValue: calculateInitialScale(for: image, cropSize: cropSize))
+        self._currentScale = State(initialValue: cropScale.wrappedValue == 1.0 ? Self.calculateInitialScale(for: image, cropSize: cropSize) : cropScale.wrappedValue)
+        self._initialScale = State(initialValue: Self.calculateInitialScale(for: image, cropSize: cropSize))
     }
 
     static func calculateInitialScale(for image: UIImage, cropSize: CGFloat) -> CGFloat {

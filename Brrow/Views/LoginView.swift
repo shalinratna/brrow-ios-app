@@ -11,6 +11,7 @@ struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
     @StateObject private var predictiveLoader = PredictiveLoadingManager.shared
     @State private var showPassword = false
+    @State private var showingForgotPassword = false
     
     var body: some View {
         NavigationView {
@@ -44,6 +45,11 @@ struct LoginView: View {
         }
         .fullScreenCover(isPresented: $viewModel.isLoggedIn) {
             MainTabView()
+        }
+        .sheet(isPresented: $showingForgotPassword) {
+            NavigationView {
+                ForgotPasswordView()
+            }
         }
     }
     
@@ -174,13 +180,27 @@ struct LoginView: View {
             }
             
             // Password Field
-            ModernSecureField(
-                title: "Password",
-                text: $viewModel.password,
-                placeholder: "Enter your password",
-                showPassword: $showPassword,
-                isValid: viewModel.isValidPassword
-            )
+            VStack(alignment: .trailing, spacing: 8) {
+                ModernSecureField(
+                    title: "Password",
+                    text: $viewModel.password,
+                    placeholder: "Enter your password",
+                    showPassword: $showPassword,
+                    isValid: viewModel.isValidPassword
+                )
+
+                // Forgot Password Link (Login mode only)
+                if viewModel.isLoginMode {
+                    Button(action: {
+                        showingForgotPassword = true
+                    }) {
+                        Text("Forgot Password?")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Theme.Colors.primary)
+                    }
+                }
+            }
         }
     }
     

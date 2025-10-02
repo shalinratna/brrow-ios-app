@@ -903,3 +903,21 @@ struct CreatorStatus: Codable {
 }
 
 // CreatorBadgeType moved to CreatorModels.swift to avoid duplication
+
+// MARK: - Password Management Types
+struct PasswordValidationResponse: Codable {
+    let valid: Bool
+    let errors: [String]?
+}
+
+struct CheckPasswordExistsResponse: Codable {
+    let success: Bool
+    let hasPassword: Bool
+    let authMethod: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case hasPassword = "has_password"
+        case authMethod = "auth_method"
+    }
+}

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct UltraModernHomeView: View {
     @StateObject private var viewModel = UltraModernHomeViewModel()
@@ -684,27 +685,46 @@ struct Activity: Identifiable {
 
 class UltraModernHomeViewModel: ObservableObject {
     @Published var greeting = "Welcome back!"
-    @Published var unreadNotifications = 3
+    @Published var unreadNotifications = 0
     @Published var activeUsers = 127
     @Published var newListingsToday = 42
     @Published var totalSaved = 1250
     @Published var trendingItems: [HomeTrendingItem] = []
     @Published var recentActivities: [Activity] = []
-    
+
+    private var notificationService = UnifiedNotificationService.shared
+    private var cancellables = Set<AnyCancellable>()
+
     init() {
         updateGreeting()
         loadMockData()
+        Task { @MainActor in
+            setupNotificationObserver()
+        }
     }
-    
+
+    @MainActor
+    private func setupNotificationObserver() {
+        // Subscribe to unread count changes
+        notificationService.$unreadCount
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] count in
+                self?.unreadNotifications = count
+            }
+            .store(in: &cancellables)
+    }
+
     func loadHomeData() {
         // Load real data from API
         Task {
             await loadTrendingItems()
             await loadRecentActivities()
             await updateStats()
+            // Load notification count
+            await notificationService.loadUnreadMessageCount()
         }
     }
-    
+
     func refreshData() async {
         loadHomeData()
     }

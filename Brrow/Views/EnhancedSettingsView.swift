@@ -7,6 +7,7 @@ struct EnhancedSettingsView: View {
     @State private var showingEditProfile = false
     @State private var showingChangeUsername = false
     @State private var showingChangePassword = false
+    @State private var showingCreatePassword = false
     @State private var showingDeleteAccount = false
     @State private var showingPrivacySettings = false
     @State private var showingNotificationSettings = false
@@ -25,6 +26,8 @@ struct EnhancedSettingsView: View {
     @State private var isLoading = false
     @State private var errorMessage = ""
     @State private var successMessage = ""
+    @State private var hasPassword: Bool? = nil
+    @State private var isCheckingPassword = false
 
     // User preferences
     @AppStorage("pushNotifications") private var pushNotifications = true
@@ -83,6 +86,13 @@ struct EnhancedSettingsView: View {
             ChangePasswordView()
                 .environmentObject(authManager)
         }
+        .sheet(isPresented: $showingCreatePassword) {
+            if let user = authManager.currentUser {
+                let provider = user.authMethod == "google" ? "Google" : user.authMethod == "apple" ? "Apple" : "OAuth"
+                CreatePasswordView(provider: provider)
+                    .environmentObject(authManager)
+            }
+        }
         .sheet(isPresented: $showingLinkedAccounts) {
             LinkedAccountsView()
                 .environmentObject(authManager)
@@ -130,6 +140,9 @@ struct EnhancedSettingsView: View {
             }
         } message: {
             Text(successMessage)
+        }
+        .onAppear {
+            checkPasswordStatus()
         }
     }
 
@@ -181,23 +194,60 @@ struct EnhancedSettingsView: View {
                 )
             }
 
-            // Username
+            // Username - with cooldown indicator
             Button(action: { showingChangeUsername = true }) {
-                SettingsRow(
-                    icon: "at",
-                    title: "Username",
-                    subtitle: "@\(authManager.currentUser?.username ?? "")"
-                )
+                HStack {
+                    Image(systemName: "at")
+                        .foregroundColor(.blue)
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading) {
+                        Text("Username")
+                            .foregroundColor(.primary)
+                        Text("@\(authManager.currentUser?.username ?? "")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
-            // Change Password - only show if not using social login
-            if authManager.currentUser?.appleUserId == nil {
-                Button(action: { showingChangePassword = true }) {
-                    SettingsRow(
-                        icon: "lock.rotation",
-                        title: "Change Password",
-                        subtitle: nil
-                    )
+            // Password Management - show based on password existence
+            if isCheckingPassword {
+                HStack {
+                    Image(systemName: "lock.rotation")
+                        .foregroundColor(.blue)
+                        .frame(width: 28)
+                    Text("Checking password status...")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            } else if let hasPassword = hasPassword {
+                if hasPassword {
+                    // User has a password - show Change Password
+                    Button(action: { showingChangePassword = true }) {
+                        SettingsRow(
+                            icon: "lock.rotation",
+                            title: "Change Password",
+                            subtitle: "Update your password"
+                        )
+                    }
+                } else {
+                    // User doesn't have a password - show Create Password
+                    Button(action: { showingCreatePassword = true }) {
+                        SettingsRow(
+                            icon: "lock.shield",
+                            title: "Create Password",
+                            subtitle: "Enable email login"
+                        )
+                    }
                 }
             }
 
@@ -206,7 +256,7 @@ struct EnhancedSettingsView: View {
                 SettingsRow(
                     icon: "link",
                     title: "Linked Accounts",
-                    subtitle: "Google, Apple, Facebook"
+                    subtitle: "Google, Apple"
                 )
             }
 
@@ -447,6 +497,29 @@ struct EnhancedSettingsView: View {
     }
 
     // MARK: - Helper Methods
+    private func checkPasswordStatus() {
+        isCheckingPassword = true
+
+        Task {
+            do {
+                let response = try await APIClient.shared.checkPasswordExists()
+
+                await MainActor.run {
+                    hasPassword = response.hasPassword
+                    isCheckingPassword = false
+                }
+            } catch {
+                await MainActor.run {
+                    // On error, assume they have a password to be safe
+                    // (better to show change password than create password if we're unsure)
+                    hasPassword = true
+                    isCheckingPassword = false
+                    print("Error checking password status: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
     private func signOut() {
         authManager.logout()
         dismiss()
@@ -567,205 +640,634 @@ struct EditPersonalInfoView: View {
     }
 }
 
+// MARK: - Enhanced Change Username View with Policy Flow
 struct ChangeUsernameView: View {
     @EnvironmentObject var authManager: AuthManager
     @Environment(\.dismiss) var dismiss
+
+    // View state management
+    @State private var currentStep: UsernameChangeStep = .policy
     @State private var newUsername = ""
     @State private var isLoading = false
+    @State private var isCheckingAvailability = false
     @State private var errorMessage = ""
+    @State private var usernameAvailable: Bool? = nil
+    @State private var showSuccess = false
+    @State private var debouncedUsername = ""
+
+    // Timer for debounced username check
+    @State private var debounceTimer: Timer?
+
+    enum UsernameChangeStep {
+        case policy
+        case entry
+        case confirmation
+    }
+
+    // Calculate cooldown status
+    private var cooldownStatus: (isOnCooldown: Bool, daysRemaining: Int, lastChanged: Date?) {
+        guard let lastChange = authManager.currentUser?.lastUsernameChange else {
+            return (false, 0, nil)
+        }
+
+        let daysSinceChange = Int(Date().timeIntervalSince(lastChange) / (24 * 60 * 60))
+        let daysRemaining = max(0, 90 - daysSinceChange)
+
+        return (daysRemaining > 0, daysRemaining, lastChange)
+    }
 
     var body: some View {
-        Form {
-            Section {
-                TextField("New Username", text: $newUsername)
-                    .autocapitalization(.none)
-            } header: {
-                Text("Choose a new username")
-            } footer: {
-                Text("You can only change your username once every 90 days")
-                    .foregroundColor(.secondary)
-            }
+        NavigationView {
+            ZStack {
+                switch currentStep {
+                case .policy:
+                    policyView
+                case .entry:
+                    entryView
+                case .confirmation:
+                    confirmationView
+                }
 
-            if !errorMessage.isEmpty {
-                Section {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
+                if isLoading {
+                    loadingOverlay
                 }
             }
-        }
-        .navigationTitle("Change Username")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancel") {
-                    dismiss()
+            .navigationTitle(navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .disabled(isLoading)
                 }
             }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Save") {
-                    changeUsername()
-                }
-                .disabled(isLoading || newUsername.isEmpty)
-            }
-        }
-    }
-
-    private func changeUsername() {
-        // Implement username change
-        Task {
-            isLoading = true
-            // Call API to change username
-            isLoading = false
-            dismiss()
-        }
-    }
-}
-
-struct ChangePasswordView: View {
-    @Environment(\.dismiss) var dismiss
-    @State private var currentPassword = ""
-    @State private var newPassword = ""
-    @State private var confirmPassword = ""
-    @State private var isLoading = false
-
-    var body: some View {
-        Form {
-            Section("Current Password") {
-                SecureField("Current Password", text: $currentPassword)
-            }
-
-            Section("New Password") {
-                SecureField("New Password", text: $newPassword)
-                SecureField("Confirm New Password", text: $confirmPassword)
-            }
-        }
-        .navigationTitle("Change Password")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancel") {
-                    dismiss()
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Save") {
-                    changePassword()
-                }
-                .disabled(isLoading || currentPassword.isEmpty || newPassword.isEmpty)
-            }
-        }
-    }
-
-    private func changePassword() {
-        // Implement password change
-        dismiss()
-    }
-}
-
-struct LinkedAccountsView: View {
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var authManager: AuthManager
-    @State private var googleLinked = false
-    @State private var appleLinked = false
-    @State private var facebookLinked = false
-
-    var body: some View {
-        List {
-            Section("Linked Accounts") {
-                LinkedAccountRow(
-                    provider: "Google",
-                    icon: "G",
-                    iconColor: .red,
-                    isLinked: $googleLinked
-                )
-
-                LinkedAccountRow(
-                    provider: "Apple",
-                    icon: "applelogo",
-                    iconColor: .black,
-                    isLinked: $appleLinked
-                )
-
-                LinkedAccountRow(
-                    provider: "Facebook",
-                    icon: "f.circle.fill",
-                    iconColor: .blue,
-                    isLinked: $facebookLinked
-                )
-            }
-
-            Section {
-                Text("Link your social accounts to sign in faster and recover your account more easily")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .navigationTitle("Linked Accounts")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            .alert("Success!", isPresented: $showSuccess) {
                 Button("Done") {
                     dismiss()
                 }
+            } message: {
+                Text("Your username has been changed to @\(newUsername)")
             }
-        }
-        .onAppear {
-            loadLinkedAccountStatus()
         }
     }
 
-    private func loadLinkedAccountStatus() {
-        // Check auth method to determine which accounts are linked
-        if let authMethod = authManager.currentUser?.authMethod {
-            switch authMethod {
-            case "GOOGLE":
-                googleLinked = true
-            case "APPLE":
-                appleLinked = true
-            default:
-                break
+    // MARK: - Step 1: Policy Explanation
+    private var policyView: some View {
+        ScrollView {
+            VStack(spacing: Theme.Spacing.xl) {
+                // Header Icon
+                ZStack {
+                    Circle()
+                        .fill(Theme.Colors.primary.opacity(0.1))
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "at.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(Theme.Colors.primary)
+                }
+                .padding(.top, Theme.Spacing.xl)
+
+                VStack(spacing: Theme.Spacing.md) {
+                    Text("Change Username")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("Current: @\(authManager.currentUser?.username ?? "")")
+                        .font(.subheadline)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+
+                // Policy Information Card
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    HStack {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.blue)
+                        Text("Important Information")
+                            .font(.headline)
+                    }
+
+                    policyItem(icon: "clock", text: "Can be changed once every 90 days")
+                    policyItem(icon: "lock.shield", text: "Old username reserved for 90 days")
+                    policyItem(icon: "arrow.triangle.2.circlepath", text: "Changes apply everywhere immediately")
+                    policyItem(icon: "exclamationmark.triangle", text: "This action cannot be undone")
+                }
+                .padding(Theme.Spacing.lg)
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                )
+
+                // Cooldown Status
+                if cooldownStatus.isOnCooldown {
+                    VStack(spacing: Theme.Spacing.sm) {
+                        HStack {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(.red)
+                            Text("Cooldown Active")
+                                .font(.headline)
+                                .foregroundColor(.red)
+                        }
+
+                        Text("\(cooldownStatus.daysRemaining) days remaining")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+
+                        if let lastChanged = cooldownStatus.lastChanged {
+                            Text("Last changed: \(lastChanged, style: .date)")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(Theme.Spacing.lg)
+                    .background(Color.red.opacity(0.05))
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                    )
+                } else {
+                    VStack(spacing: Theme.Spacing.sm) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Ready to Change")
+                                .font(.headline)
+                                .foregroundColor(.green)
+                        }
+
+                        if let lastChanged = cooldownStatus.lastChanged {
+                            Text("Last changed: \(lastChanged, style: .date)")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        } else {
+                            Text("Never changed before")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(Theme.Spacing.lg)
+                    .background(Color.green.opacity(0.05))
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.green.opacity(0.2), lineWidth: 1)
+                    )
+                }
+
+                Spacer()
+
+                // Action Buttons
+                VStack(spacing: Theme.Spacing.md) {
+                    if !cooldownStatus.isOnCooldown {
+                        Button(action: {
+                            withAnimation {
+                                currentStep = .entry
+                            }
+                        }) {
+                            Text("Continue")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity)
+                                .padding(Theme.Spacing.md)
+                                .background(Theme.Colors.primary)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
+                    }
+
+                    Button(action: { dismiss() }) {
+                        Text("Cancel")
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .padding(Theme.Spacing.md)
+                            .background(Color.gray.opacity(0.1))
+                            .foregroundColor(Theme.Colors.text)
+                            .cornerRadius(12)
+                    }
+                }
             }
+            .padding(Theme.Spacing.lg)
+        }
+        .background(Theme.Colors.background)
+    }
+
+    // MARK: - Step 2: Username Entry with Validation
+    private var entryView: some View {
+        ScrollView {
+            VStack(spacing: Theme.Spacing.xl) {
+                // Header
+                VStack(spacing: Theme.Spacing.md) {
+                    Text("Choose New Username")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("Your username must be unique and follow our guidelines")
+                        .font(.subheadline)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, Theme.Spacing.xl)
+
+                // Username Input
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Text("@")
+                            .font(.title3)
+                            .foregroundColor(Theme.Colors.secondaryText)
+
+                        TextField("username", text: $newUsername)
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .font(.title3)
+                            .onChange(of: newUsername) { newValue in
+                                // Debounce availability check
+                                debounceTimer?.invalidate()
+                                usernameAvailable = nil
+
+                                if newValue.count >= 3 {
+                                    debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                                        checkUsernameAvailability(newValue)
+                                    }
+                                }
+                            }
+
+                        if isCheckingAvailability {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else if let available = usernameAvailable {
+                            Image(systemName: available ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(available ? .green : .red)
+                        }
+                    }
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.surface)
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(borderColor, lineWidth: 2)
+                    )
+
+                    // Validation Messages
+                    if !newUsername.isEmpty {
+                        if newUsername.count < 3 {
+                            validationMessage("Username must be at least 3 characters", type: .error)
+                        } else if newUsername.count > 20 {
+                            validationMessage("Username must be 20 characters or less", type: .error)
+                        } else if !isValidUsername(newUsername) {
+                            validationMessage("Only letters, numbers, and underscores allowed", type: .error)
+                        } else if let available = usernameAvailable {
+                            if available {
+                                validationMessage("Username is available!", type: .success)
+                            } else {
+                                validationMessage("This username is already taken", type: .error)
+                            }
+                        }
+                    }
+                }
+
+                // Requirements Card
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    Text("Requirements")
+                        .font(.headline)
+
+                    requirementItem("3-20 characters", met: newUsername.count >= 3 && newUsername.count <= 20)
+                    requirementItem("Letters, numbers, underscore only", met: isValidUsername(newUsername) || newUsername.isEmpty)
+                    requirementItem("Must be unique", met: usernameAvailable == true)
+                }
+                .padding(Theme.Spacing.lg)
+                .background(Theme.Colors.surface)
+                .cornerRadius(16)
+
+                Spacer()
+
+                // Action Buttons
+                VStack(spacing: Theme.Spacing.md) {
+                    Button(action: {
+                        withAnimation {
+                            currentStep = .confirmation
+                        }
+                    }) {
+                        Text("Continue")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(Theme.Spacing.md)
+                            .background(canProceed ? Theme.Colors.primary : Color.gray.opacity(0.3))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(!canProceed)
+
+                    Button(action: {
+                        withAnimation {
+                            currentStep = .policy
+                        }
+                    }) {
+                        Text("Back")
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .padding(Theme.Spacing.md)
+                            .background(Color.gray.opacity(0.1))
+                            .foregroundColor(Theme.Colors.text)
+                            .cornerRadius(12)
+                    }
+                }
+            }
+            .padding(Theme.Spacing.lg)
+        }
+        .background(Theme.Colors.background)
+    }
+
+    // MARK: - Step 3: Confirmation
+    private var confirmationView: some View {
+        ScrollView {
+            VStack(spacing: Theme.Spacing.xl) {
+                // Warning Icon
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.1))
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.orange)
+                }
+                .padding(.top, Theme.Spacing.xl)
+
+                VStack(spacing: Theme.Spacing.md) {
+                    Text("Confirm Change")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("Please review your username change carefully")
+                        .font(.subheadline)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                        .multilineTextAlignment(.center)
+                }
+
+                // Change Summary
+                VStack(spacing: Theme.Spacing.lg) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Current Username")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                            Text("@\(authManager.currentUser?.username ?? "")")
+                                .font(.headline)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "arrow.right")
+                            .foregroundColor(Theme.Colors.secondaryText)
+
+                        Spacer()
+
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("New Username")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                            Text("@\(newUsername)")
+                                .font(.headline)
+                                .foregroundColor(Theme.Colors.primary)
+                        }
+                    }
+                    .padding(Theme.Spacing.lg)
+                    .background(Theme.Colors.surface)
+                    .cornerRadius(16)
+                }
+
+                // Final Warning
+                VStack(spacing: Theme.Spacing.md) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("Important Reminder")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                    }
+
+                    Text("You won't be able to change your username again for 90 days")
+                        .font(.subheadline)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(Theme.Spacing.lg)
+                .background(Color.orange.opacity(0.05))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+                )
+
+                if !errorMessage.isEmpty {
+                    Text(errorMessage)
+                        .font(.subheadline)
+                        .foregroundColor(.red)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(12)
+                }
+
+                Spacer()
+
+                // Final Action Buttons
+                VStack(spacing: Theme.Spacing.md) {
+                    Button(action: performUsernameChange) {
+                        Text("Confirm Change")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding(Theme.Spacing.md)
+                            .background(Color.orange)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
+
+                    Button(action: {
+                        withAnimation {
+                            currentStep = .entry
+                        }
+                    }) {
+                        Text("Back")
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .padding(Theme.Spacing.md)
+                            .background(Color.gray.opacity(0.1))
+                            .foregroundColor(Theme.Colors.text)
+                            .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
+                }
+            }
+            .padding(Theme.Spacing.lg)
+        }
+        .background(Theme.Colors.background)
+    }
+
+    // MARK: - Helper Views
+    private func policyItem(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+            Image(systemName: icon)
+                .foregroundColor(Theme.Colors.primary)
+                .frame(width: 20)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(Theme.Colors.text)
+        }
+    }
+
+    private func requirementItem(_ text: String, met: Bool) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: met ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(met ? .green : Theme.Colors.secondaryText)
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(Theme.Colors.text)
+        }
+    }
+
+    private func validationMessage(_ text: String, type: MessageType) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: type == .success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundColor(type == .success ? .green : .red)
+            Text(text)
+                .font(.caption)
+                .foregroundColor(type == .success ? .green : .red)
+        }
+    }
+
+    private var loadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            VStack(spacing: Theme.Spacing.md) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.white)
+
+                Text("Changing username...")
+                    .foregroundColor(.white)
+                    .fontWeight(.medium)
+            }
+            .padding(Theme.Spacing.xl)
+            .background(Color.black.opacity(0.8))
+            .cornerRadius(16)
+        }
+    }
+
+    // MARK: - Computed Properties
+    private var navigationTitle: String {
+        switch currentStep {
+        case .policy: return "Username Policy"
+        case .entry: return "New Username"
+        case .confirmation: return "Confirm Change"
+        }
+    }
+
+    private var borderColor: Color {
+        if newUsername.isEmpty {
+            return Theme.Colors.border
+        } else if let available = usernameAvailable {
+            return available ? .green : .red
+        } else {
+            return Theme.Colors.border
+        }
+    }
+
+    private var canProceed: Bool {
+        newUsername.count >= 3 &&
+        newUsername.count <= 20 &&
+        isValidUsername(newUsername) &&
+        usernameAvailable == true
+    }
+
+    // MARK: - Helper Methods
+    private func isValidUsername(_ username: String) -> Bool {
+        let usernameRegex = "^[a-zA-Z0-9_]+$"
+        return username.range(of: usernameRegex, options: .regularExpression) != nil
+    }
+
+    private func checkUsernameAvailability(_ username: String) {
+        guard username.count >= 3 && username.count <= 20 && isValidUsername(username) else {
+            return
         }
 
-        // Check if user has Apple ID (for users who have linked Apple)
-        if let user = authManager.currentUser {
-            if let appleId = user.appleUserId, !appleId.isEmpty {
-                appleLinked = true
+        // Don't check if it's the same as current username
+        if username.lowercased() == authManager.currentUser?.username.lowercased() {
+            usernameAvailable = false
+            return
+        }
+
+        isCheckingAvailability = true
+
+        Task {
+            do {
+                let response = try await APIClient.shared.checkUsernameAvailability(username: username)
+
+                await MainActor.run {
+                    usernameAvailable = response.available
+                    isCheckingAvailability = false
+                }
+            } catch {
+                await MainActor.run {
+                    // On error, assume not available to be safe
+                    usernameAvailable = false
+                    isCheckingAvailability = false
+                    print("Error checking username availability: \(error.localizedDescription)")
+                }
             }
         }
+    }
+
+    private func performUsernameChange() {
+        isLoading = true
+        errorMessage = ""
+
+        Task {
+            do {
+                let updatedUser = try await APIClient.shared.changeUsername(newUsername)
+
+                await MainActor.run {
+                    authManager.currentUser = updatedUser
+                    isLoading = false
+                    showSuccess = true
+
+                    // Notify other views to refresh
+                    NotificationCenter.default.post(name: .userDidUpdate, object: nil)
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    if let apiError = error as? BrrowAPIError {
+                        switch apiError {
+                        case .serverError(let message):
+                            errorMessage = message
+                        default:
+                            errorMessage = "Failed to change username. Please try again."
+                        }
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
+    enum MessageType {
+        case success
+        case error
     }
 }
 
-struct LinkedAccountRow: View {
-    let provider: String
-    let icon: String
-    let iconColor: Color
-    @Binding var isLinked: Bool
-
-    var body: some View {
-        HStack {
-            if icon == "G" {
-                Text("G")
-                    .font(.system(size: 20, weight: .bold, design: .serif))
-                    .foregroundColor(iconColor)
-                    .frame(width: 30, height: 30)
-            } else {
-                Image(systemName: icon)
-                    .foregroundColor(iconColor)
-                    .frame(width: 30, height: 30)
-            }
-
-            Text(provider)
-
-            Spacer()
-
-            Button(isLinked ? "Unlink" : "Link") {
-                isLinked.toggle()
-            }
-            .foregroundColor(isLinked ? .red : .blue)
-        }
-    }
-}
+// ChangePasswordView and LinkedAccountsView are defined in separate files
 
 struct PrivacySettingsView: View {
     @Environment(\.dismiss) var dismiss

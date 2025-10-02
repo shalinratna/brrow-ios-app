@@ -189,7 +189,10 @@ class AuthManager: ObservableObject {
             self.currentUser = nil
             self.authToken = nil
             self.sessionId = UUID().uuidString
-            
+
+            // Clear favorites
+            FavoritesManager.shared.clearAll()
+
             // Logout from OneSignal
             // OneSignal.logout()
             print("📱 OneSignal user will be logged out")
@@ -443,14 +446,19 @@ class AuthManager: ObservableObject {
         if Thread.isMainThread {
             print("🔐 Already on main thread, updating isAuthenticated")
             self.isAuthenticated = true
-            
+
             // Set OneSignal external user ID for push notifications
             // OneSignal.login(authResponse.user.apiId)
             print("📱 OneSignal user ID will be set: \(authResponse.user.apiId)")
-            
+
             // Track achievement for daily login
             AchievementManager.shared.trackDailyLogin()
-            
+
+            // Load favorites after successful login
+            Task {
+                await FavoritesManager.shared.loadFavorites()
+            }
+
             // Update language preference if provided
             if let preferredLanguage = authResponse.user.preferredLanguage,
                let language = LocalizationManager.Language(rawValue: preferredLanguage) {
@@ -461,14 +469,19 @@ class AuthManager: ObservableObject {
                 print("🔐 Updating isAuthenticated on main thread...")
                 self.isAuthenticated = true
                 print("✅ Auth state updated: isAuthenticated = \(self.isAuthenticated)")
-                
+
                 // Set OneSignal external user ID for push notifications
                 // OneSignal.login(authResponse.user.apiId)
                 print("📱 OneSignal user ID will be set: \(authResponse.user.apiId)")
-                
+
                 // Track achievement for daily login
                 AchievementManager.shared.trackDailyLogin()
-                
+
+                // Load favorites after successful login
+                Task {
+                    await FavoritesManager.shared.loadFavorites()
+                }
+
                 // Update language preference if provided
                 if let preferredLanguage = authResponse.user.preferredLanguage,
                    let language = LocalizationManager.Language(rawValue: preferredLanguage) {

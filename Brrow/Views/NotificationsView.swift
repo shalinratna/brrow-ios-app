@@ -13,7 +13,10 @@ struct NotificationsView: View {
     @State private var isLoading = false
     @State private var showingSettings = false
     @State private var selectedNotification: NotificationHistoryItem?
-    
+    @State private var selectedChatId: String?
+    @State private var navigateToChat = false
+    @State private var allNotifications: [NotificationHistoryItem] = []
+
     private let filters = [
         ("all", "All"),
         ("unread", "Unread"),
@@ -21,15 +24,15 @@ struct NotificationsView: View {
         ("message", "Messages"),
         ("offer", "Offers")
     ]
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // Filter tabs
                 filterTabs
-                
+
                 // Notifications list
-                if notificationService.notifications.isEmpty && !isLoading {
+                if allNotifications.isEmpty && !isLoading {
                     emptyState
                 } else {
                     notificationsList
@@ -46,7 +49,7 @@ struct NotificationsView: View {
                         .font(.footnote)
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape")
@@ -67,6 +70,29 @@ struct NotificationsView: View {
                     await loadNotifications()
                 }
             }
+            .background(
+                NavigationLink(
+                    destination: destinationView,
+                    isActive: $navigateToChat,
+                    label: { EmptyView() }
+                )
+                .hidden()
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var destinationView: some View {
+        if let chatId = selectedChatId {
+            // TODO: Need to fetch conversation data or use a different approach
+            // For now, show a placeholder until proper navigation is implemented
+            Text("Loading conversation...")
+                .onAppear {
+                    // This should fetch the conversation and navigate properly
+                    print("Navigate to chat: \(chatId)")
+                }
+        } else {
+            EmptyView()
         }
     }
     
@@ -145,25 +171,37 @@ struct NotificationsView: View {
     private var filteredNotifications: [NotificationHistoryItem] {
         switch selectedFilter {
         case "unread":
-            return notificationService.notifications.filter { !$0.isRead }
+            return allNotifications.filter { !$0.isRead }
         case "rental":
-            return notificationService.notifications.filter {
+            return allNotifications.filter {
                 $0.type.contains("offer") || $0.type.contains("rental")
             }
         case "message":
-            return notificationService.notifications.filter { $0.type == "new_message" }
+            return allNotifications.filter { $0.type == "new_message" }
         case "offer":
-            return notificationService.notifications.filter { $0.type.contains("offer") }
+            return allNotifications.filter { $0.type.contains("offer") }
         case "all":
-            return notificationService.notifications
+            return allNotifications
         default:
-            return notificationService.notifications
+            return allNotifications
         }
     }
-    
+
     private func loadNotifications() async {
         isLoading = true
+
+        // Load regular notifications
         notificationService.loadNotificationHistory()
+
+        // Load unread messages as notifications
+        let unreadMessages = await notificationService.getUnreadMessages()
+
+        // Combine and sort by date
+        let combined = notificationService.notifications + unreadMessages
+        allNotifications = combined.sorted { notification1, notification2 in
+            notification1.createdDate > notification2.createdDate
+        }
+
         isLoading = false
     }
 
@@ -181,10 +219,27 @@ struct NotificationsView: View {
         }
 
         // Handle navigation based on notification type
-        if let actionUrl = notification.actionUrl {
-            // Handle deep linking navigation
-            print("Navigate to: \(actionUrl)")
+        if notification.type == "new_message" {
+            // Navigate to chat
+            if let chatId = notification.payload?["chatId"] {
+                selectedChatId = chatId
+                navigateToChat = true
+            }
+        } else if let actionUrl = notification.actionUrl {
+            // Handle deep linking navigation for other types
+            handleDeepLink(actionUrl)
         }
+    }
+
+    private func handleDeepLink(_ urlString: String) {
+        // Parse deep link URL (e.g., "brrow://chat/123")
+        if urlString.hasPrefix("brrow://chat/") {
+            let chatId = urlString.replacingOccurrences(of: "brrow://chat/", with: "")
+            selectedChatId = chatId
+            navigateToChat = true
+        }
+        // Add more deep link handlers as needed
+        print("Navigate to: \(urlString)")
     }
 }
 
