@@ -11,6 +11,7 @@ import PhotosUI
 // MARK: - Profile Update Data Model
 struct ProfileUpdateData: Codable {
     let username: String
+    let displayName: String?
     let email: String
     let phone: String?
     let bio: String?
@@ -20,7 +21,7 @@ struct ProfileUpdateData: Codable {
     let website: String?
 
     enum CodingKeys: String, CodingKey {
-        case username, email, phone, bio
+        case username, displayName, email, phone, bio
         case birthdate, profilePicture, location, website
     }
 }
@@ -32,7 +33,7 @@ struct EditProfileView: View {
     
     // Profile Fields
     @State private var username: String
-    // @State private var displayName: String - removed, using username only
+    @State private var displayName: String
     @State private var bio: String
     @State private var email: String
     @State private var phone: String
@@ -70,7 +71,7 @@ struct EditProfileView: View {
     init(user: User) {
         self.user = user
         self._username = State(initialValue: user.username)
-        // Display name removed - using username only
+        self._displayName = State(initialValue: user.displayName ?? user.username)
         self._bio = State(initialValue: user.bio ?? "")
         self._email = State(initialValue: user.email)
         self._phone = State(initialValue: user.phone ?? "")
@@ -95,6 +96,7 @@ struct EditProfileView: View {
             handleImageSelection(newItem)
         }
         // Username onChange removed - username is no longer editable in this view
+        .onChange(of: displayName) { _ in hasChanges = true }
         .onChange(of: bio) { _ in hasChanges = true }
         .onChange(of: email) { _ in hasChanges = true }
         .onChange(of: phone) { _ in hasChanges = true }
@@ -295,8 +297,8 @@ struct EditProfileView: View {
     // MARK: - Personal Information Fields
     private var personalInfoFields: some View {
         VStack(spacing: Theme.Spacing.md) {
+            displayNameField
             usernameField
-            // displayNameField removed
             emailField
             phoneField
             birthdateField
@@ -336,8 +338,28 @@ struct EditProfileView: View {
         }
     }
     
-    // Display name field removed - using username only
-    
+    private var displayNameField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Display Name")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Theme.Colors.text)
+
+            TextField("Enter display name", text: $displayName)
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.surface)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Theme.Colors.border, lineWidth: 1)
+                )
+
+            Text("This is how your name will appear to others")
+                .font(.caption)
+                .foregroundColor(Theme.Colors.secondaryText)
+                .padding(.horizontal, Theme.Spacing.md)
+        }
+    }
+
     private var emailField: some View {
         formField(title: "Email", text: $email, placeholder: "Enter email", keyboardType: .emailAddress)
     }
@@ -792,6 +814,7 @@ struct EditProfileView: View {
                 // Prepare update data
                 let updateData = ProfileUpdateData(
                     username: username, // Keep current username (readonly)
+                    displayName: displayName.isEmpty ? nil : displayName,
                     email: email,
                     phone: phone.isEmpty ? nil : phone,
                     bio: bio.isEmpty ? nil : bio,

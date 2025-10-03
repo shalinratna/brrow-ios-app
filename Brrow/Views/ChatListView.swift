@@ -271,10 +271,15 @@ struct ConversationRow: View {
             // Message Content
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 HStack {
-                    Text(conversation.otherUser.username)
-                        .font(Theme.Typography.callout)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Theme.Colors.text)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(conversation.otherUser.displayName ?? conversation.otherUser.username)
+                            .font(Theme.Typography.callout)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Theme.Colors.text)
+                        Text("@\(conversation.otherUser.username)")
+                            .font(.caption2)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
                     
                     Spacer()
                     
@@ -383,7 +388,7 @@ struct ChatView: View {
             messageInputSection
         }
         .background(Theme.Colors.background)
-        .navigationTitle(conversation.otherUser.username)
+        .navigationTitle(conversation.otherUser.displayName ?? conversation.otherUser.username)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.loadMessages(conversationId: conversation.id)
@@ -538,15 +543,8 @@ class ChatViewModel: ObservableObject {
     func markMessagesAsRead(conversationId: String) {
         Task {
             do {
-                // Use APIClient directly since we don't have access to viewModel here
-                // TODO: Properly implement markConversationAsRead in APIClient
-                print("Marking conversation as read: \(conversationId)")
-                await MainActor.run {
-                    // Update local state to mark conversation as read
-                    // Note: This would need proper implementation with viewModel
-                    // The conversations array is in the viewModel scope
-                    print("Conversation marked as read: \(conversationId)")
-                }
+                try await APIClient.shared.markConversationAsRead(conversationId: conversationId)
+                print("Conversation marked as read: \(conversationId)")
             } catch {
                 print("Failed to mark messages as read: \(error)")
             }

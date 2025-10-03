@@ -38,6 +38,8 @@ struct EnhancedChatDetailView: View {
     @State private var showingListingDetail = false
     @State private var showingVoiceRecorder = false
     @State private var selectedListing: Listing?
+    @State private var showingFullScreenImage = false
+    @State private var selectedImageURL: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,12 +65,18 @@ struct EnhancedChatDetailView: View {
         .sheet(isPresented: $showingCamera) {
             BrrowCameraView()
         }
-        // TODO: Implement VideoPicker
-        // .sheet(isPresented: $showingVideoPicker) {
-        //     VideoPicker { videoURL in
-        //         viewModel.sendVideoMessage(videoURL, to: conversation.id)
-        //     }
-        // }
+        .sheet(isPresented: $showingVideoPicker) {
+            VideoPicker { videoURL, thumbnail in
+                Task {
+                    await handleVideoUpload(videoURL: videoURL, thumbnail: thumbnail)
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showingFullScreenImage) {
+            if let imageURL = selectedImageURL {
+                FullScreenImageViewer(imageURL: imageURL)
+            }
+        }
         .fullScreenCover(isPresented: $showingVideoCall) {
             VideoCallView(conversation: conversation)
         }
@@ -134,9 +142,12 @@ struct EnhancedChatDetailView: View {
                     .clipShape(Circle())
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(conversation.otherUser.username)
+                        Text(conversation.otherUser.displayName ?? conversation.otherUser.username)
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(Theme.Colors.text)
+                        Text("@\(conversation.otherUser.username)")
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.Colors.secondaryText)
 
                         HStack(spacing: 4) {
                             Circle()
@@ -189,10 +200,15 @@ struct EnhancedChatDetailView: View {
                     LazyVStack(spacing: 0) {
                     // Listing Context Banner (for listing conversations)
                     if conversation.isListingChat, let listing = conversation.listing {
-                        ListingContextBanner(listing: listing)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                            .padding(.bottom, 16)
+                        Button(action: {
+                            showingListingDetail = true
+                        }) {
+                            ListingContextBanner(listing: listing)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 16)
                     }
 
                     // Messages with grouping
@@ -220,7 +236,11 @@ struct EnhancedChatDetailView: View {
                                 message: ChatMessage.from(message),
                                 isFromCurrentUser: isFromCurrentUser,
                                 showAvatar: showAvatar,
-                                senderProfilePicture: message.sender?.fullProfilePictureURL
+                                senderProfilePicture: message.sender?.fullProfilePictureURL,
+                                onImageTap: { imageURL in
+                                    selectedImageURL = imageURL
+                                    showingFullScreenImage = true
+                                }
                             )
                             .id(message.id)
                             .padding(.horizontal, 16)
@@ -237,7 +257,7 @@ struct EnhancedChatDetailView: View {
 
                     // Typing Indicator
                     if viewModel.otherUserIsTyping {
-                        TypingIndicator(username: conversation.otherUser.username)
+                        TypingIndicator(username: conversation.otherUser.displayName ?? conversation.otherUser.username)
                             .padding(.horizontal, 16)
                             .transition(.scale.combined(with: .opacity))
                             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.otherUserIsTyping)
@@ -433,6 +453,23 @@ struct EnhancedChatDetailView: View {
         typingTimer = nil
     }
 
+    // MARK: - Video Upload Handler
+    private func handleVideoUpload(videoURL: URL, thumbnail: UIImage?) async {
+        do {
+            let result = try await FileUploadService.shared.uploadVideo(videoURL, thumbnail: thumbnail)
+
+            // Send video message through view model
+            await MainActor.run {
+                viewModel.sendVideoMessage(videoURL, to: conversation.id)
+            }
+
+            print("✅ Video uploaded and message sent")
+        } catch {
+            print("❌ Failed to upload video: \(error)")
+            // TODO: Show error alert to user
+        }
+    }
+
     // MARK: - Profile Fetching
     private func fetchAndShowProfile() {
         guard !isLoadingProfile else { return }
@@ -533,20 +570,7 @@ extension EnhancedChatDetailView {
             if let listing = conversation.listing {
                 EmptyView()
                     .sheet(isPresented: $showingListingDetail) {
-                        NavigationView {
-                            // TODO: Navigate to actual listing detail view
-                            VStack {
-                                Text("Listing: \(listing.title)")
-                                    .font(.headline)
-                                if let price = listing.price {
-                                    Text("$\(String(format: "%.2f", price))")
-                                        .font(.title)
-                                }
-                            }
-                            .navigationBarItems(trailing: Button("Done") {
-                                showingListingDetail = false
-                            })
-                        }
+                        ListingDetailNavigationView(listingId: listing.id)
                     }
             }
         }
@@ -691,6 +715,15 @@ struct EnhancedMessageBubble: View {
     let isFromCurrentUser: Bool
     let showAvatar: Bool
     let senderProfilePicture: String?
+    let onImageTap: ((String) -> Void)?
+
+    init(message: ChatMessage, isFromCurrentUser: Bool, showAvatar: Bool, senderProfilePicture: String?, onImageTap: ((String) -> Void)? = nil) {
+        self.message = message
+        self.isFromCurrentUser = isFromCurrentUser
+        self.showAvatar = showAvatar
+        self.senderProfilePicture = senderProfilePicture
+        self.onImageTap = onImageTap
+    }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -796,11 +829,11 @@ struct EnhancedMessageBubble: View {
         case .audio, .voice:
             audioMessageView
         case .file:
-            textMessageView  // TODO: Implement file viewer
+            fileMessageView
         case .system:
             textMessageView  // System messages shown as text
         case .offer:
-            textMessageView  // TODO: Implement offer card
+            offerMessageView
         case .location:
             locationMessageView
         case .listing, .listingReference:
@@ -823,8 +856,9 @@ struct EnhancedMessageBubble: View {
     private var imageMessageView: some View {
         VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 8) {
             Button(action: {
-                // TODO: Show full-screen image viewer
-                print("Tapped image: \(message.mediaUrl ?? "")")
+                if let mediaUrl = message.mediaUrl {
+                    onImageTap?(mediaUrl)
+                }
             }) {
                 BrrowAsyncImage(url: message.mediaUrl) { image in
                     image
@@ -960,6 +994,33 @@ struct EnhancedMessageBubble: View {
         }
     }
 
+    private var fileMessageView: some View {
+        Group {
+            if let mediaUrl = message.mediaUrl {
+                // Parse file data from message content
+                if let data = message.content.data(using: .utf8),
+                   let fileData = try? JSONDecoder().decode(FileMessageData.self, from: data) {
+                    FileMessageView(
+                        fileURL: fileData.url,
+                        fileName: fileData.fileName,
+                        fileSize: fileData.fileSize,
+                        isFromCurrentUser: isFromCurrentUser
+                    )
+                } else {
+                    // Fallback if content doesn't have file data
+                    FileMessageView(
+                        fileURL: mediaUrl,
+                        fileName: nil,
+                        fileSize: nil,
+                        isFromCurrentUser: isFromCurrentUser
+                    )
+                }
+            } else {
+                textMessageView
+            }
+        }
+    }
+
     private var listingMessageView: some View {
         HStack(spacing: 12) {
             Image(systemName: "tag.fill")
@@ -976,6 +1037,68 @@ struct EnhancedMessageBubble: View {
             RoundedRectangle(cornerRadius: 18)
                 .fill(isFromCurrentUser ? Theme.Colors.primary.opacity(0.1) : Theme.Colors.surface)
         )
+    }
+
+    private var offerMessageView: some View {
+        // Convert ChatMessage to Message for OfferCardView
+        let convertedMessage = Message(
+            id: message.id,
+            chatId: "", // Not needed for display
+            senderId: message.senderId,
+            receiverId: message.receiverId,
+            content: message.content,
+            messageType: message.messageType,
+            mediaUrl: message.mediaUrl,
+            thumbnailUrl: message.thumbnailUrl,
+            listingId: nil,
+            isRead: message.isRead,
+            isEdited: false,
+            editedAt: nil,
+            deletedAt: nil,
+            sentAt: nil,
+            createdAt: message.createdAt,
+            sender: nil,
+            reactions: nil
+        )
+
+        return OfferCardView(
+            message: convertedMessage,
+            isFromCurrentUser: isFromCurrentUser,
+            onAccept: {
+                // Accept offer
+                Task {
+                    await handleOfferAction(action: "accept")
+                }
+            },
+            onReject: {
+                // Reject offer
+                Task {
+                    await handleOfferAction(action: "reject")
+                }
+            },
+            onCounter: {
+                // Counter offer
+                // TODO: Show counter offer dialog
+                print("Counter offer tapped for message: \(message.id)")
+            }
+        )
+    }
+
+    private func handleOfferAction(action: String) async {
+        // Extract offer data from message content
+        guard let data = message.content.data(using: .utf8),
+              let offerData = try? JSONDecoder().decode(OfferData.self, from: data) else {
+            print("Failed to parse offer data")
+            return
+        }
+
+        // Call API to update offer status
+        // This would be implemented in the APIClient
+        print("Handling offer action: \(action) for amount: \(offerData.offerAmount)")
+
+        // For now, just send a system message
+        let statusMessage = action == "accept" ? "Offer accepted!" : "Offer rejected"
+        // viewModel.sendMessage(statusMessage, to: conversation.id)
     }
 
     private var timeString: String {
@@ -1001,6 +1124,94 @@ struct EnhancedMessageBubble: View {
         timeFormatter.timeStyle = .short
         timeFormatter.timeZone = TimeZone.current // Use local timezone for display
         return timeFormatter.string(from: parsedDate)
+    }
+}
+
+// MARK: - Listing Detail Navigation Helper
+
+struct ListingDetailNavigationView: View {
+    let listingId: String
+    @State private var listing: Listing?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                        Text("Loading listing...")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        Text("Error")
+                            .font(.headline)
+                        Text(error)
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                        Button("Close") {
+                            dismiss()
+                        }
+                        .padding()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let listing = listing {
+                    ProfessionalListingDetailView(listing: listing)
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 50))
+                            .foregroundColor(.gray)
+                        Text("Listing not found")
+                            .font(.headline)
+                        Text("This listing may have been removed or sold")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                        Button("Close") {
+                            dismiss()
+                        }
+                        .padding()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .navigationBarItems(trailing: Button("Done") {
+                dismiss()
+            })
+            .onAppear {
+                Task {
+                    await loadListing()
+                }
+            }
+        }
+    }
+
+    private func loadListing() async {
+        do {
+            let fetchedListing = try await APIClient.shared.fetchListingDetailsByListingId(listingId)
+            await MainActor.run {
+                self.listing = fetchedListing
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "This listing is no longer available"
+                self.isLoading = false
+            }
+            print("Failed to fetch listing: \(error)")
+        }
     }
 }
 
