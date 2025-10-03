@@ -74,6 +74,7 @@ struct UltraModernHomeView: View {
             .onAppear {
                 startAllAnimations()
                 viewModel.loadHomeData()
+                AnalyticsService.shared.trackScreen(name: "home")
             }
             .sheet(isPresented: $showingNotifications) {
                 NotificationsView()

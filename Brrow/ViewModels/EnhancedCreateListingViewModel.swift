@@ -10,6 +10,58 @@ import PhotosUI
 import CoreLocation
 import Combine
 
+// MARK: - Upload Tracker Models
+
+/// Tracks the upload status of individual images (Instagram-style)
+struct UploadTracker {
+    let imageId: String
+    let image: UIImage
+    var status: UploadStatus
+    var url: String?
+    var error: String?
+    var progress: Double
+    var uploadTask: Task<Void, Never>?
+    let startTime: Date
+    var endTime: Date?
+
+    var uploadDuration: TimeInterval? {
+        guard let endTime = endTime else { return nil }
+        return endTime.timeIntervalSince(startTime)
+    }
+}
+
+enum UploadStatus: Equatable {
+    case pending
+    case uploading(progress: Double)
+    case completed
+    case failed(error: String)
+    case cancelled
+
+    var displayName: String {
+        switch self {
+        case .pending: return "Waiting"
+        case .uploading(let progress): return "Uploading \(Int(progress * 100))%"
+        case .completed: return "Done"
+        case .failed: return "Failed"
+        case .cancelled: return "Cancelled"
+        }
+    }
+
+    var isComplete: Bool {
+        switch self {
+        case .completed: return true
+        default: return false
+        }
+    }
+
+    var isFailed: Bool {
+        switch self {
+        case .failed, .cancelled: return true
+        default: return false
+        }
+    }
+}
+
 @MainActor
 class EnhancedCreateListingViewModel: ObservableObject {
     // MARK: - Published Properties
@@ -49,9 +101,18 @@ class EnhancedCreateListingViewModel: ObservableObject {
     @Published var canCancelUpload = false
     private var uploadCancellationToken: BatchUploadManager.CancellationToken?
 
+    // ⚡️ INSTAGRAM-STYLE PER-IMAGE UPLOAD TRACKING
+    @Published var uploadTrackers: [String: UploadTracker] = [:] // imageId -> tracker
+    @Published var overallUploadProgress: Double = 0
+    @Published var uploadedImageCount: Int = 0
+    @Published var totalImagesToUpload: Int = 0
+    @Published var backgroundUploadActive = false
+
     // Background upload cache (Instagram-style)
     private var backgroundUploadedUrls: [String: String] = [:] // imageId -> url
     private var backgroundUploadBatchId: String?
+    private var backgroundUploadTasks: [String: Task<Void, Never>] = [:]
+    private let maxConcurrentUploads = 3
 
     // Services
     private let locationService = LocationService.shared
@@ -182,49 +243,211 @@ class EnhancedCreateListingViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Instagram-Style Background Upload
+    // MARK: - ⚡️ TRUE INSTAGRAM-STYLE INSTANT BACKGROUND UPLOAD ⚡️
 
-    /// Starts uploading images in background while user fills out listing details
+    /// Starts uploading images INSTANTLY in parallel while user fills out listing details
+    /// This is the EXACT flow Instagram uses - uploads start the MOMENT photos are selected!
     private func startBackgroundUpload(images: [UIImage]) async {
-        print("⚡️ Starting Instagram-style background upload for \(images.count) images")
+        print("⚡️⚡️⚡️ INSTAGRAM MODE: Starting INSTANT parallel background upload for \(images.count) images")
 
+        backgroundUploadActive = true
+        totalImagesToUpload = images.count
+        uploadedImageCount = 0
+        uploadTrackers.removeAll()
+        backgroundUploadedUrls.removeAll()
+
+        // Initialize trackers for all images
+        for (index, image) in images.enumerated() {
+            let imageId = "img_\(index)_\(UUID().uuidString)"
+            let tracker = UploadTracker(
+                imageId: imageId,
+                image: image,
+                status: .pending,
+                url: nil,
+                error: nil,
+                progress: 0,
+                uploadTask: nil,
+                startTime: Date(),
+                endTime: nil
+            )
+            uploadTrackers[imageId] = tracker
+        }
+
+        currentOperation = "Uploading \(uploadedImageCount)/\(totalImagesToUpload) images..."
+
+        // Process images first (in parallel)
         do {
-            currentOperation = "Uploading images in background..."
-
-            // Get processed images (use cache if available, process if not)
             let processedImageSets = try await imageProcessor.getProcessedImages(
                 for: images,
                 configuration: processingConfig
             )
-
-            // Store processed images for later use
             processedImages = processedImageSets
 
-            // Start uploading immediately with LOW priority (non-blocking)
-            let uploadResults = try await batchUploadManager.uploadImagesImmediately(
-                images: processedImageSets,
-                configuration: .listing
-            )
+            // Create mapping of processed images to trackers
+            var imageToTracker: [(processed: IntelligentImageProcessor.ProcessedImageSet, trackerId: String)] = []
+            let trackerIds = Array(uploadTrackers.keys)
 
-            // Cache the uploaded URLs by image ID
-            for result in uploadResults {
-                backgroundUploadedUrls[result.id] = result.url
+            for (index, processedSet) in processedImageSets.enumerated() where index < trackerIds.count {
+                imageToTracker.append((processedSet, trackerIds[index]))
             }
 
-            print("⚡️ Background upload complete! \(uploadResults.count) images uploaded")
-            print("⚡️ Cached URLs: \(backgroundUploadedUrls.keys.joined(separator: ", "))")
+            // ⚡️ START PARALLEL UPLOADS IMMEDIATELY (3-5 concurrent)
+            await withTaskGroup(of: Void.self) { group in
+                var activeUploads = 0
 
-            // Update UI to show upload is done
-            await MainActor.run {
-                currentOperation = "Images ready!"
+                for (processedSet, trackerId) in imageToTracker {
+                    // Wait if we've hit max concurrent uploads
+                    while activeUploads >= maxConcurrentUploads {
+                        await Task.yield()
+                        activeUploads = backgroundUploadTasks.count
+                    }
+
+                    // Start upload task
+                    group.addTask { [weak self] in
+                        await self?.uploadSingleImageInBackground(
+                            trackerId: trackerId,
+                            processedImage: processedSet
+                        )
+                    }
+
+                    activeUploads += 1
+                }
+
+                // Wait for all uploads to complete
+                await group.waitForAll()
+            }
+
+            // All done!
+            let completedCount = uploadTrackers.values.filter { $0.status.isComplete }.count
+            print("⚡️⚡️⚡️ INSTAGRAM MODE COMPLETE: \(completedCount)/\(totalImagesToUpload) images uploaded")
+
+            if completedCount == totalImagesToUpload {
+                currentOperation = "All images ready!"
+                backgroundUploadActive = false
+            } else {
+                let failedCount = totalImagesToUpload - completedCount
+                print("⚠️ \(failedCount) images failed to upload, will retry on submit")
+                currentOperation = "\(completedCount)/\(totalImagesToUpload) images ready"
             }
 
         } catch {
-            print("⚠️ Background upload failed, will retry when creating listing: \(error.localizedDescription)")
-            // Clear cache on failure
-            backgroundUploadedUrls.removeAll()
-            // Don't show error to user - we'll retry when they click "Create Listing"
+            print("⚠️ Background upload process failed: \(error.localizedDescription)")
+            currentOperation = "Some images failed to upload"
+            backgroundUploadActive = false
         }
+    }
+
+    /// Upload a single image in the background with progress tracking
+    private func uploadSingleImageInBackground(trackerId: String, processedImage: IntelligentImageProcessor.ProcessedImageSet) async {
+        print("⚡️ Starting upload for tracker: \(trackerId)")
+
+        // Update status to uploading
+        uploadTrackers[trackerId]?.status = .uploading(progress: 0)
+        uploadTrackers[trackerId]?.progress = 0
+
+        let task = Task<Void, Never> { @MainActor in
+            do {
+                // Create upload payload
+                let payload: [String: Any] = [
+                    "image": processedImage.base64Data,
+                    "type": "listing",
+                    "preserve_metadata": true,
+                    "entity_type": "listing",
+                    "media_type": "image"
+                ]
+
+                guard let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
+                    throw FileUploadError.compressionFailed
+                }
+
+                let baseURL = await APIEndpointManager.shared.getBestEndpoint()
+                guard let url = URL(string: "\(baseURL)/api/upload") else {
+                    throw FileUploadError.invalidURL
+                }
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.timeoutInterval = 30
+
+                // Add auth headers
+                if let token = AuthManager.shared.authToken {
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+
+                if let user = AuthManager.shared.currentUser {
+                    request.setValue(user.apiId, forHTTPHeaderField: "X-User-API-ID")
+                }
+
+                request.httpBody = jsonData
+
+                // Simulate progress updates
+                for progress in stride(from: 0.1, through: 0.8, by: 0.2) {
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                    self.uploadTrackers[trackerId]?.progress = progress
+                    self.uploadTrackers[trackerId]?.status = .uploading(progress: progress)
+                }
+
+                // Perform actual upload
+                let (responseData, response) = try await URLSession.shared.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw FileUploadError.invalidResponse
+                }
+
+                guard httpResponse.statusCode == 200 else {
+                    throw FileUploadError.serverError("HTTP \(httpResponse.statusCode)")
+                }
+
+                // Parse response
+                guard let json = try JSONSerialization.jsonObject(with: responseData, options: []) as? [String: Any],
+                      let success = json["success"] as? Bool,
+                      success,
+                      let data = json["data"] as? [String: Any],
+                      let fileUrl = data["url"] as? String else {
+                    throw FileUploadError.invalidResponse
+                }
+
+                // ✅ SUCCESS!
+                self.uploadTrackers[trackerId]?.status = .completed
+                self.uploadTrackers[trackerId]?.url = fileUrl
+                self.uploadTrackers[trackerId]?.progress = 1.0
+                self.uploadTrackers[trackerId]?.endTime = Date()
+
+                // Cache the URL for fast listing creation
+                self.backgroundUploadedUrls[processedImage.id] = fileUrl
+
+                // Update counters
+                self.uploadedImageCount += 1
+                self.updateOverallProgress()
+
+                print("✅ Upload complete for \(trackerId): \(fileUrl)")
+
+            } catch {
+                // ❌ FAILED
+                let errorMsg = error.localizedDescription
+                self.uploadTrackers[trackerId]?.status = .failed(error: errorMsg)
+                self.uploadTrackers[trackerId]?.error = errorMsg
+                self.uploadTrackers[trackerId]?.endTime = Date()
+
+                print("❌ Upload failed for \(trackerId): \(errorMsg)")
+            }
+
+            // Clean up task reference
+            self.backgroundUploadTasks.removeValue(forKey: trackerId)
+        }
+
+        backgroundUploadTasks[trackerId] = task
+        uploadTrackers[trackerId]?.uploadTask = task
+
+        await task.value
+    }
+
+    /// Update overall upload progress based on individual trackers
+    private func updateOverallProgress() {
+        let completedCount = uploadTrackers.values.filter { $0.status.isComplete }.count
+        overallUploadProgress = totalImagesToUpload > 0 ? Double(completedCount) / Double(totalImagesToUpload) : 0
+        currentOperation = "Uploading \(completedCount)/\(totalImagesToUpload) images..."
     }
 
     private func loadImagesFromPicker(_ photos: [PhotosPickerItem]) async -> [UIImage] {
@@ -253,6 +476,26 @@ class EnhancedCreateListingViewModel: ObservableObject {
         }
 
         return images
+    }
+
+    /// ⚡️⚡️⚡️ INSTAGRAM MODE: Handle photo selection and start instant background upload
+    func handlePhotoSelection(_ newPhotos: [PhotosPickerItem]) async {
+        guard !newPhotos.isEmpty else { return }
+
+        print("⚡️⚡️⚡️ INSTAGRAM MODE: Photo selection detected, loading \(newPhotos.count) images...")
+
+        // Load images from picker items
+        let loadedImages = await loadImagesFromPicker(newPhotos)
+
+        await MainActor.run {
+            self.selectedImages = loadedImages
+            print("⚡️⚡️⚡️ INSTAGRAM MODE: Loaded \(loadedImages.count) images, starting background upload NOW")
+        }
+
+        // Start instant background upload (Instagram-style)
+        if !loadedImages.isEmpty {
+            await startBackgroundUpload(images: loadedImages)
+        }
     }
 
     func removeImage(at index: Int) {
@@ -411,19 +654,56 @@ class EnhancedCreateListingViewModel: ObservableObject {
     // MARK: - Cancellation Support
 
     func cancelUpload() {
-        guard let cancellationToken = uploadCancellationToken else { return }
+        print("🚫 CANCELLING ALL UPLOADS...")
 
-        cancellationToken.cancel()
+        // Cancel old batch upload system
+        if let cancellationToken = uploadCancellationToken {
+            cancellationToken.cancel()
+        }
 
         if let batchId = currentBatchId {
             batchUploadManager.cancelBatch(batchId)
         }
 
+        // ⚡️ CANCEL ALL BACKGROUND UPLOAD TASKS
+        for (trackerId, task) in backgroundUploadTasks {
+            task.cancel()
+            uploadTrackers[trackerId]?.status = .cancelled
+            uploadTrackers[trackerId]?.uploadTask = nil
+        }
+        backgroundUploadTasks.removeAll()
+
+        // 🗑️ ADD UPLOADED URLS TO CLEANUP QUEUE
+        let uploadedUrls = uploadTrackers.values
+            .filter { $0.status.isComplete }
+            .compactMap { $0.url }
+
+        if !uploadedUrls.isEmpty {
+            print("🗑️ Adding \(uploadedUrls.count) uploaded images to cleanup queue")
+            CleanupQueue.shared.addForDeletion(urls: uploadedUrls)
+        }
+
+        // Clear state
+        uploadTrackers.removeAll()
+        backgroundUploadedUrls.removeAll()
+        backgroundUploadActive = false
+        uploadedImageCount = 0
+        totalImagesToUpload = 0
+        overallUploadProgress = 0
         isLoading = false
         currentOperation = ""
         uploadCancellationToken = nil
 
-        print("🚫 Upload cancelled by user")
+        print("✅ Cancellation complete")
+    }
+
+    /// Called when view is dismissed - cleanup orphaned uploads
+    func handleViewDismissal() {
+        // If uploads are in progress, cancel and clean up
+        if backgroundUploadActive || !backgroundUploadTasks.isEmpty {
+            print("🚪 View dismissed during upload - triggering cleanup")
+            cancelUpload()
+        }
     }
 
     // MARK: - Validation
@@ -538,12 +818,28 @@ class EnhancedCreateListingViewModel: ObservableObject {
     // MARK: - Cleanup
 
     deinit {
-        // Cancel any ongoing operations
-        if let cancellationToken = uploadCancellationToken {
-            cancellationToken.cancel()
-        }
+        // ⚡️ NEW: Cancel all background uploads and trigger cleanup
+        Task { @MainActor in
+            // Cancel old batch upload system
+            if let cancellationToken = uploadCancellationToken {
+                cancellationToken.cancel()
+            }
 
-        // Note: Cache will be cleared automatically by the processor when needed
+            // Cancel all background upload tasks
+            for (trackerId, task) in backgroundUploadTasks {
+                task.cancel()
+            }
+
+            // Add uploaded images to cleanup queue (orphaned uploads)
+            let uploadedUrls = uploadTrackers.values
+                .filter { $0.status.isComplete }
+                .compactMap { $0.url }
+
+            if !uploadedUrls.isEmpty {
+                print("🗑️ DEINIT: Cleaning up \(uploadedUrls.count) orphaned uploads")
+                CleanupQueue.shared.addForDeletion(urls: uploadedUrls)
+            }
+        }
     }
 }
 

@@ -143,26 +143,6 @@ struct IDmeVerificationView: View {
                     isSelected: true,
                     action: { selectedScope = IDmeConfig.basicScope }
                 )
-                
-                // Coming Soon - Student Verification
-                HStack {
-                    Image(systemName: "graduationcap.fill")
-                        .foregroundColor(.gray)
-                    Text("Student Verification - Coming Soon")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                    Spacer()
-                    Text("Phase 2")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(8)
-                        .foregroundColor(.gray)
-                }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
             }
             
             // Verify Button

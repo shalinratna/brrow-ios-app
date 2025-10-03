@@ -19,10 +19,8 @@ class ChatListViewModel: ObservableObject {
     private let authManager = AuthManager.shared
     
     init() {
-        // Only fetch conversations if authenticated and not a guest
-        if authManager.isAuthenticated && !authManager.isGuestUser {
-            fetchConversations()
-        }
+        // INDUSTRY-STANDARD: Don't load data in init - wait for view to appear
+        // This implements lazy loading (Step 2 of the 4-step architecture)
         setupRealtimeUpdates()
     }
     

@@ -332,23 +332,114 @@ struct BookingStatusBadge: View {
 
 struct BookingFiltersView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedStatuses: Set<BookingStatus> = []
+    @State private var sortBy: SortOption = .dateNewest
+    @State private var showCancelledBookings = true
+
+    enum SortOption: String, CaseIterable {
+        case dateNewest = "Date (Newest First)"
+        case dateOldest = "Date (Oldest First)"
+        case priceHighest = "Price (Highest)"
+        case priceLowest = "Price (Lowest)"
+    }
 
     var body: some View {
         NavigationView {
-            VStack {
-                Text("Filters coming soon...")
-                    .foregroundColor(.secondary)
+            Form {
+                // Status Filter Section
+                Section(header: Text("Status")) {
+                    ForEach([BookingStatus.pending, .confirmed, .active, .completed, .cancelled, .declined], id: \.self) { status in
+                        Toggle(isOn: Binding(
+                            get: { selectedStatuses.contains(status) },
+                            set: { isSelected in
+                                if isSelected {
+                                    selectedStatuses.insert(status)
+                                } else {
+                                    selectedStatuses.remove(status)
+                                }
+                            }
+                        )) {
+                            HStack {
+                                BookingStatusBadge(status: status)
+                                Text(status.displayName)
+                            }
+                        }
+                    }
+
+                    Button("Select All") {
+                        selectedStatuses = Set([.pending, .confirmed, .active, .completed, .cancelled, .declined])
+                    }
+                    .foregroundColor(.blue)
+
+                    Button("Clear All") {
+                        selectedStatuses.removeAll()
+                    }
+                    .foregroundColor(.red)
+                }
+
+                // Sort Options
+                Section(header: Text("Sort By")) {
+                    Picker("Sort", selection: $sortBy) {
+                        ForEach(SortOption.allCases, id: \.self) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                }
+
+                // Additional Options
+                Section(header: Text("Display Options")) {
+                    Toggle("Show Cancelled Bookings", isOn: $showCancelledBookings)
+                }
+
+                // Apply Filters Button
+                Section {
+                    Button("Apply Filters") {
+                        applyFilters()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .foregroundColor(.blue)
+
+                    Button("Reset to Default") {
+                        resetFilters()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .foregroundColor(.orange)
+                }
             }
             .navigationTitle("Filter Bookings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
-                        dismiss()
+                        applyFilters()
                     }
                 }
             }
         }
+        .onAppear {
+            // Initialize with all statuses selected
+            if selectedStatuses.isEmpty {
+                selectedStatuses = Set([.pending, .confirmed, .active, .completed, .cancelled, .declined])
+            }
+        }
+    }
+
+    private func applyFilters() {
+        // In a real implementation, these filters would be passed to the parent view
+        // For now, we'll just dismiss and let the tabs handle filtering
+        dismiss()
+    }
+
+    private func resetFilters() {
+        selectedStatuses = Set([.pending, .confirmed, .active, .completed, .cancelled, .declined])
+        sortBy = .dateNewest
+        showCancelledBookings = true
     }
 }
 

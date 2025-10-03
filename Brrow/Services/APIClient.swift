@@ -3106,6 +3106,54 @@ class APIClient: ObservableObject {
 
         return offer
     }
+
+    // Accept an offer (for chat messages)
+    func acceptOffer(offerId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/offers/\(offerId)/accept",
+            method: .POST,
+            responseType: APIResponse<EmptyData>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to accept offer")
+        }
+    }
+
+    // Reject an offer (for chat messages)
+    func rejectOffer(offerId: String) async throws {
+        let response = try await performRequest(
+            endpoint: "api/offers/\(offerId)/reject",
+            method: .POST,
+            responseType: APIResponse<EmptyData>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to reject offer")
+        }
+    }
+
+    // Counter an offer (for chat messages)
+    func counterOffer(offerId: String, newAmount: Double, message: String?) async throws {
+        struct CounterOfferRequest: Codable {
+            let amount: Double
+            let message: String?
+        }
+
+        let request = CounterOfferRequest(amount: newAmount, message: message)
+        let bodyData = try JSONEncoder().encode(request)
+
+        let response = try await performRequest(
+            endpoint: "api/offers/\(offerId)/counter",
+            method: .POST,
+            body: bodyData,
+            responseType: APIResponse<EmptyData>.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to counter offer")
+        }
+    }
     
     // MARK: - Transactions
     func fetchTransactions() async throws -> [Transaction] {
@@ -3484,7 +3532,26 @@ class APIClient: ObservableObject {
             responseType: EmptyResponse.self
         )
     }
-    
+
+    /// Fetch a single conversation by ID
+    /// Note: Backend doesn't have a dedicated endpoint, so we fetch all and filter
+    func fetchConversationById(_ conversationId: String) async throws -> Conversation {
+        let result = try await fetchConversations(type: nil, limit: 100, offset: 0, search: nil)
+
+        guard let conversation = result.conversations.first(where: { $0.id == conversationId }) else {
+            throw BrrowAPIError.serverError("Conversation not found")
+        }
+
+        return conversation
+    }
+
+    /// Mark conversation as read by fetching messages (backend automatically marks as read)
+    func markConversationAsRead(conversationId: String) async throws {
+        // Backend marks messages as read when fetching messages
+        // We just need to make a fetch call with limit 0 to trigger the mark-as-read logic
+        _ = try await fetchMessages(conversationId: conversationId, limit: 1)
+    }
+
     // MARK: - Convenience Methods
     func post(endpoint: String, parameters: [String: Any]) -> AnyPublisher<Data, BrrowAPIError> {
         return Future { promise in

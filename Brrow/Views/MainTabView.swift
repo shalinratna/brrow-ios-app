@@ -168,13 +168,13 @@ struct MainTabView: View {
         let tabNames = ["Home", "Browse", "Borrow", "Chats", "Profile"]
         let fromName = from < tabNames.count ? tabNames[from] : "Unknown"
         let toName = to < tabNames.count ? tabNames[to] : "Unknown"
-        
-        // TODO: Send analytics event
+
+        AnalyticsService.shared.trackTabSwitch(from: fromName, to: toName)
         print("Tab switched from \(fromName) to \(toName)")
     }
-    
+
     private func trackScreenView(_ screenName: String) {
-        // TODO: Track screen view analytics when needed
+        AnalyticsService.shared.trackScreen(name: screenName)
     }
 
     private func getTabName(_ tabIndex: Int) -> String {

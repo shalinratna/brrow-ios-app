@@ -219,15 +219,275 @@ class FileUploadService: ObservableObject {
         return uploadedUrls
     }
     
+    // MARK: - Video Upload
+
+    func uploadVideo(_ videoURL: URL, thumbnail: UIImage? = nil) async throws -> VideoUploadResult {
+        isUploading = true
+        progress = 0
+        error = nil
+
+        print("🎥 [VIDEO UPLOAD] Starting video upload")
+
+        // Read video data
+        guard let videoData = try? Data(contentsOf: videoURL) else {
+            throw FileUploadError.compressionFailed
+        }
+
+        print("📦 Video size: \(videoData.count / 1024 / 1024)MB")
+
+        // Upload thumbnail first if provided
+        var thumbnailURL: String?
+        if let thumbnail = thumbnail {
+            do {
+                thumbnailURL = try await uploadImage(thumbnail, fileName: "thumb_\(UUID().uuidString).jpg")
+                print("✅ Thumbnail uploaded: \(thumbnailURL ?? "")")
+            } catch {
+                print("⚠️ Thumbnail upload failed, continuing with video...")
+            }
+        }
+
+        // Create multipart request for video
+        guard let url = URL(string: "\(baseURL)/api/upload/video") else {
+            throw FileUploadError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+
+        if let token = AuthManager.shared.authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        if let user = AuthManager.shared.currentUser {
+            request.setValue(user.apiId, forHTTPHeaderField: "X-User-API-ID")
+        }
+
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+
+        // Add video file
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"video\"; filename=\"video.mp4\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: video/mp4\r\n\r\n".data(using: .utf8)!)
+        body.append(videoData)
+        body.append("\r\n".data(using: .utf8)!)
+
+        // Add thumbnail URL if available
+        if let thumbnailURL = thumbnailURL {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"thumbnailUrl\"\r\n\r\n".data(using: .utf8)!)
+            body.append(thumbnailURL.data(using: .utf8)!)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        // Start progress simulation
+        Task {
+            await simulateUploadProgress()
+        }
+
+        do {
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw FileUploadError.invalidResponse
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                throw FileUploadError.serverError("HTTP Error: \(httpResponse.statusCode)")
+            }
+
+            if let json = try JSONSerialization.jsonObject(with: responseData, options: []) as? [String: Any],
+               let success = json["success"] as? Bool,
+               success,
+               let data = json["data"] as? [String: Any],
+               let videoUrl = data["url"] as? String {
+
+                await MainActor.run {
+                    self.isUploading = false
+                    self.progress = 1.0
+                }
+
+                let result = VideoUploadResult(
+                    videoURL: videoUrl,
+                    thumbnailURL: data["thumbnailUrl"] as? String ?? thumbnailURL
+                )
+
+                print("✅ Video uploaded successfully: \(videoUrl)")
+                return result
+            } else {
+                throw FileUploadError.invalidResponse
+            }
+        } catch {
+            await MainActor.run {
+                self.isUploading = false
+                self.error = error.localizedDescription
+            }
+            throw error
+        }
+    }
+
+    // MARK: - File Upload
+
+    func uploadFile(_ fileURL: URL) async throws -> FileUploadResult {
+        isUploading = true
+        progress = 0
+        error = nil
+
+        print("📄 [FILE UPLOAD] Starting file upload")
+
+        // Read file data
+        guard let fileData = try? Data(contentsOf: fileURL) else {
+            throw FileUploadError.compressionFailed
+        }
+
+        let fileName = fileURL.lastPathComponent
+        let fileSize = fileData.count
+
+        print("📦 File: \(fileName), Size: \(fileSize / 1024)KB")
+
+        // Validate file size (max 10MB for files)
+        if fileSize > 10 * 1024 * 1024 {
+            throw FileUploadError.serverError("File too large. Maximum size is 10MB")
+        }
+
+        // Create multipart request
+        guard let url = URL(string: "\(baseURL)/api/upload/file") else {
+            throw FileUploadError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+
+        if let token = AuthManager.shared.authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        if let user = AuthManager.shared.currentUser {
+            request.setValue(user.apiId, forHTTPHeaderField: "X-User-API-ID")
+        }
+
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+
+        // Add file
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+
+        // Determine MIME type
+        let mimeType = getMimeType(for: fileURL)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+
+        // Start progress simulation
+        Task {
+            await simulateUploadProgress()
+        }
+
+        do {
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw FileUploadError.invalidResponse
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                throw FileUploadError.serverError("HTTP Error: \(httpResponse.statusCode)")
+            }
+
+            if let json = try JSONSerialization.jsonObject(with: responseData, options: []) as? [String: Any],
+               let success = json["success"] as? Bool,
+               success,
+               let data = json["data"] as? [String: Any],
+               let fileUrl = data["url"] as? String {
+
+                await MainActor.run {
+                    self.isUploading = false
+                    self.progress = 1.0
+                }
+
+                let result = FileUploadResult(
+                    fileURL: fileUrl,
+                    fileName: fileName,
+                    fileSize: Int64(fileSize),
+                    mimeType: mimeType
+                )
+
+                print("✅ File uploaded successfully: \(fileUrl)")
+                return result
+            } else {
+                throw FileUploadError.invalidResponse
+            }
+        } catch {
+            await MainActor.run {
+                self.isUploading = false
+                self.error = error.localizedDescription
+            }
+            throw error
+        }
+    }
+
+    private func getMimeType(for url: URL) -> String {
+        let ext = url.pathExtension.lowercased()
+
+        switch ext {
+        case "pdf":
+            return "application/pdf"
+        case "doc":
+            return "application/msword"
+        case "docx":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        case "txt":
+            return "text/plain"
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "png":
+            return "image/png"
+        case "mp4":
+            return "video/mp4"
+        case "mov":
+            return "video/quicktime"
+        default:
+            return "application/octet-stream"
+        }
+    }
+
     private func trackFileUpload(fileId: String, fileSize: Int) {
-        // TODO: Track analytics for file upload
+        AnalyticsService.shared.track(event: "file_uploaded", properties: [
+            "file_id": fileId,
+            "file_size": fileSize
+        ])
         print("File upload completed: \(fileId), size: \(fileSize)")
     }
-    
+
     private func trackFileUploadError(_ error: Error) {
-        // TODO: Track analytics for file upload error
+        AnalyticsService.shared.trackError(error: error, context: "file_upload")
         print("File upload error: \(error.localizedDescription)")
     }
+}
+
+// MARK: - Upload Result Models
+
+struct VideoUploadResult {
+    let videoURL: String
+    let thumbnailURL: String?
+}
+
+struct FileUploadResult {
+    let fileURL: String
+    let fileName: String
+    let fileSize: Int64
+    let mimeType: String
 }
 
 // MARK: - Response Models

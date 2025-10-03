@@ -505,12 +505,47 @@ struct CancellationView: View {
 struct BookingMessagesView: View {
     let booking: Booking
     @Environment(\.dismiss) private var dismiss
+    @State private var navigateToChat = false
 
     var body: some View {
         NavigationView {
-            VStack {
-                Text("Messages feature coming soon...")
+            VStack(spacing: 20) {
+                Image(systemName: "message.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.blue)
+                    .padding(.top, 40)
+
+                Text("Chat About This Booking")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Discuss pickup details, ask questions, or coordinate with \(booking.owner?.name ?? "the owner")")
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                Spacer()
+
+                NavigationLink(destination: EnhancedChatDetailView(conversation: createConversationFromBooking())) {
+                    HStack {
+                        Image(systemName: "paperplane.fill")
+                        Text("Open Chat")
+                            .font(.headline)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal, 20)
+
+                Button("Close") {
+                    dismiss()
+                }
+                .foregroundColor(.secondary)
+                .padding(.bottom, 20)
             }
             .navigationTitle("Messages")
             .navigationBarTitleDisplayMode(.inline)
@@ -522,6 +557,34 @@ struct BookingMessagesView: View {
                 }
             }
         }
+    }
+
+    // Create a conversation object from booking data
+    private func createConversationFromBooking() -> Conversation {
+        let otherUser = ConversationUser(
+            id: booking.owner?.id ?? "",
+            username: booking.owner?.name ?? "Owner",
+            profilePicture: booking.owner?.profileImageUrl,
+            isVerified: booking.owner?.isVerified ?? false
+        )
+
+        return Conversation(
+            id: "booking_\(booking.id)",
+            type: .listing,
+            otherUser: otherUser,
+            lastMessage: nil,
+            unreadCount: 0,
+            updatedAt: booking.createdAt,
+            listing: booking.listingId != nil ? ListingPreview(
+                id: booking.listingId,
+                title: booking.listing?.title ?? "Item",
+                price: nil,
+                imageUrl: booking.listing?.images.first?.url,
+                availabilityStatus: "AVAILABLE"
+            ) : nil,
+            listingId: booking.listingId,
+            isActive: true
+        )
     }
 }
 

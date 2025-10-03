@@ -78,12 +78,15 @@ struct BrrowApp: App {
             }
             .onAppear {
                 setupApp()
-                
+
+                // Track app opened
+                AnalyticsService.shared.trackAppOpened(source: pendingDeepLink != nil ? "deeplink" : "direct")
+
                 // Track achievement for opening app
                 if authManager.isAuthenticated {
                     AchievementManager.shared.trackAppOpened()
                 }
-                
+
                 // Handle pending deep link if any
                 if let url = pendingDeepLink {
                     handleDeepLink(url)

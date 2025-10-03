@@ -69,6 +69,7 @@ struct NotificationsView: View {
                 Task {
                     await loadNotifications()
                 }
+                AnalyticsService.shared.trackScreen(name: "notifications")
             }
             .background(
                 NavigationLink(
@@ -84,13 +85,7 @@ struct NotificationsView: View {
     @ViewBuilder
     private var destinationView: some View {
         if let chatId = selectedChatId {
-            // TODO: Need to fetch conversation data or use a different approach
-            // For now, show a placeholder until proper navigation is implemented
-            Text("Loading conversation...")
-                .onAppear {
-                    // This should fetch the conversation and navigate properly
-                    print("Navigate to chat: \(chatId)")
-                }
+            ConversationNavigationView(conversationId: chatId)
         } else {
             EmptyView()
         }
@@ -427,6 +422,69 @@ struct NotificationDetailView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// MARK: - Conversation Navigation Helper
+
+struct ConversationNavigationView: View {
+    let conversationId: String
+    @State private var conversation: Conversation?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Group {
+            if isLoading {
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Loading conversation...")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = errorMessage {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 50))
+                        .foregroundColor(.orange)
+                    Text("Error")
+                        .font(.headline)
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let conversation = conversation {
+                EnhancedChatDetailView(conversation: conversation)
+            } else {
+                Text("Conversation not found")
+                    .foregroundColor(.gray)
+            }
+        }
+        .onAppear {
+            Task {
+                await loadConversation()
+            }
+        }
+    }
+
+    private func loadConversation() async {
+        do {
+            let fetchedConversation = try await APIClient.shared.fetchConversationById(conversationId)
+            await MainActor.run {
+                self.conversation = fetchedConversation
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "This conversation is no longer available"
+                self.isLoading = false
+            }
+            print("Failed to fetch conversation: \(error)")
         }
     }
 }

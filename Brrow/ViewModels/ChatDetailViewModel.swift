@@ -152,6 +152,9 @@ class ChatDetailViewModel: ObservableObject {
 
         messages.append(message)
 
+        // Track analytics
+        AnalyticsService.shared.trackMessageSent(messageType: "text", conversationId: conversationId)
+
         // Send to server
         Task {
             do {

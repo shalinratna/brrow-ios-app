@@ -12,8 +12,6 @@ struct AdvancedSearchView: View {
     @StateObject private var searchService = AdvancedSearchService.shared
     @State private var searchText = ""
     @State private var showingFilters = false
-    @State private var showingMap = false
-    @State private var showingSavedSearches = false
     @State private var searchFilters = AdvancedSearchFilters()
     @State private var selectedLocation: LocationResult?
     @State private var sortOption: SortField = .relevance
@@ -31,33 +29,10 @@ struct AdvancedSearchView: View {
             }
             .navigationTitle("Advanced Search")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showingSavedSearches = true
-                    } label: {
-                        Image(systemName: "bookmark.fill")
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingMap = true
-                    } label: {
-                        Image(systemName: "map.fill")
-                    }
-                }
-            }
             .sheet(isPresented: $showingFilters) {
                 SearchFiltersView(filters: $searchFilters) {
                     performSearch()
                 }
-            }
-            .sheet(isPresented: $showingMap) {
-                SearchMapView()
-            }
-            .sheet(isPresented: $showingSavedSearches) {
-                SavedSearchesView()
             }
             .onAppear {
                 searchService.requestLocationPermission()
@@ -434,7 +409,7 @@ struct SortChip: View {
     }
 }
 
-// MARK: - Supporting Views (Placeholder)
+// MARK: - Supporting Views
 
 struct SearchFiltersView: View {
     @Binding var filters: AdvancedSearchFilters
@@ -443,9 +418,40 @@ struct SearchFiltersView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
-                Text("Advanced filters coming soon...")
-                    .foregroundColor(.secondary)
+            Form {
+                Section(header: Text("Price Range")) {
+                    HStack {
+                        Text("$")
+                        TextField("Min", value: .constant(0), format: .number)
+                            .keyboardType(.numberPad)
+                        Text("-")
+                        Text("$")
+                        TextField("Max", value: .constant(1000), format: .number)
+                            .keyboardType(.numberPad)
+                    }
+                }
+
+                Section(header: Text("Distance")) {
+                    HStack {
+                        Text("Within")
+                        TextField("Miles", value: .constant(10), format: .number)
+                            .keyboardType(.numberPad)
+                        Text("miles")
+                    }
+                }
+
+                Section(header: Text("Availability")) {
+                    Toggle("Available Now", isOn: .constant(false))
+                    Toggle("Instant Book Only", isOn: .constant(false))
+                }
+
+                Section(header: Text("Rating")) {
+                    Picker("Minimum Rating", selection: .constant(0)) {
+                        Text("Any").tag(0)
+                        Text("4+ Stars").tag(4)
+                        Text("4.5+ Stars").tag(5)
+                    }
+                }
             }
             .navigationTitle("Filters")
             .navigationBarTitleDisplayMode(.inline)
@@ -458,46 +464,6 @@ struct SearchFiltersView: View {
                         onApply()
                         dismiss()
                     }
-                }
-            }
-        }
-    }
-}
-
-struct SearchMapView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationView {
-            VStack {
-                Text("Map view coming soon...")
-                    .foregroundColor(.secondary)
-            }
-            .navigationTitle("Map")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-    }
-}
-
-struct SavedSearchesView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationView {
-            VStack {
-                Text("Saved searches coming soon...")
-                    .foregroundColor(.secondary)
-            }
-            .navigationTitle("Saved Searches")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
                 }
             }
         }

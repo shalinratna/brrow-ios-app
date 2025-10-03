@@ -60,9 +60,18 @@ struct EnhancedCreateListingView: View {
         } message: {
             Text("Your listing has been created successfully!")
         }
-        .onChange(of: viewModel.selectedPhotos) { _ in
+        .onChange(of: viewModel.selectedPhotos) { newPhotos in
             // Trigger haptic feedback when photos are selected
             LocalHapticManager.shared.impact(.light)
+
+            // ⚡️⚡️⚡️ INSTAGRAM MODE: Start background upload IMMEDIATELY
+            Task {
+                await viewModel.handlePhotoSelection(newPhotos)
+            }
+        }
+        .onDisappear {
+            // ⚡️ Clean up orphaned uploads when view is dismissed
+            viewModel.handleViewDismissal()
         }
     }
 
@@ -94,7 +103,11 @@ struct EnhancedCreateListingView: View {
 
                 Spacer()
 
-                if viewModel.isPreprocessing {
+                // ⚡️ INSTAGRAM-STYLE: Show upload progress banner
+                if viewModel.backgroundUploadActive {
+                    uploadProgressBanner
+                }
+                else if viewModel.isPreprocessing {
                     HStack(spacing: 8) {
                         ProgressView()
                             .scaleEffect(0.8)
@@ -162,8 +175,12 @@ struct EnhancedCreateListingView: View {
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         }
 
-                    // Processing indicator
-                    if viewModel.isPreprocessing {
+                    // ⚡️ INSTAGRAM-STYLE UPLOAD PROGRESS OVERLAY
+                    if let tracker = getTrackerForImage(at: index) {
+                        uploadProgressOverlay(for: tracker)
+                    }
+                    // Processing indicator (fallback)
+                    else if viewModel.isPreprocessing {
                         VStack {
                             if index < viewModel.processedImageCount {
                                 Image(systemName: "checkmark.circle.fill")
@@ -179,7 +196,7 @@ struct EnhancedCreateListingView: View {
                     }
 
                     // Remove button
-                    if !viewModel.isLoading {
+                    if !viewModel.isLoading && !viewModel.backgroundUploadActive {
                         Button {
                             withAnimation(.spring()) {
                                 viewModel.removeImage(at: index)
@@ -195,6 +212,94 @@ struct EnhancedCreateListingView: View {
                 }
             }
         }
+    }
+
+    // ⚡️ INSTAGRAM-STYLE: Upload progress overlay for individual images
+    @ViewBuilder
+    private func uploadProgressOverlay(for tracker: UploadTracker) -> some View {
+        ZStack {
+            // Dark overlay while uploading
+            if case .uploading = tracker.status {
+                Color.black.opacity(0.4)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            VStack(spacing: 4) {
+                switch tracker.status {
+                case .pending:
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(.yellow)
+                        .background(Circle().fill(Color.white))
+                        .font(.caption)
+
+                case .uploading(let progress):
+                    VStack(spacing: 2) {
+                        ProgressView(value: progress)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                        Text("\(Int(progress * 100))%")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .padding(6)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                case .completed:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .background(Circle().fill(Color.white))
+                        .font(.title3)
+
+                case .failed(let error):
+                    VStack(spacing: 2) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                        Text("Failed")
+                            .font(.system(size: 8))
+                            .foregroundColor(.red)
+                    }
+                    .padding(4)
+                    .background(Circle().fill(Color.white))
+
+                case .cancelled:
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.orange)
+                        .background(Circle().fill(Color.white))
+                }
+            }
+            .padding(4)
+        }
+    }
+
+    // Helper to get tracker for image at index
+    private func getTrackerForImage(at index: Int) -> UploadTracker? {
+        let trackers = Array(viewModel.uploadTrackers.values)
+        guard index < trackers.count else { return nil }
+        return trackers[index]
+    }
+
+    // ⚡️ INSTAGRAM-STYLE: Upload progress banner
+    private var uploadProgressBanner: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .scaleEffect(0.7)
+
+            Text("Uploading \(viewModel.uploadedImageCount)/\(viewModel.totalImagesToUpload)")
+                .font(.caption)
+                .foregroundColor(.blue)
+                .fontWeight(.medium)
+
+            if viewModel.overallUploadProgress > 0 {
+                Text("\(Int(viewModel.overallUploadProgress * 100))%")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.blue.opacity(0.1))
+        .clipShape(Capsule())
     }
 
     private var processingProgress: some View {

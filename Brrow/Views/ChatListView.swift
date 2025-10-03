@@ -29,6 +29,8 @@ struct ChatListView: View {
                 // Content
                 if viewModel.isLoading && viewModel.conversations.isEmpty {
                     loadingView
+                } else if let errorMessage = viewModel.errorMessage {
+                    errorStateView(message: errorMessage)
                 } else if viewModel.conversations.isEmpty {
                     emptyStateView
                 } else {
@@ -212,17 +214,54 @@ struct ChatListView: View {
             Image(systemName: "message")
                 .font(.system(size: 60))
                 .foregroundColor(Theme.Colors.secondaryText)
-            
+
             Text("No Messages Yet")
                 .font(Theme.Typography.headline)
                 .fontWeight(.semibold)
                 .foregroundColor(Theme.Colors.text)
-            
+
             Text("Start chatting with other Brrow users about listings and transactions!")
                 .font(Theme.Typography.body)
                 .foregroundColor(Theme.Colors.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Theme.Spacing.xxl)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Error State View
+    private func errorStateView(message: String) -> some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 60))
+                .foregroundColor(Theme.Colors.error)
+
+            Text("Oops! Something went wrong")
+                .font(Theme.Typography.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(Theme.Colors.text)
+
+            Text(message)
+                .font(Theme.Typography.body)
+                .foregroundColor(Theme.Colors.secondaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Spacing.xxl)
+
+            Button(action: {
+                viewModel.loadConversations()
+            }) {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Try Again")
+                }
+                .font(Theme.Typography.callout)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .padding(.horizontal, Theme.Spacing.xl)
+                .padding(.vertical, Theme.Spacing.md)
+                .background(Theme.Colors.primary)
+                .cornerRadius(Theme.CornerRadius.md)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

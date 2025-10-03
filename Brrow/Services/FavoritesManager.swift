@@ -81,6 +81,9 @@ class FavoritesManager: ObservableObject {
             }
         }
 
+        // Track analytics
+        AnalyticsService.shared.trackFavorite(listingId: listingId, action: isFavorited ? "remove" : "add")
+
         // Call API
         do {
             guard let userId = AuthManager.shared.currentUser?.id,

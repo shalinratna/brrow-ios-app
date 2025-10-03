@@ -115,13 +115,47 @@ class EnhancedSeekCreationViewModel: ObservableObject {
             selectedImages = Array(selectedImages.prefix(5))
         }
 
-        // Start predictive processing immediately for better UX
-        if !selectedImages.isEmpty {
-            currentOperation = "Optimizing images..."
-            imageProcessor.startPredictiveProcessing(
-                images: selectedImages,
-                configuration: processingConfig
-            )
+        // ⚡️⚡️⚡️ INSTAGRAM MODE: Start immediate background upload
+        if !images.isEmpty {
+            currentOperation = "Uploading images..."
+            isUploadingImages = true
+
+            Task {
+                do {
+                    // Process images in parallel
+                    let processedImageSets = try await imageProcessor.getProcessedImages(
+                        for: images,
+                        configuration: processingConfig
+                    )
+
+                    await MainActor.run {
+                        self.processedImages.append(contentsOf: processedImageSets)
+                    }
+
+                    // Upload immediately in background
+                    let uploadResults = try await batchUploadManager.uploadImagesImmediately(
+                        images: processedImageSets,
+                        configuration: .listing
+                    )
+
+                    let uploadedUrls = uploadResults.map { $0.url }
+                    print("⚡️⚡️⚡️ INSTAGRAM MODE (Seeks): Uploaded \(uploadedUrls.count) images in background")
+
+                    await MainActor.run {
+                        self.uploadedImageURLs.append(contentsOf: uploadedUrls)
+                        self.isUploadingImages = false
+                        self.currentOperation = ""
+                        self.uploadProgress = 1.0
+                    }
+
+                } catch {
+                    await MainActor.run {
+                        self.isUploadingImages = false
+                        self.currentOperation = ""
+                        print("❌ Background upload failed for seeks: \(error)")
+                    }
+                }
+            }
         }
     }
 
@@ -140,6 +174,15 @@ class EnhancedSeekCreationViewModel: ObservableObject {
 
     private func uploadImages() async throws -> [String] {
         guard !selectedImages.isEmpty else { return [] }
+
+        // ⚡️⚡️⚡️ INSTAGRAM MODE FAST PATH: Use already-uploaded URLs if available
+        if !uploadedImageURLs.isEmpty && uploadedImageURLs.count == selectedImages.count {
+            print("⚡️⚡️⚡️ INSTAGRAM MODE FAST PATH (Seeks): Using \(uploadedImageURLs.count) pre-uploaded URLs")
+            return uploadedImageURLs
+        }
+
+        // Slow path: Upload any remaining images that weren't uploaded in background
+        print("⚠️ SLOW PATH (Seeks): Background upload incomplete, uploading remaining images...")
 
         await MainActor.run {
             isUploadingImages = true

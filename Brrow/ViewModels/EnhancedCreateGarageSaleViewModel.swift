@@ -50,6 +50,9 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
     @Published var processingProgress: Double = 0
     @Published var isPreprocessing = false
 
+    // Instagram-style background upload cache
+    private var uploadedPhotoURLs: [String] = []
+
     // UI state
     @Published var isCreating = false
     @Published var errorMessage: String?
@@ -243,12 +246,48 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
         if photos.count < 10 {
             photos.append(image)
 
-            // Start predictive processing immediately for better UX
-            currentOperation = "Optimizing images..."
-            imageProcessor.startPredictiveProcessing(
-                images: photos,
-                configuration: processingConfig
-            )
+            // ⚡️⚡️⚡️ INSTAGRAM MODE: Start immediate background upload
+            currentOperation = "Uploading photo..."
+
+            Task {
+                do {
+                    // Process image
+                    let processedImageSets = try await imageProcessor.getProcessedImages(
+                        for: [image],
+                        configuration: processingConfig
+                    )
+
+                    await MainActor.run {
+                        self.processedImages.append(contentsOf: processedImageSets)
+                    }
+
+                    // Upload immediately in background
+                    let uploadResults = try await batchUploadManager.uploadImagesImmediately(
+                        images: processedImageSets,
+                        configuration: .listing
+                    )
+
+                    let uploadedUrl = uploadResults.first?.url
+                    if let url = uploadedUrl {
+                        print("⚡️⚡️⚡️ INSTAGRAM MODE (Garage Sale): Uploaded image in background")
+
+                        await MainActor.run {
+                            self.uploadedPhotoURLs.append(url)
+                        }
+                    }
+
+                    await MainActor.run {
+                        self.currentOperation = ""
+                        self.uploadProgress = 1.0
+                    }
+
+                } catch {
+                    await MainActor.run {
+                        self.currentOperation = ""
+                        print("❌ Background upload failed for garage sale: \(error)")
+                    }
+                }
+            }
         }
         selectedImage = nil
     }
@@ -345,6 +384,15 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
     private func uploadPhotos() async throws -> [String] {
         guard !photos.isEmpty else { return [] }
 
+        // ⚡️⚡️⚡️ INSTAGRAM MODE FAST PATH: Use already-uploaded URLs if available
+        if !uploadedPhotoURLs.isEmpty && uploadedPhotoURLs.count == photos.count {
+            print("⚡️⚡️⚡️ INSTAGRAM MODE FAST PATH (Garage Sales): Using \(uploadedPhotoURLs.count) pre-uploaded URLs")
+            return uploadedPhotoURLs
+        }
+
+        // Slow path: Upload any remaining photos that weren't uploaded in background
+        print("⚠️ SLOW PATH (Garage Sales): Background upload incomplete, uploading remaining photos...")
+
         await MainActor.run {
             currentOperation = "Processing images..."
         }
@@ -374,6 +422,7 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
         }
 
         await MainActor.run {
+            uploadedPhotoURLs = uploadedUrls
             currentOperation = ""
         }
 

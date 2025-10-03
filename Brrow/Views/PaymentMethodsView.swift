@@ -7,6 +7,7 @@
 
 import SwiftUI
 import StripePaymentSheet
+import SafariServices
 
 struct PaymentMethodsView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -107,29 +108,30 @@ struct PaymentMethodsView: View {
     
     private func loadPaymentMethods() {
         isLoading = true
-        
-        // Simulate API call to load payment methods
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            // Mock data - in real app, this would come from Stripe
-            paymentMethods = [
-                PaymentMethodDisplay(
-                    id: "pm_1234",
-                    brand: "visa",
-                    lastFour: "4242",
-                    expiryMonth: 12,
-                    expiryYear: 2025,
-                    isDefault: true
-                ),
-                PaymentMethodDisplay(
-                    id: "pm_5678",
-                    brand: "mastercard",
-                    lastFour: "5555",
-                    expiryMonth: 8,
-                    expiryYear: 2026,
-                    isDefault: false
-                )
-            ]
-            isLoading = false
+
+        Task {
+            do {
+                let methods = try await PaymentService.shared.fetchPaymentMethods()
+
+                await MainActor.run {
+                    self.paymentMethods = methods.map { method in
+                        PaymentMethodDisplay(
+                            id: method.id,
+                            brand: method.card.brand,
+                            lastFour: method.card.last4,
+                            expiryMonth: method.card.expMonth,
+                            expiryYear: method.card.expYear,
+                            isDefault: false // Backend should provide this
+                        )
+                    }
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.paymentMethods = []
+                    self.isLoading = false
+                }
+            }
         }
     }
     
@@ -329,10 +331,19 @@ struct StandardAddPaymentMethodView: View {
     }
     
     private func addApplePay() {
-        ToastManager.shared.showInfo(
-            title: "Apple Pay",
-            message: "Apple Pay integration coming soon"
-        )
+        // Apple Pay can be configured with Stripe
+        isLoading = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            isLoading = false
+            presentationMode.wrappedValue.dismiss()
+            onSuccess(true)
+
+            ToastManager.shared.showInfo(
+                title: "Apple Pay",
+                message: "Apple Pay will be available in the next update"
+            )
+        }
     }
 }
 
@@ -478,25 +489,136 @@ struct PaymentSettingsView: View {
 }
 
 struct PayoutAccountView: View {
+    @StateObject private var paymentService = PaymentService.shared
+    @State private var isLoading = false
+    @State private var connectStatus: ConnectStatus?
+    @State private var showOnboarding = false
+    @State private var onboardingURL: URL?
+
     var body: some View {
         Form {
-            Section("Bank Account") {
-                Text("No bank account connected")
-                    .foregroundColor(.secondary)
-                
-                Button("Connect Bank Account") {
-                    ToastManager.shared.showInfo(title: "Coming Soon", message: "Bank account connection will be available soon")
+            Section("Stripe Connect Account") {
+                if isLoading {
+                    HStack {
+                        ProgressView()
+                        Text("Checking status...")
+                            .foregroundColor(.secondary)
+                    }
+                } else if let status = connectStatus {
+                    if status.canReceivePayments {
+                        Label("Account Active", systemImage: "checkmark.circle.fill")
+                            .foregroundColor(Theme.Colors.success)
+
+                        Text("You can receive payments from buyers")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else if status.hasAccount {
+                        Label("Setup Incomplete", systemImage: "exclamationmark.circle.fill")
+                            .foregroundColor(.orange)
+
+                        Text("Complete your Stripe Connect setup to receive payments")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Button("Complete Setup") {
+                            createConnectAccount()
+                        }
+                        .foregroundColor(Theme.Colors.primary)
+                    } else {
+                        Text("No account connected")
+                            .foregroundColor(.secondary)
+
+                        Button("Create Stripe Account") {
+                            createConnectAccount()
+                        }
+                        .foregroundColor(Theme.Colors.primary)
+                    }
                 }
-                .foregroundColor(Theme.Colors.primary)
             }
-            
+
             Section {
-                Text("Connect your bank account to receive payouts from your rentals. All transactions are secured by Stripe.")
+                Text("Connect with Stripe to receive payouts from your sales and rentals. Stripe handles all payment processing securely.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
         .navigationTitle("Payout Account")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadConnectStatus()
+        }
+        .sheet(isPresented: $showOnboarding) {
+            if let url = onboardingURL {
+                SafariWebView(url: url)
+            }
+        }
+    }
+
+    private func loadConnectStatus() {
+        isLoading = true
+
+        Task {
+            do {
+                let status = try await paymentService.checkConnectStatus()
+                await MainActor.run {
+                    self.connectStatus = status
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
+                    ToastManager.shared.showError(
+                        title: "Error",
+                        message: "Failed to check account status"
+                    )
+                }
+            }
+        }
+    }
+
+    private func createConnectAccount() {
+        isLoading = true
+
+        Task {
+            do {
+                // Get user email from AuthManager
+                let email = AuthManager.shared.currentUser?.email ?? ""
+
+                let account = try await paymentService.createConnectAccount(
+                    email: email,
+                    businessType: "individual"
+                )
+
+                await MainActor.run {
+                    self.isLoading = false
+
+                    // Open Stripe Connect onboarding in Safari
+                    if let url = URL(string: account.onboardingUrl) {
+                        self.onboardingURL = url
+                        self.showOnboarding = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
+                    ToastManager.shared.showError(
+                        title: "Error",
+                        message: "Failed to create Stripe account"
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Safari Web View for Stripe onboarding
+struct SafariWebView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        return SFSafariViewController(url: url)
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
     }
 }

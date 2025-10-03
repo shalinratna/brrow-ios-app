@@ -258,6 +258,7 @@ struct ProfessionalListingDetailView: View {
             setupMapRegion()
             impactFeedback.prepare()
             selectionFeedback.prepare()
+            AnalyticsService.shared.trackListingView(listingId: viewModel.listing.id, listingTitle: viewModel.listing.title)
         }
     }
     

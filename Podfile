@@ -26,11 +26,7 @@ target 'Brrow' do
   end
 end
 
-target 'BrrowWidgetsExtension' do
-  use_frameworks!
-  # Pods for BrrowWidgetsExtension - minimal dependencies for widgets
-  # SDWebImage not needed for widgets (using system images only)
-end
+# Note: BrrowWidgetsExtension target removed - no pods needed for widgets
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|

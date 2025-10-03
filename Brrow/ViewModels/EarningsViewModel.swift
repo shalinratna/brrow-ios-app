@@ -30,11 +30,9 @@ class EarningsViewModel: ObservableObject {
     private let authManager = AuthManager.shared
     
     init() {
+        // INDUSTRY-STANDARD: Don't load data in init - wait for view to appear
+        // This implements lazy loading (Step 2 of the 4-step architecture)
         setupDataBinding()
-        // Only load earnings data for authenticated non-guest users
-        if authManager.isAuthenticated && !authManager.isGuestUser {
-            loadEarningsData()
-        }
     }
     
     func loadEarningsData() {

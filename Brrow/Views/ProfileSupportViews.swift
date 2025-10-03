@@ -597,7 +597,7 @@ struct ChangePasswordView: View {
 
 struct ThemeSettingsView: View {
     @StateObject private var colorSchemeManager = ColorSchemeManager.shared
-    
+
     var body: some View {
         Form {
             Section("Appearance") {
@@ -608,12 +608,9 @@ struct ThemeSettingsView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
             }
-            
-            Section("Colors") {
-                ColorPicker("Primary Color", selection: .constant(Theme.Colors.primary))
-                    .disabled(true)
-                
-                Text("Custom themes coming soon!")
+
+            Section {
+                Text("Choose between light, dark, or automatic theme based on your device settings.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

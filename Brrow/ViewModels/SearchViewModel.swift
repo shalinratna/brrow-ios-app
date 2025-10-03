@@ -36,6 +36,9 @@ class SearchViewModel: ObservableObject {
                 let results = try await apiClient.searchListings(query: query, category: category)
                 self.searchResults = results
                 self.isLoading = false
+
+                // Track search analytics
+                AnalyticsService.shared.trackSearch(query: query, resultsCount: results.count)
             } catch {
                 self.errorMessage = error.localizedDescription
                 self.isLoading = false

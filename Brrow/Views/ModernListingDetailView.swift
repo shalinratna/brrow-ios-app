@@ -28,7 +28,11 @@ struct ModernListingDetailView: View {
     @State private var showingChatView = false
     @State private var showingOfferSheet = false
     @State private var showingSellerProfile = false
-    
+    @State private var showingPaymentFlow = false
+    @State private var showingRentalDatePicker = false
+    @State private var rentalStartDate = Date()
+    @State private var rentalEndDate = Calendar.current.date(byAdding: .day, value: 3, to: Date()) ?? Date()
+
     // Edit states for owner
     @State private var editedPrice: String = ""
     @State private var editedInventory: String = ""
@@ -136,6 +140,27 @@ struct ModernListingDetailView: View {
             }
         } message: {
             Text("Are you sure you want to delete this listing? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingPaymentFlow) {
+            StripePaymentFlowView(
+                listing: listing,
+                transactionType: isForSale ? PaymentTransactionType.purchase : PaymentTransactionType.rental,
+                rentalStartDate: isForSale ? nil : rentalStartDate,
+                rentalEndDate: isForSale ? nil : rentalEndDate,
+                deliveryMethod: "PICKUP"
+            )
+            .environmentObject(authManager)
+        }
+        .sheet(isPresented: $showingRentalDatePicker) {
+            RentalDatePickerView(
+                startDate: $rentalStartDate,
+                endDate: $rentalEndDate,
+                listing: listing,
+                onConfirm: {
+                    showingRentalDatePicker = false
+                    showingPaymentFlow = true
+                }
+            )
         }
     }
     
@@ -675,19 +700,20 @@ struct ModernListingDetailView: View {
                         .cornerRadius(28)
                 }
                 
-                // Primary action (Buy/Borrow)
-                Button(action: { showingOfferSheet = true }) {
+                // Primary action (Buy/Rent)
+                Button(action: handlePrimaryAction) {
                     HStack {
-                        Image(systemName: "listing" == "sale" ? "cart.fill" : "calendar.badge.clock")
-                        Text("listing" == "sale" ? "Buy Now" : "Borrow")
+                        Image(systemName: isForSale ? "cart.fill" : "calendar.badge.clock")
+                        Text(isForSale ? "Buy Now" : "Rent Item")
                             .font(.system(size: 18, weight: .semibold))
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(Theme.Colors.primary)
+                    .background(listing.availabilityStatus == .available ? Theme.Colors.primary : Color.gray)
                     .cornerRadius(28)
                 }
+                .disabled(listing.availabilityStatus != .available)
             }
         }
         .padding(.horizontal)
@@ -856,6 +882,22 @@ struct ModernListingDetailView: View {
             }
         }
     }
+
+    // MARK: - Payment Flow Helpers
+
+    private var isForSale: Bool {
+        return listing.listingType == "sale"
+    }
+
+    private func handlePrimaryAction() {
+        if isForSale {
+            // Direct purchase - show payment flow immediately
+            showingPaymentFlow = true
+        } else {
+            // Rental - show date picker first
+            showingRentalDatePicker = true
+        }
+    }
 }
 
 // MARK: - Supporting Views
@@ -963,5 +1005,121 @@ struct ModernSimilarItemCard: View {
                 .foregroundColor(Theme.Colors.primary)
         }
         .frame(width: 140)
+    }
+}
+
+// MARK: - Rental Date Picker View
+
+struct RentalDatePickerView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @Binding var startDate: Date
+    @Binding var endDate: Date
+    let listing: Listing
+    let onConfirm: () -> Void
+
+    @State private var selectedStartDate: Date
+    @State private var selectedEndDate: Date
+
+    init(startDate: Binding<Date>, endDate: Binding<Date>, listing: Listing, onConfirm: @escaping () -> Void) {
+        self._startDate = startDate
+        self._endDate = endDate
+        self.listing = listing
+        self.onConfirm = onConfirm
+        self._selectedStartDate = State(initialValue: startDate.wrappedValue)
+        self._selectedEndDate = State(initialValue: endDate.wrappedValue)
+    }
+
+    private var numberOfDays: Int {
+        Calendar.current.dateComponents([.day], from: selectedStartDate, to: selectedEndDate).day ?? 0
+    }
+
+    private var totalCost: Double {
+        let dailyRate = listing.dailyRate ?? listing.price
+        return dailyRate * Double(max(1, numberOfDays))
+    }
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // Header info
+                VStack(spacing: 8) {
+                    Text(listing.title)
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("Daily Rate: \(PaymentService.shared.formatCurrency(listing.dailyRate ?? listing.price))")
+                        .font(.subheadline)
+                        .foregroundColor(Theme.Colors.primary)
+                }
+                .padding()
+
+                Form {
+                    Section("Rental Period") {
+                        DatePicker(
+                            "Start Date",
+                            selection: $selectedStartDate,
+                            in: Date()...,
+                            displayedComponents: .date
+                        )
+                        .onChange(of: selectedStartDate) { newValue in
+                            // Ensure end date is after start date
+                            if selectedEndDate <= newValue {
+                                selectedEndDate = Calendar.current.date(byAdding: .day, value: 1, to: newValue) ?? newValue
+                            }
+                        }
+
+                        DatePicker(
+                            "End Date",
+                            selection: $selectedEndDate,
+                            in: selectedStartDate...,
+                            displayedComponents: .date
+                        )
+                    }
+
+                    Section("Summary") {
+                        HStack {
+                            Text("Duration")
+                            Spacer()
+                            Text("\(max(1, numberOfDays)) day\(numberOfDays == 1 ? "" : "s")")
+                                .foregroundColor(.secondary)
+                        }
+
+                        HStack {
+                            Text("Total Cost")
+                            Spacer()
+                            Text(PaymentService.shared.formatCurrency(totalCost))
+                                .font(.headline)
+                                .foregroundColor(Theme.Colors.primary)
+                        }
+                    }
+                }
+
+                Button(action: confirmDates) {
+                    Text("Continue to Payment")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Theme.Colors.primary)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+            }
+            .navigationTitle("Select Dates")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+
+    private func confirmDates() {
+        startDate = selectedStartDate
+        endDate = selectedEndDate
+        presentationMode.wrappedValue.dismiss()
+        onConfirm()
     }
 }

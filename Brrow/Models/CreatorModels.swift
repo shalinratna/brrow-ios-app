@@ -138,11 +138,11 @@ enum PayoutFrequency: String, Codable {
     }
 }
 
-struct EarningsTransaction: Codable, Identifiable {
+struct EarningsTransaction: Identifiable {
     let id: String
     let bookingId: String
     let amount: Double
-    let type: TransactionType
+    let type: CreatorModels.TransactionType
     let status: EarningsTransactionStatus
     let date: String
     let description: String
@@ -157,23 +157,37 @@ struct EarningsTransaction: Codable, Identifiable {
     }
 }
 
-enum TransactionType: String, Codable {
-    case rental = "RENTAL"
-    case sale = "SALE"
-    case fee = "FEE"
-    case refund = "REFUND"
-    case bonus = "BONUS"
+// Add Codable conformance manually to avoid ambiguity
+extension EarningsTransaction: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, bookingId, amount, type, status, date, description
+        case listingTitle, renterName, itemImageUrl
+    }
+}
 
-    var displayName: String {
-        switch self {
-        case .rental: return "Rental"
-        case .sale: return "Sale"
-        case .fee: return "Fee"
-        case .refund: return "Refund"
-        case .bonus: return "Bonus"
+// Namespace the TransactionType within CreatorModels to avoid ambiguity
+extension CreatorModels {
+    enum TransactionType: String, Codable {
+        case rental = "RENTAL"
+        case sale = "SALE"
+        case fee = "FEE"
+        case refund = "REFUND"
+        case bonus = "BONUS"
+
+        var displayName: String {
+            switch self {
+            case .rental: return "Rental"
+            case .sale: return "Sale"
+            case .fee: return "Fee"
+            case .refund: return "Refund"
+            case .bonus: return "Bonus"
+            }
         }
     }
 }
+
+// Add a namespace struct for CreatorModels types
+struct CreatorModels {}
 
 enum EarningsTransactionStatus: String, Codable {
     case pending = "PENDING"
