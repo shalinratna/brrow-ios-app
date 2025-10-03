@@ -41,20 +41,31 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
     @Published var isValidatingAddress = false
     @Published var isUsingCurrentLocation = false
     
-    // Photos
+    // Photos - Enhanced with background upload support
     @Published var photos: [UIImage] = []
     @Published var selectedImage: UIImage?
     @Published var showImagePicker = false
-    
+    @Published var processedImages: [IntelligentImageProcessor.ProcessedImageSet] = []
+    @Published var uploadProgress: Double = 0
+    @Published var processingProgress: Double = 0
+    @Published var isPreprocessing = false
+
     // UI state
     @Published var isCreating = false
     @Published var errorMessage: String?
     @Published var showSuccess = false
-    
+    @Published var currentOperation = ""
+
     private let locationService = LocationService.shared
     private let apiClient = APIClient.shared
+    private let imageProcessor = IntelligentImageProcessor.shared
+    private let batchUploadManager = BatchUploadManager.shared
     private var cancellables = Set<AnyCancellable>()
     private var validationCancellable: AnyCancellable?
+    private var uploadCancellationToken: BatchUploadManager.CancellationToken?
+
+    // Configuration for image processing
+    private let processingConfig = IntelligentImageProcessor.ProcessingConfiguration.highQuality
     
     init() {
         // Set default end date to 4 hours after start
@@ -227,17 +238,31 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
     }
     
     // MARK: - Photo Methods
-    
+
     func addPhoto(_ image: UIImage) {
         if photos.count < 10 {
             photos.append(image)
+
+            // Start predictive processing immediately for better UX
+            currentOperation = "Optimizing images..."
+            imageProcessor.startPredictiveProcessing(
+                images: photos,
+                configuration: processingConfig
+            )
         }
         selectedImage = nil
     }
-    
+
     func removePhoto(at index: Int) {
         if index < photos.count {
+            let removedImage = photos[index]
             photos.remove(at: index)
+
+            // Remove from processed images if exists
+            processedImages.removeAll { $0.originalImage == removedImage }
+
+            // Cancel processing for removed image if needed
+            imageProcessor.cancelProcessing(for: [removedImage])
         }
     }
     
@@ -318,20 +343,40 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
     }
     
     private func uploadPhotos() async throws -> [String] {
-        var uploadedUrls: [String] = []
-        let fileUploadService = FileUploadService.shared
-        
-        for photo in photos {
-            do {
-                let fileName = "garage_sale_\(UUID().uuidString).jpg"
-                let url = try await fileUploadService.uploadImage(photo, fileName: fileName)
-                uploadedUrls.append(url)
-            } catch {
-                print("Failed to upload photo: \(error)")
-                // Continue with other photos even if one fails
-            }
+        guard !photos.isEmpty else { return [] }
+
+        await MainActor.run {
+            currentOperation = "Processing images..."
         }
-        
+
+        // Get processed images (use cache if available, process if not)
+        let processedImageSets = try await imageProcessor.getProcessedImages(
+            for: photos,
+            configuration: processingConfig
+        )
+
+        await MainActor.run {
+            processedImages = processedImageSets
+            currentOperation = "Uploading images..."
+        }
+
+        var uploadedUrls: [String] = []
+
+        if !processedImageSets.isEmpty {
+            // Use batch upload for better performance and reliability
+            let uploadResults = try await batchUploadManager.uploadImagesImmediately(
+                images: processedImageSets,
+                configuration: .listing
+            )
+
+            uploadedUrls = uploadResults.map { $0.url }
+            print("✅ Uploaded \(uploadedUrls.count) garage sale images via batch upload")
+        }
+
+        await MainActor.run {
+            currentOperation = ""
+        }
+
         return uploadedUrls
     }
     

@@ -35,16 +35,21 @@ class EnhancedSeekCreationViewModel: ObservableObject {
     @Published var hasDeadline = false
     @Published var deadline = Date().addingTimeInterval(7 * 24 * 60 * 60) // 1 week from now
 
-    // Images
+    // Images - Enhanced with background upload support
     @Published var selectedImages: [UIImage] = []
     @Published var uploadedImageURLs: [String] = []
     @Published var isUploadingImages = false
+    @Published var processedImages: [IntelligentImageProcessor.ProcessedImageSet] = []
+    @Published var uploadProgress: Double = 0
+    @Published var processingProgress: Double = 0
+    @Published var isPreprocessing = false
 
     // UI State
     @Published var isCreating = false
     @Published var errorMessage: String?
     @Published var showSuccess = false
     @Published var validationErrors: [String] = []
+    @Published var currentOperation = ""
 
     // Available categories for seeks
     let availableCategories = [
@@ -61,7 +66,13 @@ class EnhancedSeekCreationViewModel: ObservableObject {
 
     private let apiClient = APIClient.shared
     private let fileUploadService = FileUploadService.shared
+    private let imageProcessor = IntelligentImageProcessor.shared
+    private let batchUploadManager = BatchUploadManager.shared
     private var cancellables = Set<AnyCancellable>()
+    private var uploadCancellationToken: BatchUploadManager.CancellationToken?
+
+    // Configuration for image processing
+    private let processingConfig = IntelligentImageProcessor.ProcessingConfiguration.highQuality
 
     // MARK: - Computed Properties
 
@@ -103,11 +114,28 @@ class EnhancedSeekCreationViewModel: ObservableObject {
         if selectedImages.count > 5 {
             selectedImages = Array(selectedImages.prefix(5))
         }
+
+        // Start predictive processing immediately for better UX
+        if !selectedImages.isEmpty {
+            currentOperation = "Optimizing images..."
+            imageProcessor.startPredictiveProcessing(
+                images: selectedImages,
+                configuration: processingConfig
+            )
+        }
     }
 
     func removeImage(at index: Int) {
         guard index < selectedImages.count else { return }
+
+        let removedImage = selectedImages[index]
         selectedImages.remove(at: index)
+
+        // Remove from processed images if exists
+        processedImages.removeAll { $0.originalImage == removedImage }
+
+        // Cancel processing for removed image if needed
+        imageProcessor.cancelProcessing(for: [removedImage])
     }
 
     private func uploadImages() async throws -> [String] {
@@ -115,27 +143,37 @@ class EnhancedSeekCreationViewModel: ObservableObject {
 
         await MainActor.run {
             isUploadingImages = true
+            currentOperation = "Processing images..."
+        }
+
+        // Get processed images (use cache if available, process if not)
+        let processedImageSets = try await imageProcessor.getProcessedImages(
+            for: selectedImages,
+            configuration: processingConfig
+        )
+
+        await MainActor.run {
+            processedImages = processedImageSets
+            currentOperation = "Uploading images..."
         }
 
         var uploadedURLs: [String] = []
 
-        for (index, image) in selectedImages.enumerated() {
-            do {
-                let url = try await fileUploadService.uploadImage(
-                    image,
-                    fileName: "seek_image_\(index)_\(UUID().uuidString).jpg"
-                )
-                uploadedURLs.append(url)
-                print("✅ Uploaded seek image \(index + 1): \(url)")
-            } catch {
-                print("❌ Failed to upload seek image \(index + 1): \(error)")
-                // Continue with other images even if one fails
-            }
+        if !processedImageSets.isEmpty {
+            // Use batch upload for better performance and reliability
+            let uploadResults = try await batchUploadManager.uploadImagesImmediately(
+                images: processedImageSets,
+                configuration: .listing
+            )
+
+            uploadedURLs = uploadResults.map { $0.url }
+            print("✅ Uploaded \(uploadedURLs.count) seek images via batch upload")
         }
 
         await MainActor.run {
             uploadedImageURLs = uploadedURLs
             isUploadingImages = false
+            currentOperation = ""
         }
 
         return uploadedURLs
