@@ -388,7 +388,7 @@ struct ChatView: View {
             messageInputSection
         }
         .background(Theme.Colors.background)
-        .navigationTitle(conversation.otherUser.displayName ?? conversation.otherUser.username)
+        .navigationTitle(conversation.otherUser.name)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.loadMessages(conversationId: conversation.id)

@@ -257,7 +257,7 @@ struct EnhancedChatDetailView: View {
 
                     // Typing Indicator
                     if viewModel.otherUserIsTyping {
-                        TypingIndicator(username: conversation.otherUser.displayName ?? conversation.otherUser.username)
+                        TypingIndicator(username: conversation.otherUser.name)
                             .padding(.horizontal, 16)
                             .transition(.scale.combined(with: .opacity))
                             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.otherUserIsTyping)

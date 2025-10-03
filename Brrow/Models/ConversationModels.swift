@@ -77,21 +77,26 @@ struct ListingPreview: Codable, Identifiable {
 struct ConversationUser: Codable, Identifiable {
     let id: String
     let username: String
+    let displayName: String?
     let profilePicture: String?
     let isVerified: Bool?
 
     // Computed property for API compatibility
     var apiId: String { return id }
 
+    // Computed property for display name (fallback to username)
+    var name: String { displayName ?? username }
+
     enum CodingKeys: String, CodingKey {
-        case id, username, isVerified
+        case id, username, displayName, isVerified
         case profilePicture
     }
 
     // MARK: - Manual Initializer
-    init(id: String, username: String, profilePicture: String? = nil, isVerified: Bool = false) {
+    init(id: String, username: String, displayName: String? = nil, profilePicture: String? = nil, isVerified: Bool = false) {
         self.id = id
         self.username = username
+        self.displayName = displayName
         self.profilePicture = profilePicture
         self.isVerified = isVerified
     }
@@ -136,6 +141,7 @@ struct ConversationUser: Codable, Identifiable {
         return ConversationUser(
             id: user.apiId ?? user.id,
             username: user.username,
+            displayName: user.displayName,
             profilePicture: user.profilePicture,
             isVerified: user.isVerified ?? user.verified ?? false
         )
@@ -146,6 +152,7 @@ struct ConversationUser: Codable, Identifiable {
         return ConversationUser(
             id: "placeholder",
             username: "Loading...",
+            displayName: nil,
             profilePicture: nil,
             isVerified: false
         )
