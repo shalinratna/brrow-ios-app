@@ -49,6 +49,10 @@ class EnhancedCreateListingViewModel: ObservableObject {
     @Published var canCancelUpload = false
     private var uploadCancellationToken: BatchUploadManager.CancellationToken?
 
+    // Background upload cache (Instagram-style)
+    private var backgroundUploadedUrls: [String: String] = [:] // imageId -> url
+    private var backgroundUploadBatchId: String?
+
     // Services
     private let locationService = LocationService.shared
     private let imageProcessor = IntelligentImageProcessor.shared
@@ -168,7 +172,58 @@ class EnhancedCreateListingViewModel: ObservableObject {
                     images: loadedImages,
                     configuration: processingConfig
                 )
+
+                // ⚡️ INSTAGRAM-STYLE BACKGROUND UPLOAD: Start uploading immediately in background
+                // This happens while user fills out listing details
+                Task {
+                    await startBackgroundUpload(images: loadedImages)
+                }
             }
+        }
+    }
+
+    // MARK: - Instagram-Style Background Upload
+
+    /// Starts uploading images in background while user fills out listing details
+    private func startBackgroundUpload(images: [UIImage]) async {
+        print("⚡️ Starting Instagram-style background upload for \(images.count) images")
+
+        do {
+            currentOperation = "Uploading images in background..."
+
+            // Get processed images (use cache if available, process if not)
+            let processedImageSets = try await imageProcessor.getProcessedImages(
+                for: images,
+                configuration: processingConfig
+            )
+
+            // Store processed images for later use
+            processedImages = processedImageSets
+
+            // Start uploading immediately with LOW priority (non-blocking)
+            let uploadResults = try await batchUploadManager.uploadImagesImmediately(
+                images: processedImageSets,
+                configuration: .listing
+            )
+
+            // Cache the uploaded URLs by image ID
+            for result in uploadResults {
+                backgroundUploadedUrls[result.id] = result.url
+            }
+
+            print("⚡️ Background upload complete! \(uploadResults.count) images uploaded")
+            print("⚡️ Cached URLs: \(backgroundUploadedUrls.keys.joined(separator: ", "))")
+
+            // Update UI to show upload is done
+            await MainActor.run {
+                currentOperation = "Images ready!"
+            }
+
+        } catch {
+            print("⚠️ Background upload failed, will retry when creating listing: \(error.localizedDescription)")
+            // Clear cache on failure
+            backgroundUploadedUrls.removeAll()
+            // Don't show error to user - we'll retry when they click "Create Listing"
         }
     }
 
@@ -257,39 +312,52 @@ class EnhancedCreateListingViewModel: ObservableObject {
 
     @MainActor
     private func performEnhancedListingCreation() async throws {
-        currentOperation = "Processing images..."
-
-        // Get processed images (use cache if available, process if not)
-        let processedImageSets = try await imageProcessor.getProcessedImages(
-            for: selectedImages,
-            configuration: processingConfig
-        )
-
-        processedImages = processedImageSets
-
         var uploadedImageUrls: [String] = []
 
-        if !processedImageSets.isEmpty {
-            currentOperation = "Uploading images..."
+        // ⚡️ INSTAGRAM-STYLE: Check if images were already uploaded in background
+        if !backgroundUploadedUrls.isEmpty && !processedImages.isEmpty {
+            // Use cached upload URLs from background upload
+            uploadedImageUrls = processedImages.compactMap { processedImage in
+                backgroundUploadedUrls[processedImage.id]
+            }
 
-            // Use batch upload for better performance
-            let (batchId, cancellationToken) = batchUploadManager.queueBatchUpload(
-                images: processedImageSets,
-                priority: .high,
-                configuration: .listing
+            if uploadedImageUrls.count == processedImages.count {
+                print("⚡️ FAST PATH: Using \(uploadedImageUrls.count) pre-uploaded images from background!")
+                currentOperation = "Creating listing with pre-uploaded images..."
+            } else {
+                print("⚠️ Some images missing from cache, will re-upload: \(processedImages.count - uploadedImageUrls.count)")
+                uploadedImageUrls.removeAll() // Clear partial results, will re-upload all
+            }
+        }
+
+        // If no cached uploads, or cache was incomplete, upload now
+        if uploadedImageUrls.isEmpty && !selectedImages.isEmpty {
+            currentOperation = "Processing images..."
+
+            // Get processed images (use cache if available, process if not)
+            let processedImageSets = try await imageProcessor.getProcessedImages(
+                for: selectedImages,
+                configuration: processingConfig
             )
 
-            uploadCancellationToken = cancellationToken
+            processedImages = processedImageSets
 
-            // Wait for upload completion
-            let uploadResults = try await batchUploadManager.uploadImagesImmediately(
-                images: processedImageSets,
-                configuration: .listing
-            )
+            if !processedImageSets.isEmpty {
+                currentOperation = "Uploading images..."
 
-            uploadedImageUrls = uploadResults.map { $0.url }
+                // Use batch upload for better performance with HIGH priority
+                uploadCancellationToken = nil
 
-            print("✅ Uploaded \(uploadedImageUrls.count) images via batch upload")
+                // Wait for upload completion
+                let uploadResults = try await batchUploadManager.uploadImagesImmediately(
+                    images: processedImageSets,
+                    configuration: .listing
+                )
+
+                uploadedImageUrls = uploadResults.map { $0.url }
+
+                print("✅ Uploaded \(uploadedImageUrls.count) images via batch upload")
+            }
         }
 
         currentOperation = "Creating listing record..."
@@ -451,12 +519,19 @@ class EnhancedCreateListingViewModel: ObservableObject {
     // MARK: - Performance Monitoring
 
     private func trackListingCreationSuccess(_ listing: Listing) {
-        // TODO: Add analytics tracking
+        AnalyticsService.shared.trackListingCreated(
+            listingId: listing.id,
+            category: listing.category?.name ?? "Unknown",
+            price: listing.price
+        )
         print("📊 Listing creation success: \(listing.id)")
     }
 
     private func trackListingCreationError(_ error: String) {
-        // TODO: Add analytics tracking
+        AnalyticsService.shared.trackError(
+            error: NSError(domain: "ListingCreation", code: -1, userInfo: [NSLocalizedDescriptionKey: error]),
+            context: "create_listing"
+        )
         print("📊 Listing creation error: \(error)")
     }
 
