@@ -208,7 +208,7 @@ struct SimpleProfessionalProfileView: View {
 
                     // Badge
                     if let badgeType = viewModel.user?.badgeType {
-                        BadgeView(type: badgeType, size: .large)
+                        UserBadgeView(badgeType: badgeType, size: .large)
                     }
                 }
 
