@@ -100,7 +100,7 @@
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
                title = "Fix Archive Info.plist"
-               scriptText = "python3 /tmp/fix_archive_plist.py&#10;">
+               scriptText = "python3 ${SRCROOT}/fix_archive_plist.py&#10;">
                <EnvironmentBuildable>
                   <BuildableReference
                      BuildableIdentifier = "primary"
