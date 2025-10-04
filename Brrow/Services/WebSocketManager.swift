@@ -100,8 +100,8 @@ class WebSocketManager: NSObject, ObservableObject {
         connectionStatus = .connecting
 
         // Configure Socket.io with authentication
-        // CRITICAL: Socket.io v4 uses .auth() for authentication, not connectParams
-        // Backend checks: socket.handshake.auth.token (primary), query.token, and Authorization header
+        // CRITICAL: Backend checks multiple sources: query.token and Authorization header
+        // iOS Socket.IO client sends auth via connectParams and extraHeaders
         let config: SocketIOClientConfiguration = [
             .log(true),
             .compress,
@@ -110,9 +110,8 @@ class WebSocketManager: NSObject, ObservableObject {
             .reconnects(true),
             .reconnectAttempts(-1),
             .reconnectWait(2),
-            .auth(["token": token]),  // PRIMARY: Socket.io v4 standard auth
-            .extraHeaders(["Authorization": "Bearer \(token)"]),  // FALLBACK: Header-based auth
-            .connectParams(["token": token])  // FALLBACK: Query param auth
+            .connectParams(["token": token]),  // Sent as query param: socket.handshake.query.token
+            .extraHeaders(["Authorization": "Bearer \(token)"])  // Sent as header: socket.handshake.headers.authorization
         ]
 
         manager = SocketManager(socketURL: URL(string: serverURL)!, config: config)
