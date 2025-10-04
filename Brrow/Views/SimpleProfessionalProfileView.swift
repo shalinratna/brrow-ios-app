@@ -116,12 +116,16 @@ struct SimpleProfessionalProfileView: View {
                 withAnimation {
                     animateContent = true
                 }
-                
+
+                // Refresh user profile every time view appears to get latest data
+                print("🔄 SimpleProfessionalProfileView: View appeared, refreshing profile")
+                viewModel.loadUserProfile()
+
                 // Track achievement for profile completion check
                 if let user = viewModel.user, !(user.bio?.isEmpty ?? true) && user.profilePicture != nil {
                     AchievementManager.shared.trackProfileCompleted()
                 }
-                
+
             }
             .onReceive(NotificationCenter.default.publisher(for: .navigateToMyPosts)) { _ in
                 showingMyPosts = true
@@ -195,14 +199,18 @@ struct SimpleProfessionalProfileView: View {
             
             // User Info
             VStack(spacing: 8) {
-                UsernameWithBadge(
-                    username: viewModel.user?.username ?? "Loading...",
-                    badgeType: viewModel.user?.badgeType,
-                    fontSize: 24,
-                    badgeSize: .large
-                )
-                .foregroundColor(Theme.Colors.text)
-                
+                // Display name (or username as fallback) with badge
+                HStack(spacing: 8) {
+                    Text(viewModel.user?.displayName ?? viewModel.user?.username ?? "Loading...")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+
+                    // Badge
+                    if let badgeType = viewModel.user?.badgeType {
+                        BadgeView(type: badgeType, size: .large)
+                    }
+                }
+
                 Text("@\(viewModel.user?.username ?? "")")
                     .font(.system(size: 16))
                     .foregroundColor(Theme.Colors.secondaryText)
