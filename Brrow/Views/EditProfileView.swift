@@ -45,6 +45,7 @@ struct EditProfileView: View {
     @State private var selectedImage: PhotosPickerItem?
     @State private var profileImage: UIImage?
     @State private var showingImagePicker = false
+    @State private var currentProfilePictureUrl: String? // Track the most recent profile picture URL
     
     // Navigation states
     @State private var showChangePassword = false
@@ -77,6 +78,7 @@ struct EditProfileView: View {
         self._phone = State(initialValue: user.phone ?? "")
         self._location = State(initialValue: user.location ?? "")
         self._website = State(initialValue: user.website ?? "")
+        self._currentProfilePictureUrl = State(initialValue: user.profilePicture) // Initialize with current profile picture
 
         // Parse birthdate if available
         if let birthdateString = user.birthdate {
@@ -807,11 +809,17 @@ struct EditProfileView: View {
                     let fileName = "profile_\(UUID().uuidString).jpg"
                     let uploadResponse = try await APIClient.shared.uploadProfilePicture(imageData, fileName: fileName)
                     imageUrl = uploadResponse.data?.url
+
+                    // CRITICAL: Update our tracked profile picture URL immediately
+                    if let newUrl = imageUrl {
+                        currentProfilePictureUrl = newUrl
+                        print("✅ Updated currentProfilePictureUrl to: \(newUrl)")
+                    }
                 }
 
                 // Username change logic removed - username changes now handled in Settings
 
-                // Prepare update data
+                // Prepare update data - CRITICAL: Use currentProfilePictureUrl to preserve the latest profile picture
                 let updateData = ProfileUpdateData(
                     username: username, // Keep current username (readonly)
                     displayName: displayName.isEmpty ? nil : displayName,
@@ -819,10 +827,12 @@ struct EditProfileView: View {
                     phone: phone.isEmpty ? nil : phone,
                     bio: bio.isEmpty ? nil : bio,
                     birthdate: ISO8601DateFormatter().string(from: birthdate),
-                    profilePicture: user.profilePicture,
+                    profilePicture: currentProfilePictureUrl, // Use tracked URL, not user.profilePicture
                     location: location.isEmpty ? nil : location,
                     website: website.isEmpty ? nil : website
                 )
+
+                print("🔄 Saving profile with profilePicture: \(currentProfilePictureUrl ?? "nil")")
 
                 // Update profile via API
                 try await APIClient.shared.updateProfile(data: updateData)
