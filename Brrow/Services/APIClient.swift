@@ -299,7 +299,107 @@ class APIClient: ObservableObject {
         
         return request
     }
-    
+
+    // MARK: - Retry Wrapper for Raw URLSession Calls
+    /// Performs a raw URLRequest with exponential backoff retry logic
+    /// Use this for legacy functions that need retry logic but don't use Decodable responses
+    private func performRawRequestWithRetry(
+        _ request: URLRequest,
+        maxRetries: Int = 3
+    ) async throws -> (Data, URLResponse) {
+        var lastError: Error?
+        var delay: TimeInterval = 1.0
+        let maxDelay: TimeInterval = 8.0
+
+        for attempt in 0..<maxRetries {
+            do {
+                debugLog("🔄 API Request attempt \(attempt + 1)/\(maxRetries)", data: ["url": request.url?.absoluteString ?? "unknown"])
+
+                // Check network connectivity
+                if !NetworkManager.shared.isConnected {
+                    throw BrrowAPIError.networkError("No network connection")
+                }
+
+                // Perform request
+                let (data, response) = try await session.data(for: request)
+
+                // Check response
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw BrrowAPIError.invalidResponse
+                }
+
+                debugLog("📡 Response: \(httpResponse.statusCode)", data: ["url": request.url?.path ?? "unknown"])
+
+                // Handle different status codes
+                switch httpResponse.statusCode {
+                case 200...299:
+                    // Success - return data
+                    return (data, response)
+
+                case 401:
+                    throw BrrowAPIError.unauthorized
+
+                case 400...499:
+                    // Client error - don't retry
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let errorMessage = errorData["error"] as? String {
+                        throw BrrowAPIError.validationError(errorMessage)
+                    }
+                    let errorMessage = String(data: data, encoding: .utf8) ?? "Client error"
+                    throw BrrowAPIError.validationError(errorMessage)
+
+                case 500...599:
+                    // Server error - retryable
+                    debugLog("⚠️ Server error \(httpResponse.statusCode) - will retry if attempts remain")
+                    lastError = BrrowAPIError.serverErrorCode(httpResponse.statusCode)
+
+                default:
+                    lastError = BrrowAPIError.serverError("Unexpected status code: \(httpResponse.statusCode)")
+                }
+
+            } catch let error as URLError {
+                // Network errors - retryable
+                switch error.code {
+                case .timedOut:
+                    debugLog("⏱️ Request timed out (attempt \(attempt + 1))")
+                    lastError = BrrowAPIError.networkError("Request timed out")
+
+                case .notConnectedToInternet, .networkConnectionLost:
+                    debugLog("📵 Network connection lost (attempt \(attempt + 1))")
+                    lastError = BrrowAPIError.networkError("Network connection lost")
+
+                case .cannotConnectToHost, .cannotFindHost:
+                    debugLog("🚫 Cannot connect to server (attempt \(attempt + 1))")
+                    lastError = BrrowAPIError.networkError("Cannot connect to server")
+
+                default:
+                    debugLog("❌ Network error: \(error.localizedDescription)")
+                    lastError = error
+                }
+
+            } catch {
+                // Other errors
+                if error is BrrowAPIError {
+                    // Don't retry API-specific errors (validation, unauthorized, etc.)
+                    throw error
+                }
+                lastError = error
+            }
+
+            // If we have more attempts, wait before retrying
+            if attempt < maxRetries - 1 {
+                debugLog("⏳ Waiting \(delay)s before retry...")
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+
+                // Exponential backoff: 1s, 2s, 4s, 8s
+                delay = min(delay * 2.0, maxDelay)
+            }
+        }
+
+        // All attempts failed
+        throw lastError ?? BrrowAPIError.networkError("All retry attempts failed")
+    }
+
     // MARK: - Generic Request Method for Decodable-only types (no caching)
     private func performRequestNoCaching<T: Decodable>(
         endpoint: String,
@@ -1604,23 +1704,23 @@ class APIClient: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: data)
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to create rental request")
         }
-        
+
         return response
     }
     
@@ -1630,32 +1730,32 @@ class APIClient: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
+
         var body: [String: Any] = [
             "transaction_id": transactionId,
             "action": action
         ]
-        
+
         if let reason = rejectionReason {
             body["rejection_reason"] = reason
         }
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to process rental request")
         }
-        
+
         return response
     }
     
@@ -1665,32 +1765,32 @@ class APIClient: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
+
         var body: [String: Any] = [
             "transaction_id": transactionId,
             "condition": condition
         ]
-        
+
         if let notes = notes { body["notes"] = notes }
         if let rating = rating { body["rating"] = rating }
         if let review = review { body["review"] = review }
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to complete rental")
         }
-        
+
         return response
     }
     
@@ -1703,24 +1803,24 @@ class APIClient: ObservableObject {
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "offset", value: String(offset))
         ]
-        
+
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to fetch rentals")
         }
-        
+
         return response
     }
     
@@ -1732,23 +1832,23 @@ class APIClient: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: deviceInfo)
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to register device token")
         }
-        
+
         return response
     }
     
@@ -1757,27 +1857,27 @@ class APIClient: ObservableObject {
         let url = URL(string: "\(baseURL)/api_notification_preferences.php")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to fetch notification preferences")
         }
-        
+
         guard let data = response["data"] as? [String: Any],
               let jsonData = try? JSONSerialization.data(withJSONObject: data),
               let settings = try? JSONDecoder().decode(NotificationSettings.self, from: jsonData) else {
             throw BrrowAPIError.decodingError(NSError(domain: "BrrowAPIClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]))
         }
-        
+
         return settings
     }
     
@@ -1787,23 +1887,23 @@ class APIClient: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: preferences)
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to update notification preferences")
         }
-        
+
         return response
     }
     
@@ -1825,7 +1925,7 @@ class APIClient: ObservableObject {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
 
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
 
         guard let notificationsData = response["notifications"] as? [[String: Any]],
@@ -1838,9 +1938,9 @@ class APIClient: ObservableObject {
 
         return (notifications, unreadCount)
     }
-    
+
     // Removed duplicate - using the APIResponse version below
-    
+
     func markAllNotificationsAsRead_OLD() async throws -> [String: Any] {
         let baseURL = await self.baseURL
         let url = URL(string: "\(baseURL)/api/notifications/read-all")!
@@ -1855,7 +1955,7 @@ class APIClient: ObservableObject {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
 
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
 
         if response["success"] as? Bool != true {
@@ -1871,23 +1971,23 @@ class APIClient: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let apiId = authManager.currentUser?.apiId {
             request.setValue(apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: data)
-        
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+
+        let (responseData, _) = try await performRawRequestWithRetry(request)
         let response = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] ?? [:]
-        
+
         if response["success"] as? Bool != true {
             throw BrrowAPIError.serverError(response["message"] as? String ?? "Failed to send test notification")
         }
-        
+
         return response
     }
     
@@ -2234,7 +2334,7 @@ class APIClient: ObservableObject {
 
         debugLog("Executing public request", data: ["url": url.absoluteString])
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await performRawRequestWithRetry(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BrrowAPIError.invalidResponse
