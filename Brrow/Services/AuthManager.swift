@@ -629,7 +629,7 @@ class AuthManager: ObservableObject {
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 request.setValue(user.apiId, forHTTPHeaderField: "X-User-API-ID")
-                request.timeoutInterval = 10.0 // Shorter timeout for background validation
+                request.timeoutInterval = 20.0 // Timeout for background validation (increased for Railway latency)
                 
                 let (data, response) = try await URLSession.shared.data(for: request)
                 

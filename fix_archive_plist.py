@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 import plistlib
 import subprocess
+import os
 from pathlib import Path
 
-archive_path = Path.home() / "Desktop" / "Brrow.xcarchive"
+# Get archive path from environment variable or use default
+archive_path_str = os.environ.get('ARCHIVE_PATH')
+if archive_path_str:
+    archive_path = Path(archive_path_str)
+else:
+    archive_path = Path.home() / "Desktop" / "Brrow.xcarchive"
 info_plist_path = archive_path / "Info.plist"
 app_path = archive_path / "Products" / "Applications" / "Brrow.app"
 app_info_plist = app_path / "Info.plist"

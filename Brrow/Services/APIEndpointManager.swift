@@ -129,9 +129,11 @@ class APIEndpointManager: ObservableObject {
     private func checkEndpointHealth(_ endpoint: String) async -> (String, Bool, TimeInterval) {
         let url = URL(string: "\(endpoint)/health")!
         let startTime = Date()
-        
+
         do {
-            let request = URLRequest(url: url, timeoutInterval: 5)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 15  // Increased from 5 to 15 seconds for Railway edge servers
+            request.cachePolicy = .reloadIgnoringLocalCacheData
             let (data, response) = try await URLSession.shared.data(for: request)
             let responseTime = Date().timeIntervalSince(startTime)
             
