@@ -172,6 +172,7 @@ struct SimpleProfessionalProfileView: View {
                     }
                     .frame(width: 90, height: 90)
                     .clipShape(Circle())
+                    .id(profilePicture) // Force re-render when URL changes
                 } else {
                     Image(systemName: "person.fill")
                         .font(.system(size: 40))
@@ -566,8 +567,16 @@ struct SimpleProfessionalProfileView: View {
                 viewModel.loadUserProfile()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .userDidUpdate)) { _ in
+            print("🔄 SimpleProfessionalProfileView: User profile updated (from EditProfile)")
+            // Clear image cache to force fresh load of profile picture
+            ImageCacheManager.shared.clearCache()
+            // Refresh user data from AuthManager
+            viewModel.loadUserProfile()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshUserProfile"))) { _ in
             print("🔄 SimpleProfessionalProfileView: General profile refresh requested")
+            ImageCacheManager.shared.clearCache()
             viewModel.loadUserProfile()
         }
         .navigationBarTitle("Profile", displayMode: .large)

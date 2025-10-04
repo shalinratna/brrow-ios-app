@@ -186,14 +186,28 @@ class ImageCacheManager: ObservableObject {
     
     func clearCache() {
         memoryCache.removeAllObjects()
-        
+
         if let files = try? FileManager.default.contentsOfDirectory(at: diskCacheURL, includingPropertiesForKeys: nil) {
             files.forEach { file in
                 try? FileManager.default.removeItem(at: file)
             }
         }
     }
-    
+
+    func clearSpecificImage(url: String) {
+        let key = url as NSString
+
+        // Remove from memory cache
+        memoryCache.removeObject(forKey: key)
+
+        // Remove from disk cache
+        let fileName = url.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? url
+        let fileURL = diskCacheURL.appendingPathComponent(fileName)
+        try? FileManager.default.removeItem(at: fileURL)
+
+        print("🗑️ ImageCacheManager: Cleared cache for: \(url)")
+    }
+
     // MARK: - Private Methods
     
     private func downloadImage(from urlString: String, cacheKey: String) {
