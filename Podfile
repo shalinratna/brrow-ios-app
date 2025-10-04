@@ -33,6 +33,9 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
 
+      # ✅ FIX: Ensure pods don't interfere with archiving
+      config.build_settings['SKIP_INSTALL'] = 'YES'
+
       # 🚀 M4 PRO MAX SPEED OPTIMIZATIONS
       if config.name == 'Debug'
         # Debug builds: MAXIMUM SPEED
