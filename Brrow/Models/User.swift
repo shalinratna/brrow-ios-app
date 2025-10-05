@@ -127,7 +127,8 @@ struct User: Codable, Identifiable {
         case location
         case website
         case birthdate
-        case profilePicture
+        case profilePicture  // Encodes as "profilePicture" for backend
+        case profilePictureUrl = "profile_picture_url"  // Decodes from backend response
         
         // Verification Status
         case verified
@@ -301,18 +302,11 @@ struct User: Codable, Identifiable {
         self.location = try container.decodeIfPresent(String.self, forKey: .location)
         self.website = try container.decodeIfPresent(String.self, forKey: .website)
         self.birthdate = try container.decodeIfPresent(String.self, forKey: .birthdate)
-        // Handle both profilePicture and profile_picture field names
-        if let profilePic = try? container.decodeIfPresent(String.self, forKey: .profilePicture) {
-            self.profilePicture = profilePic
+        // Try to decode from profile_picture_url (backend sends this) or profilePicture (fallback)
+        if let profilePictureUrl = try container.decodeIfPresent(String.self, forKey: .profilePictureUrl) {
+            self.profilePicture = profilePictureUrl
         } else {
-            // Try snake_case version using a separate container
-            do {
-                let anyContainer = try decoder.container(keyedBy: AnyCodingKey.self)
-                let profilePictureKey = AnyCodingKey(stringValue: "profile_picture")
-                self.profilePicture = try? anyContainer.decodeIfPresent(String.self, forKey: profilePictureKey)
-            } catch {
-                self.profilePicture = nil
-            }
+            self.profilePicture = try container.decodeIfPresent(String.self, forKey: .profilePicture)
         }
         
         // Verification Status
@@ -381,7 +375,35 @@ struct User: Codable, Identifiable {
         self.stats = try container.decodeIfPresent(UserStats.self, forKey: .stats)
         self.isOwnProfile = try container.decodeIfPresent(Bool.self, forKey: .isOwnProfile)
     }
-    
+
+    // Custom encode to ensure profilePicture is sent as "profilePicture", not "profile_picture_url"
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        // Only encode non-nil values
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encodeIfPresent(apiId, forKey: .apiId)
+        try container.encode(username, forKey: .username)
+        try container.encode(email, forKey: .email)
+        try container.encodeIfPresent(appleUserId, forKey: .appleUserId)
+        try container.encodeIfPresent(authMethod, forKey: .authMethod)
+
+        // Personal Information
+        try container.encodeIfPresent(firstName, forKey: .firstName)
+        try container.encodeIfPresent(lastName, forKey: .lastName)
+        try container.encodeIfPresent(displayName, forKey: .displayName)
+        try container.encodeIfPresent(bio, forKey: .bio)
+        try container.encodeIfPresent(phone, forKey: .phone)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(website, forKey: .website)
+        try container.encodeIfPresent(birthdate, forKey: .birthdate)
+        // Encode as "profilePicture" (what backend expects)
+        try container.encodeIfPresent(profilePicture, forKey: .profilePicture)
+
+        // Note: We don't encode all other fields as they're typically only decoded from backend
+        // If needed, add more fields here
+    }
+
     // Computed properties for display
     var name: String {
         // Use display_name if available, otherwise username
