@@ -11,42 +11,54 @@ import PhotosUI
 struct CreateListingView: View {
     @StateObject private var viewModel = CreateListingViewModel()
     @Environment(\.presentationMode) var presentationMode
-    
+
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    // Image Selection
-                    imageSelectionSection
-                    
-                    // Basic Info
-                    basicInfoSection
-                    
-                    // Category and Type
-                    categoryTypeSection
-                    
-                    // Pricing
-                    pricingSection
-                    
-                    // Location
-                    locationSection
-                    
-                    // Additional Details
-                    additionalDetailsSection
-                    
-                    Spacer()
+            ZStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                        // Upload Progress Indicator
+                        if viewModel.isLoading && viewModel.uploadProgress > 0 {
+                            uploadProgressSection
+                        }
+
+                        // Image Selection
+                        imageSelectionSection
+
+                        // Basic Info
+                        basicInfoSection
+
+                        // Category and Type
+                        categoryTypeSection
+
+                        // Pricing
+                        pricingSection
+
+                        // Location
+                        locationSection
+
+                        // Additional Details
+                        additionalDetailsSection
+
+                        Spacer()
+                    }
+                    .padding(Theme.Spacing.md)
                 }
-                .padding(Theme.Spacing.md)
+
+                // Loading Overlay
+                if viewModel.isLoading {
+                    loadingOverlay
+                }
             }
             .navigationTitle("Create Listing")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
-                        presentationMode.wrappedValue.dismiss()
+                        handleCancellation()
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Post") {
                         viewModel.createListing()
@@ -398,6 +410,109 @@ struct CreateListingView: View {
             }
         }
         .cardStyle()
+    }
+
+    // MARK: - Upload Progress Section
+    private var uploadProgressSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack {
+                Text("Uploading Images")
+                    .font(Theme.Typography.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.text)
+
+                Spacer()
+
+                Text("\(viewModel.uploadedImageCount)/\(viewModel.totalImageCount)")
+                    .font(Theme.Typography.callout)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+
+            // Progress bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.Colors.divider.opacity(0.3))
+                        .frame(height: 8)
+
+                    // Progress fill
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.Colors.primary)
+                        .frame(width: geometry.size.width * viewModel.uploadProgress, height: 8)
+                        .animation(.easeInOut, value: viewModel.uploadProgress)
+                }
+            }
+            .frame(height: 8)
+
+            // Upload speed indicator
+            if viewModel.uploadSpeed > 0 {
+                HStack {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(Theme.Colors.primary)
+
+                    Text(String(format: "%.0f KB/s", viewModel.uploadSpeed))
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+
+                    Spacer()
+
+                    Text(String(format: "%.0f%%", viewModel.uploadProgress * 100))
+                        .font(Theme.Typography.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(Theme.Colors.primary)
+                }
+            }
+        }
+        .padding()
+        .background(Theme.Colors.cardBackground)
+        .cornerRadius(Theme.CornerRadius.md)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+
+    // MARK: - Loading Overlay
+    private var loadingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+
+            VStack(spacing: Theme.Spacing.lg) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+
+                if viewModel.uploadProgress > 0 {
+                    VStack(spacing: Theme.Spacing.sm) {
+                        Text("Uploading Images...")
+                            .font(Theme.Typography.headline)
+                            .foregroundColor(.white)
+
+                        Text("\(viewModel.uploadedImageCount) of \(viewModel.totalImageCount) complete")
+                            .font(Theme.Typography.callout)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                } else {
+                    Text("Creating Listing...")
+                        .font(Theme.Typography.headline)
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(Theme.Spacing.xl)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
+                    .fill(Color.black.opacity(0.7))
+            )
+        }
+    }
+
+    // MARK: - Helper Methods
+    private func handleCancellation() {
+        if viewModel.isLoading {
+            // Cancel ongoing upload
+            viewModel.cancelUpload()
+        }
+        presentationMode.wrappedValue.dismiss()
     }
 }
 

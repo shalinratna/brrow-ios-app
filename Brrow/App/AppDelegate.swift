@@ -10,10 +10,14 @@ import UserNotifications
 import GoogleSignIn
 import FirebaseCore
 import FirebaseMessaging
+import BackgroundTasks
 // import OneSignalFramework // Temporarily disabled - install via Xcode
 
 class AppDelegate: NSObject, UIApplicationDelegate {
-    
+
+    // Store background completion handler for URLSession
+    var backgroundCompletionHandler: (() -> Void)?
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -58,6 +62,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         }
         */
         
+        // Register background upload tasks
+        BackgroundUploadTaskManager.shared.registerBackgroundTasks()
+
         // Preload garage sales data in background for smooth UX
         Task {
             do {
@@ -68,7 +75,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 print("⚠️ Failed to preload garage sales: \(error)")
             }
         }
-        
+
         return true
     }
     
@@ -197,7 +204,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
     
     // MARK: - Interface Orientation Support
-    
+
     func application(
         _ application: UIApplication,
         supportedInterfaceOrientationsFor window: UIWindow?
@@ -208,6 +215,30 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         }
         // Default to portrait for LTR languages
         return .portrait
+    }
+
+    // MARK: - Background URL Session Handling
+
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        print("📤 [AppDelegate] Background URL session events for identifier: \(identifier)")
+
+        // Store completion handler
+        backgroundCompletionHandler = completionHandler
+
+        // Listen for completion notification from FileUploadService
+        NotificationCenter.default.addObserver(
+            forName: .backgroundUploadComplete,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("📤 [AppDelegate] Background upload complete - calling completion handler")
+            self?.backgroundCompletionHandler?()
+            self?.backgroundCompletionHandler = nil
+        }
     }
 }
 

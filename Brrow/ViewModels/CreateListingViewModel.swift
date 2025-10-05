@@ -10,6 +10,7 @@ import PhotosUI
 import CoreLocation
 import Combine
 
+@MainActor
 class CreateListingViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var title = ""
@@ -26,11 +27,19 @@ class CreateListingViewModel: ObservableObject {
     // Image handling
     @Published var selectedPhotos: [PhotosPickerItem] = []
     @Published var selectedImages: [UIImage] = []
-    
+
     // UI State
     @Published var isLoading = false
     @Published var errorMessage = ""
     @Published var showSuccessAlert = false
+
+    // Upload progress tracking
+    @Published var uploadProgress: Double = 0
+    @Published var uploadedImageCount: Int = 0
+    @Published var totalImageCount: Int = 0
+    @Published var uploadSpeed: Double = 0 // KB/s
+    private var currentBatchId: String?
+    private var cancellationToken: BatchUploadManager.CancellationToken?
     
     // Location properties
     @Published var currentCoordinate: CLLocationCoordinate2D?
@@ -52,11 +61,12 @@ class CreateListingViewModel: ObservableObject {
     init() {
         setupLocationObserver()
         setupPhotoObserver()
-        
+        setupUploadProgressObserver()
+
         // Use current location as default if available
         if let currentLocation = locationService.currentLocation {
             self.currentCoordinate = currentLocation.coordinate
-            
+
             // Get formatted address
             locationService.getAddress(from: currentLocation)
                 .sink(
@@ -67,6 +77,39 @@ class CreateListingViewModel: ObservableObject {
                 )
                 .store(in: &cancellables)
         }
+    }
+
+    @MainActor
+    private func setupUploadProgressObserver() {
+        // Observe BatchUploadManager's progress updates
+        // Use receive(on:) to ensure updates happen on MainActor
+        BatchUploadManager.shared.$uploadProgress
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] progress in
+                self?.uploadProgress = progress
+            }
+            .store(in: &cancellables)
+
+        BatchUploadManager.shared.$uploadedCount
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] count in
+                self?.uploadedImageCount = count
+            }
+            .store(in: &cancellables)
+
+        BatchUploadManager.shared.$totalCount
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] count in
+                self?.totalImageCount = count
+            }
+            .store(in: &cancellables)
+
+        BatchUploadManager.shared.$uploadSpeed
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] speed in
+                self?.uploadSpeed = speed
+            }
+            .store(in: &cancellables)
     }
     
     private func setupPhotoObserver() {
@@ -408,43 +451,54 @@ class CreateListingViewModel: ObservableObject {
         }
     }
     
-    // Upload images with optimized performance
+    // Upload images with optimized performance using BatchUploadManager
     private func uploadImagesInParallel() async throws -> [String] {
         guard !selectedImages.isEmpty else { return [] }
 
-        print("📤 Uploading \(selectedImages.count) images...")
+        print("📤 Processing and uploading \(selectedImages.count) images with BatchUploadManager...")
 
-        // Upload images using the FileUploadService which already handles compression
-        var uploadedUrls: [String] = []
+        do {
+            // Step 1: Process images using IntelligentImageProcessor
+            let processedImages = try await IntelligentImageProcessor.shared.getProcessedImages(
+                for: selectedImages,
+                configuration: .highQuality
+            )
 
-        // Upload images with concurrency for better performance
-        await withTaskGroup(of: (Int, String?).self) { group in
-            for (index, image) in selectedImages.enumerated() {
-                group.addTask {
-                    do {
-                        let url = try await FileUploadService.shared.uploadImage(image)
-                        print("✅ Uploaded image \(index + 1)")
-                        return (index, url)
-                    } catch {
-                        print("❌ Failed to upload image \(index + 1): \(error)")
-                        return (index, nil)
-                    }
-                }
+            guard !processedImages.isEmpty else {
+                throw BrrowAPIError.networkError("Failed to process images")
             }
 
-            // Collect results in order
-            var results: [(Int, String?)] = []
-            for await result in group {
-                results.append(result)
-            }
+            print("✅ Processed \(processedImages.count) images, starting batch upload...")
 
-            // Sort by index and extract URLs
-            results.sort { $0.0 < $1.0 }
-            uploadedUrls = results.compactMap { $0.1 }
+            // Step 2: Upload images immediately using BatchUploadManager
+            // This method handles priority queue, retry logic, and returns results
+            let uploadResults = try await BatchUploadManager.shared.uploadImagesImmediately(
+                images: processedImages,
+                configuration: .listing
+            )
+
+            print("✅ Successfully uploaded \(uploadResults.count) of \(selectedImages.count) images")
+
+            // Extract URLs from upload results
+            let urls = uploadResults.map { $0.url }
+
+            return urls
+
+        } catch {
+            print("❌ Batch upload failed: \(error)")
+            throw BrrowAPIError.networkError("Failed to upload images: \(error.localizedDescription)")
         }
+    }
 
-        print("✅ Successfully uploaded \(uploadedUrls.count) of \(selectedImages.count) images")
-        return uploadedUrls
+    /// Cancel ongoing upload when user exits create listing
+    @MainActor
+    func cancelUpload() {
+        if let batchId = currentBatchId {
+            BatchUploadManager.shared.cancelBatch(batchId)
+            print("🚫 Cancelled batch upload: \(batchId)")
+        }
+        currentBatchId = nil
+        cancellationToken = nil
     }
     
     func resetForm() {

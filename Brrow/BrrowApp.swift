@@ -144,6 +144,32 @@ struct BrrowApp: App {
         if authManager.isAuthenticated {
             WidgetIntegrationService.shared.updateAllWidgetData()
         }
+
+        // Check for pending uploads from previous session (crash recovery)
+        checkAndResumePendingUploads()
+    }
+
+    /// Check for and resume pending uploads after app launch (crash recovery)
+    private func checkAndResumePendingUploads() {
+        // Lightweight check first
+        FileUploadService.shared.checkPendingUploadsOnLaunch()
+
+        // Only resume if user is authenticated
+        guard authManager.isAuthenticated else {
+            print("ℹ️ [CRASH RECOVERY] User not authenticated, skipping upload resume")
+            return
+        }
+
+        // Check if there are pending uploads
+        if UploadQueuePersistence.shared.hasPendingUploads() {
+            // Resume uploads in background after app is fully loaded
+            Task {
+                // Wait a bit for app to fully initialize
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+
+                await FileUploadService.shared.resumePendingUploads()
+            }
+        }
     }
     
     private func initializeLanguage() {

@@ -9,26 +9,60 @@ import Foundation
 import Combine
 import UIKit
 
-class FileUploadService: ObservableObject {
+// MARK: - Upload Task Tracking
+struct UploadTask {
+    let taskIdentifier: Int
+    let fileName: String
+    var progress: Double = 0
+    var error: Error?
+    var result: String? // URL of uploaded file
+}
+
+class FileUploadService: NSObject, ObservableObject {
     static let shared = FileUploadService()
-    
+
     @Published var isUploading = false
     @Published var progress: Double = 0
     @Published var error: String?
-    
+
     private var cancellables = Set<AnyCancellable>()
+
+    // Background upload tracking
+    private var uploadTasks: [Int: UploadTask] = [:]
+    private var uploadCompletionHandlers: [Int: (Result<String, Error>) -> Void] = [:]
+
+    // Background URLSession configuration
+    private lazy var backgroundSession: URLSession = {
+        let config = URLSessionConfiguration.background(withIdentifier: "com.brrow.app.background-upload")
+        config.isDiscretionary = false // Upload as soon as possible
+        config.sessionSendsLaunchEvents = true // Wake app when upload completes
+        config.shouldUseExtendedBackgroundIdleMode = true // Extended background time
+        config.timeoutIntervalForRequest = 300 // 5 minutes timeout per request
+        config.timeoutIntervalForResource = 3600 // 1 hour total timeout
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+    }()
 
     // Use Railway backend URL
     private var baseURL: String {
         return APIEndpointManager.shared.currentEndpoint
     }
 
-    func uploadImage(_ image: UIImage, fileName: String = UUID().uuidString + ".jpg") async throws -> String {
-        isUploading = true
-        progress = 0
-        error = nil
+    // Override init to setup as NSObject for URLSessionDelegate
+    override private init() {
+        super.init()
+        // Initialize background session on creation
+        _ = backgroundSession
+        print("📤 Background upload session initialized")
+    }
 
-        print("🚀 [UPLOAD START] Beginning image upload")
+    func uploadImage(_ image: UIImage, fileName: String = UUID().uuidString + ".jpg", useBackgroundSession: Bool = true) async throws -> String {
+        await MainActor.run {
+            self.isUploading = true
+            self.progress = 0
+            self.error = nil
+        }
+
+        print("🚀 [UPLOAD START] Beginning image upload (background: \(useBackgroundSession))")
         print("📐 Original image size: \(image.size.width)x\(image.size.height)")
 
         // High quality compression for better image quality
@@ -70,7 +104,6 @@ class FileUploadService: ObservableObject {
         }
 
         // For now, still use JSON but with optimized image
-        // TODO: Switch to multipart when backend supports it
         let base64String = finalImageData.base64EncodedString()
 
         print("📦 Base64 size: \(base64String.count / 1024)KB")
@@ -96,18 +129,82 @@ class FileUploadService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         // Add auth token if available
         if let token = AuthManager.shared.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        
+
         // Add user API ID if available
         if let user = AuthManager.shared.currentUser {
             request.setValue(user.apiId, forHTTPHeaderField: "X-User-API-ID")
         }
-        
-        request.httpBody = jsonData
+
+        // Use background session for reliable uploads
+        if useBackgroundSession {
+            return try await performBackgroundUpload(request: request, data: jsonData, fileName: fileName)
+        } else {
+            // Fallback to regular upload
+            return try await performRegularUpload(request: request, data: jsonData)
+        }
+    }
+
+    // MARK: - Background Upload Implementation
+
+    private func performBackgroundUpload(request: URLRequest, data: Data, fileName: String) async throws -> String {
+        // Save data to temp file for background upload
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try data.write(to: tempURL)
+
+        // Begin UIBackgroundTask to keep upload alive when app backgrounds
+        let uploadId = UUID().uuidString
+        BackgroundUploadTaskManager.shared.beginBackgroundTask(
+            for: uploadId,
+            estimatedDuration: estimateUploadDuration(dataSize: data.count)
+        )
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let uploadTask = backgroundSession.uploadTask(with: request, fromFile: tempURL)
+
+            // Track this upload
+            let task = UploadTask(taskIdentifier: uploadTask.taskIdentifier, fileName: fileName)
+            uploadTasks[uploadTask.taskIdentifier] = task
+
+            // Store completion handler
+            uploadCompletionHandlers[uploadTask.taskIdentifier] = { result in
+                // End background task
+                BackgroundUploadTaskManager.shared.endBackgroundTask(for: uploadId)
+
+                continuation.resume(with: result)
+
+                // Clean up temp file
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+
+            print("📤 [BACKGROUND] Starting upload task \(uploadTask.taskIdentifier) with background protection")
+            uploadTask.resume()
+
+            // Start progress simulation
+            Task {
+                await self.simulateUploadProgress()
+            }
+        }
+    }
+
+    /// Estimate upload duration based on data size
+    /// Assumes average upload speed of 1 Mbps (conservative for mobile)
+    private func estimateUploadDuration(dataSize: Int) -> TimeInterval {
+        let bytesPerSecond = 125_000.0 // 1 Mbps = 125 KB/s
+        let estimatedSeconds = Double(dataSize) / bytesPerSecond
+        // Add 50% buffer for network variability
+        return min(estimatedSeconds * 1.5, 25.0) // Cap at 25 seconds for UIBackgroundTask
+    }
+
+    // MARK: - Regular Upload (Fallback)
+
+    private func performRegularUpload(request: URLRequest, data: Data) async throws -> String {
+        var mutableRequest = request
+        mutableRequest.httpBody = data
 
         // Start progress simulation
         Task {
@@ -115,44 +212,42 @@ class FileUploadService: ObservableObject {
         }
 
         do {
-            let (responseData, response) = try await URLSession.shared.data(for: request)
-            
+            let (responseData, response) = try await URLSession.shared.data(for: mutableRequest)
+
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw FileUploadError.invalidResponse
             }
-            
+
             guard httpResponse.statusCode == 200 else {
                 throw FileUploadError.serverError("HTTP Error: \(httpResponse.statusCode)")
             }
-            
+
             // Decode the API response
             if let json = try JSONSerialization.jsonObject(with: responseData, options: []) as? [String: Any],
                let success = json["success"] as? Bool,
                success,
                let data = json["data"] as? [String: Any],
                let fileUrl = data["url"] as? String {
-                
+
                 await MainActor.run {
                     self.isUploading = false
                     self.progress = 1.0
                 }
-                
-                print("File uploaded successfully: \(fileUrl)")
+
+                print("✅ File uploaded successfully: \(fileUrl)")
                 return fileUrl
             } else {
                 throw FileUploadError.invalidResponse
             }
-            
+
         } catch {
             await MainActor.run {
                 self.isUploading = false
                 self.error = error.localizedDescription
             }
-            
+
             if let fileError = error as? FileUploadError {
                 throw fileError
-            } else if let apiError = error as? BrrowAPIError {
-                throw apiError
             } else {
                 throw FileUploadError.uploadFailed
             }
@@ -474,6 +569,142 @@ class FileUploadService: ObservableObject {
         AnalyticsService.shared.trackError(error: error, context: "file_upload")
         print("File upload error: \(error.localizedDescription)")
     }
+}
+
+// MARK: - URLSessionDelegate for Background Uploads
+extension FileUploadService: URLSessionDelegate, URLSessionTaskDelegate, URLSessionDataDelegate {
+
+    // Called when all messages for a session have been delivered
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        print("📤 [BACKGROUND] All background upload events finished")
+
+        DispatchQueue.main.async {
+            // Notify AppDelegate that background processing is complete
+            NotificationCenter.default.post(name: .backgroundUploadComplete, object: nil)
+        }
+    }
+
+    // Track upload progress
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        let uploadProgress = Double(totalBytesSent) / Double(totalBytesExpectedToSend)
+
+        print("📤 [BACKGROUND] Upload progress: \(Int(uploadProgress * 100))%")
+
+        // Update tracking
+        if var uploadTask = uploadTasks[task.taskIdentifier] {
+            uploadTask.progress = uploadProgress
+            uploadTasks[task.taskIdentifier] = uploadTask
+        }
+
+        // Update UI progress
+        DispatchQueue.main.async {
+            self.progress = uploadProgress
+        }
+    }
+
+    // Handle upload completion
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        defer {
+            // Clean up tracking
+            uploadTasks.removeValue(forKey: task.taskIdentifier)
+        }
+
+        guard let completionHandler = uploadCompletionHandlers.removeValue(forKey: task.taskIdentifier) else {
+            print("⚠️ [BACKGROUND] No completion handler for task \(task.taskIdentifier)")
+            return
+        }
+
+        if let error = error {
+            print("❌ [BACKGROUND] Upload failed: \(error.localizedDescription)")
+
+            DispatchQueue.main.async {
+                self.isUploading = false
+                self.error = error.localizedDescription
+            }
+
+            completionHandler(.failure(error))
+            return
+        }
+
+        print("✅ [BACKGROUND] Upload completed for task \(task.taskIdentifier)")
+    }
+
+    // Collect response data
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        guard let taskIdentifier = uploadTasks.keys.first(where: { $0 == dataTask.taskIdentifier }) else {
+            return
+        }
+
+        print("📥 [BACKGROUND] Received response data (\(data.count) bytes)")
+
+        // Parse response
+        do {
+            if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+               let success = json["success"] as? Bool,
+               success,
+               let responseData = json["data"] as? [String: Any],
+               let fileUrl = responseData["url"] as? String {
+
+                print("✅ [BACKGROUND] Upload successful: \(fileUrl)")
+
+                // Update tracking
+                if var uploadTask = uploadTasks[taskIdentifier] {
+                    uploadTask.result = fileUrl
+                    uploadTasks[taskIdentifier] = uploadTask
+                }
+
+                DispatchQueue.main.async {
+                    self.isUploading = false
+                    self.progress = 1.0
+                }
+
+                // Call completion handler
+                if let completionHandler = uploadCompletionHandlers[taskIdentifier] {
+                    completionHandler(.success(fileUrl))
+                }
+            } else {
+                print("❌ [BACKGROUND] Invalid response format")
+
+                DispatchQueue.main.async {
+                    self.isUploading = false
+                    self.error = "Invalid response from server"
+                }
+
+                if let completionHandler = uploadCompletionHandlers[taskIdentifier] {
+                    completionHandler(.failure(FileUploadError.invalidResponse))
+                }
+            }
+        } catch {
+            print("❌ [BACKGROUND] Failed to parse response: \(error)")
+
+            DispatchQueue.main.async {
+                self.isUploading = false
+                self.error = error.localizedDescription
+            }
+
+            if let completionHandler = uploadCompletionHandlers[taskIdentifier] {
+                completionHandler(.failure(error))
+            }
+        }
+    }
+
+    // Handle authentication challenges (if needed)
+    func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        // Accept all SSL certificates in development (remove in production)
+        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
+            if let serverTrust = challenge.protectionSpace.serverTrust {
+                completionHandler(.useCredential, URLCredential(trust: serverTrust))
+                return
+            }
+        }
+
+        completionHandler(.performDefaultHandling, nil)
+    }
+}
+
+// MARK: - Notification Names
+extension Notification.Name {
+    static let backgroundUploadComplete = Notification.Name("backgroundUploadComplete")
 }
 
 // MARK: - Upload Result Models
