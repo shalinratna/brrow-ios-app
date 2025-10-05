@@ -46,17 +46,50 @@ class AccountLinkingService: NSObject, ObservableObject {
         }
 
         if httpResponse.statusCode == 200 {
+            struct AccountInfo: Codable {
+                let linked: Bool
+                let email: String?
+                let linkedAt: String?
+            }
+
             struct Response: Codable {
                 let success: Bool
-                let data: DataContainer?
+                let accounts: AccountsContainer
 
-                struct DataContainer: Codable {
-                    let accounts: [LinkedAccount]
+                struct AccountsContainer: Codable {
+                    let google: AccountInfo
+                    let apple: AccountInfo
                 }
             }
 
             let apiResponse = try JSONDecoder().decode(Response.self, from: data)
-            return apiResponse.data?.accounts ?? []
+
+            // Convert to LinkedAccount array
+            var accounts: [LinkedAccount] = []
+
+            if apiResponse.accounts.google.linked,
+               let email = apiResponse.accounts.google.email,
+               let linkedAt = apiResponse.accounts.google.linkedAt {
+                accounts.append(LinkedAccount(
+                    id: "google",
+                    provider: "google",
+                    email: email,
+                    createdAt: linkedAt
+                ))
+            }
+
+            if apiResponse.accounts.apple.linked,
+               let email = apiResponse.accounts.apple.email,
+               let linkedAt = apiResponse.accounts.apple.linkedAt {
+                accounts.append(LinkedAccount(
+                    id: "apple",
+                    provider: "apple",
+                    email: email,
+                    createdAt: linkedAt
+                ))
+            }
+
+            return accounts
         } else {
             throw LinkingError.serverError(statusCode: httpResponse.statusCode)
         }
