@@ -293,16 +293,41 @@ extension PaymentService: STPAuthenticationContext {
             method: "GET",
             responseType: APIResponse<PaymentMethodsResponse>.self
         )
-        
+
         guard response.success, let data = response.data else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to fetch payment methods")
         }
-        
+
         await MainActor.run {
             self.paymentMethods = data.paymentMethods
         }
-        
+
         return data.paymentMethods
+    }
+
+    /// Create SetupIntent for adding new payment method
+    func createSetupIntent() async throws -> SetupIntentResponse {
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/create-setup-intent",
+            method: "POST",
+            responseType: APIResponse<SetupIntentResponse>.self
+        )
+
+        guard response.success, let setupIntent = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to create setup intent")
+        }
+
+        // Track analytics
+        let event = AnalyticsEvent(
+            eventName: "setup_intent_created",
+            eventType: "payment"
+        )
+
+        Task {
+            try? await apiClient.trackAnalytics(event: event)
+        }
+
+        return setupIntent
     }
     
     // MARK: - Helper Methods
@@ -409,6 +434,11 @@ private struct TransactionConfirmation: Codable {
 
 private struct PaymentMethodsResponse: Codable {
     let paymentMethods: [PaymentMethodInfo]
+}
+
+struct SetupIntentResponse: Codable {
+    let clientSecret: String
+    let setupIntentId: String?
 }
 
 // MARK: - Legacy Payment Intent Response (Existing)

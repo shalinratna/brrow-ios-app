@@ -9,11 +9,14 @@ import SwiftUI
 
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
+    @StateObject private var categoryService = CategoryService.shared
     @State private var searchText = ""
     @State private var showingFilters = false
     @State private var selectedCategory = "All"
-    
-    private let categories = ["All", "Electronics", "Tools", "Sports", "Kitchen", "Books", "Garden", "Furniture"]
+
+    private var categories: [String] {
+        categoryService.getCategoryNamesWithAll()
+    }
     
     var body: some View {
         NavigationView {

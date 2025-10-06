@@ -14,7 +14,9 @@ struct SocialProfileView: View {
     @State private var selectedTab = 0
     @State private var showingSettings = false
     @State private var showingEditProfile = false
-    
+    @State private var showingWriteReview = false
+    @State private var showingAllReviews = false
+
     private let tabs = ["Activity", "Listings", "Reviews", "Stats"]
     
     var body: some View {
@@ -55,6 +57,28 @@ struct SocialProfileView: View {
         .sheet(isPresented: $showingSettings) {
             EnhancedSettingsView()
                 .environmentObject(AuthManager.shared)
+        }
+        .sheet(isPresented: $showingWriteReview) {
+            ReviewSubmissionView(
+                reviewee: UserInfo(
+                    id: user.id,
+                    username: user.username,
+                    profilePictureUrl: user.profilePicture,
+                    averageRating: user.rating,
+                    bio: viewModel.userProfile?.bio,
+                    totalRatings: user.totalReviews,
+                    isVerified: user.idVerified,
+                    createdAt: nil
+                ),
+                listing: nil,
+                transaction: nil,
+                reviewType: .general
+            )
+        }
+        .sheet(isPresented: $showingAllReviews) {
+            NavigationView {
+                ReviewsListView(revieweeId: user.id, reviewType: .user)
+            }
         }
     }
     
@@ -156,15 +180,19 @@ struct SocialProfileView: View {
                             .background(Theme.Colors.primary)
                             .cornerRadius(20)
                     }
-                    
-                    Button(action: { viewModel.toggleFollow() }) {
-                        Text(viewModel.isFollowing ? "Following" : "Follow")
+
+                    Button(action: { showingWriteReview = true }) {
+                        Text("Write Review")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(viewModel.isFollowing ? Theme.Colors.primary : .white)
+                            .foregroundColor(Theme.Colors.primary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
-                            .background(viewModel.isFollowing ? Color.white : Theme.Colors.secondary)
+                            .background(Color.white)
                             .cornerRadius(20)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Theme.Colors.primary, lineWidth: 1)
+                            )
                     }
                 }
             }
@@ -284,13 +312,24 @@ struct SocialProfileView: View {
             ForEach(viewModel.reviews, id: \.id) { review in
                 ReviewCard(review: review)
             }
-            
+
             if viewModel.reviews.isEmpty {
                 EmptyStateView(
                     title: "No Reviews Yet",
                     message: "Reviews from other users will appear here.",
                     systemImage: "star"
                 )
+            } else if viewModel.reviews.count > 3 {
+                // Show "View All Reviews" button if more than 3 reviews
+                Button(action: { showingAllReviews = true }) {
+                    Text("View All Reviews")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(Theme.Colors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Theme.Colors.primary.opacity(0.1))
+                        .cornerRadius(12)
+                }
             }
         }
         .padding(.horizontal, Theme.Spacing.lg)

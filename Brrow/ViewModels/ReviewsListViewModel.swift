@@ -95,106 +95,48 @@ class ReviewsListViewModel: ObservableObject {
         page: Int
     ) async throws -> (reviews: [Review], summary: RatingSummary?, hasMore: Bool) {
 
-        // Simulate API call for now
-        try await Task.sleep(nanoseconds: 500_000_000)
+        // Fetch reviews based on type (user or listing)
+        let result: (reviews: [Review], stats: ReviewStats)
 
-        let mockReviews = generateMockReviews(count: page == 1 ? 10 : 5)
-        let mockSummary = generateMockRatingSummary()
+        switch type {
+        case .user:
+            // Build type parameter for user reviews
+            var userType = "all"
+            if let reviewType = filters.reviewType {
+                userType = reviewType == .buyer ? "as_buyer" : reviewType == .seller ? "as_seller" : "all"
+            }
+            result = try await reviewService.fetchUserReviews(userId: revieweeId, type: userType, page: page)
 
-        return (
-            reviews: mockReviews,
-            summary: page == 1 ? mockSummary : nil,
-            hasMore: page < 3
-        )
-    }
+        case .listing:
+            result = try await reviewService.fetchListingReviews(listingId: revieweeId, page: page)
+        }
 
-    private func generateMockReviews(count: Int) -> [Review] {
-        var reviews: [Review] = []
-        for index in 0..<count {
-            let randomContent = [
-                "Excellent communication and fast delivery. Would definitely rent from again!",
-                "Good quality item, exactly as described. Professional seller.",
-                "Quick response and easy pickup. Item was in perfect condition.",
-                "Smooth transaction, very reliable. Highly recommended!",
-                "Great service and attention to detail. Will use again."
-            ].randomElement() ?? ""
-
-            let randomReviewType = [ReviewType.seller, ReviewType.buyer].randomElement() ?? .seller
-            let randomName = ["Alice Johnson", "Bob Smith", "Carol Davis", "David Wilson", "Emma Brown"].randomElement() ?? "User"
-            let randomTitle = ["Camera Equipment", "Bike", "Tools", "Electronics"].randomElement() ?? "Item"
-
-            let userInfo = UserInfo(
-                id: "reviewer_\(index)",
-                username: randomName,
-                profilePictureUrl: nil,
-                averageRating: Double.random(in: 3.5...5.0),
-                bio: nil,
-                totalRatings: nil,
-                isVerified: Bool.random(),
-                createdAt: nil
-            )
-
-            var listingInfo: ListingInfo? = nil
-            if index % 2 == 0 {
-                listingInfo = ListingInfo(
-                    id: "listing_\(index)",
-                    title: randomTitle,
-                    imageUrl: nil,
-                    price: Double.random(in: 10...100)
-                )
+        // Build rating summary from stats (only on first page)
+        var summary: RatingSummary? = nil
+        if page == 1 {
+            // Convert ReviewStats to RatingSummary
+            let ratingBreakdown = result.stats.ratingBreakdown
+            var distribution: [Int: Int] = [:]
+            for (index, count) in ratingBreakdown.enumerated() {
+                distribution[index + 1] = count
             }
 
-            let review = Review(
-                id: "review_\(index)_\(UUID().uuidString)",
-                reviewerId: "reviewer_\(index)",
-                revieweeId: currentRevieweeId ?? "",
-                listingId: index % 2 == 0 ? "listing_\(index)" : nil,
-                transactionId: index % 3 == 0 ? "transaction_\(index)" : nil,
-                rating: Int.random(in: 3...5),
-                title: index % 2 == 0 ? "Great experience!" : nil,
-                content: randomContent,
-                comment: randomContent,
-                reviewType: randomReviewType,
-                isVerified: Bool.random(),
-                isAnonymous: index % 4 == 0,
-                helpfulCount: Int.random(in: 0...5),
-                reportCount: 0,
-                status: .approved,
-                createdAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-TimeInterval(index * 86400))),
-                updatedAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-TimeInterval(index * 86400))),
-                moderatedAt: nil,
-                moderatorId: nil,
-                moderationNote: nil,
-                reviewer: userInfo,
-                reviewee: nil,
-                listing: listingInfo,
-                transaction: nil,
-                responses: nil,
-                attachments: nil
+            summary = RatingSummary(
+                averageRating: result.stats.averageRating,
+                totalReviews: result.stats.totalReviews,
+                ratingDistribution: distribution,
+                verifiedReviewsCount: result.reviews.filter { $0.isVerified }.count,
+                recentReviewsCount: result.reviews.count
             )
-            reviews.append(review)
         }
-        return reviews
-    }
 
-    private func generateMockRatingSummary() -> RatingSummary {
-        let totalReviews = Int.random(in: 25...100)
-        let averageRating = Double.random(in: 4.0...5.0)
+        // Determine if there are more reviews
+        let hasMore = result.reviews.count == 20 // If we got a full page, there might be more
 
-        let distribution: [Int: Int] = [
-            5: Int(Double(totalReviews) * 0.6),
-            4: Int(Double(totalReviews) * 0.25),
-            3: Int(Double(totalReviews) * 0.1),
-            2: Int(Double(totalReviews) * 0.03),
-            1: Int(Double(totalReviews) * 0.02)
-        ]
-
-        return RatingSummary(
-            averageRating: averageRating,
-            totalReviews: totalReviews,
-            ratingDistribution: distribution,
-            verifiedReviewsCount: Int(Double(totalReviews) * 0.7),
-            recentReviewsCount: Int.random(in: 5...15)
+        return (
+            reviews: result.reviews,
+            summary: summary,
+            hasMore: hasMore
         )
     }
 }

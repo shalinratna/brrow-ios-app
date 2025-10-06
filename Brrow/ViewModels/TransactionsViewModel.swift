@@ -13,11 +13,17 @@ class TransactionsViewModel: ObservableObject {
     private let apiClient = APIClient.shared
     private let authManager = AuthManager.shared
     
-    enum TransactionFilter: String, CaseIterable {
+    enum TransactionFilter: String, CaseIterable, Identifiable {
         case all = "All"
         case active = "Active"
         case completed = "Completed"
         case upcoming = "Upcoming"
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            rawValue
+        }
     }
     
     init() {

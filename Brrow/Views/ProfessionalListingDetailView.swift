@@ -1092,6 +1092,9 @@ struct MakeOfferView: View {
     let listing: Listing
     @State private var offerAmount = ""
     @State private var message = ""
+    @State private var isSubmitting = false
+    @State private var errorMessage: String?
+    @State private var showSuccessAlert = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -1136,15 +1139,22 @@ struct MakeOfferView: View {
                 
                 // Submit Button
                 Button(action: submitOffer) {
-                    Text("Send Offer")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Theme.Colors.primary)
-                        .cornerRadius(12)
+                    if isSubmitting {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    } else {
+                        Text("Send Offer")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
                 }
-                .disabled(offerAmount.isEmpty)
+                .background(Theme.Colors.primary)
+                .cornerRadius(12)
+                .disabled(offerAmount.isEmpty || isSubmitting)
             }
             .padding()
             .navigationTitle("Make an Offer")
@@ -1156,12 +1166,86 @@ struct MakeOfferView: View {
                     }
                 }
             }
+            .alert("Error", isPresented: .constant(errorMessage != nil)) {
+                Button("OK") {
+                    errorMessage = nil
+                }
+            } message: {
+                if let errorMessage = errorMessage {
+                    Text(errorMessage)
+                }
+            }
+            .alert("Success", isPresented: $showSuccessAlert) {
+                Button("OK") {
+                    dismiss()
+                }
+            } message: {
+                Text("Your offer has been sent successfully!")
+            }
         }
     }
-    
+
     private func submitOffer() {
-        // Submit offer logic
-        dismiss()
+        // Validate offer amount
+        guard let amount = Double(offerAmount), amount > 0 else {
+            errorMessage = "Please enter a valid offer amount greater than $0"
+            return
+        }
+
+        // Check if offer is less than listing price (optional warning)
+        if amount > listing.price * 1.5 {
+            errorMessage = "Your offer is significantly higher than the listing price. Please review your amount."
+            return
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+
+        Task {
+            do {
+                // Create the offer request
+                let offerRequest = CreateOfferRequest(
+                    listingId: String(listing.id),
+                    amount: amount,
+                    message: message.isEmpty ? nil : message
+                )
+
+                // Submit the offer via API
+                _ = try await APIClient.shared.createOffer(offerRequest)
+
+                // Track analytics
+                AnalyticsService.shared.trackOfferAction(
+                    action: "offer_sent",
+                    amount: amount,
+                    listingId: String(listing.id)
+                )
+
+                // Show success
+                await MainActor.run {
+                    isSubmitting = false
+                    showSuccessAlert = true
+                }
+            } catch {
+                // Handle error
+                await MainActor.run {
+                    isSubmitting = false
+                    if let apiError = error as? BrrowAPIError {
+                        switch apiError {
+                        case .serverError(let message):
+                            errorMessage = message
+                        case .unauthorized:
+                            errorMessage = "Please sign in to make an offer"
+                        case .networkError:
+                            errorMessage = "Network error. Please check your connection and try again."
+                        default:
+                            errorMessage = "Failed to send offer. Please try again."
+                        }
+                    } else {
+                        errorMessage = "Failed to send offer: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
     }
 }
 

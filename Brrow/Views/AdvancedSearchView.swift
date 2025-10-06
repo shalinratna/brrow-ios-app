@@ -10,6 +10,7 @@ import CoreLocation
 
 struct AdvancedSearchView: View {
     @StateObject private var searchService = AdvancedSearchService.shared
+    @StateObject private var categoryService = CategoryService.shared
     @State private var searchText = ""
     @State private var showingFilters = false
     @State private var searchFilters = AdvancedSearchFilters()
@@ -268,14 +269,14 @@ struct AdvancedSearchView: View {
             Text("Browse Categories")
                 .font(.headline)
 
-            let categories = ["Electronics", "Sports", "Tools", "Home", "Fashion", "Books"]
+            let categories = categoryService.getCategoryNames()
 
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                ForEach(categories, id: \.self) { category in
+                ForEach(categories.prefix(6), id: \.self) { category in
                     Button {
                         searchFilters.categories = [category]
                         performSearch()
@@ -378,11 +379,17 @@ struct AdvancedSearchView: View {
     private func categoryIcon(for category: String) -> String {
         switch category.lowercased() {
         case "electronics": return "laptopcomputer"
-        case "sports": return "sportscourt"
-        case "tools": return "wrench.and.screwdriver"
-        case "home": return "house"
-        case "fashion": return "tshirt"
-        case "books": return "book"
+        case "sports & outdoors": return "sportscourt"
+        case "tools & equipment": return "wrench.and.screwdriver"
+        case "home & garden": return "house"
+        case "clothing & fashion": return "tshirt"
+        case "books & media": return "book"
+        case "furniture": return "sofa"
+        case "vehicles": return "car"
+        case "toys & games": return "gamecontroller"
+        case "beauty & health": return "sparkles"
+        case "pets & animals": return "pawprint"
+        case "services": return "briefcase"
         default: return "tag"
         }
     }

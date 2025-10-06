@@ -9,10 +9,13 @@ import SwiftUI
 
 struct BrowseView: View {
     @EnvironmentObject var viewModel: HomeViewModel
+    @StateObject private var categoryService = CategoryService.shared
     @State private var selectedFilter = "All"
     @State private var showingFilters = false
-    
-    private let filterOptions = ["All", "Electronics", "Tools", "Sports", "Books", "Clothing", "Vehicles"]
+
+    private var filterOptions: [String] {
+        categoryService.getCategoryNamesWithAll()
+    }
     
     var body: some View {
         NavigationView {

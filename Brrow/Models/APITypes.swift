@@ -598,12 +598,6 @@ struct CreateOfferRequest: Codable {
     let listingId: String
     let amount: Double
     let message: String?
-    
-    enum CodingKeys: String, CodingKey {
-        case listingId = "listing_id"
-        case amount
-        case message
-    }
 }
 
 struct UpdateProfileRequest: Codable {

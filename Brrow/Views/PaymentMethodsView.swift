@@ -43,7 +43,11 @@ struct PaymentMethodsView: View {
             loadPaymentMethods()
         }
         .sheet(isPresented: $showingAddCard) {
-            AddPaymentMethodView()
+            StandardAddPaymentMethodView { success in
+                if success {
+                    loadPaymentMethods()
+                }
+            }
         }
     }
     
@@ -240,9 +244,11 @@ struct StandardPaymentMethodRow: View {
 struct StandardAddPaymentMethodView: View {
     @Environment(\.presentationMode) var presentationMode
     let onSuccess: (Bool) -> Void
-    
+
     @State private var isLoading = false
-    
+    @State private var errorMessage: String?
+    @State private var paymentSheetPresenter: PaymentSheetPresenter?
+
     var body: some View {
         NavigationView {
             VStack(spacing: 24) {
@@ -250,17 +256,24 @@ struct StandardAddPaymentMethodView: View {
                     Image(systemName: "creditcard.circle.fill")
                         .font(.system(size: 60))
                         .foregroundColor(Theme.Colors.primary)
-                    
+
                     Text("Add Payment Method")
                         .font(.title2)
                         .fontWeight(.semibold)
-                    
+
                     Text("Your card information is securely processed by Stripe and never stored on our servers.")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                
+
+                if let error = errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                }
+
                 VStack(spacing: 16) {
                     Button(action: addCardWithStripe) {
                         if isLoading {
@@ -277,10 +290,10 @@ struct StandardAddPaymentMethodView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Theme.Colors.primary)
+                    .background(isLoading ? Theme.Colors.primary.opacity(0.6) : Theme.Colors.primary)
                     .cornerRadius(12)
                     .disabled(isLoading)
-                    
+
                     Button(action: addApplePay) {
                         Label("Apple Pay", systemImage: "applelogo")
                             .font(.headline)
@@ -290,10 +303,11 @@ struct StandardAddPaymentMethodView: View {
                     .padding()
                     .background(Theme.Colors.secondaryBackground)
                     .cornerRadius(12)
+                    .disabled(isLoading)
                 }
-                
+
                 Spacer()
-                
+
                 // Security badges
                 HStack(spacing: 20) {
                     SecurityBadge(icon: "lock.shield", text: "256-bit SSL")
@@ -311,38 +325,148 @@ struct StandardAddPaymentMethodView: View {
                 }
             )
         }
-    }
-    
-    private func addCardWithStripe() {
-        isLoading = true
-        
-        // In a real app, you would create a PaymentSheet here
-        // For demo purposes, simulate the flow
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            isLoading = false
-            presentationMode.wrappedValue.dismiss()
-            onSuccess(true)
-            
-            ToastManager.shared.showSuccess(
-                title: "Card Added",
-                message: "Your payment method has been added successfully"
-            )
+        .onAppear {
+            paymentSheetPresenter = PaymentSheetPresenter()
         }
     }
-    
-    private func addApplePay() {
-        // Apple Pay can be configured with Stripe
+
+    private func addCardWithStripe() {
         isLoading = true
+        errorMessage = nil
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            isLoading = false
-            presentationMode.wrappedValue.dismiss()
-            onSuccess(true)
+        Task {
+            do {
+                // Create setup intent for adding payment method
+                let setupIntent = try await PaymentService.shared.createSetupIntent()
 
-            ToastManager.shared.showInfo(
-                title: "Apple Pay",
-                message: "Apple Pay will be available in the next update"
-            )
+                await MainActor.run {
+                    // Present Stripe's payment sheet in setup mode
+                    guard let presenter = paymentSheetPresenter else {
+                        isLoading = false
+                        errorMessage = "Failed to initialize payment sheet"
+                        return
+                    }
+
+                    presenter.presentSetupSheet(
+                        clientSecret: setupIntent.clientSecret,
+                        from: self
+                    ) { result, error in
+                        isLoading = false
+
+                        if let error = error {
+                            errorMessage = error.localizedDescription
+                            ToastManager.shared.showError(
+                                title: "Error",
+                                message: "Failed to add payment method"
+                            )
+                        } else if result {
+                            presentationMode.wrappedValue.dismiss()
+                            onSuccess(true)
+
+                            ToastManager.shared.showSuccess(
+                                title: "Card Added",
+                                message: "Your payment method has been added successfully"
+                            )
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+
+                    ToastManager.shared.showError(
+                        title: "Error",
+                        message: "Failed to create setup intent"
+                    )
+                }
+            }
+        }
+    }
+
+    private func addApplePay() {
+        ToastManager.shared.showInfo(
+            title: "Coming Soon",
+            message: "Apple Pay will be available in the next update"
+        )
+    }
+}
+
+// MARK: - Payment Sheet Presenter Helper
+@MainActor
+class PaymentSheetPresenter {
+
+    func presentSetupSheet(
+        clientSecret: String,
+        from view: StandardAddPaymentMethodView,
+        completion: @escaping (Bool, Error?) -> Void
+    ) {
+        var configuration = PaymentSheet.Configuration()
+        configuration.merchantDisplayName = "Brrow"
+        configuration.allowsDelayedPaymentMethods = false
+
+        // Create payment sheet in setup mode
+        let paymentSheet = PaymentSheet(
+            setupIntentClientSecret: clientSecret,
+            configuration: configuration
+        )
+
+        // Get the presenting view controller
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            completion(false, NSError(domain: "PaymentSheet", code: -1, userInfo: [NSLocalizedDescriptionKey: "No root view controller found"]))
+            return
+        }
+
+        var topController = rootViewController
+        while let presentedController = topController.presentedViewController {
+            topController = presentedController
+        }
+
+        // Track analytics
+        let event = AnalyticsEvent(
+            eventName: "setup_sheet_presented",
+            eventType: "payment"
+        )
+
+        Task {
+            try? await APIClient.shared.trackAnalytics(event: event)
+        }
+
+        // Present the payment sheet
+        paymentSheet.present(from: topController) { paymentResult in
+            switch paymentResult {
+            case .completed:
+                // Track successful setup
+                let event = AnalyticsEvent(
+                    eventName: "payment_method_added",
+                    eventType: "payment"
+                )
+
+                Task {
+                    try? await APIClient.shared.trackAnalytics(event: event)
+                }
+
+                completion(true, nil)
+
+            case .canceled:
+                completion(false, nil)
+
+            case .failed(let error):
+                // Track setup failure
+                let event = AnalyticsEvent(
+                    eventName: "payment_method_add_failed",
+                    eventType: "payment",
+                    metadata: ["error": error.localizedDescription]
+                )
+
+                Task {
+                    try? await APIClient.shared.trackAnalytics(event: event)
+                }
+
+                completion(false, error)
+            }
         }
     }
 }

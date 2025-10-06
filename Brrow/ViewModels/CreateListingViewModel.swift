@@ -40,15 +40,20 @@ class CreateListingViewModel: ObservableObject {
     @Published var uploadSpeed: Double = 0 // KB/s
     private var currentBatchId: String?
     private var cancellationToken: BatchUploadManager.CancellationToken?
-    
+
     // Location properties
     @Published var currentCoordinate: CLLocationCoordinate2D?
     @Published var isLoadingLocation = false
     private let locationService = LocationService.shared
     private var cancellables = Set<AnyCancellable>()
-    
+
+    // Category service
+    private let categoryService = CategoryService.shared
+
     // MARK: - Constants
-    let categories = ["Tools", "Electronics", "Books", "Clothing", "Sports", "Home & Garden", "Vehicles", "Other"]
+    var categories: [String] {
+        categoryService.getCategoryNames()
+    }
     
     let listingTypes: [(key: String, value: (title: String, description: String))] = [
         ("for_sale", (title: "For Sale", description: "Sell this item permanently")),
@@ -296,24 +301,18 @@ class CreateListingViewModel: ObservableObject {
     
     @MainActor
     private func getCategoryId(for categoryName: String) async -> String {
-        // Map category names to IDs (these should match what's in the database)
-        let categoryMap: [String: String] = [
-            "Electronics": "cmf7c7sci0000pt0ruo6ooqui",
-            "Furniture": "cmf7c7sps0001pt0rliuzbu0u",
-            "Clothing & Fashion": "cmf7c7taa0002pt0r718q1iw7",
-            "Vehicles": "cmf7c7tal0003pt0rw8agqrq3",
-            "Sports & Outdoors": "cmf7c7tax0004pt0r0l90rc4b",
-            "Books & Media": "cmf7c7tbg0005pt0rx36ct66l",
-            "Toys & Games": "cmf7c7tc70006pt0rikmtbbd8",
-            "Tools & Equipment": "cmf7c7tcx0007pt0rwcdafp3n",
-            "Home & Garden": "cmf7c7td70008pt0rhgd2oi1r",
-            "Beauty & Health": "cmf7c7u0f0009pt0rld3ijaf5",
-            "Pets & Animals": "cmf7c7u19000apt0r35ztyxj9",
-            "Services": "cmf7c7u1j000bpt0rtnhiwsiy",
-            "Other": "cmf7c7u1x000cpt0rhf0gw3v3"
-        ]
-        
-        return categoryMap[categoryName] ?? "cmf7c7u1x000cpt0rhf0gw3v3" // Default to "Other"
+        // Use CategoryService to get category ID
+        if let category = categoryService.getCategory(byName: categoryName) {
+            return category.id
+        }
+
+        // Fallback to "Other" category if not found
+        if let otherCategory = categoryService.categories.first(where: { $0.name == "Other" }) {
+            return otherCategory.id
+        }
+
+        // Ultimate fallback to hardcoded "Other" ID
+        return "cmf7c7u1x000cpt0rhf0gw3v3"
     }
     
     // MARK: - Location Methods

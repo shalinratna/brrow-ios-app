@@ -32,15 +32,15 @@ class PostCreationViewModel: ObservableObject {
     
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
+
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
     private let aiService = BrrowAIService.shared
-    
-    static let categories = [
-        "Electronics", "Tools", "Sports", "Kitchen", "Books", 
-        "Garden", "Furniture", "Clothing", "Toys", "Vehicles"
-    ]
+    private let categoryService = CategoryService.shared
+
+    var categories: [String] {
+        categoryService.getCategoryNames()
+    }
     
     enum PostType {
         case listing

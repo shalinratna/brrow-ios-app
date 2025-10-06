@@ -42,11 +42,9 @@ struct EditProfileView: View {
     @State private var birthdate: Date = Date()
     
     // Profile Image
-    @State private var selectedImage: PhotosPickerItem?
-    @State private var profileImage: UIImage?
-    @State private var showingImagePicker = false
+    @State private var showProfilePictureEdit = false
     @State private var currentProfilePictureUrl: String? // Track the most recent profile picture URL
-    
+
     // Navigation states
     @State private var showChangePassword = false
     @State private var showPrivacySettings = false
@@ -91,12 +89,8 @@ struct EditProfileView: View {
 
     var body: some View {
         mainContent
-            .photosPicker(isPresented: $showingImagePicker, selection: $selectedImage, matching: .images)
             .toolbarBackground(Color.white, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-        .onChange(of: selectedImage) { newItem in
-            handleImageSelection(newItem)
-        }
         // Username onChange removed - username is no longer editable in this view
         .onChange(of: displayName) { _ in hasChanges = true }
         .onChange(of: bio) { _ in hasChanges = true }
@@ -128,6 +122,9 @@ struct EditProfileView: View {
         }
         .sheet(isPresented: $showDeleteAccount) {
             DeleteAccountView()
+        }
+        .sheet(isPresented: $showProfilePictureEdit) {
+            ProfilePictureEditView()
         }
         .sheet(isPresented: $showSMSVerification) {
             SMSVerificationView(initialPhoneNumber: pendingPhoneNumber) { user in
@@ -274,14 +271,14 @@ struct EditProfileView: View {
                     .offset(x: 40, y: 40)
             }
             .onTapGesture {
-                showingImagePicker = true
+                showProfilePictureEdit = true
             }
-            
+
             Text("Change Photo")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundColor(Theme.Colors.primary)
                 .onTapGesture {
-                    showingImagePicker = true
+                    showProfilePictureEdit = true
                 }
         }
     }
@@ -762,17 +759,6 @@ struct EditProfileView: View {
     }
     
     // MARK: - Actions
-    private func handleImageSelection(_ item: PhotosPickerItem?) {
-        Task {
-            if let item = item,
-               let data = try? await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-                profileImage = image
-                hasChanges = true
-            }
-        }
-    }
-    
     private func saveProfile() {
         guard hasChanges else {
             // No changes, dismiss immediately
@@ -800,22 +786,7 @@ struct EditProfileView: View {
 
         Task {
             do {
-                // Upload image if changed with NSFW moderation
-                var imageUrl: String? = nil
-                if let profileImage = profileImage {
-                    // Skip NSFW check for profile pictures - it's too aggressive
-                    // Profile pictures are reviewed differently than listing images
-                    let imageData = profileImage.jpegData(compressionQuality: 0.8) ?? Data()
-                    let fileName = "profile_\(UUID().uuidString).jpg"
-                    let uploadResponse = try await APIClient.shared.uploadProfilePicture(imageData, fileName: fileName)
-                    imageUrl = uploadResponse.data?.url
-
-                    // CRITICAL: Update our tracked profile picture URL immediately
-                    if let newUrl = imageUrl {
-                        currentProfilePictureUrl = newUrl
-                        print("✅ Updated currentProfilePictureUrl to: \(newUrl)")
-                    }
-                }
+                // Note: Profile picture changes are now handled by ProfilePictureEditView
 
                 // Username change logic removed - username changes now handled in Settings
 
@@ -836,11 +807,6 @@ struct EditProfileView: View {
 
                 // Update profile via API
                 try await APIClient.shared.updateProfile(data: updateData)
-
-                // Handle profile image separately if changed
-                if let imageUrl = imageUrl {
-                    _ = try await APIClient.shared.updateProfileImage(imageUrl: imageUrl)
-                }
 
                 // Refresh auth manager with new data
                 await authManager.refreshUserProfile()

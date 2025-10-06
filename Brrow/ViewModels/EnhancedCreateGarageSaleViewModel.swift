@@ -63,18 +63,19 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
     private let apiClient = APIClient.shared
     private let imageProcessor = IntelligentImageProcessor.shared
     private let batchUploadManager = BatchUploadManager.shared
+    private let categoryService = CategoryService.shared
     private var cancellables = Set<AnyCancellable>()
     private var validationCancellable: AnyCancellable?
     private var uploadCancellationToken: BatchUploadManager.CancellationToken?
 
     // Configuration for image processing
     private let processingConfig = IntelligentImageProcessor.ProcessingConfiguration.highQuality
-    
+
     init() {
         // Set default end date to 4 hours after start
         let defaultStart = Date()
         self.endDate = Calendar.current.date(byAdding: .hour, value: 4, to: defaultStart) ?? Date()
-        
+
         // Update end date when start date changes
         $startDate
             .sink { [weak self] newStartDate in
@@ -85,9 +86,11 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
     // Available categories for garage sales
-    let availableCategories = ["Electronics", "Furniture", "Clothing", "Books", "Toys", "Sports", "Tools", "Kitchen", "Home Decor", "Other"]
+    var availableCategories: [String] {
+        categoryService.getCategoryNames()
+    }
 
     // MARK: - Computed Properties
 

@@ -10,9 +10,12 @@ import SwiftUI
 struct TransactionsView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var authManager: AuthManager
+    @StateObject private var viewModel = TransactionsViewModel()
 
-    @State private var selectedFilter = TransactionFilter.all
+    @State private var selectedFilter = TransactionsViewModel.TransactionFilter.all
     @State private var showingFilterSheet = false
+    @State private var selectedTransaction: Transaction?
+    @State private var showingWriteReview = false
 
     var body: some View {
         NavigationView {
@@ -20,32 +23,63 @@ struct TransactionsView: View {
                 // Filter Bar
                 filterBar
 
-                // Content - Empty state for now
-                emptyStateView
+                // Content
+                if viewModel.isLoading {
+                    loadingView
+                } else if viewModel.filteredTransactions.isEmpty {
+                    emptyStateView
+                } else {
+                    transactionsList
+                }
             }
             .navigationTitle("Transactions")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Filter") {
-                        showingFilterSheet = true
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingFilterSheet) {
-            TransactionFilterSheet(
-                selectedFilter: $selectedFilter,
-                onFilterChange: { filter in
-                    selectedFilter = filter
+            .navigationBarItems(
+                leading: Button("Close") {
+                    presentationMode.wrappedValue.dismiss()
+                },
+                trailing: Button("Filter") {
+                    showingFilterSheet = true
                 }
             )
+            .sheet(isPresented: $showingFilterSheet) {
+                TransactionFilterSheet(
+                    selectedFilter: $selectedFilter,
+                    onFilterChange: { filter in
+                        selectedFilter = filter
+                        viewModel.selectedFilter = filter
+                    }
+                )
+            }
+            .sheet(isPresented: $showingWriteReview) {
+                if let transaction = selectedTransaction {
+                    ReviewSubmissionView(
+                        reviewee: UserInfo(
+                            id: String(transaction.lenderId == Int(authManager.currentUser?.id ?? "") ? transaction.borrowerId : transaction.lenderId),
+                            username: "User",
+                            profilePictureUrl: nil,
+                            averageRating: nil,
+                            bio: nil,
+                            totalRatings: nil,
+                            isVerified: nil,
+                            createdAt: nil
+                        ),
+                        listing: ListingInfo(
+                            id: String(transaction.listingId),
+                            title: "Item",
+                            imageUrl: nil,
+                            price: transaction.totalCost
+                        ),
+                        transaction: TransactionInfo(
+                            id: String(transaction.id),
+                            type: "RENTAL",
+                            amount: transaction.totalCost,
+                            completedAt: ISO8601DateFormatter().string(from: transaction.endDate)
+                        ),
+                        reviewType: transaction.lenderId == Int(authManager.currentUser?.id ?? "") ? .buyer : .seller
+                    )
+                }
+            }
         }
     }
 
@@ -53,7 +87,7 @@ struct TransactionsView: View {
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(TransactionFilter.allCases, id: \.self) { filter in
+                ForEach(TransactionsViewModel.TransactionFilter.allCases, id: \.self) { filter in
                     FilterChip(
                         title: filter.displayName,
                         isSelected: selectedFilter == filter
@@ -66,6 +100,38 @@ struct TransactionsView: View {
         }
         .padding(.vertical, Theme.Spacing.sm)
         .background(Theme.Colors.cardBackground)
+    }
+
+    // MARK: - Loading View
+    private var loadingView: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            ProgressView()
+            Text("Loading transactions...")
+                .font(Theme.Typography.callout)
+                .foregroundColor(Theme.Colors.secondaryText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.Colors.background)
+    }
+
+    // MARK: - Transactions List
+    private var transactionsList: some View {
+        ScrollView {
+            LazyVStack(spacing: Theme.Spacing.md) {
+                ForEach(viewModel.filteredTransactions) { transaction in
+                    TransactionCard(
+                        transaction: transaction,
+                        currentUserId: authManager.currentUser?.id ?? "",
+                        onWriteReview: {
+                            selectedTransaction = transaction
+                            showingWriteReview = true
+                        }
+                    )
+                }
+            }
+            .padding(Theme.Spacing.md)
+        }
+        .background(Theme.Colors.background)
     }
 
     // MARK: - Empty State View
@@ -99,25 +165,6 @@ struct TransactionsView: View {
     }
 }
 
-// MARK: - Transaction Filter
-enum TransactionFilter: String, CaseIterable {
-    case all = "all"
-    case rentals = "rentals"
-    case purchases = "purchases"
-    case earnings = "earnings"
-    case pending = "pending"
-
-    var displayName: String {
-        switch self {
-        case .all: return "All"
-        case .rentals: return "Rentals"
-        case .purchases: return "Purchases"
-        case .earnings: return "Earnings"
-        case .pending: return "Pending"
-        }
-    }
-}
-
 // MARK: - Filter Chip
 struct FilterChip: View {
     let title: String
@@ -144,12 +191,12 @@ struct FilterChip: View {
 // MARK: - Transaction Filter Sheet
 struct TransactionFilterSheet: View {
     @Environment(\.presentationMode) var presentationMode
-    @Binding var selectedFilter: TransactionFilter
-    let onFilterChange: (TransactionFilter) -> Void
+    @Binding var selectedFilter: TransactionsViewModel.TransactionFilter
+    let onFilterChange: (TransactionsViewModel.TransactionFilter) -> Void
 
     var body: some View {
         NavigationView {
-            List(TransactionFilter.allCases, id: \.self) { filter in
+            List(TransactionsViewModel.TransactionFilter.allCases, id: \.self) { filter in
                 Button(action: {
                     selectedFilter = filter
                     onFilterChange(filter)
@@ -194,6 +241,125 @@ struct TransactionPrimaryButtonStyle: ButtonStyle {
             )
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Transaction Card
+struct TransactionCard: View {
+    let transaction: Transaction
+    let currentUserId: String
+    let onWriteReview: () -> Void
+
+    private var isCompleted: Bool {
+        transaction.status == .completed
+    }
+
+    private var hasReview: Bool {
+        transaction.rating != nil && transaction.review != nil
+    }
+
+    private var statusColor: Color {
+        switch transaction.status {
+        case .active: return .green
+        case .completed: return .blue
+        case .cancelled: return .red
+        case .pending: return .orange
+        case .confirmed: return .green
+        case .disputed: return .purple
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Transaction #\(transaction.id)")
+                        .font(Theme.Typography.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Theme.Colors.text)
+
+                    Text(formatDate(transaction.createdAt))
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+
+                Spacer()
+
+                // Status badge
+                Text(transaction.status.rawValue.capitalized)
+                    .font(Theme.Typography.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, Theme.Spacing.sm)
+                    .padding(.vertical, 4)
+                    .background(statusColor)
+                    .cornerRadius(8)
+            }
+
+            Divider()
+
+            // Transaction details
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                HStack {
+                    Text("Amount:")
+                        .font(Theme.Typography.callout)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    Spacer()
+                    Text("$\(String(format: "%.2f", transaction.totalCost))")
+                        .font(Theme.Typography.callout)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Theme.Colors.text)
+                }
+
+                HStack {
+                    Text("Period:")
+                        .font(Theme.Typography.callout)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    Spacer()
+                    Text("\(formatDate(transaction.startDate)) - \(formatDate(transaction.endDate))")
+                        .font(Theme.Typography.callout)
+                        .foregroundColor(Theme.Colors.text)
+                }
+            }
+
+            // Write Review Button (only for completed transactions without review)
+            if isCompleted && !hasReview {
+                Button(action: onWriteReview) {
+                    HStack {
+                        Image(systemName: "star.bubble")
+                            .font(.system(size: 16))
+                        Text("Write Review")
+                            .font(.system(size: 15, weight: .medium))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(Theme.Colors.primary)
+                    .padding(Theme.Spacing.sm)
+                    .background(Theme.Colors.primary.opacity(0.1))
+                    .cornerRadius(8)
+                }
+            } else if hasReview {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Review submitted")
+                        .font(Theme.Typography.callout)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.cardBackground)
+        .cornerRadius(Theme.CornerRadius.card)
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
     }
 }
 

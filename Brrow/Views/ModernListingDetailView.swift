@@ -30,6 +30,7 @@ struct ModernListingDetailView: View {
     @State private var showingSellerProfile = false
     @State private var showingPaymentFlow = false
     @State private var showingRentalDatePicker = false
+    @State private var showingReviews = false
     @State private var rentalStartDate = Date()
     @State private var rentalEndDate = Calendar.current.date(byAdding: .day, value: 3, to: Date()) ?? Date()
 
@@ -131,6 +132,12 @@ struct ModernListingDetailView: View {
                 NavigationView {
                     FullSellerProfileView(user: seller)
                 }
+            }
+        }
+        .sheet(isPresented: $showingReviews) {
+            let sellerId = viewModel.listing.userId
+            NavigationView {
+                ReviewsListView(revieweeId: sellerId, reviewType: .user)
             }
         }
         .alert("Delete Listing", isPresented: $showingDeleteAlert) {
@@ -604,6 +611,25 @@ struct ModernListingDetailView: View {
                 .padding()
                 .background(Theme.Colors.secondaryBackground)
                 .cornerRadius(12)
+            }
+
+            // View Reviews Button
+            if viewModel.reviewCount > 0 {
+                Button(action: { showingReviews = true }) {
+                    HStack {
+                        Image(systemName: "star.bubble")
+                            .font(.system(size: 16))
+                        Text("View \(Int(viewModel.reviewCount)) Reviews")
+                            .font(.system(size: 15, weight: .medium))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(Theme.Colors.primary)
+                    .padding()
+                    .background(Theme.Colors.primary.opacity(0.1))
+                    .cornerRadius(12)
+                }
             }
         }
     }

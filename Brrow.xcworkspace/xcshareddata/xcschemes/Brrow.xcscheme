@@ -99,6 +99,22 @@
          <ExecutionAction
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
+               title = "Debug Archive Environment"
+               scriptText = "${SRCROOT}/debug-archive-env.sh">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "ED419AF32E281A31006E8DB9"
+                     BuildableName = "Brrow.app"
+                     BlueprintName = "Brrow"
+                     ReferencedContainer = "container:Brrow.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
                title = "Fix Archive Info.plist"
                scriptText = "${SRCROOT}/fix-archive.sh">
                <EnvironmentBuildable>

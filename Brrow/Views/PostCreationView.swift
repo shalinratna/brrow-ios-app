@@ -202,7 +202,7 @@ struct PostCreationView: View {
                         .foregroundColor(Theme.Colors.text)
                     
                     Menu {
-                        ForEach(PostCreationViewModel.categories, id: \.self) { category in
+                        ForEach(viewModel.categories, id: \.self) { category in
                             Button(category) {
                                 viewModel.selectedCategory = category
                             }
