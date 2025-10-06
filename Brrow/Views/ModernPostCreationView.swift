@@ -257,7 +257,10 @@ struct ModernPostCreationAlternativeView: View {
     @State private var showListingFlow = false
     @State private var showSeekFlow = false
     @State private var selectedCard: Int? = nil
-    
+
+    // Callback for when a listing is created successfully
+    var onListingCreated: ((String) -> Void)? = nil
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -335,7 +338,13 @@ struct ModernPostCreationAlternativeView: View {
             .navigationBarHidden(true)
         }
         .fullScreenCover(isPresented: $showListingFlow) {
-            ModernCreateListingView()
+            ModernCreateListingView(onViewListing: { listingId in
+                print("📋 ModernPostCreationAlternativeView: Received onViewListing callback with ID: \(listingId)")
+                // Dismiss the post creation modal and call the parent callback
+                dismiss()
+                print("📋 ModernPostCreationAlternativeView: Calling parent onListingCreated with ID: \(listingId)")
+                onListingCreated?(listingId)
+            })
         }
         .fullScreenCover(isPresented: $showSeekFlow) {
             ModernCreateSeekView()
