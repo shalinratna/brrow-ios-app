@@ -240,17 +240,16 @@ struct EditProfileView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
-                        Circle()
-                            .fill(Theme.Colors.primary.opacity(0.1))
-                            .overlay(
-                                Text(String(user.username.prefix(1)).uppercased())
-                                    .font(.system(size: 40, weight: .bold))
-                                    .foregroundColor(Theme.Colors.primary)
-                            )
-                    }
-                    .frame(width: 120, height: 120)
-                    .clipShape(Circle())
+                    Circle()
+                        .fill(Theme.Colors.primary.opacity(0.1))
+                        .overlay(
+                            Text(String(user.username.prefix(1)).uppercased())
+                                .font(.system(size: 40, weight: .bold))
+                                .foregroundColor(Theme.Colors.primary)
+                        )
                 }
+                .frame(width: 120, height: 120)
+                .clipShape(Circle())
                 
                 // Camera overlay
                 Circle()
