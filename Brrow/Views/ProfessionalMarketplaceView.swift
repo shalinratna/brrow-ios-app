@@ -648,11 +648,14 @@ struct ProfessionalListingCard: View {
                     Text("$\(Int(listing.price))")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(Theme.Colors.primary)
-                    
-                    Text("/" + LocalizationHelper.localizedString("day"))
-                        .font(.system(size: 13))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                    
+
+                    // Only show "/ day" for rental listings, not for sale
+                    if listing.listingType == "rental" {
+                        Text("/" + LocalizationHelper.localizedString("day"))
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+
                     Spacer()
                     
                     if let rating = listing.rating, rating > 0 {
