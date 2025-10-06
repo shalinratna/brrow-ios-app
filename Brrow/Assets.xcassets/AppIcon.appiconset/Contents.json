@@ -3,32 +3,110 @@
     {
       "idiom" : "iphone",
       "scale" : "2x",
-      "size" : "20x20"
+      "size" : "20x20",
+      "filename" : "Icon-iPhone-40x40.png"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "idiom" : "iphone",
+      "scale" : "2x",
+      "size" : "20x20",
+      "filename" : "Icon-Dark-iPhone-40x40.png"
     },
     {
       "idiom" : "iphone",
       "scale" : "3x",
-      "size" : "20x20"
+      "size" : "20x20",
+      "filename" : "Icon-iPhone-60x60.png"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "idiom" : "iphone",
+      "scale" : "3x",
+      "size" : "20x20",
+      "filename" : "Icon-Dark-iPhone-60x60.png"
     },
     {
       "idiom" : "iphone",
       "scale" : "2x",
-      "size" : "29x29"
+      "size" : "29x29",
+      "filename" : "Icon-iPhone-58x58.png"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "idiom" : "iphone",
+      "scale" : "2x",
+      "size" : "29x29",
+      "filename" : "Icon-Dark-iPhone-58x58.png"
     },
     {
       "idiom" : "iphone",
       "scale" : "3x",
-      "size" : "29x29"
+      "size" : "29x29",
+      "filename" : "Icon-iPhone-87x87.png"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "idiom" : "iphone",
+      "scale" : "3x",
+      "size" : "29x29",
+      "filename" : "Icon-Dark-iPhone-87x87.png"
     },
     {
       "idiom" : "iphone",
       "scale" : "2x",
-      "size" : "40x40"
+      "size" : "40x40",
+      "filename" : "Icon-iPhone-80x80.png"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "idiom" : "iphone",
+      "scale" : "2x",
+      "size" : "40x40",
+      "filename" : "Icon-Dark-iPhone-80x80.png"
     },
     {
       "idiom" : "iphone",
       "scale" : "3x",
-      "size" : "40x40"
+      "size" : "40x40",
+      "filename" : "Icon-iPhone-120x120.png"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "idiom" : "iphone",
+      "scale" : "3x",
+      "size" : "40x40",
+      "filename" : "Icon-Dark-iPhone-120x120.png"
     },
     {
       "filename" : "Icon-iPhone-120x120.png",
@@ -37,9 +115,34 @@
       "size" : "60x60"
     },
     {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "Icon-Dark-iPhone-120x120.png",
+      "idiom" : "iphone",
+      "scale" : "2x",
+      "size" : "60x60"
+    },
+    {
       "idiom" : "iphone",
       "scale" : "3x",
-      "size" : "60x60"
+      "size" : "60x60",
+      "filename" : "Icon-iPhone-180x180.png"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "idiom" : "iphone",
+      "scale" : "3x",
+      "size" : "60x60",
+      "filename" : "Icon-Dark-iPhone-180x180.png"
     },
     {
       "idiom" : "ipad",
@@ -63,13 +166,49 @@
       "size" : "76x76"
     },
     {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "Icon-Dark-iPad-76x76.png",
+      "idiom" : "ipad",
+      "scale" : "1x",
+      "size" : "76x76"
+    },
+    {
       "filename" : "Icon-iPad-152x152.png",
       "idiom" : "ipad",
       "scale" : "2x",
       "size" : "76x76"
     },
     {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "Icon-Dark-iPad-152x152.png",
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "76x76"
+    },
+    {
       "filename" : "Icon-iPad-167x167.png",
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "83.5x83.5"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "Icon-Dark-iPad-167x167.png",
       "idiom" : "ipad",
       "scale" : "2x",
       "size" : "83.5x83.5"
