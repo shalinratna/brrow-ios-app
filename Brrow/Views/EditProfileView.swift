@@ -235,18 +235,11 @@ struct EditProfileView: View {
     private var profilePictureSection: some View {
         VStack(spacing: Theme.Spacing.md) {
             ZStack {
-                if let profileImage = profileImage {
-                    Image(uiImage: profileImage)
+                BrrowAsyncImage(url: user.profilePicture ?? "") { image in
+                    image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 120, height: 120)
-                        .clipShape(Circle())
-                } else {
-                    BrrowAsyncImage(url: user.profilePicture ?? "") { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
+                } placeholder: {
                         Circle()
                             .fill(Theme.Colors.primary.opacity(0.1))
                             .overlay(
