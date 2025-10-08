@@ -409,8 +409,8 @@ struct ProfessionalMarketplaceView: View {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(viewModel.listings, id: \.listingId) { listing in
                         ProfessionalListingCard(listing: listing) {
-                            selectedListing = listing
-                            print("🔵 Listing tapped: \(listing.title) with ID: \(listing.listingId)")
+                            // ✅ SAFER: Look up listing by ID instead of capturing object
+                            handleListingTap(listingId: listing.listingId)
                         }
                         .id(listing.listingId)
                     }
@@ -455,6 +455,19 @@ struct ProfessionalMarketplaceView: View {
             }
             .padding(.trailing, 20)
             .padding(.bottom, 30)
+        }
+    }
+
+    // MARK: - Helper Functions
+    /// Safer tap handler that looks up listing by ID instead of capturing object
+    /// This prevents closure capture issues during animations and view recycling
+    private func handleListingTap(listingId: String) {
+        // Look up the listing from the current array by ID
+        if let listing = viewModel.listings.first(where: { $0.listingId == listingId }) {
+            selectedListing = listing
+            print("🔵 Listing tapped: \(listing.title) with ID: \(listingId)")
+        } else {
+            print("⚠️ Warning: Tapped listing \(listingId) not found in current listings array")
         }
     }
 }
