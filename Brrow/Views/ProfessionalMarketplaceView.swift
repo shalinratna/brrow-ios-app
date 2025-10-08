@@ -412,6 +412,7 @@ struct ProfessionalMarketplaceView: View {
                             selectedListing = listing
                             print("🔵 Listing tapped: \(listing.title) with ID: \(listing.listingId)")
                         }
+                        .id(listing.listingId) // Force explicit identity to prevent tap misalignment
                         .opacity(animateContent ? 1 : 0)
                         .scaleEffect(animateContent ? 1 : 0.9)
                         .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3), value: animateContent)
