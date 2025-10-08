@@ -456,10 +456,12 @@ struct ModernAuthView: View {
             isSignUpMode ? .signUp : .signIn,
             onRequest: { request in
                 request.requestedScopes = [.fullName, .email]
-                print("🍎 Apple Sign-In request initiated")
+                print("🍎 [APPLE SIGN-IN] Request initiated - Mode: \(isSignUpMode ? "Sign Up" : "Sign In")")
+                print("🍎 [APPLE SIGN-IN] Requested scopes: fullName, email")
             },
             onCompletion: { result in
-                print("🍎 Apple Sign-In completion handler called")
+                print("🍎 [APPLE SIGN-IN] Completion handler called")
+                print("🍎 [APPLE SIGN-IN] Result type: \(type(of: result))")
                 handleAppleSignIn(result: result)
             }
         )
@@ -698,21 +700,40 @@ struct ModernAuthView: View {
     }
     
     private func handleAppleSignIn(result: Result<ASAuthorization, Error>) {
+        print("🍎 [APPLE SIGN-IN] handleAppleSignIn called")
+
         switch result {
         case .success(let authorization):
+            print("🍎 [APPLE SIGN-IN] Authorization successful")
+            print("🍎 [APPLE SIGN-IN] Credential type: \(type(of: authorization.credential))")
+
             Task {
                 if let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                    print("🍎 [APPLE SIGN-IN] Apple credential extracted")
+
                     let firstName = appleCredential.fullName?.givenName
                     let lastName = appleCredential.fullName?.familyName
                     let email = appleCredential.email
                     let userIdentifier = appleCredential.user
-                    
+
+                    print("🍎 [APPLE SIGN-IN] User ID: \(userIdentifier)")
+                    print("🍎 [APPLE SIGN-IN] Email: \(email ?? "nil")")
+                    print("🍎 [APPLE SIGN-IN] First Name: \(firstName ?? "nil")")
+                    print("🍎 [APPLE SIGN-IN] Last Name: \(lastName ?? "nil")")
+
                     guard let identityToken = appleCredential.identityToken,
                           let tokenString = String(data: identityToken, encoding: .utf8) else {
-                        viewModel.errorMessage = "Unable to process Apple Sign In"
+                        print("❌ [APPLE SIGN-IN] Failed to extract identity token")
+                        await MainActor.run {
+                            viewModel.errorMessage = "Unable to process Apple Sign In"
+                            viewModel.showError = true
+                        }
                         return
                     }
-                    
+
+                    print("🍎 [APPLE SIGN-IN] Identity token extracted (length: \(tokenString.count))")
+                    print("🍎 [APPLE SIGN-IN] Calling viewModel.signInWithApple...")
+
                     await viewModel.signInWithApple(
                         userIdentifier: userIdentifier,
                         email: email,
@@ -720,27 +741,48 @@ struct ModernAuthView: View {
                         lastName: lastName,
                         identityToken: tokenString
                     )
+
+                    print("🍎 [APPLE SIGN-IN] viewModel.signInWithApple completed")
+                } else {
+                    print("❌ [APPLE SIGN-IN] Failed to cast credential to ASAuthorizationAppleIDCredential")
                 }
             }
-            
+
         case .failure(let error):
+            print("❌ [APPLE SIGN-IN] Authorization failed with error: \(error.localizedDescription)")
+
             if let authError = error as? ASAuthorizationError {
+                print("❌ [APPLE SIGN-IN] ASAuthorizationError code: \(authError.code.rawValue)")
+
                 switch authError.code {
                 case .canceled:
+                    print("ℹ️ [APPLE SIGN-IN] User canceled")
                     break
                 case .failed:
+                    print("❌ [APPLE SIGN-IN] Sign in failed")
                     viewModel.errorMessage = "Sign in failed. Please try again."
+                    viewModel.showError = true
                 case .invalidResponse:
+                    print("❌ [APPLE SIGN-IN] Invalid response")
                     viewModel.errorMessage = "Invalid response from Apple. Please try again."
+                    viewModel.showError = true
                 case .notHandled:
+                    print("❌ [APPLE SIGN-IN] Not handled")
                     viewModel.errorMessage = "Unable to complete sign in."
+                    viewModel.showError = true
                 case .unknown:
+                    print("❌ [APPLE SIGN-IN] Unknown error")
                     viewModel.errorMessage = "An unknown error occurred."
+                    viewModel.showError = true
                 @unknown default:
+                    print("❌ [APPLE SIGN-IN] Default error case")
                     viewModel.errorMessage = "Sign in failed."
+                    viewModel.showError = true
                 }
             } else {
+                print("❌ [APPLE SIGN-IN] Generic error: \(error)")
                 viewModel.errorMessage = error.localizedDescription
+                viewModel.showError = true
             }
         }
     }

@@ -16,6 +16,7 @@ struct SimplifiedListingDetailView: View {
     @State private var showingBorrowFlow = false
     @State private var showingOfferFlow = false
     @State private var showingMakeOffer = false
+    @State private var showingBuyNow = false
     @State private var showingMessageComposer = false
     @State private var isFavorited = false
     @State private var selectedImageIndex = 0
@@ -54,6 +55,12 @@ struct SimplifiedListingDetailView: View {
         .sheet(isPresented: $showingBorrowFlow) {
             BorrowFlowView(listing: viewModel.listing)
         }
+        .sheet(isPresented: $showingMakeOffer) {
+            ModernMakeOfferView(listing: viewModel.listing)
+        }
+        .sheet(isPresented: $showingBuyNow) {
+            BuyNowConfirmationView(listing: viewModel.listing)
+        }
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
                 FullSellerProfileView(user: seller)
@@ -62,6 +69,12 @@ struct SimplifiedListingDetailView: View {
         .sheet(isPresented: $showingEditView) {
             EnhancedEditListingView(listing: viewModel.listing)
                 .environmentObject(authManager)
+        }
+        .sheet(isPresented: $showingMessageComposer) {
+            ModernMessageComposer(
+                recipient: viewModel.seller,
+                listing: viewModel.listing
+            )
         }
         .alert("Delete Listing", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }
@@ -321,7 +334,7 @@ struct SimplifiedListingDetailView: View {
                         }
 
                         // Buy Now button
-                        Button(action: { showingBorrowFlow = true }) {
+                        Button(action: { showingBuyNow = true }) {
                             HStack {
                                 Image(systemName: "cart")
                                     .font(.system(size: 16, weight: .semibold))

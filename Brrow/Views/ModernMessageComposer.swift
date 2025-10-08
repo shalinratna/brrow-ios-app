@@ -83,12 +83,6 @@ struct ModernMessageComposer: View {
                     keyboardHeight = height
                 }
             }
-            .onAppear {
-                // Auto-focus text field after a short delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    isTextFieldFocused = true
-                }
-            }
         }
         .sheet(isPresented: $showingChatView) {
             if let conversationId = conversationId {
@@ -277,7 +271,6 @@ struct ModernMessageComposer: View {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                     messageText = suggestion
                                     selectedSuggestion = suggestion
-                                    isTextFieldFocused = true
                                 }
                             }
                         )

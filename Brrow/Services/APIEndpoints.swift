@@ -32,6 +32,7 @@ struct APIEndpoints {
         static let delete = "api/listings"  // DELETE /api/listings/:id
         static let fetchAll = "api/listings"  // GET
         static let getUserListings = "api/listings"  // GET with user filter
+        static let myListings = "api/listings/my-listings"  // GET - JWT-based user's own listings
         static let search = "api/search"  // GET
         static let featured = "api/listings/featured"  // GET
     }

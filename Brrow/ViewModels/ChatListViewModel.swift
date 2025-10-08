@@ -138,7 +138,31 @@ class ChatListViewModel: ObservableObject {
             return
         }
 
-        print("✅ [ChatListViewModel] User authenticated, proceeding with fetch")
+        // INSTANT LOAD: Check if conversations are already preloaded
+        if !bypassCache && !AppDataPreloader.shared.conversations.isEmpty {
+            let preloadedConversations = AppDataPreloader.shared.conversations
+            print("✅ [ChatListViewModel] Using preloaded conversations: \(preloadedConversations.count) chats")
+
+            let sortedConversations = preloadedConversations.sorted {
+                let formatter = ISO8601DateFormatter()
+                let timestamp1 = formatter.date(from: $0.lastMessage?.createdAt ?? $0.updatedAt) ?? Date()
+                let timestamp2 = formatter.date(from: $1.lastMessage?.createdAt ?? $1.updatedAt) ?? Date()
+                return timestamp1 > timestamp2
+            }
+
+            self.conversations = sortedConversations
+            if self.searchQuery.isEmpty {
+                self.filteredConversations = sortedConversations
+            } else {
+                self.searchConversations(query: self.searchQuery)
+            }
+            self.unreadCount = AppDataPreloader.shared.unreadCount
+            self.isLoading = false
+            print("✅ [ChatListViewModel] INSTANT LOAD complete")
+            return
+        }
+
+        print("✅ [ChatListViewModel] User authenticated, proceeding with API fetch")
         isLoading = true
         errorMessage = nil
 

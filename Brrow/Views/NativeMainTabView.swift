@@ -218,13 +218,8 @@ struct NativeMainTabView: View {
         }
         .toastOverlay()
         // Universal listing detail is handled at the app root level
-        // CRITICAL: Preload marketplace content when app launches
-        // This ensures marketplace is populated BEFORE user taps on it
-        .task {
-            // Fetch listings in background so they're ready instantly when user opens marketplace
-            await homeViewModel.preloadContent()
-            print("✅ Marketplace content preloaded in background")
-        }
+        // NOTE: Data preloading is now handled by AppDataPreloader in BrrowApp.swift
+        // All tabs load instantly thanks to comprehensive preloading on app launch
     }
     
     private func showGuestAlert() {

@@ -25,6 +25,15 @@ struct BrrowAsyncImage<Content: View, Placeholder: View>: View {
 
         print("🖼️ BrrowAsyncImage: Input URL = '\(urlString)'")
 
+        // Block invalid/test domains that will cause timeouts
+        let invalidDomains = ["test.com", "example.com", "localhost", "invalid.com", "fake.com", "dummy.com"]
+        for domain in invalidDomains {
+            if urlString.contains(domain) {
+                print("⚠️ BrrowAsyncImage: Blocked invalid domain '\(domain)' in URL: \(urlString)")
+                return nil
+            }
+        }
+
         // If already a full URL (especially Cloudinary) or base64 data URL, return as-is
         if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") || urlString.hasPrefix("data:image/") {
             if urlString.hasPrefix("data:image/") {
@@ -62,7 +71,9 @@ struct BrrowAsyncImage<Content: View, Placeholder: View>: View {
                     placeholder()
                 case .success(let image):
                     content(image)
-                case .failure(_):
+                case .failure(let error):
+                    // Log the error for debugging
+                    let _ = print("❌ BrrowAsyncImage: Failed to load image from '\(urlString)': \(error.localizedDescription)")
                     placeholder()
                 @unknown default:
                     placeholder()

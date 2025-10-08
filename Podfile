@@ -29,9 +29,21 @@ end
 # Note: BrrowWidgetsExtension target removed - no pods needed for widgets
 
 post_install do |installer|
+  # FIX ARCHITECTURE SETTINGS FOR ALL TARGETS
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+
+      # ✅ CRITICAL FIX: Set explicit architecture for Release builds
+      config.build_settings['ARCHS'] = 'arm64'
+      config.build_settings['VALID_ARCHS'] = 'arm64'
+
+      # ✅ CRITICAL: Build Active Architecture Only = NO for Release
+      if config.name == 'Release'
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+      else
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+      end
 
       # ✅ FIX: Ensure pods don't interfere with archiving
       config.build_settings['SKIP_INSTALL'] = 'YES'
@@ -57,7 +69,7 @@ post_install do |installer|
       config.build_settings['VALIDATES_PRODUCT'] = 'NO'
       config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'NO'
     end
-    
+
     # Fix Alamofire bundle issue
     if target.name == 'Alamofire'
       target.build_configurations.each do |config|
@@ -66,13 +78,43 @@ post_install do |installer|
       end
     end
   end
-  
+
+  # ✅ CRITICAL: Also update the main project targets
+  installer.aggregate_targets.each do |aggregate_target|
+    aggregate_target.xcconfigs.each do |config_name, config_file|
+      xcconfig_path = aggregate_target.xcconfig_path(config_name)
+      if File.exist?(xcconfig_path)
+        config_content = File.read(xcconfig_path)
+
+        # Ensure ARCHS is set
+        unless config_content.include?('ARCHS')
+          config_content += "\nARCHS = arm64\n"
+        end
+
+        # Ensure VALID_ARCHS is set
+        unless config_content.include?('VALID_ARCHS')
+          config_content += "\nVALID_ARCHS = arm64\n"
+        end
+
+        # Set ONLY_ACTIVE_ARCH based on configuration
+        if config_name.to_s.downcase.include?('release')
+          config_content.gsub!(/ONLY_ACTIVE_ARCH = .*/, 'ONLY_ACTIVE_ARCH = NO')
+          unless config_content.include?('ONLY_ACTIVE_ARCH')
+            config_content += "\nONLY_ACTIVE_ARCH = NO\n"
+          end
+        end
+
+        File.write(xcconfig_path, config_content)
+      end
+    end
+  end
+
   # Replace rsync with cp in the embed frameworks script to fix archive issues
   embed_script_path = "#{installer.sandbox.root}/Target Support Files/Pods-Brrow/Pods-Brrow-frameworks.sh"
   if File.exist?(embed_script_path)
     script_content = File.read(embed_script_path)
     # Replace all rsync commands with cp to avoid sandbox permission issues
-    script_content.gsub!('rsync --delete -av "${RSYNC_PROTECT_TMP_FILES[@]}" --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "${source}" "${destination}"', 
+    script_content.gsub!('rsync --delete -av "${RSYNC_PROTECT_TMP_FILES[@]}" --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "${source}" "${destination}"',
                         'rm -rf "${destination}/$(basename "${source}")" 2>/dev/null; cp -R "${source}" "${destination}/"')
     script_content.gsub!('rsync -auv "${SWIFT_STDLIB_PATH}/${lib}" "${destination}"',
                         'cp -R "${SWIFT_STDLIB_PATH}/${lib}" "${destination}/"')
@@ -84,7 +126,7 @@ post_install do |installer|
                         'cp -R "${bcsymbolmap_path}" "${destination}/"')
     File.write(embed_script_path, script_content)
   end
-  
+
   # Remove problematic Alamofire bundle files
   require 'fileutils'
   FileUtils.rm_rf(Dir.glob("#{installer.sandbox.root}/Alamofire/**/*.bundle"))

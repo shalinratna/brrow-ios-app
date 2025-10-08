@@ -2298,7 +2298,11 @@ class APIClient: ObservableObject {
     /// Returns: Array of Listing objects with images, location, and all metadata
     func fetchListings() async throws -> [Listing] {
         // Add limit parameter to fetch all listings (default backend limit is 20)
+        // IMPORTANT: This endpoint fetches ALL active listings from ALL users for marketplace browsing
+        // It should NEVER include a user_id parameter
         let endpoint = "\(APIEndpoints.Listings.fetchAll)?limit=1000"
+
+        debugLog("🏪 [MARKETPLACE] Fetching ALL listings for marketplace (no user filter)", data: ["endpoint": endpoint])
 
         // Use public request for marketplace browsing (no auth required)
         let response = try await performPublicRequest(
@@ -2306,6 +2310,9 @@ class APIClient: ObservableObject {
             method: .GET,
             responseType: ListingsResponse.self
         )
+
+        debugLog("🏪 [MARKETPLACE] Successfully fetched \(response.allListings.count) listings from ALL users")
+
         return response.allListings
     }
 
@@ -2596,11 +2603,18 @@ class APIClient: ObservableObject {
     }
     
     func fetchUserListings(userId: String? = nil, status: String = "active") async throws -> UserListingsResponse {
-        var endpoint = APIEndpoints.Listings.getUserListings + "?status=\(status)"
+        let endpoint: String
+
         if let userId = userId {
-            endpoint += "&user_id=\(userId)"
+            // Fetch listings for a specific user by ID
+            endpoint = APIEndpoints.Listings.getUserListings + "?user_id=\(userId)&status=\(status)"
+            debugLog("👤 [USER LISTINGS] Fetching listings for specific user", data: ["userId": userId, "status": status])
+        } else {
+            // Use JWT-based endpoint to fetch authenticated user's own listings
+            endpoint = APIEndpoints.Listings.myListings + "?status=\(status)"
+            debugLog("👤 [USER LISTINGS] Fetching listings for authenticated user (JWT-based)", data: ["status": status, "endpoint": endpoint])
         }
-        
+
         return try await performRequest(
             endpoint: endpoint,
             method: .GET,

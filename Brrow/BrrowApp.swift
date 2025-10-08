@@ -57,6 +57,9 @@ struct BrrowApp: App {
                             // Update widget data when app becomes active
                             WidgetDataManager.shared.handleAppBecameActive()
                             WidgetIntegrationService.shared.refreshWidgetsOnAppActivation()
+
+                            // Refresh marketplace data in background to ensure fresh listings
+                            MarketplaceDataPreloader.shared.refreshInBackground()
                         }
                 } else {
                     ModernAuthView()
@@ -143,6 +146,18 @@ struct BrrowApp: App {
         // Initialize widget data on app launch
         if authManager.isAuthenticated {
             WidgetIntegrationService.shared.updateAllWidgetData()
+        }
+
+        // CRITICAL: Preload ALL app data immediately for instant responsiveness
+        // This loads marketplace, conversations, favorites, and more in parallel
+        // so every tab is ready instantly when user taps on it
+        if authManager.isAuthenticated && !authManager.isGuestUser {
+            Task {
+                // Start preloading immediately - no delay needed
+                // The comprehensive preloader loads everything in parallel
+                print("🚀 [APP] Starting comprehensive data preload...")
+                AppDataPreloader.shared.preloadAllData()
+            }
         }
 
         // Check for pending uploads from previous session (crash recovery)
@@ -305,7 +320,47 @@ struct BrrowApp: App {
                 // Use the universal listing navigation manager
                 ListingNavigationManager.shared.showListingById(listingId)
             }
-            
+
+        case "payment":
+            // Handle payment return: brrowapp://payment/success or brrowapp://payment/cancel
+            let path = components.path ?? ""
+
+            if path == "/success" {
+                // Payment completed successfully
+                let sessionId = components.queryItems?.first(where: { $0.name == "session_id" })?.value
+                let purchaseId = components.queryItems?.first(where: { $0.name == "purchase_id" })?.value
+
+                print("✅ [PAYMENT] Checkout completed - session: \(sessionId ?? "none"), purchase: \(purchaseId ?? "none")")
+
+                // Navigate to profile/purchases tab to see the purchase
+                TabSelectionManager.shared.selectedTab = 4 // Profile tab
+
+                // Show success notification
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("ShowPaymentSuccess"),
+                        object: nil,
+                        userInfo: [
+                            "sessionId": sessionId ?? "",
+                            "purchaseId": purchaseId ?? ""
+                        ]
+                    )
+                }
+
+            } else if path == "/cancel" {
+                // Payment canceled
+                let purchaseId = components.queryItems?.first(where: { $0.name == "purchase_id" })?.value
+
+                print("❌ [PAYMENT] Checkout canceled - purchase: \(purchaseId ?? "none")")
+
+                // Stay on current screen, user can retry
+                NotificationCenter.default.post(
+                    name: Notification.Name("ShowPaymentCanceled"),
+                    object: nil,
+                    userInfo: ["purchaseId": purchaseId ?? ""]
+                )
+            }
+
         default:
             // Check if it's a web URL format: https://brrowapp.com/listing/123
             let path = components.path ?? ""

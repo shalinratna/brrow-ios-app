@@ -387,11 +387,20 @@ class LoginViewModel: ObservableObject {
     
     @MainActor
     func signInWithApple(userIdentifier: String, email: String?, firstName: String?, lastName: String?, identityToken: String) async {
+        print("🍎 [LOGIN-VM] signInWithApple called")
+        print("🍎 [LOGIN-VM] User ID: \(userIdentifier)")
+        print("🍎 [LOGIN-VM] Email: \(email ?? "nil")")
+        print("🍎 [LOGIN-VM] First Name: \(firstName ?? "nil")")
+        print("🍎 [LOGIN-VM] Last Name: \(lastName ?? "nil")")
+        print("🍎 [LOGIN-VM] Token length: \(identityToken.count)")
+
         isLoading = true
         errorMessage = ""
         showError = false
-        
+
         do {
+            print("🍎 [LOGIN-VM] Calling APIClient.shared.appleLogin...")
+
             let response = try await APIClient.shared.appleLogin(
                 userIdentifier: userIdentifier,
                 email: email,
@@ -399,17 +408,29 @@ class LoginViewModel: ObservableObject {
                 lastName: lastName,
                 identityToken: identityToken
             )
-            
+
+            print("🍎 [LOGIN-VM] API call successful")
+            print("🍎 [LOGIN-VM] Response token: \(response.authToken ?? "nil")")
+            print("🍎 [LOGIN-VM] Response user ID: \(response.user.apiId ?? "nil")")
+
             authManager.handleAuthSuccess(response)
+            print("🍎 [LOGIN-VM] AuthManager.handleAuthSuccess completed")
+
             trackLoginSuccess()
             clearForm()
+            print("✅ [LOGIN-VM] Apple Sign-In completed successfully")
         } catch {
+            print("❌ [LOGIN-VM] Apple Sign-In failed with error: \(error)")
+            print("❌ [LOGIN-VM] Error type: \(type(of: error))")
+            print("❌ [LOGIN-VM] Error description: \(error.localizedDescription)")
+
             errorMessage = "Apple sign in failed. Please try again."
             showError = true
-            trackLoginError("apple_signin_failed")
+            trackLoginError("apple_signin_failed: \(error.localizedDescription)")
         }
-        
+
         isLoading = false
+        print("🍎 [LOGIN-VM] isLoading set to false")
     }
     
     // MARK: - Analytics (Shaiitech Sentinel A7)

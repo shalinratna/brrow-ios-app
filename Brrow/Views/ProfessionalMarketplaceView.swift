@@ -184,9 +184,12 @@ struct ProfessionalMarketplaceView: View {
             }
             .sheet(isPresented: $showingPostCreation) {
                 ModernPostCreationView(onListingCreated: { listingId in
+                    // CRITICAL: Invalidate all caches so fresh data is fetched
+                    AppDataPreloader.shared.invalidateCache(for: .all)
+
                     // First refresh the marketplace to get all new listings
                     viewModel.loadMarketplace()
-                    
+
                     // Show the listing detail after a brief delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         Task {
@@ -195,14 +198,14 @@ struct ProfessionalMarketplaceView: View {
                                 let listing = try await APIClient.shared.fetchListingDetailsByListingId(listingId)
                                 await MainActor.run {
                                     self.selectedListing = listing
-                                    // Refresh again to ensure we have the latest
-                                    self.viewModel.loadMarketplace()
+                                    // Refresh preloader in background for next time
+                                    AppDataPreloader.shared.refreshInBackground(type: .marketplace)
                                 }
                             } catch {
                                 print("Error fetching listing: \(error)")
-                                // Still refresh marketplace even if fetching details fails
+                                // Still refresh preloader even if fetching details fails
                                 await MainActor.run {
-                                    self.viewModel.loadMarketplace()
+                                    AppDataPreloader.shared.refreshInBackground(type: .marketplace)
                                 }
                             }
                         }
@@ -404,14 +407,14 @@ struct ProfessionalMarketplaceView: View {
                 .frame(height: 300)
             } else {
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(Array(viewModel.listings.enumerated()), id: \.element.listingId) { index, listing in
+                    ForEach(viewModel.listings, id: \.listingId) { listing in
                         ProfessionalListingCard(listing: listing) {
                             selectedListing = listing
                             print("🔵 Listing tapped: \(listing.title) with ID: \(listing.listingId)")
                         }
                         .opacity(animateContent ? 1 : 0)
                         .scaleEffect(animateContent ? 1 : 0.9)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(Double(index) * 0.05 + 0.3), value: animateContent)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3), value: animateContent)
                     }
                 }
                 
@@ -819,31 +822,66 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
     private var allListings: [Listing] = []
     
     func loadMarketplace() {
+        print("🏪 [MARKETPLACE] loadMarketplace() called")
+
+        // PRIORITY 1: Check comprehensive preloader first (fastest)
+        let preloadedListings = AppDataPreloader.shared.marketplaceListings
+
+        if !preloadedListings.isEmpty {
+            // Use comprehensive preloaded data for INSTANT load
+            print("✅ [MARKETPLACE] Using comprehensive preloaded data: \(preloadedListings.count) listings")
+            self.allListings = preloadedListings
+            self.applyFiltersAndSort()
+            self.totalListings = preloadedListings.count
+            self.nearbyListings = preloadedListings.count
+            self.todaysDeals = preloadedListings.filter { $0.price < 50 }.count
+            self.hasMore = preloadedListings.count >= 20
+            self.isLoading = false
+            print("✅ [MARKETPLACE] INSTANT LOAD - showing \(self.listings.count) listings")
+            return
+        }
+
+        // PRIORITY 2: Fallback to legacy preloader
+        let legacyPreloadedListings = MarketplaceDataPreloader.shared.getPreloadedListings()
+
+        if !legacyPreloadedListings.isEmpty {
+            print("✅ [MARKETPLACE] Using legacy preloaded data: \(legacyPreloadedListings.count) listings")
+            self.allListings = legacyPreloadedListings
+            self.applyFiltersAndSort()
+            self.totalListings = legacyPreloadedListings.count
+            self.nearbyListings = legacyPreloadedListings.count
+            self.todaysDeals = legacyPreloadedListings.filter { $0.price < 50 }.count
+            self.hasMore = legacyPreloadedListings.count >= 20
+            self.isLoading = false
+            return
+        }
+
+        // PRIORITY 3: Last resort - fetch from API if no preloaded data
+        print("⚠️ [MARKETPLACE] No preloaded data available, fetching from API...")
         Task {
             await MainActor.run { isLoading = true }
-            
+
             do {
-                // Fetch listings with current filters
                 let fetchedListings = try await apiClient.fetchListings()
-                
+
                 await MainActor.run {
+                    print("✅ [MARKETPLACE] API fetch successful: \(fetchedListings.count) listings")
                     self.allListings = fetchedListings
                     self.applyFiltersAndSort()
                     self.totalListings = fetchedListings.count
-                    self.nearbyListings = fetchedListings.count // For now, assume all are nearby
+                    self.nearbyListings = fetchedListings.count
                     self.todaysDeals = fetchedListings.filter { $0.price < 50 }.count
                     self.hasMore = fetchedListings.count >= 20
                     self.isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    // On error, use local counts as fallback
                     self.totalListings = self.listings.count
                     self.nearbyListings = 0
                     self.todaysDeals = self.listings.filter { $0.price < 50 }.count
                     self.isLoading = false
                 }
-                print("Error loading marketplace: \(error)")
+                print("❌ [MARKETPLACE] Error loading marketplace: \(error)")
             }
         }
     }
@@ -889,35 +927,51 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
     }
     
     private func applyFiltersAndSort() {
+        print("🔍 [MARKETPLACE] Applying filters to \(allListings.count) total listings")
+
         var filtered = allListings
-        
+
         // Apply search query
         if !searchQuery.isEmpty {
+            let beforeCount = filtered.count
             filtered = filtered.filter { listing in
                 listing.title.localizedCaseInsensitiveContains(searchQuery) ||
                 listing.description.localizedCaseInsensitiveContains(searchQuery) ||
                 (listing.category?.name ?? "").localizedCaseInsensitiveContains(searchQuery)
             }
+            print("🔍 [MARKETPLACE] Search filter '\(searchQuery)': \(beforeCount) -> \(filtered.count) listings")
         }
-        
+
         // Apply category filter
         if let category = selectedCategory {
+            let beforeCount = filtered.count
             filtered = filtered.filter { $0.category?.name == category }
+            print("🔍 [MARKETPLACE] Category filter '\(category)': \(beforeCount) -> \(filtered.count) listings")
         }
-        
+
         // Apply price filter
+        let beforePriceCount = filtered.count
         filtered = filtered.filter { $0.price >= minPrice && $0.price <= maxPrice }
-        
+        if beforePriceCount != filtered.count {
+            print("🔍 [MARKETPLACE] Price filter $\(minPrice)-$\(maxPrice): \(beforePriceCount) -> \(filtered.count) listings")
+        }
+
         // Apply condition filter
         if let condition = selectedCondition {
+            let beforeCount = filtered.count
             filtered = filtered.filter { $0.condition == condition }
+            print("🔍 [MARKETPLACE] Condition filter '\(condition)': \(beforeCount) -> \(filtered.count) listings")
         }
-        
+
         // Apply availability filter
         if showOnlyAvailable {
+            let beforeCount = filtered.count
             filtered = filtered.filter { $0.isAvailable }
+            if beforeCount != filtered.count {
+                print("🔍 [MARKETPLACE] Availability filter (only available): \(beforeCount) -> \(filtered.count) listings")
+            }
         }
-        
+
         // Apply sorting
         switch sortOption {
         case .newest:
@@ -932,7 +986,9 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
         case .popularity:
             filtered.sort { $0.views > $1.views }
         }
-        
+
+        print("🔍 [MARKETPLACE] Final result: \(filtered.count) listings after all filters and sorting")
+
         self.listings = filtered
     }
     

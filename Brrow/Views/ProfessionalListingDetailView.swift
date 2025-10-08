@@ -196,7 +196,10 @@ struct ProfessionalListingDetailView: View {
             }
         }
         .sheet(isPresented: $showingMakeOffer) {
-            MakeOfferView(listing: viewModel.listing)
+            ModernMakeOfferView(listing: viewModel.listing)
+        }
+        .sheet(isPresented: $showingBuyNow) {
+            BuyNowConfirmationView(listing: viewModel.listing)
         }
         .sheet(isPresented: $showingReportListing) {
             ReportListingView(listing: viewModel.listing)

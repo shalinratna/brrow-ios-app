@@ -136,11 +136,19 @@ class ProfileViewModel: ObservableObject {
               let userIdInt = Int(userId),
               userIdInt > 0,
               authManager.isAuthenticated,
-              authManager.authToken != nil else { 
+              authManager.authToken != nil else {
             self.userListings = []
-            return 
+            return
         }
-        
+
+        // INSTANT LOAD: Check if user listings are already preloaded
+        if !AppDataPreloader.shared.userListings.isEmpty {
+            print("✅ [ProfileViewModel] Using preloaded user listings: \(AppDataPreloader.shared.userListings.count) items")
+            self.userListings = AppDataPreloader.shared.userListings
+            return
+        }
+
+        // Fallback: Fetch from API if not preloaded
         Task {
             do {
                 let listings = try await apiClient.fetchUserListings(userId: userIdInt)
