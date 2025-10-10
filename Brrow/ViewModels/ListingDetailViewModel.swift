@@ -302,13 +302,12 @@ class ListingDetailViewModel: ObservableObject {
             showGuestAlert = true
             return
         }
-        
-        guard let userId = authManager.currentUser?.id else { return }
-        
+
+        guard authManager.currentUser != nil else { return }
+
         Task {
             do {
-                guard let userIdInt = Int(userId) else { return }
-                let newStatus = try await apiClient.toggleFavoriteByListingId(listing.listingId, userId: userIdInt)
+                let newStatus = try await apiClient.toggleFavoriteByListingId(listing.listingId)
                 await MainActor.run {
                     self.isFavorited = newStatus
                 }
