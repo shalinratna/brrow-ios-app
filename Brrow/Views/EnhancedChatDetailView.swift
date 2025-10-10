@@ -1215,3 +1215,182 @@ struct ListingDetailNavigationView: View {
     }
 }
 
+// MARK: - Placeholder Views for Missing Features
+
+struct VideoCallView: View {
+    let conversation: Conversation
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                VStack(spacing: 12) {
+                    Image(systemName: "video.slash.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.white.opacity(0.7))
+
+                    Text("Video Call")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+
+                    Text("Video calling feature coming soon")
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+
+                Spacer()
+
+                Button(action: { dismiss() }) {
+                    Text("Close")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 200, height: 50)
+                        .background(Theme.Colors.primary)
+                        .cornerRadius(25)
+                }
+                .padding(.bottom, 40)
+            }
+            .padding()
+        }
+    }
+}
+
+struct VoiceRecorderView: View {
+    let viewModel: ChatDetailViewModel
+    let conversationId: String
+    @Binding var isRecording: Bool
+    @State private var recordingDuration: TimeInterval = 0
+    @State private var timer: Timer?
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            VStack(spacing: 16) {
+                // Recording indicator
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 12, height: 12)
+                        .opacity(recordingDuration.truncatingRemainder(dividingBy: 1.0) < 0.5 ? 1.0 : 0.3)
+
+                    Text(formatDuration(recordingDuration))
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+                }
+
+                // Waveform placeholder
+                HStack(spacing: 4) {
+                    ForEach(0..<20, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Theme.Colors.primary)
+                            .frame(width: 3, height: CGFloat.random(in: 10...40))
+                    }
+                }
+                .padding()
+
+                Text("Voice recording not yet implemented")
+                    .font(.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+            .padding()
+            .background(Theme.Colors.surface)
+            .cornerRadius(Theme.CornerRadius.lg)
+
+            HStack(spacing: 40) {
+                // Cancel button
+                Button(action: {
+                    timer?.invalidate()
+                    isRecording = false
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.red)
+                }
+
+                // Send button
+                Button(action: {
+                    timer?.invalidate()
+                    // In a real implementation, would send the recorded audio
+                    isRecording = false
+                }) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.green)
+                }
+            }
+            .padding(.bottom, 40)
+        }
+        .padding()
+        .background(Theme.Colors.background.opacity(0.95))
+        .onAppear {
+            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                recordingDuration += 0.1
+            }
+        }
+        .onDisappear {
+            timer?.invalidate()
+        }
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+struct AudioPlayerView: View {
+    let audioURL: String
+    @State private var isPlaying = false
+    @State private var currentTime: TimeInterval = 0
+    @State private var duration: TimeInterval = 60 // Placeholder duration
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Play/Pause button
+            Button(action: {
+                isPlaying.toggle()
+            }) {
+                Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundColor(Theme.Colors.primary)
+            }
+
+            // Waveform visualization
+            HStack(spacing: 2) {
+                ForEach(0..<30, id: \.self) { index in
+                    let height: CGFloat = CGFloat.random(in: 4...20)
+                    let progress = currentTime / duration
+                    let isPlayed = Double(index) / 30.0 < progress
+
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(isPlayed ? Theme.Colors.primary : Theme.Colors.secondaryText.opacity(0.3))
+                        .frame(width: 2, height: height)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            // Duration
+            Text(formatTime(currentTime))
+                .font(.system(size: 12))
+                .foregroundColor(Theme.Colors.secondaryText)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+

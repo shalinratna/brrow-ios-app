@@ -55,7 +55,7 @@ struct SocialProfileView: View {
             EditProfileView(user: user)
         }
         .sheet(isPresented: $showingSettings) {
-            EnhancedSettingsView()
+            ModernSettingsView()
                 .environmentObject(AuthManager.shared)
         }
         .sheet(isPresented: $showingWriteReview) {

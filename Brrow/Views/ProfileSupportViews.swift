@@ -676,10 +676,85 @@ struct DataExportView: View {
     
     private func exportAll() {
         isExporting = true
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             isExporting = false
             ToastManager.shared.showSuccess(title: "Export Complete", message: "Check your email for the download link")
         }
+    }
+}
+
+// MARK: - Community Guidelines View
+struct CommunityGuidelinesView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Community Guidelines")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .padding(.bottom, 8)
+
+                guidelineSection(
+                    title: "Be Respectful",
+                    icon: "hand.raised.fill",
+                    description: "Treat all community members with respect and kindness."
+                )
+
+                guidelineSection(
+                    title: "Be Honest",
+                    icon: "checkmark.seal.fill",
+                    description: "Provide accurate descriptions of your items and be truthful in all communications."
+                )
+
+                guidelineSection(
+                    title: "Be Safe",
+                    icon: "shield.fill",
+                    description: "Meet in public places, verify user identities, and trust your instincts."
+                )
+
+                guidelineSection(
+                    title: "Be Responsible",
+                    icon: "person.fill.checkmark",
+                    description: "Take care of borrowed items and return them on time in good condition."
+                )
+
+                guidelineSection(
+                    title: "No Prohibited Items",
+                    icon: "exclamationmark.triangle.fill",
+                    description: "Do not list weapons, drugs, stolen goods, or other illegal items."
+                )
+
+                guidelineSection(
+                    title: "Report Issues",
+                    icon: "flag.fill",
+                    description: "Report any suspicious activity, violations, or safety concerns immediately."
+                )
+            }
+            .padding()
+        }
+        .navigationTitle("Guidelines")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func guidelineSection(title: String, icon: String, description: String) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(Theme.Colors.primary)
+                .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(Theme.Colors.text)
+
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+        }
+        .padding()
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.md)
     }
 }

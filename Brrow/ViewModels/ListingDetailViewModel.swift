@@ -356,11 +356,19 @@ class ListingDetailViewModel: ObservableObject {
     func updateListingStatus(_ newStatus: String) async throws {
         isLoading = true
         defer { isLoading = false }
-        
-        try await apiClient.updateListingField(listingId: listing.listingId, field: "availabilityStatus", value: newStatus)
-        
-        // Reload listing details to get updated data
-        await loadListingDetails()
+
+        // Use the new status endpoint
+        let updatedListing = try await apiClient.updateListingStatus(listingId: listing.listingId, status: newStatus)
+
+        await MainActor.run {
+            self.listing = updatedListing
+        }
+    }
+
+    // Convenience method for marking as sold/rented from detail view
+    func markAsSoldOrRented() async throws {
+        let newStatus = listing.listingType == "sale" ? "SOLD" : "RENTED"
+        try await updateListingStatus(newStatus)
     }
     
     func submitOffer(amount: Double, message: String, duration: Int) {

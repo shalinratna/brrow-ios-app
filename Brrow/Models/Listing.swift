@@ -35,11 +35,52 @@ enum PromotionStatus: String, Codable {
 
 // MARK: - Listing Status Enum
 enum ListingStatus: String, Codable, CaseIterable {
-    case available = "AVAILABLE"
-    case sold = "SOLD"
-    case pending = "PENDING"
-    case reserved = "RESERVED"
-    case deleted = "DELETED"
+    case upcoming = "UPCOMING"           // New listings awaiting moderation approval
+    case available = "AVAILABLE"         // Approved, ready for transactions
+    case inTransaction = "IN_TRANSACTION" // Payment hold active (visible in marketplace)
+    case rented = "RENTED"               // Currently being rented (visible in marketplace)
+    case sold = "SOLD"                   // Permanently sold
+    case reserved = "RESERVED"           // Seller reserved (maintenance, etc.)
+    case removed = "REMOVED"             // Admin/moderation removed
+
+    // Professional user-facing display text
+    var displayText: String {
+        switch self {
+        case .upcoming: return "Under Review"
+        case .available: return "Available"
+        case .inTransaction: return "Pending Sale"
+        case .rented: return "Currently Rented"
+        case .sold: return "Sold"
+        case .reserved: return "Reserved"
+        case .removed: return "Unavailable"
+        }
+    }
+
+    // Badge color for visual consistency
+    var badgeColor: String {
+        switch self {
+        case .upcoming: return "orange"
+        case .available: return "green"
+        case .inTransaction: return "blue"
+        case .rented: return "purple"
+        case .sold: return "gray"
+        case .reserved: return "yellow"
+        case .removed: return "red"
+        }
+    }
+
+    // Whether this listing should show in marketplace
+    var isPubliclyVisible: Bool {
+        switch self {
+        case .upcoming, .removed: return false
+        case .available, .inTransaction, .rented, .sold, .reserved: return true
+        }
+    }
+
+    // Whether user can initiate purchase/rental
+    var canPurchase: Bool {
+        return self == .available
+    }
 }
 
 // MARK: - Listing Model (Codable for API)
@@ -216,8 +257,24 @@ struct Listing: Codable, Identifiable, Equatable {
         return imageUrls.first ?? imageUrl
     }
     
-    var isAvailable: Bool { 
-        return isActive && availabilityStatus == .available
+    // Whether listing should show in marketplace (new logic: show multiple statuses)
+    var isAvailable: Bool {
+        return isActive && availabilityStatus.isPubliclyVisible
+    }
+
+    // Whether user can actually purchase/rent this listing
+    var canInitiatePurchase: Bool {
+        return isActive && availabilityStatus.canPurchase
+    }
+
+    // Status badge display text
+    var statusDisplayText: String {
+        return availabilityStatus.displayText
+    }
+
+    // Status badge color
+    var statusBadgeColor: String {
+        return availabilityStatus.badgeColor
     }
     
     var priceDisplay: String {

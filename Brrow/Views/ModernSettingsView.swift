@@ -452,7 +452,7 @@ struct ModernSettingsView: View {
             SimpleAccountSettingsView()
                 .environmentObject(authManager)
         case .privacy:
-            PrivacySettingsView()
+            PrivacySecurityView()
                 .environmentObject(authManager)
         case .notifications:
             NotificationSettingsView()
@@ -463,7 +463,7 @@ struct ModernSettingsView: View {
         case .support:
             SupportView()
         case .about:
-            AboutView()
+            AboutBrrowView()
         #if DEBUG
         case .developer:
             DeveloperSettingsView()

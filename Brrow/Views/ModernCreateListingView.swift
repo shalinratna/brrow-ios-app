@@ -930,6 +930,56 @@ struct ModernSummaryRow: View {
     }
 }
 
+// MARK: - Listing Result View
+struct ListingResultView: View {
+    let isSuccess: Bool
+    let message: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Theme.Colors.background.ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                // Icon
+                Image(systemName: isSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(isSuccess ? .green : .red)
+
+                // Title
+                Text(isSuccess ? "Success!" : "Error")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(Theme.Colors.text)
+
+                // Message
+                Text(message)
+                    .font(.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                Spacer()
+
+                // Dismiss button
+                Button(action: onDismiss) {
+                    Text("Continue")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Theme.Colors.primary)
+                        .cornerRadius(25)
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+}
+
 // MARK: - Preview
 
 struct ModernCreateListingView_Previews: PreviewProvider {

@@ -517,6 +517,60 @@ struct GarageSaleListRow: View {
     }
 }
 
+// MARK: - Map Annotation
+
+class GarageSaleAnnotation: NSObject, MKAnnotation {
+    let garageSale: GarageSale
+
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(
+            latitude: garageSale.latitude ?? 37.7749,
+            longitude: garageSale.longitude ?? -122.4194
+        )
+    }
+
+    var title: String? {
+        garageSale.title
+    }
+
+    var subtitle: String? {
+        "\(garageSale.photos.count) items • \(garageSale.isActive ? "LIVE NOW" : formatDate(garageSale.startDate))"
+    }
+
+    init(garageSale: GarageSale) {
+        self.garageSale = garageSale
+        super.init()
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        guard let date = inputFormatter.date(from: dateString) else { return dateString }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, h:mm a"
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Extensions
+
+extension MKCoordinateRegion: @retroactive Equatable {
+    public static func == (lhs: MKCoordinateRegion, rhs: MKCoordinateRegion) -> Bool {
+        lhs.center.latitude == rhs.center.latitude &&
+        lhs.center.longitude == rhs.center.longitude &&
+        lhs.span.latitudeDelta == rhs.span.latitudeDelta &&
+        lhs.span.longitudeDelta == rhs.span.longitudeDelta
+    }
+
+    func isEqual(_ other: MKCoordinateRegion, tolerance: Double = 0.001) -> Bool {
+        abs(center.latitude - other.center.latitude) < tolerance &&
+        abs(center.longitude - other.center.longitude) < tolerance &&
+        abs(span.latitudeDelta - other.span.latitudeDelta) < tolerance &&
+        abs(span.longitudeDelta - other.span.longitudeDelta) < tolerance
+    }
+}
+
 // MARK: - Active Sales Indicator
 struct ActiveSalesIndicator: View {
     let count: Int

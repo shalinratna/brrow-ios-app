@@ -36,11 +36,8 @@ class ListingNavigationManager: ObservableObject {
         print("🟢 Current selectedListing before change: \(selectedListing?.title ?? "nil") (ID: \(selectedListing?.listingId ?? "nil"))")
         print("🟢 Setting selectedListing to: \(listing.title) and showingListingDetail = true")
 
-        // Clear any existing state first to prevent conflicts
-        selectedListing = nil
+        // Set new state directly - no need to clear first with .id() modifier
         pendingListingId = nil
-
-        // Set new state
         selectedListing = listing
         showingListingDetail = true
 
@@ -101,13 +98,17 @@ struct UniversalListingDetailModifier: ViewModifier {
         content
             .sheet(isPresented: $navigationManager.showingListingDetail) {
                 if let listing = navigationManager.selectedListing {
-                    UniversalListingDetailView(listing: listing)
-                        .onDisappear {
-                            print("🔶 Sheet dismissed, clearing navigation state")
-                            navigationManager.clearListing()
-                        }
+                    NavigationView {
+                        ProfessionalListingDetailView(listing: listing)
+                    }
+                    .id(listing.listingId) // Force view recreation when listing changes
+                    .onDisappear {
+                        print("🔶 Sheet dismissed, clearing navigation state")
+                        navigationManager.clearListing()
+                    }
                 } else if let listingId = navigationManager.pendingListingId {
                     DeepLinkedListingView(listingId: listingId)
+                        .id(listingId) // Force view recreation when listing ID changes
                         .onDisappear {
                             print("🔶 Deep linked sheet dismissed, clearing navigation state")
                             navigationManager.clearListing()

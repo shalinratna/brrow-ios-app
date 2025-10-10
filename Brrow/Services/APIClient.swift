@@ -1696,7 +1696,43 @@ class APIClient: ObservableObject {
         CacheManager.shared.remove(forKey: cacheKey)
         debugLog("🗑️ Cleared cache for listing: \(listingId)")
     }
-    
+
+    // Update listing status using the new status system
+    func updateListingStatus(listingId: String, status: String) async throws -> Listing {
+        struct StatusUpdateRequest: Codable {
+            let status: String
+        }
+
+        struct StatusUpdateResponse: Codable {
+            let success: Bool
+            let message: String?
+            let data: Listing?
+            let error: String?
+        }
+
+        let requestBody = StatusUpdateRequest(status: status)
+        let bodyData = try JSONEncoder().encode(requestBody)
+
+        let response = try await performRequest(
+            endpoint: "api/listings/\(listingId)/status",
+            method: .PUT,
+            body: bodyData,
+            responseType: StatusUpdateResponse.self,
+            cachePolicy: .ignoreCache
+        )
+
+        guard response.success, let updatedListing = response.data else {
+            throw BrrowAPIError.serverError(response.error ?? response.message ?? "Failed to update listing status")
+        }
+
+        // Clear cache for this listing to force fresh data
+        let cacheKey = CacheManager.shared.apiCacheKey(endpoint: "api/listings/\(listingId)", parameters: nil)
+        CacheManager.shared.remove(forKey: cacheKey)
+        debugLog("✅ Updated listing status to \(status), cleared cache")
+
+        return updatedListing
+    }
+
     // MARK: - Rental Transaction Operations
     func createRentalRequest(data: [String: Any]) async throws -> [String: Any] {
         let baseURL = await self.baseURL
@@ -3094,6 +3130,29 @@ class APIClient: ObservableObject {
         return response.isFavorited
     }
     
+    // New version that uses auth header for user identification (supports CUID users)
+    func toggleFavoriteByListingId(_ listingId: String) async throws -> Bool {
+        struct ToggleFavoriteByIdRequest: Codable {
+            let listingId: String
+
+            enum CodingKeys: String, CodingKey {
+                case listingId = "listing_id"
+            }
+        }
+
+        let request = ToggleFavoriteByIdRequest(listingId: listingId)
+        let bodyData = try JSONEncoder().encode(request)
+
+        let response = try await performRequest(
+            endpoint: "api/favorites/toggle",
+            method: .POST,
+            body: bodyData,
+            responseType: FavoriteStatusResponse.self
+        )
+        return response.isFavorited
+    }
+
+    // Legacy version that requires integer userId (deprecated, kept for backward compatibility)
     func toggleFavoriteByListingId(_ listingId: String, userId: Int) async throws -> Bool {
         struct ToggleFavoriteByIdRequest: Codable {
             let listingId: String
@@ -4048,10 +4107,24 @@ class APIClient: ObservableObject {
         )
     }
     
-    // MARK: - Subscriptions  
+    // MARK: - Subscriptions
+    struct CurrentSubscription: Codable {
+        let id: String
+        let planType: String
+        let status: String
+        let currentPeriodEnd: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case planType = "plan_type"
+            case status
+            case currentPeriodEnd = "current_period_end"
+        }
+    }
+
     struct SubscriptionResponse: Codable {
         let currentSubscription: CurrentSubscription?
-        
+
         enum CodingKeys: String, CodingKey {
             case currentSubscription = "current_subscription"
         }
@@ -4575,6 +4648,40 @@ class APIClient: ObservableObject {
         )
     }
     
+    // MARK: - Stripe Types
+    struct SetCreatorReferralResponse: Codable {
+        let success: Bool
+        let message: String?
+    }
+
+    struct StripeSubscription: Codable {
+        let id: String?
+        let status: String?
+        let planType: String?
+        let currentPeriodEnd: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case status
+            case planType = "plan_type"
+            case currentPeriodEnd = "current_period_end"
+        }
+    }
+
+    struct StripeCheckoutSession: Codable {
+        let url: String
+        let sessionId: String?
+
+        enum CodingKeys: String, CodingKey {
+            case url
+            case sessionId = "session_id"
+        }
+    }
+
+    struct StripeCustomerPortal: Codable {
+        let url: String
+    }
+
     // MARK: - Stripe Subscription Methods
     func getStripeSubscription() async throws -> StripeSubscription {
         return try await performRequest(

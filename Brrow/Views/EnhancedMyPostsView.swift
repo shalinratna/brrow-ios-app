@@ -823,10 +823,3 @@ extension PostFilter {
     }
 }
 
-// MARK: - ViewModel Extension
-extension MyPostsViewModel {
-    func deletePost(_ post: UserPost) {
-        // Implement delete functionality
-        posts.removeAll { $0.id == post.id }
-    }
-}

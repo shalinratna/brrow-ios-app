@@ -109,7 +109,7 @@ struct EditProfileView: View {
             ChangePasswordView()
         }
         .sheet(isPresented: $showPrivacySettings) {
-            PrivacySettingsView()
+            PrivacySecurityView()
         }
         .sheet(isPresented: $showNotificationSettings) {
             NotificationSettingsView()

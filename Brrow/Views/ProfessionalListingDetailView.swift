@@ -31,6 +31,7 @@ struct ProfessionalListingDetailView: View {
     @State private var showingEditListing = false
     @State private var showingAnalytics = false
     @State private var showingMarkAsSold = false
+    @State private var showingMarkAsSoldConfirmation = false
     @State private var showingBuyNow = false
     @State private var showingInsuranceInfo = false
     @State private var showingMessageComposer = false
@@ -225,11 +226,28 @@ struct ProfessionalListingDetailView: View {
         } message: {
             Text("Are you sure you want to delete this listing? This action cannot be undone.")
         }
+        .alert("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")", isPresented: $showingMarkAsSoldConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Confirm", role: .none) {
+                Task {
+                    do {
+                        try await viewModel.markAsSoldOrRented()
+                    } catch {
+                        viewModel.errorMessage = "Failed to update listing status: \(error.localizedDescription)"
+                    }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to mark this listing as \(viewModel.listing.listingType == "sale" ? "sold" : "rented")? This will update the status and notify potential buyers/renters.")
+        }
         .sheet(isPresented: $showingBorrowOptions) {
             BorrowOptionsView(listing: viewModel.listing)
         }
         .sheet(isPresented: $showingInquiry) {
-            ListingInquiryView(listing: viewModel.listing)
+            ModernMessageComposer(
+                recipient: viewModel.seller,
+                listing: viewModel.listing
+            )
         }
         .sheet(isPresented: $showingMessageComposer) {
             ModernMessageComposer(
@@ -267,50 +285,58 @@ struct ProfessionalListingDetailView: View {
     
     // MARK: - Image Gallery (Facebook Marketplace Style)
     private var imageGallerySection: some View {
-        Group {
-            if !viewModel.listing.imageUrls.isEmpty {
-                TabView(selection: $selectedImageIndex) {
-                    ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
-                        BrrowAsyncImage(url: imageUrl) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .clipped()
-                                .allowsHitTesting(true)
-                        } placeholder: {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.1))
-                                .overlay(
-                                    ProgressView()
-                                        .scaleEffect(1.2)
-                                )
-                        }
-                        .tag(index)
-                        .onTapGesture {
-                            showingFullScreenImage = true
-                        }
-                        .onAppear {
-                            preloadAdjacentImages(currentIndex: index)
+        ZStack(alignment: .topLeading) {
+            Group {
+                if !viewModel.listing.imageUrls.isEmpty {
+                    TabView(selection: $selectedImageIndex) {
+                        ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
+                            BrrowAsyncImage(url: imageUrl) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .clipped()
+                                    .allowsHitTesting(true)
+                            } placeholder: {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.1))
+                                    .overlay(
+                                        ProgressView()
+                                            .scaleEffect(1.2)
+                                    )
+                            }
+                            .tag(index)
+                            .onTapGesture {
+                                showingFullScreenImage = true
+                            }
+                            .onAppear {
+                                preloadAdjacentImages(currentIndex: index)
+                            }
                         }
                     }
+                    .tabViewStyle(PageTabViewStyle())
+                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
+                } else {
+                    // No images placeholder
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.1))
+                        .overlay(
+                            VStack(spacing: 12) {
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.gray.opacity(0.4))
+                                Text("No images available")
+                                    .font(.body)
+                                    .foregroundColor(.gray.opacity(0.6))
+                            }
+                        )
                 }
-                .tabViewStyle(PageTabViewStyle())
-                .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
-            } else {
-                // No images placeholder
-                Rectangle()
-                    .fill(Color.gray.opacity(0.1))
-                    .overlay(
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray.opacity(0.4))
-                            Text("No images available")
-                                .font(.body)
-                                .foregroundColor(.gray.opacity(0.6))
-                        }
-                    )
+            }
+
+            // Status badge (top-left) - only show if not AVAILABLE
+            if viewModel.listing.availabilityStatus != .available {
+                ListingStatusBadge(listing: viewModel.listing, size: .medium)
+                    .padding(12)
             }
         }
     }
@@ -485,8 +511,8 @@ struct ProfessionalListingDetailView: View {
                         }
                     }
                     
-                    Button(action: { 
-                        showingMarkAsSold = true 
+                    Button(action: {
+                        showingMarkAsSoldConfirmation = true
                     }) {
                         Text("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")")
                             .font(.system(size: 16, weight: .medium))
@@ -789,8 +815,8 @@ struct ProfessionalListingDetailView: View {
                     .foregroundColor(Theme.Colors.secondaryText)
                 
                 Spacer()
-                
-                NavigationLink(destination: BrowseView()) {
+
+                Button(action: { /* Navigate to browse view */ }) {
                     Text("See All")
                         .font(.caption)
                         .foregroundColor(Theme.Colors.primary)

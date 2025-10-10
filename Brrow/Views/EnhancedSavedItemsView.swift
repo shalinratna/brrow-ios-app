@@ -49,7 +49,7 @@ struct EnhancedSavedItemsView: View {
         }
         .sheet(item: $selectedListing) { listing in
             NavigationView {
-                ListingDetailView(listing: listing)
+                SimplifiedListingDetailView(listing: listing)
             }
         }
     }

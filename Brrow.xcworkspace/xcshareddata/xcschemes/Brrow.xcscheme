@@ -99,8 +99,8 @@
          <ExecutionAction
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
-               title = "Fix Archive Info.plist"
-               scriptText = "${SRCROOT}/fix-archive.sh">
+               title = "Add ApplicationProperties"
+               scriptText = "#!/bin/bash&#10;${SRCROOT}/fix-archive-proper.sh">
                <EnvironmentBuildable>
                   <BuildableReference
                      BuildableIdentifier = "primary"

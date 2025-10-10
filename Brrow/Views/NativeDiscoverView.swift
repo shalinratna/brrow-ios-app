@@ -65,7 +65,7 @@ struct NativeDiscoverView: View {
         }
         .sheet(isPresented: $showingPostCreation) {
             NavigationView {
-                PostCreationView()
+                ModernPostCreationView()
             }
         }
         .onAppear {

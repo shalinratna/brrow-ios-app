@@ -37,7 +37,7 @@ struct DeepLinkedListingView: View {
                     }
                 }
             } else if let listing = listing {
-                FullScreenListingDetailView(listing: listing)
+                ProfessionalListingDetailView(listing: listing)
             } else {
                 // Error state
                 ZStack {

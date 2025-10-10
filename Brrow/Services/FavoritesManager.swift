@@ -86,12 +86,7 @@ class FavoritesManager: ObservableObject {
 
         // Call API
         do {
-            guard let userId = AuthManager.shared.currentUser?.id,
-                  let userIdInt = Int(userId) else {
-                throw NSError(domain: "FavoritesManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid user ID"])
-            }
-
-            let result = try await APIClient.shared.toggleFavoriteByListingId(listingId, userId: userIdInt)
+            let result = try await APIClient.shared.toggleFavoriteByListingId(listingId)
 
             // Verify result matches our optimistic update
             await MainActor.run {

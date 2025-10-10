@@ -364,6 +364,126 @@ struct BrrowStoryView: View {
     }
 }
 
+struct TrendingListingCard: View {
+    let listing: Listing
+    @State private var isLiked = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Image
+            BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Theme.Colors.secondary.opacity(0.2))
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.system(size: 32))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    )
+            }
+            .frame(height: 200)
+            .clipped()
+
+            // Content
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.orange)
+                    Text("Trending")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.orange)
+                }
+
+                Text(listing.title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+
+                Text(listing.description)
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .lineLimit(2)
+
+                HStack {
+                    Text(listing.isFree ? "FREE" : "$\(Int(listing.price))/day")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(listing.isFree ? Theme.Colors.success : Theme.Colors.primary)
+
+                    Spacer()
+
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            isLiked.toggle()
+                        }
+                    }) {
+                        Image(systemName: isLiked ? "heart.fill" : "heart")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(isLiked ? .red : Theme.Colors.text)
+                    }
+                }
+            }
+            .padding(Theme.Spacing.md)
+        }
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.card)
+        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct StoryDetailCard: View {
+    let story: BrrowStory
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Story header
+            HStack {
+                BrrowAsyncImage(url: story.thumbnailUrl) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(Theme.Colors.secondary.opacity(0.3))
+                }
+                .frame(width: 40, height: 40)
+                .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(story.username)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+
+                    Text("2 hours ago")
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+
+                Spacer()
+            }
+
+            // Story content
+            BrrowAsyncImage(url: story.thumbnailUrl) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Theme.Colors.secondary.opacity(0.2))
+            }
+            .frame(height: 300)
+            .clipped()
+            .cornerRadius(Theme.CornerRadius.md)
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.card)
+        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
 struct SocialListingCard: View {
     let listing: Listing
     let showDistance: Bool

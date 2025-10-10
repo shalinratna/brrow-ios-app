@@ -12,27 +12,41 @@ struct ListingGridCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Image - Using CachedAsyncImage for better performance
-            BrrowAsyncImage(
-                url: listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first?.url,
-                content: { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                },
-                placeholder: {
-                    Rectangle()
-                        .fill(Theme.Colors.surface)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .font(.title2)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        )
+            // Image section with status badge
+            ZStack(alignment: .topTrailing) {
+                BrrowAsyncImage(
+                    url: listing.imageUrls.first ?? listing.firstImageUrl ?? listing.images.first?.url,
+                    content: { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    },
+                    placeholder: {
+                        Rectangle()
+                            .fill(Theme.Colors.surface)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.title2)
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            )
+                    }
+                )
+                .frame(height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipped()
+
+                // Status badge (top-left) - only show if not AVAILABLE
+                if listing.availabilityStatus != .available {
+                    VStack {
+                        HStack {
+                            ListingStatusBadge(listing: listing, size: .small)
+                                .padding(4)
+                            Spacer()
+                        }
+                        Spacer()
+                    }
                 }
-            )
-            .frame(height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .clipped()
+            }
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(listing.title)

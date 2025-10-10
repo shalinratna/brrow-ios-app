@@ -514,10 +514,12 @@ struct EnhancedEditListingView: View {
 
             // Existing tags
             if !tags.isEmpty {
-                FlowLayout(spacing: 8) {
-                    ForEach(tags, id: \.self) { tag in
-                        TagView(tag: tag) {
-                            tags.removeAll { $0 == tag }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(tags, id: \.self) { tag in
+                            TagView(tag: tag) {
+                                tags.removeAll { $0 == tag }
+                            }
                         }
                     }
                 }

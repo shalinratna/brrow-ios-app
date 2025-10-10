@@ -744,26 +744,44 @@ struct ProfessionalListingCard: View {
                     .clipped()
                     .background(Theme.Colors.secondaryBackground)
 
-                // Heart button
-                Circle()
-                    .fill(Color.white.opacity(0.9))
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        Image(systemName: isFavorited ? "heart.fill" : "heart")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(isFavorited ? .red : Theme.Colors.text)
-                    )
-                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    .padding(8)
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            Task {
-                                await favoritesManager.toggleFavorite(listing: listing)
-                            }
-                            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                            impactFeedback.impactOccurred()
+                // Status badge (top-left) - only show if not AVAILABLE
+                if listing.availabilityStatus != .available {
+                    VStack {
+                        HStack {
+                            ListingStatusBadge(listing: listing, size: .small)
+                                .padding(6)
+                            Spacer()
                         }
+                        Spacer()
                     }
+                }
+
+                // Heart button (top-right)
+                VStack {
+                    HStack {
+                        Spacer()
+                        Circle()
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Image(systemName: isFavorited ? "heart.fill" : "heart")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(isFavorited ? .red : Theme.Colors.text)
+                            )
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            .padding(8)
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    Task {
+                                        await favoritesManager.toggleFavorite(listing: listing)
+                                    }
+                                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                    impactFeedback.impactOccurred()
+                                }
+                            }
+                    }
+                    Spacer()
+                }
             }
             
             // Content section
@@ -812,7 +830,16 @@ struct ProfessionalListingCard: View {
         )
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.easeInOut(duration: 0.1), value: isPressed)
+        .onAppear {
+            print("🎨 [CARD RENDER] Card appeared with:")
+            print("    ID: \(listing.listingId)")
+            print("    Title: '\(listing.title)'")
+            print("    First Image: \(listing.imageUrls.first ?? "NO IMAGE")")
+        }
         .onTapGesture {
+            print("👆 [CARD TAP] User tapped card:")
+            print("    ID: \(listing.listingId)")
+            print("    Title: '\(listing.title)'")
             onTap?()
         }
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
@@ -957,14 +984,16 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
         if !preloadedListings.isEmpty {
             // Use comprehensive preloaded data for INSTANT load
             print("✅ [MARKETPLACE] Using comprehensive preloaded data: \(preloadedListings.count) listings")
-            self.allListings = preloadedListings
-            self.applyFiltersAndSort()
-            self.totalListings = preloadedListings.count
-            self.nearbyListings = preloadedListings.count
-            self.todaysDeals = preloadedListings.filter { $0.price < 50 }.count
-            self.hasMore = preloadedListings.count >= 20
-            self.isLoading = false
-            print("✅ [MARKETPLACE] INSTANT LOAD - showing \(self.listings.count) listings")
+            DispatchQueue.main.async {
+                self.allListings = preloadedListings
+                self.applyFiltersAndSort()
+                self.totalListings = preloadedListings.count
+                self.nearbyListings = preloadedListings.count
+                self.todaysDeals = preloadedListings.filter { $0.price < 50 }.count
+                self.hasMore = preloadedListings.count >= 20
+                self.isLoading = false
+                print("✅ [MARKETPLACE] INSTANT LOAD - showing \(self.listings.count) listings")
+            }
             return
         }
 
@@ -973,13 +1002,15 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
 
         if !legacyPreloadedListings.isEmpty {
             print("✅ [MARKETPLACE] Using legacy preloaded data: \(legacyPreloadedListings.count) listings")
-            self.allListings = legacyPreloadedListings
-            self.applyFiltersAndSort()
-            self.totalListings = legacyPreloadedListings.count
-            self.nearbyListings = legacyPreloadedListings.count
-            self.todaysDeals = legacyPreloadedListings.filter { $0.price < 50 }.count
-            self.hasMore = legacyPreloadedListings.count >= 20
-            self.isLoading = false
+            DispatchQueue.main.async {
+                self.allListings = legacyPreloadedListings
+                self.applyFiltersAndSort()
+                self.totalListings = legacyPreloadedListings.count
+                self.nearbyListings = legacyPreloadedListings.count
+                self.todaysDeals = legacyPreloadedListings.filter { $0.price < 50 }.count
+                self.hasMore = legacyPreloadedListings.count >= 20
+                self.isLoading = false
+            }
             return
         }
 
@@ -1116,15 +1147,28 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
 
         print("🔍 [MARKETPLACE] Final result: \(filtered.count) listings after all filters and sorting")
 
-        self.listings = filtered
+        // DEBUG: Log each listing's data to catch mismatches
+        print("📋 [MARKETPLACE DEBUG] Listing data verification:")
+        for (index, listing) in filtered.prefix(10).enumerated() {
+            print("  [\(index)] ID: \(listing.listingId)")
+            print("      Title: '\(listing.title)'")
+            print("      Price: $\(listing.price)")
+            print("      First Image: \(listing.imageUrls.first ?? "NO IMAGE")")
+            print("      OwnerID: \(listing.ownerId)")
+        }
+
+        // THREADING FIX: Ensure @Published property update happens on main thread
+        DispatchQueue.main.async {
+            self.listings = filtered
+        }
     }
     
     func sortBy(_ option: MarketplaceSortOption) {
         sortOption = option
-        
+
         // Sort current listings locally for immediate feedback
         var sortedListings = listings
-        
+
         switch option {
         case .newest:
             sortedListings.sort { $0.createdAt > $1.createdAt }
@@ -1138,16 +1182,23 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
         case .popularity:
             sortedListings.sort { $0.views > $1.views }
         }
-        
-        listings = sortedListings
+
+        // THREADING FIX: Ensure @Published property update happens on main thread
+        DispatchQueue.main.async {
+            self.listings = sortedListings
+        }
     }
     
     func loadMore() {
         guard !isLoadingMore && hasMore else { return }
-        
+
         currentPage += 1
-        isLoadingMore = true
-        
+
+        // THREADING FIX: Ensure @Published property update happens on main thread
+        DispatchQueue.main.async {
+            self.isLoadingMore = true
+        }
+
         Task {
             // Load more items
             await MainActor.run {

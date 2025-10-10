@@ -342,7 +342,7 @@ struct OptimizationSplashView: View {
             .padding()
         }
         .fullScreenCover(isPresented: $showMainApp) {
-            ContentView() // Main app view
+            NativeMainTabView() // Main app view
         }
         .onAppear {
             Task {

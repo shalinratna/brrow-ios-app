@@ -188,8 +188,8 @@ struct ChatSearchView: View {
     private func previousResult() {
         if currentResultIndex > 0 {
             currentResultIndex -= 1
-            if let message = searchResults[safe: currentResultIndex] {
-                onMessageSelected(message)
+            if currentResultIndex < searchResults.count {
+                onMessageSelected(searchResults[currentResultIndex])
             }
         }
     }
@@ -197,8 +197,8 @@ struct ChatSearchView: View {
     private func nextResult() {
         if currentResultIndex < searchResults.count - 1 {
             currentResultIndex += 1
-            if let message = searchResults[safe: currentResultIndex] {
-                onMessageSelected(message)
+            if currentResultIndex < searchResults.count {
+                onMessageSelected(searchResults[currentResultIndex])
             }
         }
     }

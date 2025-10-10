@@ -70,22 +70,53 @@ struct StripeConnectOnboardingView: View {
 
                 Spacer()
 
+                // Error message (if any)
+                if !viewModel.errorMessage.isEmpty {
+                    VStack(spacing: 12) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.title3)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Connection Error")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+
+                                Text(viewModel.errorMessage)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .padding(.horizontal)
+                    .transition(.opacity)
+                }
+
                 // Buttons
                 VStack(spacing: 12) {
-                    Button(action: viewModel.startOnboarding) {
+                    Button(action: viewModel.errorMessage.isEmpty ? viewModel.startOnboarding : viewModel.retryOnboarding) {
                         HStack {
                             if viewModel.isLoading {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                     .scaleEffect(0.8)
                             } else {
-                                Text("Connect Stripe Account")
+                                if !viewModel.errorMessage.isEmpty {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.body)
+                                }
+                                Text(viewModel.errorMessage.isEmpty ? "Connect Stripe Account" : "Retry Connection")
                                     .fontWeight(.semibold)
                             }
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
-                        .background(Color.blue)
+                        .background(viewModel.errorMessage.isEmpty ? Color.blue : Color.orange)
                         .foregroundColor(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
@@ -99,13 +130,6 @@ struct StripeConnectOnboardingView: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 30)
-
-                if !viewModel.errorMessage.isEmpty {
-                    Text(viewModel.errorMessage)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                        .padding(.horizontal)
-                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
@@ -119,15 +143,32 @@ struct StripeConnectOnboardingView: View {
         .sheet(isPresented: $viewModel.showingSafari, onDismiss: {
             Task {
                 await viewModel.checkCompletionAndDismiss()
-                if viewModel.onboardingCompleted {
-                    dismiss()
-                }
             }
         }) {
             if let url = viewModel.onboardingURL {
                 SafariView(url: url)
             }
         }
+        .fullScreenCover(isPresented: $viewModel.showSuccessScreen) {
+            StripeConnectSuccessView {
+                // Dismiss success screen, then dismiss onboarding view
+                viewModel.showSuccessScreen = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        return SFSafariViewController(url: url)
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
     }
 }
 
@@ -164,7 +205,9 @@ class StripeConnectOnboardingViewModel: ObservableObject {
     @Published var errorMessage = ""
     @Published var showingSafari = false
     @Published var onboardingCompleted = false
+    @Published var showSuccessScreen = false
     @Published var onboardingURL: URL?
+    @Published var retryCount = 0
 
     func startOnboarding() {
         isLoading = true
@@ -172,30 +215,116 @@ class StripeConnectOnboardingViewModel: ObservableObject {
 
         Task {
             do {
+                print("[StripeConnect] Requesting onboarding URL...")
                 let response = try await APIClient.shared.getStripeConnectOnboardingUrl()
-                onboardingURL = URL(string: response.onboardingUrl)
+
+                print("[StripeConnect] Received onboarding URL: \(response.onboardingUrl)")
+                guard let url = URL(string: response.onboardingUrl) else {
+                    throw StripeConnectError.invalidURL
+                }
+
+                onboardingURL = url
                 showingSafari = true
                 isLoading = false
+                retryCount = 0 // Reset retry count on success
+
+                print("[StripeConnect] Opening Safari for onboarding")
+            } catch let error as BrrowAPIError {
+                isLoading = false
+                errorMessage = handleAPIError(error)
+                print("[StripeConnect] API Error: \(errorMessage)")
+            } catch StripeConnectError.invalidURL {
+                isLoading = false
+                errorMessage = "Received invalid onboarding link. Please try again."
+                print("[StripeConnect] Invalid URL received")
             } catch {
                 isLoading = false
-                errorMessage = "Failed to start onboarding: \(error.localizedDescription)"
+                errorMessage = "An unexpected error occurred: \(error.localizedDescription)"
+                print("[StripeConnect] Unexpected error: \(error)")
             }
         }
     }
 
     func checkCompletionAndDismiss() async {
         do {
+            print("[StripeConnect] Checking onboarding completion status...")
+
             // Wait a moment for Stripe to process
             try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
 
             let status = try await APIClient.shared.getStripeConnectStatus()
+            print("[StripeConnect] Status check result - canReceivePayments: \(status.canReceivePayments)")
+
             if status.canReceivePayments {
                 onboardingCompleted = true
+                print("[StripeConnect] Onboarding completed successfully!")
+
+                // Show success animation
+                await MainActor.run {
+                    showSuccessScreen = true
+                }
+            } else {
+                print("[StripeConnect] Onboarding not yet complete")
+                // Show helpful message if not complete
+                if status.requiresOnboarding == true {
+                    errorMessage = "Please complete all required steps in the Stripe onboarding process."
+                }
             }
+        } catch let error as BrrowAPIError {
+            let errorMsg = handleAPIError(error)
+            print("[StripeConnect] Status check error: \(errorMsg)")
+            // Don't show error to user on status check - just log it
         } catch {
-            print("Failed to check onboarding status: \(error)")
+            print("[StripeConnect] Failed to check onboarding status: \(error)")
         }
     }
+
+    func retryOnboarding() {
+        retryCount += 1
+        startOnboarding()
+    }
+
+    private func handleAPIError(_ error: BrrowAPIError) -> String {
+        switch error {
+        case .networkError(let message):
+            if message.contains("No internet") || message.contains("connection") {
+                return "No internet connection. Please check your network and try again."
+            } else if message.contains("timed out") {
+                return "Request timed out. Please try again."
+            } else {
+                return "Network error: \(message)"
+            }
+
+        case .unauthorized:
+            return "Your session has expired. Please log in again."
+
+        case .validationError(let message):
+            return message
+
+        case .serverError(let message):
+            return "Server error: \(message). Please try again later."
+
+        case .serverErrorCode(let code):
+            if code == 502 {
+                return "Unable to connect to Stripe. Please try again in a few moments."
+            } else {
+                return "Server error (code \(code)). Please try again later."
+            }
+
+        case .invalidResponse:
+            return "Received invalid response from server. Please try again."
+
+        case .decodingError(let message):
+            return "Data processing error: \(message). Please contact support if this persists."
+
+        default:
+            return "An error occurred. Please try again."
+        }
+    }
+}
+
+enum StripeConnectError: Error {
+    case invalidURL
 }
 
 #Preview {

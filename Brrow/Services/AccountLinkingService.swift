@@ -10,11 +10,22 @@ import GoogleSignIn
 import AuthenticationServices
 import UIKit
 
+// MARK: - Stripe Connect Status Model
+struct StripeConnectStatus: Codable {
+    let connected: Bool
+    let accountId: String?
+    let payoutsEnabled: Bool
+    let chargesEnabled: Bool
+    let detailsSubmitted: Bool
+    let bankLast4: String?
+}
+
 @MainActor
 class AccountLinkingService: NSObject, ObservableObject {
     static let shared = AccountLinkingService()
 
     @Published var isLinking = false
+    @Published var stripeStatus: StripeConnectStatus?
 
     private var currentProvider: OAuthProvider?
     private var linkContinuation: CheckedContinuation<Void, Error>?
@@ -46,51 +57,44 @@ class AccountLinkingService: NSObject, ObservableObject {
         }
 
         if httpResponse.statusCode == 200 {
-            struct AccountInfo: Codable {
-                let linked: Bool
-                let email: String?
-                let linkedAt: String?
-            }
-
             struct Response: Codable {
                 let success: Bool
-                let accounts: AccountsContainer
+                let linkedAccounts: [LinkedAccount]
+                let stripe: StripeStatus?
 
-                struct AccountsContainer: Codable {
-                    let google: AccountInfo
-                    let apple: AccountInfo
+                struct StripeStatus: Codable {
+                    let connected: Bool
+                    let accountId: String?
+                    let payoutsEnabled: Bool
+                    let chargesEnabled: Bool
+                    let detailsSubmitted: Bool
+                    let bankLast4: String?
                 }
             }
 
             let apiResponse = try JSONDecoder().decode(Response.self, from: data)
 
-            // Convert to LinkedAccount array
-            var accounts: [LinkedAccount] = []
-
-            if apiResponse.accounts.google.linked,
-               let email = apiResponse.accounts.google.email,
-               let linkedAt = apiResponse.accounts.google.linkedAt {
-                accounts.append(LinkedAccount(
-                    id: "google",
-                    provider: "google",
-                    email: email,
-                    createdAt: linkedAt
-                ))
+            // Store Stripe status in published property
+            if let stripe = apiResponse.stripe {
+                self.stripeStatus = StripeConnectStatus(
+                    connected: stripe.connected,
+                    accountId: stripe.accountId,
+                    payoutsEnabled: stripe.payoutsEnabled,
+                    chargesEnabled: stripe.chargesEnabled,
+                    detailsSubmitted: stripe.detailsSubmitted,
+                    bankLast4: stripe.bankLast4
+                )
+            } else {
+                self.stripeStatus = nil
             }
 
-            if apiResponse.accounts.apple.linked,
-               let email = apiResponse.accounts.apple.email,
-               let linkedAt = apiResponse.accounts.apple.linkedAt {
-                accounts.append(LinkedAccount(
-                    id: "apple",
-                    provider: "apple",
-                    email: email,
-                    createdAt: linkedAt
-                ))
-            }
-
-            return accounts
+            return apiResponse.linkedAccounts
         } else {
+            // Try to get error message from response
+            if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
+               let message = errorData["message"] {
+                throw LinkingError.backendError(message)
+            }
             throw LinkingError.serverError(statusCode: httpResponse.statusCode)
         }
     }

@@ -498,7 +498,7 @@ struct SimpleProfessionalProfileView: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            NavigationLink(destination: AboutView()) {
+            NavigationLink(destination: AboutBrrowView()) {
                 ProfileMenuRow(
                     icon: "questionmark.circle.fill",
                     title: LocalizationHelper.localizedString("help_support")

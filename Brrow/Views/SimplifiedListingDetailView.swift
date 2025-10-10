@@ -13,10 +13,10 @@ struct SimplifiedListingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     // State variables
-    @State private var showingBorrowFlow = false
     @State private var showingOfferFlow = false
     @State private var showingMakeOffer = false
     @State private var showingBuyNow = false
+    @State private var showingBorrowFlow = false
     @State private var showingMessageComposer = false
     @State private var isFavorited = false
     @State private var selectedImageIndex = 0
@@ -26,6 +26,7 @@ struct SimplifiedListingDetailView: View {
     @State private var showingEditView = false
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
+    @State private var showingMarkAsSoldConfirmation = false
     
     init(listing: Listing) {
         _viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
@@ -52,14 +53,14 @@ struct SimplifiedListingDetailView: View {
             bottomBar,
             alignment: .bottom
         )
-        .sheet(isPresented: $showingBorrowFlow) {
-            BorrowFlowView(listing: viewModel.listing)
-        }
         .sheet(isPresented: $showingMakeOffer) {
             ModernMakeOfferView(listing: viewModel.listing)
         }
         .sheet(isPresented: $showingBuyNow) {
             BuyNowConfirmationView(listing: viewModel.listing)
+        }
+        .sheet(isPresented: $showingBorrowFlow) {
+            ModernMakeOfferView(listing: viewModel.listing)
         }
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
@@ -83,6 +84,21 @@ struct SimplifiedListingDetailView: View {
             }
         } message: {
             Text("Are you sure you want to delete this listing? This action cannot be undone.")
+        }
+        .alert("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")", isPresented: $showingMarkAsSoldConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Confirm", role: .none) {
+                Task {
+                    do {
+                        try await viewModel.markAsSoldOrRented()
+                    } catch {
+                        // Handle error
+                        print("Failed to update status: \(error)")
+                    }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to mark this listing as \(viewModel.listing.listingType == "sale" ? "sold" : "rented")? This will update the status and notify potential buyers/renters.")
         }
         .onAppear {
             viewModel.loadListingDetails()
@@ -124,20 +140,28 @@ struct SimplifiedListingDetailView: View {
     }
     
     private var imageCarousel: some View {
-        TabView(selection: $selectedImageIndex) {
-            ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
-                BrrowAsyncImage(url: imageUrl)
-                    .frame(height: 400)
-                    .clipped()
-                    .tag(index)
+        ZStack(alignment: .topLeading) {
+            TabView(selection: $selectedImageIndex) {
+                ForEach(Array(viewModel.listing.imageUrls.enumerated()), id: \.offset) { index, imageUrl in
+                    BrrowAsyncImage(url: imageUrl)
+                        .frame(height: 400)
+                        .clipped()
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(PageTabViewStyle())
+            .frame(height: 400)
+            .overlay(
+                imageIndicator,
+                alignment: .bottom
+            )
+
+            // Status badge (top-left) - only show if not AVAILABLE
+            if viewModel.listing.availabilityStatus != .available {
+                ListingStatusBadge(listing: viewModel.listing, size: .medium)
+                    .padding(12)
             }
         }
-        .tabViewStyle(PageTabViewStyle())
-        .frame(height: 400)
-        .overlay(
-            imageIndicator,
-            alignment: .bottom
-        )
     }
     
     private var imageIndicator: some View {
@@ -258,32 +282,50 @@ struct SimplifiedListingDetailView: View {
     private var bottomBar: some View {
         HStack(spacing: 12) {
             if isOwner {
-                Button(action: { showingEditView = true }) {
-                    HStack {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("Edit")
-                            .font(.system(size: 16, weight: .semibold))
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Button(action: { showingEditView = true }) {
+                            HStack {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Edit")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Theme.Colors.primary)
+                            .cornerRadius(25)
+                        }
+
+                        Button(action: { showingDeleteAlert = true }) {
+                            HStack {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Delete")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.red)
+                            .cornerRadius(25)
+                        }
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Theme.Colors.primary)
-                    .cornerRadius(25)
-                }
-                
-                Button(action: { showingDeleteAlert = true }) {
-                    HStack {
-                        Image(systemName: "trash")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("Delete")
-                            .font(.system(size: 16, weight: .semibold))
+
+                    Button(action: { showingMarkAsSoldConfirmation = true }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.green)
+                        .cornerRadius(25)
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Color.red)
-                    .cornerRadius(25)
                 }
             } else {
                 // Message button

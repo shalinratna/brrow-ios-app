@@ -92,8 +92,15 @@ struct VerificationStatusCard: View {
                     .foregroundColor(Theme.Colors.text)
                 
                 Spacer()
-                
-                StatusBadge(status: status)
+
+                Text(status.capitalized)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(statusColor)
+                    .cornerRadius(8)
             }
             
             Text(statusDescription)
@@ -123,6 +130,19 @@ struct VerificationStatusCard: View {
             return "Your verification was rejected. Please contact support for assistance."
         default:
             return "Business verification helps build trust with customers."
+        }
+    }
+
+    private var statusColor: Color {
+        switch status {
+        case "verified":
+            return .green
+        case "pending":
+            return .orange
+        case "rejected":
+            return .red
+        default:
+            return .gray
         }
     }
 }
