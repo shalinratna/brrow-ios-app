@@ -463,6 +463,7 @@ struct ProfessionalListingDetailView: View {
             viewModel.listing.user?.apiId == currentUser?.apiId ||
             viewModel.listing.user?.id == currentUser?.id
         )
+        let isPendingSale = viewModel.listing.availabilityStatus == .inTransaction
 
         // Debug ownership detection (only in debug builds)
         #if DEBUG
@@ -473,13 +474,15 @@ struct ProfessionalListingDetailView: View {
 
         return VStack(spacing: 12) {
 
-            
-            if isOwner {
+            // Show pending sale notice if in transaction
+            if isPendingSale {
+                pendingSaleNotice
+            } else if isOwner {
                 // Owner actions - Simple design
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
-                        Button(action: { 
-                            showingEditView = true 
+                        Button(action: {
+                            showingEditView = true
                         }) {
                             HStack {
                                 Image(systemName: "pencil")
@@ -492,9 +495,9 @@ struct ProfessionalListingDetailView: View {
                             .background(Theme.Colors.primary)
                             .cornerRadius(8)
                         }
-                        
-                        Button(action: { 
-                            showingAnalytics = true 
+
+                        Button(action: {
+                            showingAnalytics = true
                         }) {
                             HStack {
                                 Image(systemName: "chart.bar")
@@ -510,7 +513,7 @@ struct ProfessionalListingDetailView: View {
                             )
                         }
                     }
-                    
+
                     Button(action: {
                         showingMarkAsSoldConfirmation = true
                     }) {
@@ -547,10 +550,10 @@ struct ProfessionalListingDetailView: View {
                                     .stroke(Theme.Colors.primary, lineWidth: 1.5)
                             )
                         }
-                        
+
                         if viewModel.listing.isNegotiable {
-                            Button(action: { 
-                                showingMakeOffer = true 
+                            Button(action: {
+                                showingMakeOffer = true
                             }) {
                                 HStack {
                                     Image(systemName: "tag")
@@ -567,8 +570,8 @@ struct ProfessionalListingDetailView: View {
                             }
                         }
                     }
-                    
-                    Button(action: { 
+
+                    Button(action: {
                         if viewModel.listing.listingType == "sale" {
                             showingBuyNow = true
                         } else {
@@ -584,6 +587,54 @@ struct ProfessionalListingDetailView: View {
                             .cornerRadius(8)
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Pending Sale Notice
+    private var pendingSaleNotice: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "clock.badge.checkmark.fill")
+                    .font(.system(size: 32))
+                    .foregroundColor(.orange)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sale Pending")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+
+                    Text("Payment hold active – awaiting verification")
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(12)
+
+            // Message seller button still available
+            Button(action: {
+                if viewModel.isGuestUser {
+                    viewModel.showGuestAlert = true
+                } else {
+                    showingMessageComposer = true
+                }
+            }) {
+                HStack {
+                    Image(systemName: "message.fill")
+                    Text("Message Seller")
+                }
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(Theme.Colors.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Theme.Colors.primary, lineWidth: 1.5)
+                )
             }
         }
     }
@@ -934,9 +985,11 @@ struct ProfessionalListingDetailView: View {
     
     // MARK: - Bottom Action Bar (Simple)
     private var bottomActionBar: some View {
-        VStack(spacing: 0) {
+        let isPendingSale = viewModel.listing.availabilityStatus == .inTransaction
+
+        return VStack(spacing: 0) {
             Divider()
-            
+
             HStack(spacing: 16) {
                 // Price
                 VStack(alignment: .leading, spacing: 2) {
@@ -949,14 +1002,28 @@ struct ProfessionalListingDetailView: View {
                             .foregroundColor(Theme.Colors.secondaryText)
                     }
                 }
-                
+
                 Spacer()
-                
-                // Show different buttons based on ownership
-                let isOwner = viewModel.listing.userId == AuthManager.shared.currentUser?.id || 
+
+                // Show different buttons based on ownership and pending status
+                let isOwner = viewModel.listing.userId == AuthManager.shared.currentUser?.id ||
                              viewModel.listing.userId == AuthManager.shared.currentUser?.apiId
-                
-                if isOwner {
+
+                if isPendingSale {
+                    // Pending sale - show status badge
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock.badge.checkmark.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.orange)
+                        Text("Pending Sale")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(height: 44)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(22)
+                } else if isOwner {
                     // Owner actions
                     Button(action: { showingEditView = true }) {
                         Image(systemName: "pencil")
@@ -965,7 +1032,7 @@ struct ProfessionalListingDetailView: View {
                             .frame(width: 44, height: 44)
                             .background(Circle().fill(Color.gray.opacity(0.1)))
                     }
-                    
+
                     Button(action: { showingDeleteConfirmation = true }) {
                         Image(systemName: "trash")
                             .font(.system(size: 20))
@@ -988,8 +1055,8 @@ struct ProfessionalListingDetailView: View {
                             .frame(width: 44, height: 44)
                             .background(Circle().fill(Theme.Colors.primary))
                     }
-                    
-                    Button(action: { 
+
+                    Button(action: {
                         if viewModel.listing.listingType == "sale" {
                             showingBuyNow = true
                         } else {

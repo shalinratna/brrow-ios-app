@@ -52,18 +52,20 @@ struct BuyNowConfirmationView: View {
                 confirmButton
             }
         }
-        .alert("Purchase Confirmed!", isPresented: $viewModel.showSuccessAlert) {
-            Button("View Purchase") {
-                viewModel.showPurchaseStatus = true
-                dismiss()
-            }
-        } message: {
-            Text("Payment is held in escrow. Meet the seller within 3 days to complete verification.")
-        }
         .alert("Error", isPresented: $viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage)
+        }
+        .fullScreenCover(isPresented: $viewModel.showReceipt) {
+            if let purchase = viewModel.createdPurchase {
+                PurchaseReceiptView(purchase: purchase) {
+                    // Dismiss confirmation view and refresh marketplace
+                    dismiss()
+                    // Post notification to refresh marketplace
+                    NotificationCenter.default.post(name: Notification.Name("RefreshMarketplace"), object: nil)
+                }
+            }
         }
         .fullScreenCover(isPresented: $viewModel.showPurchaseStatus) {
             if let purchase = viewModel.createdPurchase {
@@ -294,6 +296,7 @@ class BuyNowViewModel: ObservableObject {
     @Published var showCheckout = false
     @Published var checkoutURL: URL?
     @Published var createdPurchase: Purchase?
+    @Published var showReceipt = false
 
     let listing: Listing
 
@@ -379,9 +382,9 @@ class BuyNowViewModel: ObservableObject {
 
                         self?.createdPurchase = response.purchase
 
-                        // Show success if payment is held
+                        // Show receipt if payment is held
                         if response.purchase.paymentStatus == .held {
-                            self?.showSuccessAlert = true
+                            self?.showReceipt = true
                         } else if response.purchase.paymentStatus == .failed {
                             self?.errorMessage = "Payment failed. Please try again."
                             self?.showErrorAlert = true
@@ -499,8 +502,8 @@ class BuyNowViewModel: ObservableObject {
                                 self?.showErrorAlert = true
                             }
                         } else {
-                            print("✅ [BUY NOW] Payment method already set - showing success")
-                            self?.showSuccessAlert = true
+                            print("✅ [BUY NOW] Payment method already set - showing receipt")
+                            self?.showReceipt = true
                         }
                     } catch {
                         print("❌ [BUY NOW] Failed to decode response: \(error)")

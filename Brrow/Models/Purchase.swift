@@ -52,6 +52,11 @@ struct Purchase: Codable, Identifiable {
     let refundedAt: Date?
     let meetupId: String?
 
+    // Receipt fields
+    let receiptId: String?
+    let receiptGeneratedAt: Date?
+    let receiptUrl: String?
+
     // Relationships
     var listing: PurchaseListing?
     var buyer: PurchaseUser?
@@ -67,7 +72,7 @@ struct Purchase: Codable, Identifiable {
     }
 
     // Custom init for Codable conformance
-    init(id: String, listingId: String, buyerId: String, sellerId: String, purchaseType: PurchaseType, amount: Double, paymentIntentId: String?, paymentStatus: PurchasePaymentStatus, verificationStatus: PurchaseVerificationStatus, deadline: Date, createdAt: Date, updatedAt: Date?, sellerConfirmedAt: Date?, buyerConfirmedAt: Date?, verificationCompletedAt: Date?, refundedAt: Date?, meetupId: String?, listing: PurchaseListing?, buyer: PurchaseUser?, seller: PurchaseUser?) {
+    init(id: String, listingId: String, buyerId: String, sellerId: String, purchaseType: PurchaseType, amount: Double, paymentIntentId: String?, paymentStatus: PurchasePaymentStatus, verificationStatus: PurchaseVerificationStatus, deadline: Date, createdAt: Date, updatedAt: Date?, sellerConfirmedAt: Date?, buyerConfirmedAt: Date?, verificationCompletedAt: Date?, refundedAt: Date?, meetupId: String?, receiptId: String?, receiptGeneratedAt: Date?, receiptUrl: String?, listing: PurchaseListing?, buyer: PurchaseUser?, seller: PurchaseUser?) {
         self.id = id
         self.listingId = listingId
         self.buyerId = buyerId
@@ -85,6 +90,9 @@ struct Purchase: Codable, Identifiable {
         self.verificationCompletedAt = verificationCompletedAt
         self.refundedAt = refundedAt
         self.meetupId = meetupId
+        self.receiptId = receiptId
+        self.receiptGeneratedAt = receiptGeneratedAt
+        self.receiptUrl = receiptUrl
         self.listing = listing
         self.buyer = buyer
         self.seller = seller
@@ -128,6 +136,9 @@ struct Purchase: Codable, Identifiable {
         case verificationCompletedAt = "verification_completed_at"
         case refundedAt = "refunded_at"
         case meetupId = "meetup_id"
+        case receiptId = "receipt_id"
+        case receiptGeneratedAt = "receipt_generated_at"
+        case receiptUrl = "receipt_url"
         case listing
         case buyer
         case seller
