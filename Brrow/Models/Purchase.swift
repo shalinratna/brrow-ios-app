@@ -187,3 +187,8 @@ struct VerifyPurchaseResponse: Codable {
     let purchase: Purchase
     let message: String
 }
+
+struct GetPurchaseResponse: Codable {
+    let success: Bool
+    let purchase: Purchase
+}

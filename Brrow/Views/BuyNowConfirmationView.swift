@@ -374,15 +374,15 @@ class BuyNowViewModel: ObservableObject {
                         dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
                         decoder.dateDecodingStrategy = .formatted(dateFormatter)
 
-                        let purchase = try decoder.decode(Purchase.self, from: data)
-                        print("✅ [BUY NOW] Purchase refreshed - status: \(purchase.paymentStatus)")
+                        let response = try decoder.decode(GetPurchaseResponse.self, from: data)
+                        print("✅ [BUY NOW] Purchase refreshed - status: \(response.purchase.paymentStatus)")
 
-                        self?.createdPurchase = purchase
+                        self?.createdPurchase = response.purchase
 
                         // Show success if payment is held
-                        if purchase.paymentStatus == .held {
+                        if response.purchase.paymentStatus == .held {
                             self?.showSuccessAlert = true
-                        } else if purchase.paymentStatus == .failed {
+                        } else if response.purchase.paymentStatus == .failed {
                             self?.errorMessage = "Payment failed. Please try again."
                             self?.showErrorAlert = true
                         }
