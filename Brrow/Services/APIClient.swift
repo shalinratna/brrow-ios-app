@@ -341,17 +341,56 @@ class APIClient: ObservableObject {
 
                 case 400...499:
                     // Client error - don't retry
+                    let errorMessage: String
                     if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let errorMessage = errorData["error"] as? String {
-                        throw BrrowAPIError.validationError(errorMessage)
+                       let message = errorData["error"] as? String {
+                        errorMessage = message
+                    } else {
+                        errorMessage = String(data: data, encoding: .utf8) ?? "Client error"
                     }
-                    let errorMessage = String(data: data, encoding: .utf8) ?? "Client error"
+
+                    // Report 404 errors to PEST
+                    if httpResponse.statusCode == 404 {
+                        let requestPath = request.url?.path ?? "unknown"
+                        let requestMethod = request.httpMethod ?? "GET"
+                        PESTControlSystem.shared.captureError(
+                            BrrowAPIError.validationError(errorMessage),
+                            context: "API 404 Not Found: \(requestPath)",
+                            severity: .high,
+                            userInfo: [
+                                "endpoint": requestPath,
+                                "statusCode": httpResponse.statusCode,
+                                "method": requestMethod,
+                                "response": errorMessage
+                            ]
+                        )
+                    }
+
                     throw BrrowAPIError.validationError(errorMessage)
 
                 case 500...599:
                     // Server error - retryable
                     debugLog("⚠️ Server error \(httpResponse.statusCode) - will retry if attempts remain")
-                    lastError = BrrowAPIError.serverErrorCode(httpResponse.statusCode)
+                    let serverError = BrrowAPIError.serverErrorCode(httpResponse.statusCode)
+
+                    // Report 500+ errors to PEST
+                    let requestPath = request.url?.path ?? "unknown"
+                    let requestMethod = request.httpMethod ?? "GET"
+                    PESTControlSystem.shared.captureError(
+                        serverError,
+                        context: "API Server Error: \(requestPath)",
+                        severity: .critical,
+                        userInfo: [
+                            "endpoint": requestPath,
+                            "statusCode": httpResponse.statusCode,
+                            "method": requestMethod,
+                            "response": String(data: data, encoding: .utf8) ?? "N/A",
+                            "attempt": attempt + 1,
+                            "maxRetries": maxRetries
+                        ]
+                    )
+
+                    lastError = serverError
 
                 default:
                     lastError = BrrowAPIError.serverError("Unexpected status code: \(httpResponse.statusCode)")
@@ -3095,85 +3134,103 @@ class APIClient: ObservableObject {
         )
     }
     
-    // MARK: - Favorites
-    func checkFavoriteStatus(listingId: Int, userId: Int) async throws -> Bool {
+    // MARK: - Favorites (New Dedicated Endpoints)
+
+    // Check if a listing is favorited (GET /api/favorites/check/:listingId)
+    func checkFavoriteStatus(listingId: String) async throws -> Bool {
         struct CheckFavoriteResponse: Codable {
             let success: Bool
             let isFavorited: Bool
-            let message: String?
+            let favorite: FavoriteDetail?
+
+            struct FavoriteDetail: Codable {
+                let id: String
+                let favoritedAt: String
+            }
         }
 
         let response = try await performRequest(
-            endpoint: "api/favorites/check?listing_id=\(listingId)&user_id=\(userId)",
+            endpoint: "api/favorites/check/\(listingId)",
             method: .GET,
-            responseType: APIResponse<CheckFavoriteResponse>.self
+            responseType: CheckFavoriteResponse.self
         )
 
-        guard response.success, let data = response.data else {
-            return false // Default to not favorited if error
-        }
-
-        return data.isFavorited
-    }
-    
-    func toggleFavorite(listingId: Int, userId: Int) async throws -> Bool {
-        // Deprecated - use toggleFavoriteByListingId instead
-        let request = ToggleFavoriteRequest(listingId: listingId, userId: userId)
-        let bodyData = try JSONEncoder().encode(request)
-
-        let response = try await performRequest(
-            endpoint: "api/favorites/toggle",
-            method: .POST,
-            body: bodyData,
-            responseType: FavoriteStatusResponse.self
-        )
         return response.isFavorited
     }
-    
-    // New version that uses auth header for user identification (supports CUID users)
+
+    // Add a listing to favorites (POST /api/favorites/:listingId)
+    func addFavorite(_ listingId: String) async throws {
+        struct AddFavoriteResponse: Codable {
+            let success: Bool
+            let message: String
+            let favorite: FavoriteDetail?
+            let newFavoriteCount: Int?
+
+            struct FavoriteDetail: Codable {
+                let id: String
+                let listingId: String
+                let createdAt: String
+            }
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/favorites/\(listingId)",
+            method: .POST,
+            responseType: AddFavoriteResponse.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message)
+        }
+    }
+
+    // Remove a listing from favorites (DELETE /api/favorites/:listingId)
+    func removeFavorite(_ listingId: String) async throws {
+        struct RemoveFavoriteResponse: Codable {
+            let success: Bool
+            let message: String
+            let newFavoriteCount: Int?
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/favorites/\(listingId)",
+            method: .DELETE,
+            responseType: RemoveFavoriteResponse.self
+        )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message)
+        }
+    }
+
+    // DEPRECATED: Use addFavorite/removeFavorite instead
+    // Kept for backward compatibility with old toggle logic
     func toggleFavoriteByListingId(_ listingId: String) async throws -> Bool {
-        struct ToggleFavoriteByIdRequest: Codable {
-            let listingId: String
+        // Check current status
+        let isFavorited = try await checkFavoriteStatus(listingId: listingId)
 
-            enum CodingKeys: String, CodingKey {
-                case listingId = "listing_id"
-            }
+        if isFavorited {
+            // Remove from favorites
+            try await removeFavorite(listingId)
+            return false
+        } else {
+            // Add to favorites
+            try await addFavorite(listingId)
+            return true
         }
-
-        let request = ToggleFavoriteByIdRequest(listingId: listingId)
-        let bodyData = try JSONEncoder().encode(request)
-
-        let response = try await performRequest(
-            endpoint: "api/favorites/toggle",
-            method: .POST,
-            body: bodyData,
-            responseType: FavoriteStatusResponse.self
-        )
-        return response.isFavorited
     }
 
-    // Legacy version that requires integer userId (deprecated, kept for backward compatibility)
+    // DEPRECATED: Legacy methods kept for backward compatibility
+    func checkFavoriteStatus(listingId: Int, userId: Int) async throws -> Bool {
+        return try await checkFavoriteStatus(listingId: String(listingId))
+    }
+
+    func toggleFavorite(listingId: Int, userId: Int) async throws -> Bool {
+        return try await toggleFavoriteByListingId(String(listingId))
+    }
+
     func toggleFavoriteByListingId(_ listingId: String, userId: Int) async throws -> Bool {
-        struct ToggleFavoriteByIdRequest: Codable {
-            let listingId: String
-            let userId: Int
-
-            enum CodingKeys: String, CodingKey {
-                case listingId = "listing_id"
-                case userId = "user_id"
-            }
-        }
-
-        let request = ToggleFavoriteByIdRequest(listingId: listingId, userId: userId)
-        let bodyData = try JSONEncoder().encode(request)
-
-        let response = try await performRequest(
-            endpoint: "api/favorites/toggle",
-            method: .POST,
-            body: bodyData,
-            responseType: FavoriteStatusResponse.self
-        )
-        return response.isFavorited
+        return try await toggleFavoriteByListingId(listingId)
     }
     
     func fetchSimilarListings(listingId: String, category: String, limit: Int) async throws -> [Listing] {

@@ -41,7 +41,8 @@ class FavoritesManager: ObservableObject {
         do {
             let response = try await APIClient.shared.fetchFavorites(limit: 100)
             await MainActor.run {
-                self.favoriteListings = response.favorites ?? []
+                // Use the computed property that extracts listings from FavoriteItems
+                self.favoriteListings = response.listings
                 self.favoriteListingIds = Set(self.favoriteListings.map { $0.id })
                 self.isLoading = false
             }
@@ -55,7 +56,18 @@ class FavoritesManager: ObservableObject {
 
     // MARK: - Toggle Favorite
     func toggleFavorite(listing: Listing) async {
+        // 🔍 DEBUG: Log listing details
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("🔍 [FAVORITES DEBUG] toggleFavorite called")
+        print("   📌 Listing ID: \(listing.id)")
+        print("   📝 Listing Title: \(listing.title)")
+        print("   ⚡ Status: \(listing.availabilityStatus)")
+        print("   💰 Price: $\(listing.price)")
+        print("   👤 User ID: \(AuthManager.shared.currentUser?.id ?? "NONE")")
+        print("   🔐 Auth Token: \(AuthManager.shared.authToken?.prefix(20) ?? "NONE")...")
+
         guard AuthManager.shared.isAuthenticated, !AuthManager.shared.isGuestUser else {
+            print("   ❌ User not authenticated")
             await MainActor.run {
                 ToastManager.shared.showError(
                     title: "Sign In Required",
@@ -67,6 +79,10 @@ class FavoritesManager: ObservableObject {
 
         let listingId = listing.id
         let isFavorited = favoriteListingIds.contains(listingId)
+
+        print("   ⭐ Currently Favorited: \(isFavorited)")
+        print("   🎯 Action: \(isFavorited ? "REMOVE" : "ADD")")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         // Optimistic update
         await MainActor.run {
@@ -84,31 +100,37 @@ class FavoritesManager: ObservableObject {
         // Track analytics
         AnalyticsService.shared.trackFavorite(listingId: listingId, action: isFavorited ? "remove" : "add")
 
-        // Call API
+        // Call API using new dedicated endpoints
         do {
-            let result = try await APIClient.shared.toggleFavoriteByListingId(listingId)
-
-            // Verify result matches our optimistic update
-            await MainActor.run {
-                if result != !isFavorited {
-                    // Revert if mismatch
-                    if isFavorited {
-                        self.favoriteListingIds.insert(listingId)
-                        var updatedListing = listing
-                        updatedListing.isFavorite = true
-                        self.favoriteListings.append(updatedListing)
-                    } else {
-                        self.favoriteListingIds.remove(listingId)
-                        self.favoriteListings.removeAll { $0.id == listingId }
-                    }
-                }
+            print("🌐 [FAVORITES DEBUG] Calling API...")
+            if isFavorited {
+                print("   📍 Endpoint: DELETE /api/favorites/\(listingId)")
+                try await APIClient.shared.removeFavorite(listingId)
+                print("   ✅ Successfully removed from favorites")
+            } else {
+                print("   📍 Endpoint: POST /api/favorites/\(listingId)")
+                try await APIClient.shared.addFavorite(listingId)
+                print("   ✅ Successfully added to favorites")
             }
 
             // Post notification for UI updates
             NotificationCenter.default.post(name: .favoriteStatusChanged, object: ["listingId": listingId, "isFavorited": !isFavorited])
 
         } catch {
-            print("❌ FavoritesManager: Failed to toggle favorite: \(error)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("❌ [FAVORITES DEBUG] API Call FAILED")
+            print("   Error Type: \(type(of: error))")
+            print("   Error: \(error)")
+
+            if let apiError = error as? BrrowAPIError {
+                print("   API Error Details: \(apiError)")
+                print("   Error Description: \(apiError.errorDescription ?? "none")")
+            }
+
+            // Try to extract more info from error
+            let errorString = String(describing: error)
+            print("   Full Error String: \(errorString)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
             // Revert optimistic update on error
             await MainActor.run {
@@ -124,6 +146,94 @@ class FavoritesManager: ObservableObject {
 
                 ToastManager.shared.showError(
                     title: "Failed to Update Favorite",
+                    message: "Please try again"
+                )
+            }
+        }
+    }
+
+    // MARK: - Add Favorite (explicit method)
+    func addFavorite(listing: Listing) async {
+        guard AuthManager.shared.isAuthenticated, !AuthManager.shared.isGuestUser else {
+            await MainActor.run {
+                ToastManager.shared.showError(
+                    title: "Sign In Required",
+                    message: "Please sign in to save favorites"
+                )
+            }
+            return
+        }
+
+        let listingId = listing.id
+
+        // Optimistic update
+        await MainActor.run {
+            self.favoriteListingIds.insert(listingId)
+            var updatedListing = listing
+            updatedListing.isFavorite = true
+            self.favoriteListings.append(updatedListing)
+        }
+
+        // Track analytics
+        AnalyticsService.shared.trackFavorite(listingId: listingId, action: "add")
+
+        do {
+            try await APIClient.shared.addFavorite(listingId)
+
+            // Post notification for UI updates
+            NotificationCenter.default.post(name: .favoriteStatusChanged, object: ["listingId": listingId, "isFavorited": true])
+
+        } catch {
+            print("❌ FavoritesManager: Failed to add favorite: \(error)")
+
+            // Revert on error
+            await MainActor.run {
+                self.favoriteListingIds.remove(listingId)
+                self.favoriteListings.removeAll { $0.id == listingId }
+
+                ToastManager.shared.showError(
+                    title: "Failed to Add Favorite",
+                    message: "Please try again"
+                )
+            }
+        }
+    }
+
+    // MARK: - Remove Favorite (explicit method)
+    func removeFavorite(listing: Listing) async {
+        guard AuthManager.shared.isAuthenticated, !AuthManager.shared.isGuestUser else {
+            return
+        }
+
+        let listingId = listing.id
+
+        // Optimistic update
+        await MainActor.run {
+            self.favoriteListingIds.remove(listingId)
+            self.favoriteListings.removeAll { $0.id == listingId }
+        }
+
+        // Track analytics
+        AnalyticsService.shared.trackFavorite(listingId: listingId, action: "remove")
+
+        do {
+            try await APIClient.shared.removeFavorite(listingId)
+
+            // Post notification for UI updates
+            NotificationCenter.default.post(name: .favoriteStatusChanged, object: ["listingId": listingId, "isFavorited": false])
+
+        } catch {
+            print("❌ FavoritesManager: Failed to remove favorite: \(error)")
+
+            // Revert on error
+            await MainActor.run {
+                self.favoriteListingIds.insert(listingId)
+                var updatedListing = listing
+                updatedListing.isFavorite = true
+                self.favoriteListings.append(updatedListing)
+
+                ToastManager.shared.showError(
+                    title: "Failed to Remove Favorite",
                     message: "Please try again"
                 )
             }

@@ -148,8 +148,18 @@ final class PESTControlSystem {
         let color = pestError.severity.discordColor
         let emoji = pestError.severity.emoji
 
-        let fields: [[String: Any]] = [
+        // Get current user info from AuthManager
+        let currentUser = AuthManager.shared.currentUser
+        let userId = currentUser?.id ?? "Not logged in"
+        let username = currentUser?.username ?? "Guest"
+        let email = currentUser?.email ?? "N/A"
+        let displayName = currentUser?.displayName ?? username
+
+        var fields: [[String: Any]] = [
             ["name": "📍 Context", "value": pestError.context, "inline": false],
+            ["name": "👤 User ID", "value": userId, "inline": true],
+            ["name": "🏷️ Username", "value": username, "inline": true],
+            ["name": "📧 Email", "value": email, "inline": true],
             ["name": "📁 File", "value": "\(pestError.fileName):\(pestError.line)", "inline": true],
             ["name": "🔧 Function", "value": pestError.function, "inline": true],
             ["name": "⚡ Severity", "value": pestError.severity.rawValue, "inline": true],
@@ -160,8 +170,25 @@ final class PESTControlSystem {
 
         var description = "```swift\n\(pestError.error.localizedDescription)\n```"
 
-        if let userInfo = pestError.userInfo {
-            description += "\n**Additional Info:**\n```json\n\(userInfo.description)\n```"
+        // Add debug info from userInfo
+        if let userInfo = pestError.userInfo, !userInfo.isEmpty {
+            description += "\n**🔍 Debug Info (for Claude Code):**\n"
+
+            for (key, value) in userInfo.sorted(by: { $0.key < $1.key }) {
+                let valueString = String(describing: value)
+                    .replacingOccurrences(of: "\n", with: " ")
+                    .prefix(200) // Limit length
+                description += "• **\(key)**: `\(valueString)`\n"
+            }
+        }
+
+        // Add authentication context
+        if AuthManager.shared.isAuthenticated {
+            description += "\n**🔐 Auth Status:**\n"
+            description += "• Token: `\(AuthManager.shared.authToken?.prefix(20) ?? "N/A")...`\n"
+            description += "• Guest Mode: `\(AuthManager.shared.isGuestUser ? "Yes" : "No")`\n"
+        } else {
+            description += "\n**⚠️ User is NOT authenticated**\n"
         }
 
         return DiscordWebhookPayload(
@@ -174,7 +201,7 @@ final class PESTControlSystem {
                     color: color,
                     fields: fields,
                     footer: DiscordFooter(
-                        text: "Brrow iOS App v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")"
+                        text: "Brrow iOS App v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0") • User: \(displayName)"
                     ),
                     timestamp: ISO8601DateFormatter().string(from: pestError.timestamp)
                 )

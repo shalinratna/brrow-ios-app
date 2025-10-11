@@ -10,7 +10,7 @@ import PhotosUI
 
 // MARK: - Profile Update Data Model
 struct ProfileUpdateData: Codable {
-    let username: String
+    // NOTE: username is NOT included - username changes are handled separately in Settings
     let displayName: String?
     let email: String
     let phone: String?
@@ -21,7 +21,7 @@ struct ProfileUpdateData: Codable {
     let website: String?
 
     enum CodingKeys: String, CodingKey {
-        case username, displayName, email, phone, bio
+        case displayName, email, phone, bio
         case birthdate, profilePicture, location, website
     }
 }
@@ -783,8 +783,8 @@ struct EditProfileView: View {
                 // Username change logic removed - username changes now handled in Settings
 
                 // Prepare update data - CRITICAL: Use currentProfilePictureUrl to preserve the latest profile picture
+                // NOTE: username is NOT sent - username changes are handled separately in Settings
                 let updateData = ProfileUpdateData(
-                    username: username, // Keep current username (readonly)
                     displayName: displayName.isEmpty ? nil : displayName,
                     email: email,
                     phone: phone.isEmpty ? nil : phone,

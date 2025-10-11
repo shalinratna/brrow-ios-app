@@ -541,9 +541,34 @@ struct SearchSuggestionsResponse: Codable {
 
 struct FavoritesResponse: Codable {
     let success: Bool
-    let favorites: [Listing]?
-    let count: Int?
+    let favorites: [FavoriteItem]?
+    let pagination: FavoritePagination?
     let message: String?
+
+    struct FavoriteItem: Codable {
+        let favoriteId: String
+        let favoritedAt: String
+        let listing: Listing
+    }
+
+    struct FavoritePagination: Codable {
+        let page: Int
+        let limit: Int
+        let totalCount: Int
+        let totalPages: Int
+        let hasNextPage: Bool
+        let hasPreviousPage: Bool
+    }
+
+    // Computed property for easy access to listings
+    var listings: [Listing] {
+        return favorites?.map { $0.listing } ?? []
+    }
+
+    // Backward compatibility
+    var count: Int? {
+        return pagination?.totalCount
+    }
 }
 
 struct FavoriteStatusResponse: Codable {
@@ -758,12 +783,25 @@ struct APICategory: Codable {
     let parentId: String?
     let isActive: Bool
     let sortOrder: Int?
-    let createdAt: Date?
-    let updatedAt: Date?
-    
+    let createdAt: String?
+    let updatedAt: String?
+
     // Computed property for backward compatibility
     var icon: String {
         return iconUrl ?? "📦"
+    }
+
+    // Map backend snake_case to iOS camelCase
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case description
+        case iconUrl = "icon_url"
+        case parentId = "parent_id"
+        case isActive = "is_active"
+        case sortOrder = "sort_order"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }
 

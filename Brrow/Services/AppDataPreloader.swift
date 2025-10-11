@@ -181,9 +181,9 @@ class AppDataPreloader: ObservableObject {
         do {
             let response = try await apiClient.fetchFavorites(limit: 50, offset: 0)
             await MainActor.run {
-                self.favorites = response.favorites ?? []
+                self.favorites = response.listings
                 self.preloadProgress += 0.1
-                print("✅ [PRELOAD] Favorites: \(response.favorites?.count ?? 0) items")
+                print("✅ [PRELOAD] Favorites: \(response.listings.count) items")
             }
         } catch {
             print("❌ [PRELOAD] Favorites failed: \(error.localizedDescription)")
@@ -255,8 +255,24 @@ class AppDataPreloader: ObservableObject {
                 self.preloadProgress += 0.1
                 print("✅ [PRELOAD] Stats loaded")
             }
+        } catch let error as BrrowAPIError {
+            // Handle 404 gracefully - stats endpoint is optional
+            if case .validationError = error {
+                await MainActor.run {
+                    self.preloadProgress += 0.1
+                }
+                print("ℹ️ [PRELOAD] Stats not available (optional feature)")
+            } else {
+                await MainActor.run {
+                    self.preloadProgress += 0.1
+                }
+                print("⚠️ [PRELOAD] Stats unavailable: \(error.localizedDescription)")
+            }
         } catch {
-            print("❌ [PRELOAD] Stats failed: \(error.localizedDescription)")
+            await MainActor.run {
+                self.preloadProgress += 0.1
+            }
+            print("ℹ️ [PRELOAD] Stats not available")
         }
     }
 

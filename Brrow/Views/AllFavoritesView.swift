@@ -152,7 +152,7 @@ class AllFavoritesViewModel: ObservableObject {
             do {
                 let response = try await APIClient.shared.fetchFavorites(limit: 50)
                 await MainActor.run {
-                    self.favorites = response.favorites ?? []
+                    self.favorites = response.listings
                     self.isLoading = false
                 }
             } catch {

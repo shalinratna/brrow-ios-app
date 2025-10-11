@@ -50,11 +50,23 @@ class AccountLinkingService: NSObject, ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
+        print("🔍 [LINKED ACCOUNTS] Fetching linked accounts...")
+        print("   URL: \(url)")
+        print("   Token: \(token.prefix(20))...")
+
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw LinkingError.invalidResponse
+            let error = LinkingError.invalidResponse
+            PESTControlSystem.shared.captureError(
+                error,
+                context: "Linked Accounts - Invalid Response",
+                severity: .high
+            )
+            throw error
         }
+
+        print("   Status Code: \(httpResponse.statusCode)")
 
         if httpResponse.statusCode == 200 {
             struct Response: Codable {
@@ -72,30 +84,69 @@ class AccountLinkingService: NSObject, ObservableObject {
                 }
             }
 
-            let apiResponse = try JSONDecoder().decode(Response.self, from: data)
+            do {
+                let apiResponse = try JSONDecoder().decode(Response.self, from: data)
 
-            // Store Stripe status in published property
-            if let stripe = apiResponse.stripe {
-                self.stripeStatus = StripeConnectStatus(
-                    connected: stripe.connected,
-                    accountId: stripe.accountId,
-                    payoutsEnabled: stripe.payoutsEnabled,
-                    chargesEnabled: stripe.chargesEnabled,
-                    detailsSubmitted: stripe.detailsSubmitted,
-                    bankLast4: stripe.bankLast4
+                print("   ✅ Linked Accounts Count: \(apiResponse.linkedAccounts.count)")
+                print("   ✅ Stripe Connected: \(apiResponse.stripe?.connected ?? false)")
+
+                // Store Stripe status in published property
+                if let stripe = apiResponse.stripe {
+                    self.stripeStatus = StripeConnectStatus(
+                        connected: stripe.connected,
+                        accountId: stripe.accountId,
+                        payoutsEnabled: stripe.payoutsEnabled,
+                        chargesEnabled: stripe.chargesEnabled,
+                        detailsSubmitted: stripe.detailsSubmitted,
+                        bankLast4: stripe.bankLast4
+                    )
+                } else {
+                    self.stripeStatus = nil
+                }
+
+                return apiResponse.linkedAccounts
+            } catch {
+                print("   ❌ Failed to decode response")
+                print("   Raw response: \(String(data: data, encoding: .utf8) ?? "N/A")")
+
+                // Report decoding error to PEST
+                PESTControlSystem.shared.captureError(
+                    error,
+                    context: "Linked Accounts - Decoding Failed",
+                    severity: .high,
+                    userInfo: [
+                        "endpoint": "/api/auth/linked-accounts",
+                        "responseData": String(data: data, encoding: .utf8) ?? "N/A"
+                    ]
                 )
-            } else {
-                self.stripeStatus = nil
+                throw error
             }
-
-            return apiResponse.linkedAccounts
         } else {
             // Try to get error message from response
+            print("   ❌ Error response: \(httpResponse.statusCode)")
+            print("   Response body: \(String(data: data, encoding: .utf8) ?? "N/A")")
+
+            // Report backend error to PEST
+            let pestError: Error
             if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
                let message = errorData["message"] {
-                throw LinkingError.backendError(message)
+                pestError = LinkingError.backendError(message)
+            } else {
+                pestError = LinkingError.serverError(statusCode: httpResponse.statusCode)
             }
-            throw LinkingError.serverError(statusCode: httpResponse.statusCode)
+
+            PESTControlSystem.shared.captureError(
+                pestError,
+                context: "Linked Accounts API Error",
+                severity: httpResponse.statusCode >= 500 ? .critical : .high,
+                userInfo: [
+                    "endpoint": "/api/auth/linked-accounts",
+                    "statusCode": httpResponse.statusCode,
+                    "responseBody": String(data: data, encoding: .utf8) ?? "N/A"
+                ]
+            )
+
+            throw pestError
         }
     }
 

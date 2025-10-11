@@ -46,11 +46,11 @@ struct ModernSettingsView: View {
                 SettingsItem(icon: "person.circle", title: "Edit Profile", subtitle: "Update your profile info", color: .blue),
                 SettingsItem(icon: "at", title: "Username", subtitle: AuthManager.shared.currentUser?.username, color: .purple),
                 SettingsItem(icon: "lock.rotation", title: "Change Password", color: .orange),
-                SettingsItem(icon: "link", title: "Linked Accounts", subtitle: "Google, Apple, Facebook", color: .indigo)
+                SettingsItem(icon: "link", title: "Linked Accounts", subtitle: "Google, Apple, Stripe", color: .indigo)
             ]
         case .privacy:
             return [
-                SettingsItem(icon: "hand.raised.shield", title: "Privacy Settings", subtitle: "Control your data", color: .green),
+                SettingsItem(icon: "lock.shield", title: "Privacy Settings", subtitle: "Control your data", color: .green),
                 SettingsItem(icon: "eye.slash", title: "Blocked Users", color: .red),
                 SettingsItem(icon: "location.slash", title: "Location Services", toggle: .constant(true), color: .blue)
             ]

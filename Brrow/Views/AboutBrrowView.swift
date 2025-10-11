@@ -34,12 +34,12 @@ struct AboutBrrowView: View {
 
                     // Legal Section
                     legalSection
+                    
+                    // Contact Section
+                    contactSection
 
                     // Version Info
                     versionSection
-
-                    // Contact Section
-                    contactSection
 
                     Spacer(minLength: Theme.Spacing.xl)
                 }
@@ -221,7 +221,7 @@ struct AboutBrrowView: View {
                 .fill(Theme.Colors.cardBackground)
         )
     }
-
+    
     // MARK: - Version Section
     private var versionSection: some View {
         VStack(spacing: Theme.Spacing.md) {
@@ -229,7 +229,7 @@ struct AboutBrrowView: View {
                 .font(Theme.Typography.callout)
                 .foregroundColor(Theme.Colors.secondaryText)
 
-            Text("Built with ❤️ for the sharing economy")
+            Text("Made with ❤️ in California's Bay Area.")
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Colors.tertiaryText)
         }
@@ -247,7 +247,7 @@ struct AboutBrrowView: View {
                 ContactRow(
                     icon: "envelope.fill",
                     title: "Email Support",
-                    subtitle: "help@brrow.com",
+                    subtitle: "help@brrowapp.com",
                     action: {
                         if let url = URL(string: "mailto:help@brrow.com") {
                             UIApplication.shared.open(url)
@@ -258,9 +258,9 @@ struct AboutBrrowView: View {
                 ContactRow(
                     icon: "globe",
                     title: "Website",
-                    subtitle: "www.brrow.com",
+                    subtitle: "www.brrowapp.com",
                     action: {
-                        if let url = URL(string: "https://www.brrow.com") {
+                        if let url = URL(string: "https://www.brrowapp.com") {
                             UIApplication.shared.open(url)
                         }
                     }

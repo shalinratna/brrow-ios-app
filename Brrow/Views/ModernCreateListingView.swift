@@ -45,6 +45,56 @@ struct ModernCreateListingView: View {
     @State private var tags: [String] = []
     @State private var price = ""
     @State private var negotiable = false
+    @State private var selectedCondition: ItemCondition = .good
+
+    // Item condition options
+    enum ItemCondition: String, CaseIterable {
+        case new = "NEW"
+        case likeNew = "LIKE_NEW"
+        case good = "GOOD"
+        case fair = "FAIR"
+        case poor = "POOR"
+
+        var displayName: String {
+            switch self {
+            case .new: return "Brand New"
+            case .likeNew: return "Like New"
+            case .good: return "Good"
+            case .fair: return "Fair"
+            case .poor: return "Poor"
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .new: return "Brand new, never used"
+            case .likeNew: return "Barely used, excellent condition"
+            case .good: return "Used but well maintained"
+            case .fair: return "Shows wear but functional"
+            case .poor: return "Heavy wear, may need repair"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .new: return "sparkles"
+            case .likeNew: return "star.fill"
+            case .good: return "checkmark.circle.fill"
+            case .fair: return "minus.circle.fill"
+            case .poor: return "exclamationmark.triangle.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .new: return .green
+            case .likeNew: return .blue
+            case .good: return .cyan
+            case .fair: return .orange
+            case .poor: return .red
+            }
+        }
+    }
     
     // Promotion options
     @State private var selectedPromotionType: PromotionType? = nil
@@ -352,10 +402,10 @@ struct ModernCreateListingView: View {
                         Text("Category")
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(.secondary)
-                        
+
                         Menu {
                             ForEach(CategoryHelper.getAllCategories(), id: \.self) { cat in
-                                Button(action: { 
+                                Button(action: {
                                     category = cat
                                     focusedField = nil  // Dismiss keyboard
                                 }) {
@@ -377,6 +427,62 @@ struct ModernCreateListingView: View {
                         .simultaneousGesture(TapGesture().onEnded { _ in
                             focusedField = nil  // Dismiss keyboard when menu opens
                         })
+                    }
+
+                    // Condition Picker
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Item Condition")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(.secondary)
+
+                        VStack(spacing: 12) {
+                            ForEach(ItemCondition.allCases, id: \.self) { condition in
+                                Button(action: {
+                                    selectedCondition = condition
+                                    HapticManager.impact(style: .light)
+                                    focusedField = nil
+                                }) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: condition.icon)
+                                            .font(.title3)
+                                            .foregroundColor(selectedCondition == condition ? .white : condition.color)
+                                            .frame(width: 40, height: 40)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .fill(selectedCondition == condition ? condition.color : condition.color.opacity(0.15))
+                                            )
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(condition.displayName)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundColor(.primary)
+
+                                            Text(condition.description)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+
+                                        Spacer()
+
+                                        if selectedCondition == condition {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.title3)
+                                                .foregroundColor(condition.color)
+                                        }
+                                    }
+                                    .padding(12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(.systemBackground))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(selectedCondition == condition ? condition.color : Color(.systemGray4), lineWidth: selectedCondition == condition ? 2 : 1)
+                                            )
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                 }
                 .padding()
@@ -472,25 +578,54 @@ struct ModernCreateListingView: View {
                 Text("Set your price")
                     .font(.largeTitle.bold())
                     .padding(.top, 20)
-                
+
+                // Pricing type label
+                Text(transactionType == "rental" ? "Price per day" : "Sale price")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
                 HStack(spacing: 4) {
                     Text("$")
                         .font(.largeTitle.bold())
                         .foregroundColor(Theme.Colors.primary)
-                    
+
                     TextField("0", text: $price)
                         .font(.system(size: 48, weight: .bold))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
                         .frame(width: 150)
+
+                    if transactionType == "rental" {
+                        Text("/day")
+                            .font(.title2.bold())
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .padding()
                 .background(RoundedRectangle(cornerRadius: 20).fill(Color(.systemGray6)))
-                
-                Toggle("Allow negotiations", isOn: $negotiable)
+
+                // Negotiable toggle with improved design
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle(isOn: $negotiable) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "hand.raised.fill")
+                                    .font(.title3)
+                                    .foregroundColor(negotiable ? .green : .secondary)
+                                Text("Price is negotiable")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.primary)
+                            }
+                            Text("Allow buyers to make offers below your asking price")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .tint(.green)
                     .padding()
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
-                    .padding(.horizontal)
+                }
+                .padding(.horizontal)
             }
         }
     }
@@ -507,7 +642,8 @@ struct ModernCreateListingView: View {
                     ModernSummaryRow(label: "Transaction", value: transactionType.capitalized)
                     ModernSummaryRow(label: "Title", value: title)
                     ModernSummaryRow(label: "Category", value: category)
-                    ModernSummaryRow(label: "Price", value: "$\(price)")
+                    ModernSummaryRow(label: "Condition", value: selectedCondition.displayName)
+                    ModernSummaryRow(label: transactionType == "rental" ? "Daily Rate" : "Sale Price", value: "$\(price)\(transactionType == "rental" ? "/day" : "")")
                     ModernSummaryRow(label: "Negotiable", value: negotiable ? "Yes" : "No")
                     ModernSummaryRow(label: "Photos", value: "\(loadedImages.count)")
                 }
@@ -706,7 +842,7 @@ struct ModernCreateListingView: View {
                         description: description,
                         dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
                         categoryId: "default-category",
-                        condition: "GOOD",
+                        condition: selectedCondition.rawValue,
                         location: Location(
                             address: "123 Main Street",
                             city: "San Francisco",
@@ -716,7 +852,7 @@ struct ModernCreateListingView: View {
                             latitude: viewModel.currentCoordinate?.latitude ?? 37.7749,
                             longitude: viewModel.currentCoordinate?.longitude ?? -122.4194
                         ),
-                        isNegotiable: true,
+                        isNegotiable: negotiable,
                         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                         tags: [],
                         images: uploadedImageUrls,  // Send URLs as simple strings
@@ -744,7 +880,7 @@ struct ModernCreateListingView: View {
                         description: description,
                         dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
                         categoryId: "default-category",
-                        condition: "GOOD",
+                        condition: selectedCondition.rawValue,
                         location: Location(
                             address: "123 Main Street",
                             city: "San Francisco",
@@ -754,7 +890,7 @@ struct ModernCreateListingView: View {
                             latitude: viewModel.currentCoordinate?.latitude ?? 37.7749,
                             longitude: viewModel.currentCoordinate?.longitude ?? -122.4194
                         ),
-                        isNegotiable: true,
+                        isNegotiable: negotiable,
                         deliveryOptions: DeliveryOptions(pickup: true, delivery: false, shipping: false),
                         tags: [],
                         images: uploadedImageUrls,  // Send URLs as simple strings

@@ -332,20 +332,18 @@ struct BrrowApp: App {
 
                 print("✅ [PAYMENT] Checkout completed - session: \(sessionId ?? "none"), purchase: \(purchaseId ?? "none")")
 
-                // Navigate to profile/purchases tab to see the purchase
-                TabSelectionManager.shared.selectedTab = 4 // Profile tab
+                // Don't force navigate to profile - let the view that initiated payment handle the UI
+                // The BuyNowConfirmationView listens for this notification and will show the receipt
 
-                // Show success notification
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    NotificationCenter.default.post(
-                        name: Notification.Name("ShowPaymentSuccess"),
-                        object: nil,
-                        userInfo: [
-                            "sessionId": sessionId ?? "",
-                            "purchaseId": purchaseId ?? ""
-                        ]
-                    )
-                }
+                // Show success notification immediately (no delay needed)
+                NotificationCenter.default.post(
+                    name: Notification.Name("ShowPaymentSuccess"),
+                    object: nil,
+                    userInfo: [
+                        "sessionId": sessionId ?? "",
+                        "purchaseId": purchaseId ?? ""
+                    ]
+                )
 
             } else if path == "/cancel" {
                 // Payment canceled

@@ -31,10 +31,34 @@ struct SimplifiedListingDetailView: View {
     init(listing: Listing) {
         _viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
     }
-    
+
     private var isOwner: Bool {
         guard let currentUser = authManager.currentUser else { return false }
         return viewModel.listing.userId == String(currentUser.id)
+    }
+
+    // Check if listing is new (updated in last 48 hours and available)
+    private var isNewListing: Bool {
+        guard viewModel.listing.availabilityStatus == .available else { return false }
+
+        // Parse the updatedAt timestamp
+        let formatter = ISO8601DateFormatter()
+        guard let updatedDate = formatter.date(from: viewModel.listing.updatedAt) else {
+            return false
+        }
+
+        // Check if updated within last 48 hours
+        let fortyEightHoursAgo = Date().addingTimeInterval(-48 * 60 * 60)
+        return updatedDate > fortyEightHoursAgo
+    }
+
+    // Get last 8-10 characters of listing ID for support purposes
+    private var truncatedListingId: String {
+        let id = viewModel.listing.id
+        if id.count > 10 {
+            return "..." + id.suffix(10)
+        }
+        return id
     }
     
     var body: some View {
@@ -182,16 +206,51 @@ struct SimplifiedListingDetailView: View {
                 Text(viewModel.listing.title)
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(Theme.Colors.text)
-                
-                HStack {
-                    Text(viewModel.listing.priceDisplay)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(Theme.Colors.primary)
-                    
-                    if viewModel.listing.isNegotiable {
-                        Text("• Negotiable")
-                            .font(.system(size: 14))
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Pricing type label
+                        Text(viewModel.listing.pricingType == "RENTAL" ? "Price per day" : "Sale price")
+                            .font(.caption)
                             .foregroundColor(Theme.Colors.secondaryText)
+
+                        Text(viewModel.listing.priceDisplay)
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(Theme.Colors.primary)
+                    }
+
+                    // Negotiable badge
+                    if viewModel.listing.isNegotiable {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hand.raised.fill")
+                                .font(.caption2)
+                            Text("Negotiable")
+                                .font(.caption.weight(.medium))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color.green)
+                        )
+                    }
+
+                    // NEW badge (if updated in last 48 hours and available)
+                    if isNewListing {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .font(.caption2)
+                            Text("NEW")
+                                .font(.caption.weight(.bold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color.blue)
+                        )
                     }
                 }
             }
@@ -273,6 +332,16 @@ struct SimplifiedListingDetailView: View {
                 }
             }
             
+            // Subtle listing ID for support purposes
+            HStack {
+                Spacer()
+                Text("ID: \(truncatedListingId)")
+                    .font(.system(size: 8))
+                    .foregroundColor(.gray.opacity(0.5))
+                    .padding(.trailing)
+            }
+            .padding(.top, 20)
+
             // Add some bottom padding for the action bar
             Color.clear.frame(height: 100)
         }

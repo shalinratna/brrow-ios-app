@@ -9,7 +9,22 @@ import SwiftUI
 
 struct ListingGridCard: View {
     let listing: Listing
-    
+
+    // Check if listing is new (updated in last 48 hours and available)
+    private var isNewListing: Bool {
+        guard listing.availabilityStatus == .available else { return false }
+
+        // Parse the updatedAt timestamp
+        let formatter = ISO8601DateFormatter()
+        guard let updatedDate = formatter.date(from: listing.updatedAt) else {
+            return false
+        }
+
+        // Check if updated within last 48 hours
+        let fortyEightHoursAgo = Date().addingTimeInterval(-48 * 60 * 60)
+        return updatedDate > fortyEightHoursAgo
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Image section with status badge
@@ -35,16 +50,36 @@ struct ListingGridCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .clipped()
 
-                // Status badge (top-left) - only show if not AVAILABLE
-                if listing.availabilityStatus != .available {
-                    VStack {
-                        HStack {
+                // Badges container
+                VStack {
+                    HStack {
+                        // Status badge (top-left) - only show if not AVAILABLE
+                        if listing.availabilityStatus != .available {
                             ListingStatusBadge(listing: listing, size: .small)
                                 .padding(4)
-                            Spacer()
                         }
+
                         Spacer()
+
+                        // NEW badge (top-right) - only if available and new
+                        if isNewListing {
+                            HStack(spacing: 2) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 8))
+                                Text("NEW")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(Color.blue)
+                            )
+                            .padding(4)
+                        }
                     }
+                    Spacer()
                 }
             }
             
@@ -53,10 +88,17 @@ struct ListingGridCard: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Theme.Colors.text)
                     .lineLimit(2)
-                
-                Text("$\(listing.price, specifier: "%.0f")/day")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Theme.Colors.primary)
+
+                // Show pricing based on pricing type
+                if listing.pricingType == "RENTAL" {
+                    Text("$\(listing.price, specifier: "%.0f")/day")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Theme.Colors.primary)
+                } else {
+                    Text("$\(listing.price, specifier: "%.0f")")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Theme.Colors.primary)
+                }
                 
                 if let rating = listing.ownerRating {
                     HStack(spacing: 4) {
