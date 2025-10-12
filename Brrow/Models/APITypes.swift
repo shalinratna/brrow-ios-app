@@ -953,3 +953,222 @@ struct CheckPasswordExistsResponse: Codable {
         case authMethod = "auth_method"
     }
 }
+
+// MARK: - Purchase/Transaction Types
+struct PurchasesListResponse: Codable {
+    let success: Bool
+    let purchases: [PurchaseSummary]
+    let count: Int
+    let message: String?
+}
+
+struct PurchaseSummary: Codable, Identifiable {
+    let id: String
+    let transactionDisplayId: String?
+    let buyerId: String
+    let sellerId: String
+    let listingId: String
+    let amount: Double
+    let paymentStatus: String
+    let verificationStatus: String
+    let purchaseType: String
+    let createdAt: String
+    let deadline: String
+    let capturedAt: String?
+    let sellerConfirmed: Bool
+    let buyerConfirmed: Bool
+    let isActive: Bool
+    let isPast: Bool
+    let buyer: PurchaseUser?
+    let seller: PurchaseUser?
+    let listing: PurchaseListing?
+    let meetup: PurchaseMeetup?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case transactionDisplayId = "transaction_display_id"
+        case buyerId = "buyer_id"
+        case sellerId = "seller_id"
+        case listingId = "listing_id"
+        case amount
+        case paymentStatus = "payment_status"
+        case verificationStatus = "verification_status"
+        case purchaseType = "purchase_type"
+        case createdAt = "created_at"
+        case deadline
+        case capturedAt = "captured_at"
+        case sellerConfirmed = "seller_confirmed"
+        case buyerConfirmed = "buyer_confirmed"
+        case isActive = "is_active"
+        case isPast = "is_past"
+        case buyer, seller, listing, meetup
+    }
+}
+
+struct PurchaseDetailResponse: Codable {
+    let success: Bool
+    let purchase: PurchaseDetail
+    let message: String?
+}
+
+struct PurchaseDetail: Codable, Identifiable {
+    let id: String
+    let transactionDisplayId: String?
+    let buyerId: String
+    let sellerId: String
+    let listingId: String
+    let amount: Double
+    let paymentStatus: String
+    let verificationStatus: String
+    let purchaseType: String
+    let createdAt: String
+    let deadline: String
+    let capturedAt: String?
+    let refundedAt: String?
+    let cancelledAt: String?
+    let sellerConfirmed: Bool
+    let buyerConfirmed: Bool
+    let sellerConfirmedAt: String?
+    let buyerConfirmedAt: String?
+    let buyer: PurchaseUser?
+    let seller: PurchaseUser?
+    let listing: PurchaseListingDetail?
+    let meetup: PurchaseMeetup?
+    let timeline: [TimelineStep]
+    let receipt: Receipt
+    let isBuyer: Bool
+    let otherParty: PurchaseUser?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case transactionDisplayId = "transaction_display_id"
+        case buyerId = "buyer_id"
+        case sellerId = "seller_id"
+        case listingId = "listing_id"
+        case amount
+        case paymentStatus = "payment_status"
+        case verificationStatus = "verification_status"
+        case purchaseType = "purchase_type"
+        case createdAt = "created_at"
+        case deadline
+        case capturedAt = "captured_at"
+        case refundedAt = "refunded_at"
+        case cancelledAt = "cancelled_at"
+        case sellerConfirmed = "seller_confirmed"
+        case buyerConfirmed = "buyer_confirmed"
+        case sellerConfirmedAt = "seller_confirmed_at"
+        case buyerConfirmedAt = "buyer_confirmed_at"
+        case buyer, seller, listing, meetup, timeline, receipt
+        case isBuyer = "is_buyer"
+        case otherParty = "other_party"
+    }
+}
+
+struct TimelineStep: Codable, Identifiable {
+    var id: Int { step }
+    let step: Int
+    let status: String // completed, in_progress, pending
+    let title: String
+    let description: String
+    let completedAt: String?
+    let meetupScheduled: Bool?
+    let icon: String
+
+    enum CodingKeys: String, CodingKey {
+        case step, status, title, description
+        case completedAt = "completed_at"
+        case meetupScheduled = "meetup_scheduled"
+        case icon
+    }
+}
+
+struct Receipt: Codable {
+    let subtotal: Double
+    let stripeFee: Double
+    let stripeFeeNote: String
+    let total: Double
+    let currency: String
+
+    enum CodingKeys: String, CodingKey {
+        case subtotal
+        case stripeFee = "stripe_fee"
+        case stripeFeeNote = "stripe_fee_note"
+        case total, currency
+    }
+}
+
+struct PurchaseUser: Codable {
+    let id: String
+    let username: String
+    let displayName: String?
+    let profilePictureUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, username
+        case displayName = "display_name"
+        case profilePictureUrl = "profile_picture_url"
+    }
+}
+
+struct PurchaseListing: Codable {
+    let id: String
+    let title: String
+    let price: Double
+    let imageUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, price
+        case imageUrl = "image_url"
+    }
+}
+
+struct PurchaseListingDetail: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let price: Double
+    let listingImages: [ListingImage]?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, price
+        case listingImages = "listing_images"
+    }
+}
+
+struct PurchaseMeetup: Codable {
+    let id: String
+    let status: String
+    let scheduledTime: String?
+    let meetupLocation: MeetupLocation?
+    let buyerArrivedAt: String?
+    let sellerArrivedAt: String?
+    let verifiedAt: String?
+    let verificationMethod: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status
+        case scheduledTime = "scheduled_time"
+        case meetupLocation = "meetup_location"
+        case buyerArrivedAt = "buyer_arrived_at"
+        case sellerArrivedAt = "seller_arrived_at"
+        case verifiedAt = "verified_at"
+        case verificationMethod = "verification_method"
+    }
+}
+
+struct MeetupLocation: Codable {
+    let latitude: Double
+    let longitude: Double
+    let address: String?
+}
+
+struct PurchaseAcceptResponse: Codable {
+    let success: Bool
+    let message: String
+    let purchase: PurchaseSummary?
+}
+
+struct PurchaseDeclineResponse: Codable {
+    let success: Bool
+    let message: String
+}

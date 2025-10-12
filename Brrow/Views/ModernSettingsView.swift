@@ -128,6 +128,12 @@ struct ModernSettingsView: View {
                             .opacity(animateIn ? 1 : 0)
                             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: animateIn)
 
+                        // Quick Actions (My Posts & Transactions)
+                        quickActionsSection
+                            .scaleEffect(animateIn ? 1 : 0.9)
+                            .opacity(animateIn ? 1 : 0)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1), value: animateIn)
+
                         // Settings Sections
                         ForEach(SettingsSection.allCases, id: \.self) { section in
                             settingsCard(for: section, items: itemsForSection(section))
@@ -195,6 +201,31 @@ struct ModernSettingsView: View {
             }
             startPulseAnimation()
             viewModel.loadUserData()
+        }
+    }
+
+    // MARK: - Quick Actions Section
+    private var quickActionsSection: some View {
+        HStack(spacing: 12) {
+            // My Posts Button
+            NavigationLink(destination: MyPostsView()) {
+                QuickActionCard(
+                    icon: "square.grid.2x2",
+                    title: "My Posts",
+                    color: .blue
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // Transactions Button
+            NavigationLink(destination: TransactionsListView()) {
+                QuickActionCard(
+                    icon: "cart.fill",
+                    title: "Transactions",
+                    color: .green
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
         }
     }
 
@@ -1051,6 +1082,44 @@ struct ModernUsernameChangeView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Quick Action Card
+struct QuickActionCard: View {
+    let icon: String
+    let title: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [color.opacity(0.3), color.opacity(0.1)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+
+                Image(systemName: icon)
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(color)
+            }
+
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Theme.Colors.text)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Theme.Colors.background)
+                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        )
     }
 }
 
