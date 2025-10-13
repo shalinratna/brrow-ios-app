@@ -20,7 +20,9 @@ struct SimpleProfessionalProfileView: View {
     @State private var showingMyPosts = false
     @State private var showingOffers = false
     @State private var showingSavedItems = false
-    
+    @State private var showingTransactions = false
+    @State private var selectedPurchaseId: String? = nil
+
     // Show email verification banner if user is not verified and banner hasn't been dismissed
     private var shouldShowEmailBanner: Bool {
         showEmailVerificationBanner && 
@@ -112,6 +114,20 @@ struct SimpleProfessionalProfileView: View {
             .sheet(isPresented: $showingSavedItems) {
                 EnhancedSavedItemsView()
             }
+            .sheet(isPresented: $showingTransactions) {
+                NavigationView {
+                    if let purchaseId = selectedPurchaseId {
+                        // Direct navigation to specific transaction
+                        TransactionDetailView(purchaseId: purchaseId)
+                            .onDisappear {
+                                selectedPurchaseId = nil
+                            }
+                    } else {
+                        // Show transactions list
+                        TransactionsListView()
+                    }
+                }
+            }
             .onAppear {
                 withAnimation {
                     animateContent = true
@@ -129,6 +145,21 @@ struct SimpleProfessionalProfileView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .navigateToMyPosts)) { _ in
                 showingMyPosts = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openTransactions)) { notification in
+                print("🔔 [Profile] Received openTransactions notification")
+
+                // Extract purchaseId if provided
+                if let userInfo = notification.userInfo,
+                   let purchaseId = userInfo["purchaseId"] as? String {
+                    print("💰 [Profile] Opening transaction detail for: \(purchaseId)")
+                    selectedPurchaseId = purchaseId
+                } else {
+                    print("📋 [Profile] Opening transactions list")
+                    selectedPurchaseId = nil
+                }
+
+                showingTransactions = true
             }
     }
     
@@ -160,9 +191,9 @@ struct SimpleProfessionalProfileView: View {
                 Circle()
                     .fill(Theme.Colors.primary.opacity(0.1))
                     .frame(width: 100, height: 100)
-                
-                if let user = viewModel.user, let profilePicture = user.profilePicture, !profilePicture.isEmpty {
-                    BrrowAsyncImage(url: profilePicture) { image in
+
+                if let user = viewModel.user, let profilePictureURL = user.fullProfilePictureURL, !profilePictureURL.isEmpty {
+                    BrrowAsyncImage(url: profilePictureURL) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -172,13 +203,13 @@ struct SimpleProfessionalProfileView: View {
                     }
                     .frame(width: 90, height: 90)
                     .clipShape(Circle())
-                    .id(profilePicture) // Force re-render when URL changes
+                    .id(profilePictureURL) // Force re-render when URL changes
                 } else {
                     Image(systemName: "person.fill")
                         .font(.system(size: 40))
                         .foregroundColor(Theme.Colors.primary)
                 }
-                
+
                 // Camera Edit Button
                 Button(action: { showProfilePictureEdit = true }) {
                     Image(systemName: "camera.fill")
@@ -410,7 +441,15 @@ struct SimpleProfessionalProfileView: View {
                 )
             }
             .buttonStyle(PlainButtonStyle())
-            
+
+            Button(action: { showingTransactions = true }) {
+                ProfileMenuRow(
+                    icon: "cart.fill",
+                    title: "Transactions"
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+
             Button(action: { showingOffers = true }) {
                 ProfileMenuRow(
                     icon: "clock.fill",

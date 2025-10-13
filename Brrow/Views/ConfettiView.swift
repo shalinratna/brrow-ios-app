@@ -34,21 +34,29 @@ struct ConfettiView: View {
     }
 
     private func generateParticles() {
-        particles = (0..<80).map { _ in
+        particles = (0..<200).map { _ in
             ConfettiParticle(
                 x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                y: CGFloat.random(in: -300...(-50)),
-                size: CGFloat.random(in: 6...14),
+                y: CGFloat.random(in: -400...(-50)),
+                size: CGFloat.random(in: 6...16),
                 rotation: Double.random(in: 0...360),
                 color: [
+                    // Vibrant greens
                     Theme.Colors.primary,
+                    Color(hex: "10B981") ?? .green,
+                    Color(hex: "34D399") ?? .green,
+                    Color(hex: "6EE7B7") ?? .green,
+                    Color(hex: "A7F3D0") ?? .green,
+                    // Complementary colors
+                    Color(hex: "06B6D4") ?? .cyan,
+                    Color(hex: "14B8A6") ?? .teal,
                     Theme.Colors.accent,
-                    Theme.Colors.accentBlue,
-                    Theme.Colors.accentPurple,
-                    Theme.Colors.accentOrange,
-                    Theme.Colors.secondary,
                     Color.yellow,
-                    Color.pink
+                    Color(hex: "FCD34D") ?? .yellow,
+                    // Accent colors
+                    Color.pink,
+                    Theme.Colors.accentOrange,
+                    Color.white.opacity(0.9)
                 ].randomElement() ?? Theme.Colors.primary
             )
         }
@@ -75,7 +83,7 @@ struct ConfettiShape: Shape {
         var path = Path()
 
         // Create various confetti shapes
-        let shapeType = Int.random(in: 0...2)
+        let shapeType = Int.random(in: 0...4)
 
         switch shapeType {
         case 0:
@@ -89,6 +97,33 @@ struct ConfettiShape: Shape {
             path.move(to: CGPoint(x: rect.midX, y: rect.minY))
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
             path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+        case 3:
+            // Star (5-pointed)
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            let outerRadius = min(rect.width, rect.height) / 2
+            let innerRadius = outerRadius * 0.4
+            let angleIncrement = Double.pi * 2 / 10
+
+            for i in 0..<10 {
+                let angle = angleIncrement * Double(i) - Double.pi / 2
+                let radius = i.isMultiple(of: 2) ? outerRadius : innerRadius
+                let x = center.x + CGFloat(cos(angle)) * radius
+                let y = center.y + CGFloat(sin(angle)) * radius
+
+                if i == 0 {
+                    path.move(to: CGPoint(x: x, y: y))
+                } else {
+                    path.addLine(to: CGPoint(x: x, y: y))
+                }
+            }
+            path.closeSubpath()
+        case 4:
+            // Diamond
+            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
             path.closeSubpath()
         default:
             path.addEllipse(in: rect)

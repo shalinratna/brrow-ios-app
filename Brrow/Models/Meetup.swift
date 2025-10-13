@@ -62,7 +62,7 @@ enum VerificationMethod: String, Codable {
 struct MeetupLocation: Codable {
     let latitude: Double
     let longitude: Double
-    let address: String
+    let address: String?
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)

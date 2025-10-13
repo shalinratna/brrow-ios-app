@@ -417,6 +417,12 @@ class APIClient: ObservableObject {
                 }
 
             } catch {
+                // Check for task cancellation - don't retry
+                if Task.isCancelled || error is CancellationError {
+                    debugLog("🛑 Task was cancelled - stopping retry")
+                    throw CancellationError()
+                }
+
                 // Other errors
                 if error is BrrowAPIError {
                     // Don't retry API-specific errors (validation, unauthorized, etc.)
@@ -425,10 +431,24 @@ class APIClient: ObservableObject {
                 lastError = error
             }
 
+            // Check for cancellation before sleeping
+            if Task.isCancelled {
+                throw CancellationError()
+            }
+
             // If we have more attempts, wait before retrying
             if attempt < maxRetries - 1 {
                 debugLog("⏳ Waiting \(delay)s before retry...")
-                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } catch {
+                    // If sleep was cancelled, stop retrying
+                    if Task.isCancelled || error is CancellationError {
+                        debugLog("🛑 Sleep cancelled - stopping retry")
+                        throw CancellationError()
+                    }
+                    throw error
+                }
 
                 // Exponential backoff: 1s, 2s, 4s, 8s
                 delay = min(delay * 2.0, maxDelay)

@@ -71,27 +71,31 @@ class AccountLinkingService: NSObject, ObservableObject {
         if httpResponse.statusCode == 200 {
             struct Response: Codable {
                 let success: Bool
-                let linkedAccounts: [LinkedAccount]
-                let stripe: StripeStatus?
+                let data: ResponseData
 
-                struct StripeStatus: Codable {
-                    let connected: Bool
-                    let accountId: String?
-                    let payoutsEnabled: Bool
-                    let chargesEnabled: Bool
-                    let detailsSubmitted: Bool
-                    let bankLast4: String?
+                struct ResponseData: Codable {
+                    let accounts: [LinkedAccount]
+                    let stripe: StripeStatus?
+
+                    struct StripeStatus: Codable {
+                        let connected: Bool
+                        let accountId: String?
+                        let payoutsEnabled: Bool
+                        let chargesEnabled: Bool
+                        let detailsSubmitted: Bool
+                        let bankLast4: String?
+                    }
                 }
             }
 
             do {
                 let apiResponse = try JSONDecoder().decode(Response.self, from: data)
 
-                print("   ✅ Linked Accounts Count: \(apiResponse.linkedAccounts.count)")
-                print("   ✅ Stripe Connected: \(apiResponse.stripe?.connected ?? false)")
+                print("   ✅ Linked Accounts Count: \(apiResponse.data.accounts.count)")
+                print("   ✅ Stripe Connected: \(apiResponse.data.stripe?.connected ?? false)")
 
                 // Store Stripe status in published property
-                if let stripe = apiResponse.stripe {
+                if let stripe = apiResponse.data.stripe {
                     self.stripeStatus = StripeConnectStatus(
                         connected: stripe.connected,
                         accountId: stripe.accountId,
@@ -104,7 +108,7 @@ class AccountLinkingService: NSObject, ObservableObject {
                     self.stripeStatus = nil
                 }
 
-                return apiResponse.linkedAccounts
+                return apiResponse.data.accounts
             } catch {
                 print("   ❌ Failed to decode response")
                 print("   Raw response: \(String(data: data, encoding: .utf8) ?? "N/A")")

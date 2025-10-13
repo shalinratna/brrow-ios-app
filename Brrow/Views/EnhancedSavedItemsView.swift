@@ -263,7 +263,7 @@ struct SavedListingCard: View {
             VStack(spacing: 0) {
                 // Image with favorite button
                 ZStack(alignment: .topTrailing) {
-                    BrrowAsyncImage(url: listing.imageUrls.first ?? "") { image in
+                    BrrowAsyncImage(url: listing.firstImageUrl ?? "") { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

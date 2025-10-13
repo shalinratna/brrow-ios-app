@@ -57,6 +57,12 @@ struct BuyNowConfirmationView: View {
         } message: {
             Text(viewModel.errorMessage)
         }
+        .fullScreenCover(isPresented: $viewModel.showSuccessScreen) {
+            PurchaseSuccessView(listing: listing) {
+                viewModel.showSuccessScreen = false
+                viewModel.showReceipt = true
+            }
+        }
         .fullScreenCover(isPresented: $viewModel.showReceipt) {
             if let purchase = viewModel.createdPurchase {
                 PurchaseReceiptView(purchase: purchase) {
@@ -64,6 +70,8 @@ struct BuyNowConfirmationView: View {
                     dismiss()
                     // Post notification to refresh marketplace
                     NotificationCenter.default.post(name: Notification.Name("RefreshMarketplace"), object: nil)
+                    // Post notification to refresh the listing detail view
+                    NotificationCenter.default.post(name: Notification.Name("RefreshListingDetail"), object: nil, userInfo: ["listingId": listing.id])
                 }
             }
         }
@@ -297,6 +305,7 @@ class BuyNowViewModel: ObservableObject {
     @Published var checkoutURL: URL?
     @Published var createdPurchase: Purchase?
     @Published var showReceipt = false
+    @Published var showSuccessScreen = false
 
     let listing: Listing
 
@@ -382,9 +391,16 @@ class BuyNowViewModel: ObservableObject {
 
                         self?.createdPurchase = response.purchase
 
-                        // Show receipt if payment is held
-                        if response.purchase.paymentStatus == .held {
-                            self?.showReceipt = true
+                        // Show success screen if payment succeeded (HELD or PENDING after checkout completion)
+                        // PENDING means Stripe checkout succeeded but webhook hasn't updated DB yet
+                        if response.purchase.paymentStatus == .held || response.purchase.paymentStatus == .pending {
+                            self?.showSuccessScreen = true
+
+                            // Broadcast that listing was purchased - refresh marketplace and listing detail
+                            NotificationCenter.default.post(name: Notification.Name("RefreshMarketplace"), object: nil)
+                            if let listingId = self?.listing.id {
+                                NotificationCenter.default.post(name: Notification.Name("RefreshListingDetail"), object: nil, userInfo: ["listingId": listingId])
+                            }
                         } else if response.purchase.paymentStatus == .failed {
                             self?.errorMessage = "Payment failed. Please try again."
                             self?.showErrorAlert = true

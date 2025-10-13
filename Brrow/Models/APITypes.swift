@@ -1108,6 +1108,23 @@ struct PurchaseUser: Codable {
         case displayName = "display_name"
         case profilePictureUrl = "profile_picture_url"
     }
+
+    // Convert PurchaseUser to full User model for messaging
+    func toUser() -> User {
+        return User(
+            id: id,
+            username: username,
+            email: "",  // Not available from PurchaseUser
+            apiId: id,  // Use the same ID for API requests
+            profilePicture: profilePictureUrl,
+            listerRating: nil,
+            renteeRating: nil,
+            bio: nil,
+            emailVerified: false,
+            idVerified: false,
+            stripeLinked: false
+        )
+    }
 }
 
 struct PurchaseListing: Codable {
@@ -1154,12 +1171,6 @@ struct PurchaseMeetup: Codable {
         case verifiedAt = "verified_at"
         case verificationMethod = "verification_method"
     }
-}
-
-struct MeetupLocation: Codable {
-    let latitude: Double
-    let longitude: Double
-    let address: String?
 }
 
 struct PurchaseAcceptResponse: Codable {

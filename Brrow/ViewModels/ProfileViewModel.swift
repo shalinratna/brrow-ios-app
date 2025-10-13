@@ -70,10 +70,19 @@ class ProfileViewModel: ObservableObject {
         // Force refresh from AuthManager
         user = authManager.currentUser
 
-        // Clear image cache for profile picture to ensure fresh load
-        if let profilePictureUrl = user?.profilePicture {
-            ImageCacheManager.shared.clearSpecificImage(url: profilePictureUrl)
-            print("🗑️ ProfileViewModel: Cleared cache for profile picture: \(profilePictureUrl)")
+        // Debug profile picture URL
+        if let user = user {
+            print("👤 ProfileViewModel: User loaded - \(user.username)")
+            print("🖼️ ProfileViewModel: profilePicture (raw) = \(user.profilePicture ?? "nil")")
+            print("🖼️ ProfileViewModel: fullProfilePictureURL (computed) = \(user.fullProfilePictureURL ?? "nil")")
+
+            // Clear image cache for profile picture to ensure fresh load
+            if let profilePictureUrl = user.fullProfilePictureURL {
+                ImageCacheManager.shared.clearSpecificImage(url: profilePictureUrl)
+                print("🗑️ ProfileViewModel: Cleared cache for profile picture: \(profilePictureUrl)")
+            }
+        } else {
+            print("❌ ProfileViewModel: No user loaded from AuthManager")
         }
 
         // Only load data if authenticated

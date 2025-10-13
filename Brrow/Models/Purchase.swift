@@ -112,10 +112,7 @@ struct Purchase: Codable, Identifiable {
     }
 
     var formattedDeadline: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: deadline)
+        return deadline.toUserFriendlyString()
     }
 
     enum CodingKeys: String, CodingKey {
@@ -145,31 +142,8 @@ struct Purchase: Codable, Identifiable {
     }
 }
 
-// MARK: - Supporting Models
-struct PurchaseListing: Codable {
-    let id: String
-    let title: String
-    let imageUrl: String?
-    let price: Double
-
-    enum CodingKeys: String, CodingKey {
-        case id, title, price
-        case imageUrl = "image_url"
-    }
-}
-
-struct PurchaseUser: Codable {
-    let id: String
-    let username: String
-    let profileImage: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, username
-        case profileImage = "profile_image"
-    }
-}
-
 // MARK: - API Response Models
+// Note: PurchaseUser, PurchaseListing, and PurchaseListingDetail are defined in APITypes.swift
 struct CreatePurchaseResponse: Codable {
     let success: Bool
     let purchase: Purchase

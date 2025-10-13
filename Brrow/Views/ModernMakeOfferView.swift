@@ -365,7 +365,7 @@ class MakeOfferViewModel: ObservableObject {
 
         // Prepare request
         let requestBody: [String: Any] = [
-            "listing_id": listing.id,
+            "listingId": listing.id,
             "amount": offerAmount,
             "message": message.isEmpty ? nil : message,
             "duration": 1 // Default 1 day
@@ -419,8 +419,8 @@ class MakeOfferViewModel: ObservableObject {
                     // Parse error message
                     if let data = data,
                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let message = json["message"] as? String {
-                        self?.errorMessage = message
+                       let error = json["error"] as? String {
+                        self?.errorMessage = error
                     } else {
                         self?.errorMessage = "Failed to send offer. Please try again."
                     }

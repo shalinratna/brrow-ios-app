@@ -68,6 +68,17 @@ struct MeetupTrackingView: View {
         }
         .navigationTitle("Track Meetup")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    dismiss()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.body)
+                        .foregroundColor(Theme.Colors.text)
+                }
+            }
+        }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {

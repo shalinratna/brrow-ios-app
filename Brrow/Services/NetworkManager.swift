@@ -299,17 +299,37 @@ class NetworkManager {
                 }
                 
             } catch {
+                // Check for task cancellation - don't retry
+                if Task.isCancelled || error is CancellationError {
+                    print("🛑 Task was cancelled - stopping retry")
+                    throw CancellationError()
+                }
+
                 // Other errors
                 if error is BrrowAPIError {
                     throw error  // Don't retry API errors
                 }
                 lastError = error
             }
-            
+
+            // Check for cancellation before sleeping
+            if Task.isCancelled {
+                throw CancellationError()
+            }
+
             // If we have more attempts, wait before retrying
             if attempt < retryConfig.maxAttempts {
                 print("⏳ Waiting \(delay)s before retry...")
-                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } catch {
+                    // If sleep was cancelled, stop retrying
+                    if Task.isCancelled || error is CancellationError {
+                        print("🛑 Sleep cancelled - stopping retry")
+                        throw CancellationError()
+                    }
+                    throw error
+                }
                 
                 // Exponential backoff
                 delay = min(delay * retryConfig.multiplier, retryConfig.maxDelay)

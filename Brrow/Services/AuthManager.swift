@@ -406,7 +406,9 @@ class AuthManager: ObservableObject {
         print("🔐 User to save: \(authResponse.user.username) (API ID: \(authResponse.user.apiId ?? "NIL!"))")
         print("🔐 User ID: \(authResponse.user.id)")
         print("🔐 User email: \(authResponse.user.email)")
-        
+        print("🖼️ User profile picture (raw): \(authResponse.user.profilePicture ?? "nil")")
+        print("🖼️ User profile picture (computed URL): \(authResponse.user.fullProfilePictureURL ?? "nil")")
+
         // Critical check: ensure apiId is not nil
         if authResponse.user.apiId == nil {
             print("❌ CRITICAL: User apiId is nil! This will cause API failures.")

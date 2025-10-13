@@ -174,33 +174,95 @@ struct Listing: Codable, Identifiable, Equatable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, title, description, categoryId, condition, price, dailyRate, pricingType
-        case isNegotiable, availabilityStatus, location, userId
-        case viewCount, favoriteCount, isActive, isPremium
-        case premiumExpiresAt, deliveryOptions, tags, metadata
-        case createdAt, updatedAt, user, category, images, videos
-        case imageUrl, _count
+        case id, title, description
+        case categoryId = "category_id"
+        case condition, price
+        case dailyRate = "daily_rate"
+        case pricingType = "pricing_type"
+        case isNegotiable = "is_negotiable"
+        case availabilityStatus = "availability_status"
+        case location
+        case userId = "user_id"
+        case viewCount = "view_count"
+        case favoriteCount = "favorite_count"
+        case isActive = "is_active"
+        case isPremium = "is_premium"
+        case premiumExpiresAt = "premium_expires_at"
+        case deliveryOptions = "delivery_options"
+        case tags, metadata
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case user
+        case category = "categories"  // API returns "categories" but we store as "category"
+        case images = "listing_images"  // API returns "listing_images" but we store as "images"
+        case videos
+        case imageUrl = "image_url"
+        case _count
         case apiImageUrlsFromAPI = "imageUrls"
         // NOTE: isOwner and isFavorite are client-side only, not from API
     }
 
-    // Custom decoder to handle string location from API
+    // Custom decoder to handle string location from API and both camelCase/snake_case
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Handle both camelCase and snake_case by trying raw keys
+        enum RawKeys: String, CodingKey {
+            case id, title, description, condition, price, location, tags, metadata, user, videos, imageUrl
+            // camelCase versions
+            case categoryId, dailyRate, pricingType, isNegotiable, availabilityStatus, userId
+            case viewCount, favoriteCount, isActive, isPremium, premiumExpiresAt, deliveryOptions
+            case createdAt, updatedAt, category, images
+            // snake_case versions
+            case category_id, daily_rate, pricing_type, is_negotiable, availability_status, user_id
+            case view_count, favorite_count, is_active, is_premium, premium_expires_at, delivery_options
+            case created_at, updated_at, categories, listing_images, imageUrls, _count
+        }
 
-        id = try container.decode(String.self, forKey: .id)
-        title = try container.decode(String.self, forKey: .title)
-        description = try container.decode(String.self, forKey: .description)
-        categoryId = try container.decode(String.self, forKey: .categoryId)
-        condition = try container.decode(String.self, forKey: .condition)
-        price = try container.decode(Double.self, forKey: .price)
-        dailyRate = try container.decodeIfPresent(Double.self, forKey: .dailyRate)
-        pricingType = try container.decodeIfPresent(String.self, forKey: .pricingType)
-        isNegotiable = try container.decode(Bool.self, forKey: .isNegotiable)
-        availabilityStatus = try container.decode(ListingStatus.self, forKey: .availabilityStatus)
+        let rawContainer = try decoder.container(keyedBy: RawKeys.self)
+
+        id = try rawContainer.decode(String.self, forKey: .id)
+        title = try rawContainer.decode(String.self, forKey: .title)
+        description = try rawContainer.decode(String.self, forKey: .description)
+
+        // Try both camelCase and snake_case for categoryId
+        if let val = try? rawContainer.decode(String.self, forKey: .categoryId) {
+            categoryId = val
+        } else {
+            categoryId = try rawContainer.decode(String.self, forKey: .category_id)
+        }
+
+        condition = try rawContainer.decode(String.self, forKey: .condition)
+        price = try rawContainer.decode(Double.self, forKey: .price)
+
+        // Try both formats for dailyRate
+        if let val = try? rawContainer.decodeIfPresent(Double.self, forKey: .dailyRate) {
+            dailyRate = val
+        } else {
+            dailyRate = try? rawContainer.decodeIfPresent(Double.self, forKey: .daily_rate)
+        }
+
+        // Try both formats for pricingType
+        if let val = try? rawContainer.decodeIfPresent(String.self, forKey: .pricingType) {
+            pricingType = val
+        } else {
+            pricingType = try? rawContainer.decodeIfPresent(String.self, forKey: .pricing_type)
+        }
+
+        // Try both formats for isNegotiable
+        if let val = try? rawContainer.decode(Bool.self, forKey: .isNegotiable) {
+            isNegotiable = val
+        } else {
+            isNegotiable = try rawContainer.decode(Bool.self, forKey: .is_negotiable)
+        }
+
+        // Try both formats for availabilityStatus
+        if let val = try? rawContainer.decode(ListingStatus.self, forKey: .availabilityStatus) {
+            availabilityStatus = val
+        } else {
+            availabilityStatus = try rawContainer.decode(ListingStatus.self, forKey: .availability_status)
+        }
 
         // Handle location - can be string or object
-        if let locationString = try? container.decode(String.self, forKey: .location) {
+        if let locationString = try? rawContainer.decode(String.self, forKey: .location) {
             // If location is a string, create a Location object with the string as city
             location = Location(
                 address: locationString,
@@ -213,35 +275,98 @@ struct Listing: Codable, Identifiable, Equatable {
             )
         } else {
             // If location is an object, decode it normally
-            location = try container.decode(Location.self, forKey: .location)
+            location = try rawContainer.decode(Location.self, forKey: .location)
         }
 
-        userId = try container.decode(String.self, forKey: .userId)
-        viewCount = try container.decodeIfPresent(Int.self, forKey: .viewCount) ?? 0
-        favoriteCount = try container.decodeIfPresent(Int.self, forKey: .favoriteCount) ?? 0
-        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
-        isPremium = try container.decodeIfPresent(Bool.self, forKey: .isPremium) ?? false
-        premiumExpiresAt = try container.decodeIfPresent(String.self, forKey: .premiumExpiresAt)
-        deliveryOptions = try container.decodeIfPresent(DeliveryOptions.self, forKey: .deliveryOptions)
-        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
-        metadata = try container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
-        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
-        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt) ?? ""
-        user = try container.decodeIfPresent(UserInfo.self, forKey: .user)
-        category = try container.decodeIfPresent(CategoryModel.self, forKey: .category)
-
-        // Handle both images array and imageUrls array formats
-        if let imagesArray = try? container.decodeIfPresent([ListingImage].self, forKey: .images) {
-            images = imagesArray ?? []
+        // Try both formats for userId
+        if let val = try? rawContainer.decode(String.self, forKey: .userId) {
+            userId = val
         } else {
-            // If images array is not available, create from imageUrls if available
-            images = []
+            userId = try rawContainer.decode(String.self, forKey: .user_id)
         }
 
-        videos = try container.decodeIfPresent([ListingVideo].self, forKey: .videos)
-        imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
-        apiImageUrlsFromAPI = try container.decodeIfPresent([String].self, forKey: .apiImageUrlsFromAPI)
-        _count = try container.decodeIfPresent(ListingCount.self, forKey: ._count)
+        // Try both formats for viewCount
+        if let val = try? rawContainer.decodeIfPresent(Int.self, forKey: .viewCount) {
+            viewCount = val
+        } else {
+            viewCount = (try? rawContainer.decodeIfPresent(Int.self, forKey: .view_count)) ?? 0
+        }
+
+        // Try both formats for favoriteCount
+        if let val = try? rawContainer.decodeIfPresent(Int.self, forKey: .favoriteCount) {
+            favoriteCount = val
+        } else {
+            favoriteCount = (try? rawContainer.decodeIfPresent(Int.self, forKey: .favorite_count)) ?? 0
+        }
+
+        // Try both formats for isActive
+        if let val = try? rawContainer.decodeIfPresent(Bool.self, forKey: .isActive) {
+            isActive = val
+        } else {
+            isActive = (try? rawContainer.decodeIfPresent(Bool.self, forKey: .is_active)) ?? true
+        }
+
+        // Try both formats for isPremium
+        if let val = try? rawContainer.decodeIfPresent(Bool.self, forKey: .isPremium) {
+            isPremium = val
+        } else {
+            isPremium = (try? rawContainer.decodeIfPresent(Bool.self, forKey: .is_premium)) ?? false
+        }
+
+        // Try both formats for premiumExpiresAt
+        if let val = try? rawContainer.decodeIfPresent(String.self, forKey: .premiumExpiresAt) {
+            premiumExpiresAt = val
+        } else {
+            premiumExpiresAt = try? rawContainer.decodeIfPresent(String.self, forKey: .premium_expires_at)
+        }
+
+        // Try both formats for deliveryOptions
+        if let val = try? rawContainer.decodeIfPresent(DeliveryOptions.self, forKey: .deliveryOptions) {
+            deliveryOptions = val
+        } else {
+            deliveryOptions = try? rawContainer.decodeIfPresent(DeliveryOptions.self, forKey: .delivery_options)
+        }
+
+        tags = (try? rawContainer.decodeIfPresent([String].self, forKey: .tags)) ?? []
+        metadata = try? rawContainer.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)
+
+        // Try both formats for createdAt
+        if let val = try? rawContainer.decodeIfPresent(String.self, forKey: .createdAt) {
+            createdAt = val
+        } else {
+            createdAt = (try? rawContainer.decodeIfPresent(String.self, forKey: .created_at)) ?? ""
+        }
+
+        // Try both formats for updatedAt
+        if let val = try? rawContainer.decodeIfPresent(String.self, forKey: .updatedAt) {
+            updatedAt = val
+        } else {
+            updatedAt = (try? rawContainer.decodeIfPresent(String.self, forKey: .updated_at)) ?? ""
+        }
+
+        user = try? rawContainer.decodeIfPresent(UserInfo.self, forKey: .user)
+
+        // Try both formats for category
+        if let val = try? rawContainer.decodeIfPresent(CategoryModel.self, forKey: .category) {
+            category = val
+        } else {
+            category = try? rawContainer.decodeIfPresent(CategoryModel.self, forKey: .categories)
+        }
+
+        // Try both formats for images
+        if let val = try? rawContainer.decodeIfPresent([ListingImage].self, forKey: .images) {
+            images = val
+        } else {
+            images = (try? rawContainer.decodeIfPresent([ListingImage].self, forKey: .listing_images)) ?? []
+        }
+
+        videos = try? rawContainer.decodeIfPresent([ListingVideo].self, forKey: .videos)
+
+        // imageUrl field (try direct field name)
+        imageUrl = try? rawContainer.decodeIfPresent(String.self, forKey: .imageUrl)
+
+        apiImageUrlsFromAPI = try? rawContainer.decodeIfPresent([String].self, forKey: .imageUrls)
+        _count = try? rawContainer.decodeIfPresent(ListingCount.self, forKey: ._count)
 
         // Client-side properties (not from API)
         isOwner = nil

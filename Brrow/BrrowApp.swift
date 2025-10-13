@@ -99,6 +99,13 @@ struct BrrowApp: App {
             .onReceive(NotificationCenter.default.publisher(for: .navigateToChat)) { notification in
                 handleNotificationNavigation(notification)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateToPurchase)) { notification in
+                handlePurchaseNavigation(notification)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openTransactions)) { notification in
+                // This is handled by the Profile view - just switching tab is enough
+                // The Profile view will detect the openTransactions notification and navigate
+            }
             .onReceive(NotificationCenter.default.publisher(for: .navigateToEarnings)) { _ in
                 // Navigate to earnings tab
             }
@@ -274,6 +281,29 @@ struct BrrowApp: App {
         if let username = userInfo["username"] as? String {
             print("Navigating to chat with \(username)")
             NotificationCenter.default.post(name: .navigateToMessages, object: nil)
+        }
+    }
+
+    private func handlePurchaseNavigation(_ notification: Notification) {
+        // Handle navigation from purchase notifications
+        guard let userInfo = notification.userInfo,
+              let purchaseId = userInfo["purchaseId"] as? String else {
+            print("⚠️ [BrrowApp] No purchaseId in purchase notification")
+            return
+        }
+
+        print("💰 [BrrowApp] Navigating to transaction: \(purchaseId)")
+
+        // Navigate to Profile tab (tab 4)
+        TabSelectionManager.shared.selectedTab = 4
+
+        // Wait for tab to switch, then navigate to Transactions with specific purchase
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(
+                name: .openTransactions,
+                object: nil,
+                userInfo: ["purchaseId": purchaseId]
+            )
         }
     }
     

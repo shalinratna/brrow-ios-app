@@ -64,6 +64,16 @@ struct CategoryModel: Codable {
     let sortOrder: Int?
     let createdAt: String? // Changed to String to avoid date decoding issues
     let updatedAt: String? // Changed to String to avoid date decoding issues
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description
+        case iconUrl = "icon_url"
+        case parentId = "parent_id"
+        case isActive = "is_active"
+        case sortOrder = "sort_order"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
 }
 
 // ListingImage is defined in CreateListingResponse.swift - removed duplicate

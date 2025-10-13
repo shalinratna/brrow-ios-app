@@ -37,13 +37,20 @@ struct ListingImage: Codable {
     let is_primary: Bool?
     
     enum CodingKeys: String, CodingKey {
-        case id, url, imageUrl, thumbnailUrl, isPrimary, displayOrder
-        case listingId, width, height, fileSize, uploadedAt
-        case hasGPSData, latitude, longitude, altitude, gpsTimestamp, locationData
-        case thumbnail_url = "thumbnail_url"
-        case is_primary = "is_primary"
+        case id, url, width, height, latitude, longitude, altitude
+        // Support both camelCase (from backend transformer) and snake_case (legacy)
+        case listingId, listing_id
+        case imageUrl, image_url
+        case thumbnailUrl, thumbnail_url
+        case isPrimary, is_primary
+        case displayOrder, display_order
+        case fileSize, file_size
+        case uploadedAt, uploaded_at
+        case hasGPSData, has_gps_data
+        case gpsTimestamp, gps_timestamp
+        case locationData, location_data
     }
-    
+
     // Memberwise initializer for manual creation
     init(id: String, listingId: String? = nil, url: String? = nil, imageUrl: String? = nil,
          thumbnailUrl: String? = nil, isPrimary: Bool? = nil, displayOrder: Int? = nil,
@@ -72,15 +79,24 @@ struct ListingImage: Codable {
         self.is_primary = is_primary
     }
     
-    // Custom decoder to handle multiple field variations
+    // Custom decoder to handle both camelCase and snake_case from backend
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         self.id = try container.decode(String.self, forKey: .id)
-        self.listingId = try? container.decodeIfPresent(String.self, forKey: .listingId)
-        
-        // Try multiple URL field names - prioritize imageUrl over url
+
+        // Try both camelCase and snake_case for listingId
+        if let val = try? container.decodeIfPresent(String.self, forKey: .listingId) {
+            self.listingId = val
+        } else {
+            self.listingId = try? container.decodeIfPresent(String.self, forKey: .listing_id)
+        }
+
+        // Try multiple URL field names - try camelCase first (from backend transformer)
         if let imageUrlValue = try? container.decodeIfPresent(String.self, forKey: .imageUrl) {
+            self.url = imageUrlValue
+            self.imageUrl = imageUrlValue
+        } else if let imageUrlValue = try? container.decodeIfPresent(String.self, forKey: .image_url) {
             self.url = imageUrlValue
             self.imageUrl = imageUrlValue
         } else if let urlValue = try? container.decodeIfPresent(String.self, forKey: .url) {
@@ -90,40 +106,66 @@ struct ListingImage: Codable {
             self.url = nil
             self.imageUrl = nil
         }
-        
-        // Try both camelCase and snake_case for thumbnail URL
-        if let thumbnailValue = try? container.decodeIfPresent(String.self, forKey: .thumbnailUrl) {
-            self.thumbnailUrl = thumbnailValue
-        } else {
-            self.thumbnailUrl = try? container.decodeIfPresent(String.self, forKey: .thumbnail_url)
-        }
-        
-        // Legacy field support
-        self.thumbnail_url = try? container.decodeIfPresent(String.self, forKey: .thumbnail_url)
-        
-        // Try both camelCase and snake_case for isPrimary
-        if let primaryValue = try? container.decodeIfPresent(Bool.self, forKey: .isPrimary) {
-            self.isPrimary = primaryValue
-        } else {
-            self.isPrimary = try? container.decodeIfPresent(Bool.self, forKey: .is_primary)
-        }
-        
-        self.is_primary = try? container.decodeIfPresent(Bool.self, forKey: .is_primary)
-        self.displayOrder = try? container.decodeIfPresent(Int.self, forKey: .displayOrder)
+
+        // Try both formats for thumbnailUrl
+        let thumbnailValue = (try? container.decodeIfPresent(String.self, forKey: .thumbnailUrl))
+            ?? (try? container.decodeIfPresent(String.self, forKey: .thumbnail_url))
+        self.thumbnailUrl = thumbnailValue
+        self.thumbnail_url = thumbnailValue
+
+        // Try both formats for isPrimary
+        let primaryValue = (try? container.decodeIfPresent(Bool.self, forKey: .isPrimary))
+            ?? (try? container.decodeIfPresent(Bool.self, forKey: .is_primary))
+        self.isPrimary = primaryValue
+        self.is_primary = primaryValue
+
+        // Try both formats for remaining fields
+        self.displayOrder = (try? container.decodeIfPresent(Int.self, forKey: .displayOrder))
+            ?? (try? container.decodeIfPresent(Int.self, forKey: .display_order))
+        self.fileSize = (try? container.decodeIfPresent(Int.self, forKey: .fileSize))
+            ?? (try? container.decodeIfPresent(Int.self, forKey: .file_size))
+        self.uploadedAt = (try? container.decodeIfPresent(String.self, forKey: .uploadedAt))
+            ?? (try? container.decodeIfPresent(String.self, forKey: .uploaded_at))
+
+        // Direct fields (no snake_case version needed)
         self.width = try? container.decodeIfPresent(Int.self, forKey: .width)
         self.height = try? container.decodeIfPresent(Int.self, forKey: .height)
-        self.fileSize = try? container.decodeIfPresent(Int.self, forKey: .fileSize)
-        self.uploadedAt = try? container.decodeIfPresent(String.self, forKey: .uploadedAt)
 
-        // GPS fields
-        self.hasGPSData = try? container.decodeIfPresent(Bool.self, forKey: .hasGPSData)
+        // GPS fields - try both formats
+        self.hasGPSData = (try? container.decodeIfPresent(Bool.self, forKey: .hasGPSData))
+            ?? (try? container.decodeIfPresent(Bool.self, forKey: .has_gps_data))
+        self.gpsTimestamp = (try? container.decodeIfPresent(String.self, forKey: .gpsTimestamp))
+            ?? (try? container.decodeIfPresent(String.self, forKey: .gps_timestamp))
+        self.locationData = (try? container.decodeIfPresent(String.self, forKey: .locationData))
+            ?? (try? container.decodeIfPresent(String.self, forKey: .location_data))
         self.latitude = try? container.decodeIfPresent(Double.self, forKey: .latitude)
         self.longitude = try? container.decodeIfPresent(Double.self, forKey: .longitude)
         self.altitude = try? container.decodeIfPresent(Double.self, forKey: .altitude)
-        self.gpsTimestamp = try? container.decodeIfPresent(String.self, forKey: .gpsTimestamp)
-        self.locationData = try? container.decodeIfPresent(String.self, forKey: .locationData)
     }
-    
+
+    // Custom encoder - use camelCase format for encoding
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(listingId, forKey: .listingId)
+        try container.encodeIfPresent(url, forKey: .url)
+        try container.encodeIfPresent(imageUrl, forKey: .imageUrl)
+        try container.encodeIfPresent(thumbnailUrl, forKey: .thumbnailUrl)
+        try container.encodeIfPresent(isPrimary, forKey: .isPrimary)
+        try container.encodeIfPresent(displayOrder, forKey: .displayOrder)
+        try container.encodeIfPresent(width, forKey: .width)
+        try container.encodeIfPresent(height, forKey: .height)
+        try container.encodeIfPresent(fileSize, forKey: .fileSize)
+        try container.encodeIfPresent(uploadedAt, forKey: .uploadedAt)
+        try container.encodeIfPresent(hasGPSData, forKey: .hasGPSData)
+        try container.encodeIfPresent(latitude, forKey: .latitude)
+        try container.encodeIfPresent(longitude, forKey: .longitude)
+        try container.encodeIfPresent(altitude, forKey: .altitude)
+        try container.encodeIfPresent(gpsTimestamp, forKey: .gpsTimestamp)
+        try container.encodeIfPresent(locationData, forKey: .locationData)
+    }
+
     // Helper method to get the full URL with base URL if needed
     var fullURL: String? {
         guard let urlString = url ?? imageUrl else { return nil }

@@ -208,21 +208,11 @@ struct ModernSettingsView: View {
     private var quickActionsSection: some View {
         HStack(spacing: 12) {
             // My Posts Button
-            NavigationLink(destination: MyPostsView()) {
+            NavigationLink(destination: EnhancedMyPostsView()) {
                 QuickActionCard(
                     icon: "square.grid.2x2",
                     title: "My Posts",
                     color: .blue
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
-
-            // Transactions Button
-            NavigationLink(destination: TransactionsListView()) {
-                QuickActionCard(
-                    icon: "cart.fill",
-                    title: "Transactions",
-                    color: .green
                 )
             }
             .buttonStyle(PlainButtonStyle())

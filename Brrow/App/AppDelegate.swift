@@ -283,22 +283,44 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 
         print("🔔 [AppDelegate] Notification tapped, userInfo: \(userInfo)")
 
-        // Handle notification tap
-        if let chatId = userInfo["chatId"] as? String {
-            print("🔔 [AppDelegate] Extracted chatId: \(chatId)")
+        // CRITICAL FIX: Delay navigation to ensure app UI is fully loaded
+        // This prevents race conditions when app launches from notification
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
 
-            // CRITICAL FIX: Delay navigation to ensure app UI is fully loaded
-            // This prevents race conditions when app launches from notification
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                print("🔔 [AppDelegate] Posting navigateToChat notification")
+            // Handle purchase notification
+            if let purchaseId = userInfo["purchaseId"] as? String {
+                print("🔔 [AppDelegate] Extracted purchaseId: \(purchaseId)")
+
+                NotificationCenter.default.post(
+                    name: .navigateToPurchase,
+                    object: nil,
+                    userInfo: ["purchaseId": purchaseId]
+                )
+                return
+            }
+
+            // Handle chat notification
+            if let chatId = userInfo["chatId"] as? String {
+                print("🔔 [AppDelegate] Extracted chatId: \(chatId)")
+
                 NotificationCenter.default.post(
                     name: .navigateToChat,
                     object: nil,
                     userInfo: ["chatId": chatId]
                 )
+                return
             }
-        } else {
-            print("⚠️ [AppDelegate] No chatId found in notification payload")
+
+            // Handle listing notification
+            if let listingId = userInfo["listingId"] as? String {
+                print("🔔 [AppDelegate] Extracted listingId: \(listingId)")
+
+                // Use universal listing navigation
+                ListingNavigationManager.shared.showListingById(listingId)
+                return
+            }
+
+            print("⚠️ [AppDelegate] No recognized navigation data in notification payload")
         }
 
         completionHandler()

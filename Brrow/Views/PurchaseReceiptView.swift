@@ -7,10 +7,12 @@
 
 import SwiftUI
 import SafariServices
+import Combine
 
 struct PurchaseReceiptView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: PurchaseReceiptViewModel
+    @State private var showingMessageComposer = false
 
     let purchase: Purchase
     let onDismiss: (() -> Void)?
@@ -25,13 +27,6 @@ struct PurchaseReceiptView: View {
         ZStack {
             Theme.Colors.background
                 .ignoresSafeArea()
-
-            // Confetti animation overlay
-            if viewModel.showConfetti {
-                ConfettiView()
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            }
 
             VStack(spacing: 0) {
                 // Header
@@ -51,6 +46,9 @@ struct PurchaseReceiptView: View {
                         // Deadline countdown
                         deadlineCard
 
+                        // Next Steps - Meetup tracking
+                        nextStepsCard
+
                         // Seller/Buyer info
                         if let seller = purchase.seller {
                             sellerInfoCard(seller)
@@ -69,9 +67,36 @@ struct PurchaseReceiptView: View {
         }
         .onAppear {
             viewModel.triggerSuccessAnimation()
+            viewModel.loadMeetup()
         }
         .sheet(isPresented: $viewModel.showPurchaseStatus) {
             PurchaseStatusView(purchase: purchase)
+        }
+        .fullScreenCover(item: $viewModel.selectedMeetup) { meetup in
+            NavigationView {
+                MeetupTrackingView(
+                    meetupId: meetup.id,
+                    onVerificationReady: { meetup in
+                        viewModel.selectedMeetup = nil
+                        viewModel.meetupToVerify = meetup
+                    }
+                )
+            }
+        }
+        .fullScreenCover(item: $viewModel.meetupToVerify) { meetup in
+            VerificationView(
+                meetup: meetup,
+                onVerificationComplete: { result in
+                    viewModel.meetupToVerify = nil
+                    // Refresh purchase to show completed status
+                    viewModel.loadMeetup()
+                }
+            )
+        }
+        .sheet(isPresented: $showingMessageComposer) {
+            if let seller = purchase.seller {
+                DirectMessageComposerView(recipient: seller.toUser())
+            }
         }
     }
 
@@ -319,6 +344,134 @@ struct PurchaseReceiptView: View {
         }
     }
 
+    // MARK: - Next Steps Card
+    private var nextStepsCard: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 24))
+                    .foregroundColor(Theme.Colors.primary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Next Step: Meet & Verify")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(Theme.Colors.text)
+
+                    if viewModel.isLoadingMeetup {
+                        Text("Loading meetup info...")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    } else if let meetup = viewModel.meetup {
+                        Text(meetupStatusText(for: meetup))
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    } else {
+                        Text("No meeting arranged yet - coordinate with seller")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
+                Spacer()
+            }
+
+            Divider()
+
+            // Instructions
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                instructionRow(
+                    number: "1",
+                    text: "Coordinate with seller on meeting location and time"
+                )
+                instructionRow(
+                    number: "2",
+                    text: "Both parties arrive at the meetup location (within 100m)"
+                )
+                instructionRow(
+                    number: "3",
+                    text: "Verify the item and complete with PIN or QR code"
+                )
+            }
+
+            // Track Meetup Button
+            if let meetup = viewModel.meetup {
+                Button(action: {
+                    viewModel.selectedMeetup = meetup
+                }) {
+                    HStack {
+                        Image(systemName: "location.fill")
+                        Text("Track Meetup")
+                            .font(.system(size: 16, weight: .semibold))
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                    .foregroundColor(.white)
+                    .padding(Theme.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                            .fill(Theme.Colors.primary)
+                    )
+                }
+            } else if !viewModel.isLoadingMeetup {
+                // No meetup yet - show message to coordinate
+                VStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(Theme.Colors.primary.opacity(0.6))
+
+                    Text("Contact seller to arrange meetup")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Theme.Colors.text)
+
+                    Text("Use the message button above to coordinate")
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .padding(Theme.Spacing.md)
+                .frame(maxWidth: .infinity)
+                .background(Theme.Colors.secondaryBackground)
+                .cornerRadius(Theme.CornerRadius.card)
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.cardBackground)
+        .cornerRadius(Theme.CornerRadius.card)
+        .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius)
+    }
+
+    private func instructionRow(number: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+            Text(number)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Theme.Colors.primary))
+
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundColor(Theme.Colors.text)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func meetupStatusText(for meetup: Meetup) -> String {
+        switch meetup.status {
+        case .scheduled:
+            return "Ready to track - coordinate with seller"
+        case .buyerArrived:
+            return "You've arrived - waiting for seller"
+        case .sellerArrived:
+            return "Seller arrived - head to location"
+        case .bothArrived:
+            return "Both arrived - ready to verify!"
+        case .verified, .completed:
+            return "Verification complete!"
+        case .cancelled:
+            return "Meetup cancelled"
+        case .expired:
+            return "Meetup expired"
+        }
+    }
+
     // MARK: - Seller Info Card
     private func sellerInfoCard(_ seller: PurchaseUser) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -328,7 +481,7 @@ struct PurchaseReceiptView: View {
 
             HStack(spacing: Theme.Spacing.md) {
                 // Profile image
-                if let profileImage = seller.profileImage, let url = URL(string: profileImage) {
+                if let profilePictureUrl = seller.profilePictureUrl, let url = URL(string: profilePictureUrl) {
                     AsyncImage(url: url) { image in
                         image.resizable().aspectRatio(contentMode: .fill)
                     } placeholder: {
@@ -364,7 +517,7 @@ struct PurchaseReceiptView: View {
                 Spacer()
 
                 Button(action: {
-                    // Message seller action
+                    showingMessageComposer = true
                 }) {
                     Image(systemName: "message.fill")
                         .font(.system(size: 16))
@@ -469,10 +622,7 @@ struct PurchaseReceiptView: View {
     }
 
     private var formattedDeadline: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: purchase.deadline)
+        return purchase.deadline.toUserFriendlyString()
     }
 
     private func formattedAmount(_ amount: Double) -> String {
@@ -480,16 +630,12 @@ struct PurchaseReceiptView: View {
     }
 
     private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return date.toUserFriendlyString()
     }
 }
 
 // MARK: - ViewModel
 class PurchaseReceiptViewModel: ObservableObject {
-    @Published var showConfetti = false
     @Published var checkmarkScale: CGFloat = 0
     @Published var checkmarkRotation: Double = -90
     @Published var pulseAnimation = false
@@ -501,8 +647,15 @@ class PurchaseReceiptViewModel: ObservableObject {
     @Published var hoursRemaining: Int = 0
     @Published var minutesRemaining: Int = 0
 
+    // Meetup state
+    @Published var meetup: Meetup?
+    @Published var isLoadingMeetup = false
+    @Published var selectedMeetup: Meetup?
+    @Published var meetupToVerify: Meetup?
+
     let purchase: Purchase
     private var timer: Timer?
+    private let meetupService = MeetupService.shared
 
     init(purchase: Purchase) {
         self.purchase = purchase
@@ -519,11 +672,6 @@ class PurchaseReceiptViewModel: ObservableObject {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
 
-        // Show confetti
-        withAnimation {
-            showConfetti = true
-        }
-
         // Animate checkmark
         withAnimation(.spring(response: 0.6, dampingFraction: 0.6, blendDuration: 0).delay(0.1)) {
             checkmarkScale = 1.0
@@ -538,13 +686,6 @@ class PurchaseReceiptViewModel: ObservableObject {
         // Fade in text
         withAnimation(.easeIn(duration: 0.5).delay(0.5)) {
             textOpacity = 1.0
-        }
-
-        // Hide confetti after 3 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            withAnimation {
-                self.showConfetti = false
-            }
         }
     }
 
@@ -615,4 +756,32 @@ class PurchaseReceiptViewModel: ObservableObject {
         hoursRemaining = hours
         minutesRemaining = minutes
     }
+
+    func loadMeetup() {
+        isLoadingMeetup = true
+
+        guard let meetupId = purchase.meetupId else {
+            print("⚠️ No meetup ID found for purchase: \(purchase.id)")
+            isLoadingMeetup = false
+            return
+        }
+
+        meetupService.getMeetup(meetupId: meetupId)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoadingMeetup = false
+                    if case .failure(let error) = completion {
+                        print("❌ Failed to load meetup: \(error.localizedDescription)")
+                    }
+                },
+                receiveValue: { [weak self] meetup in
+                    print("✅ Loaded meetup: \(meetup.id)")
+                    self?.meetup = meetup
+                }
+            )
+            .store(in: &cancellables)
+    }
+
+    private var cancellables = Set<AnyCancellable>()
 }

@@ -285,10 +285,7 @@ struct PurchaseStatusView: View {
     }
 
     private func timeString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return date.toUserFriendlyString()
     }
 
     // MARK: - Listing Info

@@ -14,12 +14,15 @@ extension Notification.Name {
     static let navigateToMessages = Notification.Name("navigateToMessages")
     static let navigateToEarnings = Notification.Name("navigateToEarnings")
     static let navigateToMyPosts = Notification.Name("navigateToMyPosts")
-    
+    static let navigateToPurchase = Notification.Name("navigateToPurchase")
+    static let navigateToActiveSales = Notification.Name("navigateToActiveSales")
+
     // Widget Deep Links
     static let openEarnings = Notification.Name("openEarnings")
     static let filterNearby = Notification.Name("filterNearby")
     static let createNewListing = Notification.Name("createNewListing")
-    
+    static let openTransactions = Notification.Name("openTransactions")
+
     // Push Notifications
     static let newSeekMatch = Notification.Name("newSeekMatch")
     static let newMessage = Notification.Name("newMessage")

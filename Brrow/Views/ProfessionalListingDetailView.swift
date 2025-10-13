@@ -69,18 +69,29 @@ struct ProfessionalListingDetailView: View {
                             
                             // Simple stats row
                             HStack(spacing: 20) {
-                                Label("\(viewModel.listing.views) views", systemImage: "eye")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Theme.Colors.secondaryText)
-                                
+                                // Only show views count to the listing owner
+                                let currentUser = AuthManager.shared.currentUser
+                                let isOwner = currentUser != nil && (
+                                    viewModel.listing.userId == currentUser?.id ||
+                                    viewModel.listing.userId == currentUser?.apiId ||
+                                    viewModel.listing.user?.apiId == currentUser?.apiId ||
+                                    viewModel.listing.user?.id == currentUser?.id
+                                )
+
+                                if isOwner {
+                                    Label("\(viewModel.listing.views) views", systemImage: "eye")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Theme.Colors.secondaryText)
+                                }
+
                                 if viewModel.reviewCount > 0 {
                                     Label("\(viewModel.averageRating, specifier: "%.1f")", systemImage: "star.fill")
                                         .font(.system(size: 14))
                                         .foregroundColor(.orange)
                                 }
-                                
+
                                 Spacer()
-                                
+
                                 Text(viewModel.distanceFromUser ?? "")
                                     .font(.system(size: 14))
                                     .foregroundColor(Theme.Colors.secondaryText)
@@ -280,6 +291,15 @@ struct ProfessionalListingDetailView: View {
             impactFeedback.prepare()
             selectionFeedback.prepare()
             AnalyticsService.shared.trackListingView(listingId: viewModel.listing.id, listingTitle: viewModel.listing.title)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshListingDetail"))) { notification in
+            // Check if this notification is for our listing
+            if let listingId = notification.userInfo?["listingId"] as? String,
+               listingId == viewModel.listing.id {
+                print("🔄 [LISTING DETAIL] Received refresh notification for listing: \(listingId)")
+                // Reload the listing details to show updated status
+                viewModel.loadListingDetails()
+            }
         }
     }
     
@@ -593,7 +613,15 @@ struct ProfessionalListingDetailView: View {
 
     // MARK: - Pending Sale Notice
     private var pendingSaleNotice: some View {
-        VStack(spacing: 16) {
+        let currentUser = AuthManager.shared.currentUser
+        let isOwner = currentUser != nil && (
+            viewModel.listing.userId == currentUser?.id ||
+            viewModel.listing.userId == currentUser?.apiId ||
+            viewModel.listing.user?.apiId == currentUser?.apiId ||
+            viewModel.listing.user?.id == currentUser?.id
+        )
+
+        return VStack(spacing: 16) {
             HStack(spacing: 12) {
                 Image(systemName: "clock.badge.checkmark.fill")
                     .font(.system(size: 32))
@@ -615,26 +643,28 @@ struct ProfessionalListingDetailView: View {
             .background(Color.orange.opacity(0.1))
             .cornerRadius(12)
 
-            // Message seller button still available
-            Button(action: {
-                if viewModel.isGuestUser {
-                    viewModel.showGuestAlert = true
-                } else {
-                    showingMessageComposer = true
+            // Message seller button - only show if NOT the owner
+            if !isOwner {
+                Button(action: {
+                    if viewModel.isGuestUser {
+                        viewModel.showGuestAlert = true
+                    } else {
+                        showingMessageComposer = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "message.fill")
+                        Text("Message Seller")
+                    }
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(Theme.Colors.primary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Theme.Colors.primary, lineWidth: 1.5)
+                    )
                 }
-            }) {
-                HStack {
-                    Image(systemName: "message.fill")
-                    Text("Message Seller")
-                }
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(Theme.Colors.primary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Theme.Colors.primary, lineWidth: 1.5)
-                )
             }
         }
     }

@@ -47,6 +47,11 @@ struct TransactionDetailView: View {
                     // Receipt
                     ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
 
+                    // Meetup tracking button (if meetup exists)
+                    if let meetupId = purchase.meetup?.id {
+                        MeetupTrackingSection(meetupId: meetupId, viewModel: viewModel)
+                    }
+
                     // Action buttons (if applicable)
                     if purchase.sellerConfirmed == false && !purchase.isBuyer {
                         SellerActionsSection(viewModel: viewModel, purchaseId: purchase.id)
@@ -72,13 +77,36 @@ struct TransactionDetailView: View {
         } message: {
             Text(viewModel.successMessage ?? "")
         }
+        .fullScreenCover(isPresented: $viewModel.showMeetupTracking) {
+            if let meetupId = viewModel.purchase?.meetup?.id {
+                NavigationView {
+                    MeetupTrackingView(
+                        meetupId: meetupId,
+                        onVerificationReady: { meetup in
+                            viewModel.showMeetupTracking = false
+                            viewModel.meetupToVerify = meetup
+                        }
+                    )
+                }
+            }
+        }
+        .fullScreenCover(item: $viewModel.meetupToVerify) { meetup in
+            VerificationView(
+                meetup: meetup,
+                onVerificationComplete: { result in
+                    viewModel.meetupToVerify = nil
+                    // Refresh purchase details
+                    viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
+                }
+            )
+        }
     }
 }
 
 struct ListingInfoSection: View {
     let purchase: PurchaseDetail
 
-    var body: View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let listing = purchase.listing {
                 HStack(spacing: 12) {
@@ -239,14 +267,7 @@ struct TimelineStepView: View {
     }
 
     func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: dateString) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .medium
-            displayFormatter.timeStyle = .short
-            return displayFormatter.string(from: date)
-        }
-        return dateString
+        return dateString.toUserFriendlyDate()
     }
 }
 
@@ -261,9 +282,10 @@ struct ReceiptSection: View {
 
             VStack(spacing: 10) {
                 ReceiptRow(label: "Subtotal", value: formatCurrency(receipt.subtotal))
-                ReceiptRow(label: "Stripe Fees", value: formatCurrency(receipt.stripeFee), note: receipt.stripeFeeNote)
+                // Show promotions/discounts if any (placeholder for future implementation)
+                // Note: Stripe fees are NOT shown to buyers - they never pay more than subtotal
                 Divider()
-                ReceiptRow(label: "Total", value: formatCurrency(receipt.total), isBold: true)
+                ReceiptRow(label: "Total", value: formatCurrency(receipt.subtotal), isBold: true)
             }
         }
         .padding()
@@ -300,6 +322,44 @@ struct ReceiptRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+}
+
+struct MeetupTrackingSection: View {
+    let meetupId: String
+    @ObservedObject var viewModel: TransactionDetailViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Meetup & Verification")
+                .font(.headline)
+
+            Button(action: {
+                viewModel.showMeetupTracking = true
+            }) {
+                HStack {
+                    Image(systemName: "location.fill")
+                    Text("Track Meetup Location")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(12)
+            }
+
+            Text("Once both parties arrive at the meetup location, you can verify the transaction using a PIN or QR code.")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
 }
 
@@ -344,6 +404,8 @@ class TransactionDetailViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
+    @Published var showMeetupTracking = false
+    @Published var meetupToVerify: Meetup?
 
     func fetchPurchaseDetails(purchaseId: String) {
         isLoading = true

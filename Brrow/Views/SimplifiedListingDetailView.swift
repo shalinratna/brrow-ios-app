@@ -127,6 +127,15 @@ struct SimplifiedListingDetailView: View {
         .onAppear {
             viewModel.loadListingDetails()
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshListingDetail"))) { notification in
+            // Check if this notification is for our listing
+            if let listingId = notification.userInfo?["listingId"] as? String,
+               listingId == viewModel.listing.id {
+                print("🔄 [SIMPLIFIED LISTING DETAIL] Received refresh notification for listing: \(listingId)")
+                // Reload the listing details to show updated status
+                viewModel.loadListingDetails()
+            }
+        }
     }
     
     private var navigationBar: some View {
