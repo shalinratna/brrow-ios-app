@@ -244,7 +244,8 @@ class CreateListingViewModel: ObservableObject {
     }
     
     var isLocationValid: Bool {
-        return location.count >= 3 && location.count <= 100
+        // Location is optional - allow empty or valid length
+        return location.isEmpty || (location.count >= 3 && location.count <= 100)
     }
     
     var isInventoryValid: Bool {
@@ -403,8 +404,9 @@ class CreateListingViewModel: ObservableObject {
                 
 
             // Create location object with coordinates
+            // Use user's location if available, otherwise use default San Francisco
             let listingLocation = Location(
-                address: location,
+                address: location.isEmpty ? "Location not specified" : location,
                 city: "",
                 state: "",
                 zipCode: "",

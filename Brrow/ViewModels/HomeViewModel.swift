@@ -28,6 +28,25 @@ class HomeViewModel: ObservableObject {
     
     init() {
         setupFilters()
+        setupNotificationObservers()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    // MARK: - Notification Observers
+    private func setupNotificationObservers() {
+        // Listen for new listing creation to refresh marketplace
+        NotificationCenter.default.addObserver(
+            forName: .listingCreated,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            print("🔔 HomeViewModel received listingCreated notification")
+            // Refresh marketplace to show new listing
+            self?.refreshListings()
+        }
     }
     
     // MARK: - Data Loading

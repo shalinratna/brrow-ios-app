@@ -46,6 +46,7 @@ struct ModernCreateListingView: View {
     @State private var price = ""
     @State private var negotiable = false
     @State private var selectedCondition: ItemCondition = .good
+    @State private var priceValidationError: String? = nil
 
     // Item condition options
     enum ItemCondition: String, CaseIterable {
@@ -584,25 +585,57 @@ struct ModernCreateListingView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                HStack(spacing: 4) {
-                    Text("$")
-                        .font(.largeTitle.bold())
-                        .foregroundColor(Theme.Colors.primary)
+                VStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Text("$")
+                            .font(.largeTitle.bold())
+                            .foregroundColor(Theme.Colors.primary)
 
-                    TextField("0", text: $price)
-                        .font(.system(size: 48, weight: .bold))
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.center)
-                        .frame(width: 150)
+                        TextField("0", text: $price)
+                            .font(.system(size: 48, weight: .bold))
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.center)
+                            .frame(width: 150)
+                            .onChange(of: price) { newValue in
+                                validatePrice(newValue)
+                            }
 
-                    if transactionType == "rental" {
-                        Text("/day")
-                            .font(.title2.bold())
+                        if transactionType == "rental" {
+                            Text("/day")
+                                .font(.title2.bold())
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color(.systemGray6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(priceValidationError != nil ? Color.red : Color.clear, lineWidth: 2)
+                            )
+                    )
+
+                    // Price validation error message
+                    if let error = priceValidationError {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // Minimum price info for sale items
+                    if transactionType == "sale" {
+                        Text("Minimum price: $3")
+                            .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 20).fill(Color(.systemGray6)))
 
                 // Negotiable toggle with improved design
                 VStack(alignment: .leading, spacing: 12) {
@@ -713,9 +746,51 @@ struct ModernCreateListingView: View {
         case 0: return !listingType.isEmpty
         case 1: return !title.isEmpty && description.count >= 10 && !category.isEmpty
         case 2: return !loadedImages.isEmpty
-        case 3: return !price.isEmpty && Double(price) ?? 0 > 0
+        case 3:
+            // Check if price is valid (not empty, no validation errors, and meets minimum)
+            guard !price.isEmpty, priceValidationError == nil else { return false }
+            guard let priceValue = Double(price), priceValue > 0 else { return false }
+            // For sale items, minimum is $3
+            if transactionType == "sale" && priceValue < 3 {
+                return false
+            }
+            return true
         case 4: return true
         default: return false
+        }
+    }
+
+    private func validatePrice(_ newValue: String) {
+        // Reset error
+        priceValidationError = nil
+
+        // Empty is okay - user is typing
+        if newValue.isEmpty {
+            return
+        }
+
+        // Check if it's a valid number (integers only - no decimals)
+        if newValue.contains(".") {
+            priceValidationError = "Only whole numbers allowed (no decimals)"
+            return
+        }
+
+        // Check if it can be converted to a number
+        guard let priceValue = Double(newValue) else {
+            priceValidationError = "Invalid price"
+            return
+        }
+
+        // Check if it's positive
+        if priceValue <= 0 {
+            priceValidationError = "Price must be greater than $0"
+            return
+        }
+
+        // Check minimum price for sale items
+        if transactionType == "sale" && priceValue < 3 {
+            priceValidationError = "Minimum price for sale items is $3"
+            return
         }
     }
     

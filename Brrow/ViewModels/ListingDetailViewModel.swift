@@ -373,34 +373,31 @@ class ListingDetailViewModel: ObservableObject {
     func submitOffer(amount: Double, message: String, duration: Int) {
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
-                // Create offer with proper initialization
-                let offerData = [
-                    "listing_id": listing.id,
-                    "borrower_id": authManager.currentUser!.id,
-                    "amount": amount,
-                    "message": message,
-                    "duration": duration
-                ]
-                
-                // Convert to JSON for API call
-                let jsonData = try JSONSerialization.data(withJSONObject: offerData)
-                let decoder = JSONDecoder()
-                let offer = try decoder.decode(Offer.self, from: jsonData)
-                
-                try await apiClient.submitOffer(offer)
-                
+                // CRITICAL FIX: Use correct field names that backend expects
+                // Backend expects: { listingId, amount, message }
+                let offerRequest = CreateOfferRequest(
+                    listingId: listing.id,        // Correct: backend expects listingId (camelCase)
+                    amount: amount,
+                    message: message
+                )
+
+                // Call createOffer directly with properly formatted request
+                let createdOffer = try await apiClient.createOffer(offerRequest)
+
                 await MainActor.run {
                     self.isLoading = false
                     self.showingOfferSheet = false
                     // Show success message
+                    print("Offer created successfully: \(createdOffer.id)")
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = error.localizedDescription
+                    self.errorMessage = "Failed to send offer: \(error.localizedDescription)"
                     self.isLoading = false
+                    print("Offer creation failed: \(error)")
                 }
             }
         }

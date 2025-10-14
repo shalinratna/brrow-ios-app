@@ -50,37 +50,52 @@ struct ListingGridCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .clipped()
 
-                // Badges container
+                // Badges container - use separate overlays to prevent overlap
                 VStack {
-                    HStack {
-                        // Status badge (top-left) - only show if not AVAILABLE
-                        if listing.availabilityStatus != .available {
-                            ListingStatusBadge(listing: listing, size: .small)
-                                .padding(4)
-                        }
-
-                        Spacer()
-
-                        // NEW badge (top-right) - only if available and new
-                        if isNewListing {
-                            HStack(spacing: 2) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 8))
-                                Text("NEW")
-                                    .font(.system(size: 9, weight: .bold))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(
-                                Capsule()
-                                    .fill(Color.blue)
-                            )
-                            .padding(4)
-                        }
-                    }
                     Spacer()
                 }
+                // Status badge overlay (top-leading) - only show if not AVAILABLE
+                .overlay(
+                    Group {
+                        if listing.availabilityStatus != .available {
+                            VStack {
+                                HStack {
+                                    ListingStatusBadge(listing: listing, size: .small)
+                                        .padding(6)
+                                    Spacer()
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                )
+                // NEW badge overlay (top-trailing) - only if available and new
+                .overlay(
+                    Group {
+                        if isNewListing {
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "sparkles")
+                                            .font(.system(size: 8))
+                                        Text("NEW")
+                                            .font(.system(size: 9, weight: .bold))
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.blue)
+                                    )
+                                    .padding(6)
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                )
             }
             
             VStack(alignment: .leading, spacing: 4) {

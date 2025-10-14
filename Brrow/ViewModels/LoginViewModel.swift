@@ -315,7 +315,7 @@ class LoginViewModel: ObservableObject {
             do {
                 let user = try await authManager.register(
                     email: email,
-                    username: username, 
+                    username: username,
                     password: password,
                     firstName: firstName,
                     lastName: lastName,
@@ -324,6 +324,8 @@ class LoginViewModel: ObservableObject {
                 await MainActor.run {
                     self.isLoading = false
                     self.trackRegistrationSuccess()
+                    // Set flag to show welcome onboarding screen after successful registration
+                    UserDefaults.standard.set(true, forKey: "shouldShowWelcomeOnboarding")
                     self.clearForm()
                 }
             } catch {
@@ -392,13 +394,15 @@ class LoginViewModel: ObservableObject {
                 await MainActor.run {
                     self.isLoading = false
                     self.trackRegistrationSuccess()
+                    // Set flag to show welcome onboarding screen after successful registration
+                    UserDefaults.standard.set(true, forKey: "shouldShowWelcomeOnboarding")
                     self.clearForm()
                 }
             } catch {
                 await MainActor.run {
                     self.isLoading = false
                     self.showError = true
-                    
+
                     // Handle specific error types
                     if let brrowError = error as? BrrowAPIError {
                         switch brrowError {
@@ -416,13 +420,13 @@ class LoginViewModel: ObservableObject {
                     } else {
                         self.errorMessage = error.localizedDescription
                     }
-                    
+
                     self.trackRegistrationError(self.errorMessage)
                 }
             }
         }
     }
-    
+
     func clearForm() {
         email = ""
         password = ""

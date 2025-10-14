@@ -418,7 +418,7 @@ struct ProfessionalListingDetailView: View {
             
             // Condition and negotiable
             HStack(spacing: 12) {
-                Text("Condition: \(viewModel.listing.condition.capitalized)")
+                Text("Condition: \(conditionDisplayName)")
                     .font(.system(size: 14))
                     .foregroundColor(Theme.Colors.secondaryText)
                 
@@ -1115,6 +1115,25 @@ struct ProfessionalListingDetailView: View {
     }
     
     // MARK: - Helper Methods
+    private var conditionDisplayName: String {
+        // Map backend condition strings to display names
+        switch viewModel.listing.condition.uppercased() {
+        case "NEW":
+            return "Like New"
+        case "EXCELLENT":
+            return "Excellent"
+        case "GOOD":
+            return "Good"
+        case "FAIR":
+            return "Fair"
+        case "POOR":
+            return "Poor"
+        default:
+            // Fallback to capitalized version for unknown values
+            return viewModel.listing.condition.capitalized
+        }
+    }
+
     private var conditionColor: Color {
         switch viewModel.listing.condition.lowercased() {
         case "new", "like new":

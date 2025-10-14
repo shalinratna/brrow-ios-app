@@ -357,6 +357,10 @@ struct ModernAuthView: View {
                                 .stroke(age < 13 ? Theme.Colors.error : Theme.Colors.border, lineWidth: 1)
                         )
                 )
+                .onChange(of: viewModel.birthdate) { _ in
+                    // Auto-dismiss keyboard when date is selected
+                    hideKeyboard()
+                }
 
             // Age validation message
             if age < 13 {

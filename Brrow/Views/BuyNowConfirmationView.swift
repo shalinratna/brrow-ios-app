@@ -351,10 +351,77 @@ class BuyNowViewModel: ObservableObject {
             // Close checkout view
             self.showCheckout = false
 
-            // Show error message
+            // Call backend to cancel purchase and restore listing availability
+            if let purchaseId = notification.userInfo?["purchaseId"] as? String {
+                self.cancelPurchase(purchaseId: purchaseId)
+            } else if let createdPurchaseId = self.createdPurchase?.id {
+                self.cancelPurchase(purchaseId: createdPurchaseId)
+            } else {
+                // Fallback: just show error message
+                self.errorMessage = "Payment was canceled. You can try again."
+                self.showErrorAlert = true
+            }
+        }
+    }
+
+    private func cancelPurchase(purchaseId: String) {
+        print("🔄 [BUY NOW] Canceling purchase: \(purchaseId)")
+
+        guard let token = KeychainHelper().loadString(forKey: "brrow_auth_token") else {
+            print("❌ [BUY NOW] No auth token found for cancellation")
             self.errorMessage = "Payment was canceled. You can try again."
             self.showErrorAlert = true
+            return
         }
+
+        guard let url = URL(string: "https://brrow-backend-nodejs-production.up.railway.app/api/purchases/\(purchaseId)/cancel") else {
+            print("❌ [BUY NOW] Invalid cancellation URL")
+            self.errorMessage = "Payment was canceled. You can try again."
+            self.showErrorAlert = true
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let requestBody: [String: Any] = [
+            "reason": "User canceled checkout"
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            print("❌ [BUY NOW] Failed to encode cancellation request: \(error)")
+            self.errorMessage = "Payment was canceled. You can try again."
+            self.showErrorAlert = true
+            return
+        }
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ [BUY NOW] Cancellation network error: \(error.localizedDescription)")
+                } else if let httpResponse = response as? HTTPURLResponse {
+                    print("📡 [BUY NOW] Cancellation response status: \(httpResponse.statusCode)")
+
+                    if httpResponse.statusCode == 200 {
+                        print("✅ [BUY NOW] Purchase canceled successfully - listing restored to AVAILABLE")
+                    } else if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                        print("⚠️ [BUY NOW] Cancellation response: \(responseString)")
+                    }
+                }
+
+                // Always show the error message to user regardless of API success
+                // The listing will be restored even if this fails (webhook fallback)
+                self?.errorMessage = "Payment was canceled. The item is available for purchase again."
+                self?.showErrorAlert = true
+
+                // Refresh marketplace to show updated listing status
+                NotificationCenter.default.post(name: Notification.Name("RefreshMarketplace"), object: nil)
+            }
+        }.resume()
     }
 
     private func refreshPurchaseStatus(purchaseId: String) {

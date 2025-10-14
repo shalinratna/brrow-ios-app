@@ -20,7 +20,7 @@ class MyPostsViewModel: ObservableObject {
     private let pageLimit = 20
     private var hasMore = true
 
-    // Load user's posts
+    // Load user's posts (using my-listings endpoint)
     func loadPosts() {
         guard !isLoading else { return }
 
@@ -30,13 +30,28 @@ class MyPostsViewModel: ObservableObject {
 
         Task {
             do {
-                let response = try await apiClient.fetchUserPosts(limit: pageLimit, offset: 0)
+                // Use fetchMyListings instead of non-existent fetchUserPosts
+                let response = try await apiClient.fetchMyListings(status: "all")
 
                 await MainActor.run {
-                    self.posts = response.posts
-                    self.hasMore = response.hasMore
+                    // Convert listings to UserPost format
+                    self.posts = response.allListings.map { listing in
+                        UserPost(
+                            id: listing.id,
+                            title: listing.title,
+                            description: listing.description,
+                            price: listing.price,
+                            postType: "listing",
+                            status: listing.availabilityStatus.rawValue,
+                            imageUrl: listing.firstImageUrl,
+                            createdAt: listing.createdAt,
+                            viewCount: listing.viewCount,
+                            favoriteCount: listing.favoriteCount
+                        )
+                    }
+                    self.hasMore = false // My listings API doesn't paginate
                     self.isLoading = false
-                    print("[MyPosts] Loaded \(response.posts.count) posts")
+                    print("[MyPosts] Loaded \(self.posts.count) listings")
                 }
             } catch {
                 await MainActor.run {
@@ -48,32 +63,11 @@ class MyPostsViewModel: ObservableObject {
         }
     }
 
-    // Load more posts (pagination)
+    // Load more posts (pagination) - disabled for my-listings endpoint
     func loadMorePosts() {
-        guard !isLoadingMore, hasMore else { return }
-
-        isLoadingMore = true
-        let nextOffset = (currentPage + 1) * pageLimit
-
-        Task {
-            do {
-                let response = try await apiClient.fetchUserPosts(limit: pageLimit, offset: nextOffset)
-
-                await MainActor.run {
-                    self.posts.append(contentsOf: response.posts)
-                    self.hasMore = response.hasMore
-                    self.currentPage += 1
-                    self.isLoadingMore = false
-                    print("[MyPosts] Loaded \(response.posts.count) more posts (page \(self.currentPage))")
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = "Failed to load more posts: \(error.localizedDescription)"
-                    self.isLoadingMore = false
-                    print("[MyPosts] Error loading more posts: \(error)")
-                }
-            }
-        }
+        // My listings endpoint doesn't support pagination yet
+        // All listings are loaded at once
+        print("[MyPosts] Pagination not supported for my-listings endpoint")
     }
 
     // Get count for specific filter
