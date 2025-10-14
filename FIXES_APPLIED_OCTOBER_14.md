@@ -9,7 +9,9 @@
 **Solution**: Added cache-busting policy to force fresh requests
 
 **File Changed**: `Brrow/Services/APIClient.swift` (line 4856)
-**Commit**: 440e73f "Fix: Email verification endpoint - bypass iOS cache to prevent 404"
+**Commits**:
+- 440e73f "Fix: Email verification endpoint - bypass iOS cache to prevent 404"
+- 30c083a "Fix: Correct token access in email verification function"
 
 **What was changed**:
 ```swift
@@ -121,9 +123,11 @@ Should return HTTP 200 with helpful message (not 404)
 All fixes are committed and pushed:
 
 ```
+30c083a - Fix: Correct token access in email verification function
+efd4b4c - Docs: Complete guide for fixes
 440e73f - Fix: Email verification endpoint - bypass iOS cache to prevent 404
-511be71 - Fix: Profile picture persistence - map field names for iOS
-f37ee0d - Add GET handler for email verification endpoint
+511be71 - Fix: Profile picture persistence - map field names for iOS (backend)
+f37ee0d - Add GET handler for email verification endpoint (backend)
 ```
 
 ---
