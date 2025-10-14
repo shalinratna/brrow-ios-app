@@ -4854,11 +4854,34 @@ class APIClient: ObservableObject {
     
     // MARK: - Email Verification Methods
     func sendEmailVerification() async throws -> EmailVerificationResponse {
-        return try await performRequest(
-            endpoint: "api/auth/resend-verification",
-            method: .POST,
-            responseType: EmailVerificationResponse.self
-        )
+        let baseURL = await self.baseURL
+        guard let url = URL(string: "\(baseURL)/api/auth/resend-verification") else {
+            throw BrrowAPIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData // Force bypass cache
+
+        if let token = await tokenManager.getToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BrrowAPIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 {
+                throw BrrowAPIError.unauthorized
+            }
+            throw BrrowAPIError.serverErrorCode(httpResponse.statusCode)
+        }
+
+        return try JSONDecoder().decode(EmailVerificationResponse.self, from: data)
     }
     
     // MARK: - Language Settings Methods
