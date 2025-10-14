@@ -152,8 +152,8 @@ struct ConfettiShape: Shape {
         for i in 0..<5 {
             let angle = (Double(i) * 72 - 90) * .pi / 180
             let point = CGPoint(
-                x: center.x + cos(angle) * radius,
-                y: center.y + sin(angle) * radius
+                x: center.x + CGFloat(Darwin.cos(angle)) * radius,
+                y: center.y + CGFloat(Darwin.sin(angle)) * radius
             )
 
             if i == 0 {
@@ -164,8 +164,8 @@ struct ConfettiShape: Shape {
 
             let innerAngle = (Double(i) * 72 + 36 - 90) * .pi / 180
             let innerPoint = CGPoint(
-                x: center.x + cos(innerAngle) * innerRadius,
-                y: center.y + sin(innerAngle) * innerRadius
+                x: center.x + CGFloat(Darwin.cos(innerAngle)) * innerRadius,
+                y: center.y + CGFloat(Darwin.sin(innerAngle)) * innerRadius
             )
             path.addLine(to: innerPoint)
         }
