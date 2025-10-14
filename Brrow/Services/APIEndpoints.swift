@@ -89,7 +89,6 @@ struct APIEndpoints {
     // MARK: - Moderation
     struct Moderation {
         static let moderate = "api/listings/moderate"  // POST
-        static let approve = "api/admin/listings/approve"  // POST
     }
     
     // MARK: - Upload

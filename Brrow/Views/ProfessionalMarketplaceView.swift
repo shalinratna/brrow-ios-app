@@ -74,8 +74,8 @@ struct ProfessionalMarketplaceView: View {
     }
     
     private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
     ]
     
     var body: some View {
@@ -418,8 +418,11 @@ struct ProfessionalMarketplaceView: View {
                             handleListingTap(listingId: listing.listingId)
                         }
                         .id(listing.listingId)
+                        .frame(maxWidth: .infinity) // Force equal widths
+                        .aspectRatio(0.85, contentMode: .fill) // Consistent aspect ratio
                     }
                 }
+                .padding(.horizontal, 4) // Edge padding
                 
                 // Load more button
                 if viewModel.hasMore {
@@ -739,10 +742,15 @@ struct ProfessionalListingCard: View {
             // Image section
             ZStack {
                 // Using BrrowAsyncImage for better performance
-                BrrowAsyncImage(url: listing.imageUrls.first)
-                    .frame(height: 140)
-                    .clipped()
-                    .background(Theme.Colors.secondaryBackground)
+                BrrowAsyncImage(url: listing.imageUrls.first) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Theme.Colors.secondaryBackground
+                }
+                .frame(maxWidth: .infinity, idealHeight: 140, maxHeight: 140)
+                .clipped()
 
                 // Single overlay layer for both badge and heart (prevents overlap)
                 VStack {
