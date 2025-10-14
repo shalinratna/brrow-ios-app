@@ -22,6 +22,7 @@ struct APIEndpoints {
         static let refreshToken = "api/auth/refresh-token"
         static let validateToken = "api/auth/validate-token"
         static let logout = "api/auth/logout"
+        static let checkUsername = "api/auth/check-username"  // GET /api/auth/check-username/:username
     }
     
     // MARK: - Listings

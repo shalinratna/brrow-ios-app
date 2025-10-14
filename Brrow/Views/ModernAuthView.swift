@@ -174,21 +174,34 @@ struct ModernAuthView: View {
     
     private var usernameField: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ModernTextField(
-                title: "Username",
-                text: $viewModel.username,
-                placeholder: "Choose a username",
-                icon: "person.fill",
-                keyboardType: .default,
-                isValid: !hasInteractedWithUsername || !viewModel.username.isEmpty
-            )
-            .focused($focusedField, equals: .username)
-            .onChange(of: focusedField) { newValue in
-                if newValue == .username {
-                    hasInteractedWithUsername = true
+            HStack {
+                ModernTextField(
+                    title: "Username",
+                    text: $viewModel.username,
+                    placeholder: "Choose a username",
+                    icon: "person.fill",
+                    keyboardType: .default,
+                    isValid: !hasInteractedWithUsername || !viewModel.username.isEmpty
+                )
+                .focused($focusedField, equals: .username)
+                .onChange(of: focusedField) { newValue in
+                    if newValue == .username {
+                        hasInteractedWithUsername = true
+                    }
+                }
+
+                // Trailing icon for availability status
+                if viewModel.isCheckingUsername {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .padding(.trailing, 12)
+                } else if let isAvailable = viewModel.usernameIsAvailable, !viewModel.username.isEmpty {
+                    Image(systemName: isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(isAvailable ? Theme.Colors.success : Theme.Colors.error)
+                        .padding(.trailing, 12)
                 }
             }
-            
+
             usernameValidationMessage
         }
     }
@@ -201,11 +214,35 @@ struct ModernAuthView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(Theme.Colors.error)
                     .padding(.leading, 4)
-            } else if !viewModel.username.isEmpty && viewModel.isValidUsername {
-                Text("✓ Username is available")
+            } else if viewModel.isCheckingUsername {
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Checking availability...")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .padding(.leading, 4)
+            } else if let isAvailable = viewModel.usernameIsAvailable {
+                if isAvailable {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                        Text("Username is available")
+                    }
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(Theme.Colors.success)
                     .padding(.leading, 4)
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                        Text(viewModel.usernameCheckMessage.isEmpty ? "Username is taken" : viewModel.usernameCheckMessage)
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Theme.Colors.error)
+                    .padding(.leading, 4)
+                }
             }
         }
     }

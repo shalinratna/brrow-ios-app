@@ -812,6 +812,27 @@ class APIClient: ObservableObject {
             */ // End of old manual retry code
     }
     
+    // MARK: - Username Availability Check
+    func checkUsernameAvailability(username: String) async throws -> UsernameAvailabilityResponse {
+        debugLog("🔍 Checking username availability", data: ["username": username])
+
+        let endpoint = "\(APIEndpoints.Auth.checkUsername)/\(username)"
+
+        let response = try await performRequest(
+            endpoint: endpoint,
+            method: .GET,
+            responseType: UsernameAvailabilityResponse.self,
+            cachePolicy: .ignoreCache  // Never cache username checks
+        )
+
+        debugLog("✅ Username check response", data: [
+            "available": response.available,
+            "message": response.message
+        ])
+
+        return response
+    }
+
     // MARK: - Authentication
     func login(email: String, password: String) async throws -> AuthResponse {
         let loginRequest = LoginRequest(username: email, password: password)

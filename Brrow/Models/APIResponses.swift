@@ -10,6 +10,12 @@ import Foundation
 // MARK: - Authentication
 // AuthResponse is defined in APIClient.swift
 
+// MARK: - Username Availability
+struct UsernameAvailabilityResponse: Codable {
+    let available: Bool
+    let message: String
+}
+
 // MARK: - Chat Response
 struct CreateChatResponse: Codable {
     let success: Bool

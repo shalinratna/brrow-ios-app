@@ -21,7 +21,7 @@ class LoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage = ""
     @Published var isLoginMode = true
-    
+
     var isBirthdateValid: Bool {
         let age = Calendar.current.dateComponents([.year], from: birthdate, to: Date()).year ?? 0
         return age >= 13
@@ -31,14 +31,29 @@ class LoginViewModel: ObservableObject {
     @Published var showError = false
     @Published var showSpecialUsernameAlert = false
     @Published var specialUsernameCode = ""
-    
+
+    // Username availability checking
+    @Published var isCheckingUsername = false
+    @Published var usernameIsAvailable: Bool? = nil
+    @Published var usernameCheckMessage = ""
+
     private var cancellables = Set<AnyCancellable>()
     private let authManager = AuthManager.shared
+    private var usernameCheckTask: Task<Void, Never>?
     
     init() {
         // Observe authentication state
         authManager.$isAuthenticated
             .assign(to: \.isLoggedIn, on: self)
+            .store(in: &cancellables)
+
+        // Set up debounced username checking
+        $username
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .removeDuplicates()
+            .sink { [weak self] newUsername in
+                self?.checkUsernameAvailability(newUsername)
+            }
             .store(in: &cancellables)
     }
     
@@ -154,10 +169,78 @@ class LoginViewModel: ObservableObject {
             let hasValidLoginId = isValidEmail || !email.isEmpty
             return hasValidLoginId && isValidPassword && !isLoading
         } else {
-            return isValidEmail && isValidPassword && isValidUsername && isValidAge && !isLoading
+            // For sign-up, also check username availability
+            let usernameOk = isValidUsername && (usernameIsAvailable == true) && !isCheckingUsername
+            return isValidEmail && isValidPassword && usernameOk && isValidAge && !isLoading
         }
     }
-    
+
+    // MARK: - Username Availability Check
+    private func checkUsernameAvailability(_ username: String) {
+        // Cancel any pending check
+        usernameCheckTask?.cancel()
+
+        // Reset state
+        usernameIsAvailable = nil
+        usernameCheckMessage = ""
+
+        // Don't check if username is empty or too short
+        guard !username.isEmpty && username.count >= 3 else {
+            return
+        }
+
+        // Don't check if username format is invalid
+        guard isValidUsername else {
+            return
+        }
+
+        // Don't check if it's a special username (requires code)
+        if requiresSpecialCode(username) {
+            return
+        }
+
+        // Show loading state
+        isCheckingUsername = true
+
+        // Create new check task
+        usernameCheckTask = Task { @MainActor in
+            do {
+                // Add a small delay to debounce
+                try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+
+                // Check if task was cancelled
+                if Task.isCancelled {
+                    return
+                }
+
+                // Call API to check username
+                let response = try await APIClient.shared.checkUsernameAvailability(username: username)
+
+                // Check if task was cancelled after API call
+                if Task.isCancelled {
+                    return
+                }
+
+                // Update UI
+                await MainActor.run {
+                    self.usernameIsAvailable = response.available
+                    self.usernameCheckMessage = response.message
+                    self.isCheckingUsername = false
+                }
+
+            } catch {
+                // Handle error
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.usernameIsAvailable = nil
+                        self.usernameCheckMessage = "Failed to check availability"
+                        self.isCheckingUsername = false
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Actions
     @MainActor
     func login() async {
