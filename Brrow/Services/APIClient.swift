@@ -4864,7 +4864,7 @@ class APIClient: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData // Force bypass cache
 
-        if let token = await tokenManager.getToken() {
+        if let token = authManager.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
