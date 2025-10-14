@@ -49,10 +49,8 @@ struct PurchaseReceiptView: View {
                         // Next Steps - Meetup tracking
                         nextStepsCard
 
-                        // Seller/Buyer info
-                        if let seller = purchase.seller {
-                            sellerInfoCard(seller)
-                        }
+                        // Other party info (seller if buyer, buyer if seller)
+                        otherPartyInfoCard
 
                         // Transaction details
                         transactionDetailsCard
@@ -94,8 +92,8 @@ struct PurchaseReceiptView: View {
             )
         }
         .sheet(isPresented: $showingMessageComposer) {
-            if let seller = purchase.seller {
-                DirectMessageComposerView(recipient: seller.toUser())
+            if let otherParty = otherParty {
+                DirectMessageComposerView(recipient: otherParty.toUser())
             }
         }
     }
@@ -366,7 +364,7 @@ struct PurchaseReceiptView: View {
                             .font(.system(size: 14))
                             .foregroundColor(Theme.Colors.secondaryText)
                     } else {
-                        Text("No meeting arranged yet - coordinate with seller")
+                        Text("No meeting arranged yet - coordinate with \(otherPartyRole.lowercased())")
                             .font(.system(size: 14))
                             .foregroundColor(Theme.Colors.secondaryText)
                     }
@@ -380,7 +378,7 @@ struct PurchaseReceiptView: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 instructionRow(
                     number: "1",
-                    text: "Coordinate with seller on meeting location and time"
+                    text: "Coordinate with \(otherPartyRole.lowercased()) on meeting location and time"
                 )
                 instructionRow(
                     number: "2",
@@ -472,65 +470,83 @@ struct PurchaseReceiptView: View {
         }
     }
 
-    // MARK: - Seller Info Card
-    private func sellerInfoCard(_ seller: PurchaseUser) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Text("Seller Information")
-                .font(Theme.Typography.headline)
-                .foregroundColor(Theme.Colors.text)
-
-            HStack(spacing: Theme.Spacing.md) {
-                // Profile image
-                if let profilePictureUrl = seller.profilePictureUrl, let url = URL(string: profilePictureUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Circle().fill(Theme.Colors.secondaryBackground)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(Theme.Colors.secondaryText)
-                            )
-                    }
-                    .frame(width: 50, height: 50)
-                    .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(Theme.Colors.primary.opacity(0.2))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Text(seller.username.prefix(1).uppercased())
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(Theme.Colors.primary)
-                        )
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(seller.username)
-                        .font(.system(size: 16, weight: .semibold))
+    // MARK: - Other Party Info Card
+    private var otherPartyInfoCard: some View {
+        Group {
+            if let otherUser = otherParty {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                    Text("\(otherPartyRole) Information")
+                        .font(Theme.Typography.headline)
                         .foregroundColor(Theme.Colors.text)
 
-                    Text("Seller")
-                        .font(.system(size: 13))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                }
+                    HStack(spacing: Theme.Spacing.md) {
+                        // Profile image
+                        if let profilePictureUrl = otherUser.profilePictureUrl, let url = URL(string: profilePictureUrl) {
+                            AsyncImage(url: url) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Circle().fill(Theme.Colors.secondaryBackground)
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(Theme.Colors.secondaryText)
+                                    )
+                            }
+                            .frame(width: 50, height: 50)
+                            .clipShape(Circle())
+                        } else {
+                            Circle()
+                                .fill(Theme.Colors.primary.opacity(0.2))
+                                .frame(width: 50, height: 50)
+                                .overlay(
+                                    Text(otherUser.username.prefix(1).uppercased())
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(Theme.Colors.primary)
+                                )
+                        }
 
-                Spacer()
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(otherUser.username)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
 
-                Button(action: {
-                    showingMessageComposer = true
-                }) {
-                    Image(systemName: "message.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(Theme.Colors.primary)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(Theme.Colors.primary.opacity(0.1)))
+                            Text(otherPartyRole)
+                                .font(.system(size: 13))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+
+                        Spacer()
+
+                        Button(action: {
+                            showingMessageComposer = true
+                        }) {
+                            Image(systemName: "message.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(Theme.Colors.primary)
+                                .frame(width: 40, height: 40)
+                                .background(Circle().fill(Theme.Colors.primary.opacity(0.1)))
+                        }
+                    }
                 }
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.cardBackground)
+                .cornerRadius(Theme.CornerRadius.card)
+                .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius)
             }
         }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.cardBackground)
-        .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius)
+    }
+
+    // MARK: - Computed Properties
+    private var isBuyer: Bool {
+        guard let currentUserId = AuthManager.shared.currentUser?.apiId else { return false }
+        return purchase.buyerId == currentUserId
+    }
+
+    private var otherParty: PurchaseUser? {
+        return isBuyer ? purchase.seller : purchase.buyer
+    }
+
+    private var otherPartyRole: String {
+        return isBuyer ? "Seller" : "Buyer"
     }
 
     // MARK: - Transaction Details Card

@@ -149,8 +149,18 @@ struct PurchaseStatusView: View {
         } else if viewModel.purchase.isExpired {
             return "Your payment has been refunded"
         } else {
-            return "Meet the seller to complete verification"
+            return "Meet the \(otherPartyRole.lowercased()) to complete verification"
         }
+    }
+
+    // MARK: - Computed Properties
+    private var isBuyer: Bool {
+        guard let currentUserId = AuthManager.shared.currentUser?.apiId else { return false }
+        return viewModel.purchase.buyerId == currentUserId
+    }
+
+    private var otherPartyRole: String {
+        return isBuyer ? "seller" : "buyer"
     }
 
     // MARK: - Deadline Countdown
@@ -341,7 +351,7 @@ struct PurchaseStatusView: View {
                 }) {
                     HStack {
                         Image(systemName: "message.fill")
-                        Text("Message Seller")
+                        Text("Message \(otherPartyRole.capitalized)")
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(Theme.Colors.primary)
