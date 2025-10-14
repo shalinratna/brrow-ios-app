@@ -2798,18 +2798,6 @@ class APIClient: ObservableObject {
         }
     }
     
-    func checkUsernameAvailability(username: String) async throws -> UsernameAvailabilityResponse {
-        let requestData = ["username": username]
-        let bodyData = try JSONSerialization.data(withJSONObject: requestData)
-
-        return try await performRequest(
-            endpoint: "api/profile/check-username",
-            method: .POST,
-            body: bodyData,
-            responseType: UsernameAvailabilityResponse.self
-        )
-    }
-    
     struct ProfileUpdateResponse: Codable {
         let success: Bool
         let message: String
