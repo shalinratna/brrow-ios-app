@@ -330,28 +330,44 @@ struct ModernAuthView: View {
     
     private var birthdateField: some View {
         let age = Calendar.current.dateComponents([.year], from: viewModel.birthdate, to: Date()).year ?? 0
-        return VStack(alignment: .leading, spacing: 4) {
-            ModernTextField(
-                title: "Date of Birth",
-                text: $viewModel.birthdateText,
-                placeholder: "MM/DD/YYYY",
-                icon: "calendar",
-                keyboardType: .numbersAndPunctuation,
-                isValid: viewModel.birthdateText.isEmpty || age >= 13,
-                textContentType: nil  // iOS doesn't have a specific birthdate content type, we'll use custom approach
-            )
-            .textFieldStyle(RoundedBorderTextFieldStyle())
-            .autocapitalization(.none)
-            .disableAutocorrection(true)
-            .onChange(of: viewModel.birthdateText) { newValue in
-                viewModel.parseBirthdate(newValue)
+        return VStack(alignment: .leading, spacing: 8) {
+            // Label
+            HStack(spacing: 8) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                Text("Date of Birth")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
             }
-            
-            if age < 13 && !viewModel.birthdateText.isEmpty {
-                Text("You must be at least 13 years old")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Theme.Colors.error)
-                    .padding(.leading, 4)
+            .padding(.leading, 4)
+
+            // DatePicker with native iOS wheel style (supports autofill & accessibility)
+            DatePicker("", selection: $viewModel.birthdate, in: ...Date(), displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Theme.Colors.inputBackground)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(age < 13 ? Theme.Colors.error : Theme.Colors.border, lineWidth: 1)
+                        )
+                )
+
+            // Age validation message
+            if age < 13 {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 12))
+                    Text("You must be at least 13 years old")
+                }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Theme.Colors.error)
+                .padding(.leading, 4)
             }
         }
     }
