@@ -30,8 +30,8 @@ class MyPostsViewModel: ObservableObject {
 
         Task {
             do {
-                // Use fetchMyListings instead of non-existent fetchUserPosts
-                let response = try await apiClient.fetchMyListings(status: "all")
+                // Use fetchUserListings to get authenticated user's listings
+                let response = try await apiClient.fetchUserListings(status: "all")
 
                 await MainActor.run {
                     // Convert listings to UserPost format
@@ -39,14 +39,18 @@ class MyPostsViewModel: ObservableObject {
                         UserPost(
                             id: listing.id,
                             title: listing.title,
-                            description: listing.description,
-                            price: listing.price,
-                            postType: "listing",
-                            status: listing.availabilityStatus.rawValue,
+                            content: listing.description,
                             imageUrl: listing.firstImageUrl,
                             createdAt: listing.createdAt,
-                            viewCount: listing.viewCount,
-                            favoriteCount: listing.favoriteCount
+                            updatedAt: listing.createdAt,  // Use createdAt as fallback for updatedAt
+                            postType: "listing",
+                            status: listing.availabilityStatus.rawValue,
+                            price: listing.price,
+                            category: listing.category?.name,  // Extract name from CategoryModel
+                            thumbnail: listing.firstImageUrl,
+                            urgency: nil,
+                            editRestrictions: nil,
+                            canEdit: true
                         )
                     }
                     self.hasMore = false // My listings API doesn't paginate

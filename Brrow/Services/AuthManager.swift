@@ -178,11 +178,14 @@ class AuthManager: ObservableObject {
     }
     
     func logout() {
+        print("🚪 [AUTH] Starting complete logout and data clear...")
+
         // Clear keychain
         keychain.delete(forKey: tokenKey)
         keychain.delete(forKey: userKey)
         keychain.delete(forKey: sessionKey)
-        
+        print("🗑️ [AUTH] Keychain cleared")
+
         // Clear published properties
         DispatchQueue.main.async {
             self.isAuthenticated = false
@@ -197,15 +200,49 @@ class AuthManager: ObservableObject {
             // OneSignal.logout()
             print("📱 OneSignal user will be logged out")
         }
-        
+
         // Logout from Google Sign-In
         GoogleAuthService.shared.signOut()
-        
+
         // Reset token manager
         TokenManager.shared.resetRefreshAttempts()
-        
+
+        // COMPREHENSIVE CACHE & DATA CLEARING to prevent old user data
+        print("🗑️ [AUTH] Clearing all caches...")
+
+        // Clear URL cache (API responses, images, etc.)
+        URLCache.shared.removeAllCachedResponses()
+        print("✅ [AUTH] URL cache cleared")
+
+        // Clear image cache
+        ImageCacheManager.shared.clearCache()
+        print("✅ [AUTH] Image cache cleared")
+
+        // Clear user-specific UserDefaults
+        let userDefaultsKeys = [
+            "cached_user", "cached_profile", "cached_listings",
+            "cached_favorites", "cached_conversations", "cached_notifications",
+            "featured_listings", "marketplace_categories", "user_preferences",
+            "current_user", "shouldShowWelcomeOnboarding"
+        ]
+        for key in userDefaultsKeys {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        UserDefaults.standard.synchronize()
+        print("✅ [AUTH] UserDefaults cleared")
+
+        // Clear HTTP cookies
+        if let cookies = HTTPCookieStorage.shared.cookies {
+            for cookie in cookies {
+                HTTPCookieStorage.shared.deleteCookie(cookie)
+            }
+        }
+        print("✅ [AUTH] Cookies cleared")
+
         // Track logout event
         trackAuthEvent("logout")
+
+        print("✅ [AUTH] Complete logout finished - all user data cleared!")
     }
     
     // updateToken method already exists below, removing duplicate

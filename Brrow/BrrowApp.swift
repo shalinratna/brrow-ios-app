@@ -17,6 +17,7 @@ struct BrrowApp: App {
     @StateObject private var localizationManager = LocalizationManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("HasAgreedToTerms") private var hasAgreedToTerms = false
+    @AppStorage("shouldShowWelcomeOnboarding") private var shouldShowWelcomeOnboarding = false
     @State private var showingPasswordReset = false
     @State private var passwordResetToken = ""
     @State private var splashComplete = false
@@ -49,6 +50,13 @@ struct BrrowApp: App {
                                 .foregroundColor(.secondary)
                         }
                     }
+                } else if shouldShowWelcomeOnboarding && authManager.isAuthenticated {
+                    // Show welcome onboarding ONLY after first successful registration
+                    WelcomeOnboardingView()
+                        .transition(.opacity)
+                        .onDisappear {
+                            shouldShowWelcomeOnboarding = false
+                        }
                 } else if authManager.isAuthenticated {
                     NativeMainTabView()
                         .applyRTLIfNeeded()
