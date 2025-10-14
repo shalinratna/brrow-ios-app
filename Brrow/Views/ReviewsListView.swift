@@ -332,15 +332,9 @@ struct ReviewsRowView: View {
                         }
                     }
 
-                    Group {
-                        if let date = ISO8601DateFormatter().date(from: review.createdAt) {
-                            Text(date, style: .relative)
-                        } else {
-                            Text(review.createdAt)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    Text(review.createdAt.toUserFriendlyDate())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
                 Spacer()

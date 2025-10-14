@@ -737,29 +737,25 @@ struct ProfessionalListingCard: View {
     var body: some View {
         VStack(spacing: 0) {
             // Image section
-            ZStack(alignment: .topTrailing) {
+            ZStack {
                 // Using BrrowAsyncImage for better performance
                 BrrowAsyncImage(url: listing.imageUrls.first)
                     .frame(height: 140)
                     .clipped()
                     .background(Theme.Colors.secondaryBackground)
 
-                // Status badge (top-left) - only show if not AVAILABLE
-                if listing.availabilityStatus != .available {
-                    VStack {
-                        HStack {
-                            ListingStatusBadge(listing: listing, size: .small)
-                                .padding(6)
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                }
-
-                // Heart button (top-right)
+                // Single overlay layer for both badge and heart (prevents overlap)
                 VStack {
-                    HStack {
+                    HStack(alignment: .top) {
+                        // Status badge (top-left) - only show if not AVAILABLE
+                        if listing.availabilityStatus != .available {
+                            ListingStatusBadge(listing: listing, size: .small)
+                                .padding(8)
+                        }
+
                         Spacer()
+
+                        // Heart button (top-right)
                         Circle()
                             .fill(Color.white.opacity(0.9))
                             .frame(width: 36, height: 36)

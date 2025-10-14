@@ -73,8 +73,12 @@ class APIClient: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let authManager = AuthManager.shared
     
-    // Debug mode - enable for testing
+    // Debug mode - enable for DEBUG builds only
+    #if DEBUG
     private let debugMode = true
+    #else
+    private let debugMode = false
+    #endif
     
     // MARK: - Debug Logging
     private func debugLog(_ message: String, data: Any? = nil) {
@@ -1400,8 +1404,7 @@ class APIClient: ObservableObject {
     // MARK: - Profile Picture Upload with User Data
     func uploadProfilePictureWithUserData(imageData: String) async throws -> User {
         struct ProfilePictureRequest: Codable {
-            let imageData: String
-            let fileName: String
+            let image: String  // Backend expects 'image', not 'imageData'
         }
 
         struct ProfilePictureResponse: Codable {
@@ -1411,12 +1414,12 @@ class APIClient: ObservableObject {
             let user: User
         }
 
-        let request = ProfilePictureRequest(imageData: imageData, fileName: "profile.jpg")
+        let request = ProfilePictureRequest(image: imageData)  // Send as 'image'
         let bodyData = try JSONEncoder().encode(request)
 
         let response = try await performRequest(
-            endpoint: "api/profile/upload-picture",
-            method: .POST,
+            endpoint: "api/users/me/profile-picture",
+            method: .PUT,
             body: bodyData,
             responseType: ProfilePictureResponse.self
         )
@@ -3592,22 +3595,15 @@ class APIClient: ObservableObject {
     }
 
     /// Create or get listing conversation
+    /// DEPRECATED: Use createConversation(otherUserId:listingId:) instead
+    /// This function is kept for backward compatibility but delegates to createConversation
     func createListingConversation(listingId: String) async throws -> Conversation {
-        let bodyDict = ["listingId": listingId]
-        let bodyData = try JSONEncoder().encode(bodyDict)
+        // Get listing details to find the owner/recipient
+        let listing = try await fetchListingDetailsByListingId(listingId)
+        let ownerId = listing.userId
 
-        let response = try await performRequest(
-            endpoint: "api/messages/chats/listing",
-            method: .POST,
-            body: bodyData,
-            responseType: APIResponse<Conversation>.self
-        )
-
-        guard response.success, let conversation = response.data else {
-            throw BrrowAPIError.serverError(response.message ?? "Failed to create listing conversation")
-        }
-
-        return conversation
+        // Delegate to the unified createConversation function
+        return try await createConversation(otherUserId: ownerId, listingId: listingId)
     }
 
     /// Hide chat (soft delete)

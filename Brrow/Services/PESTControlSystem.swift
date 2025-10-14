@@ -17,7 +17,13 @@ final class PESTControlSystem {
     // Discord Webhook Configuration
     private let discordWebhookURL = "YOUR_DISCORD_WEBHOOK_URL" // Replace with your webhook
     private let enableDiscordLogging = true
+
+    // Enable console logging only in DEBUG builds
+    #if DEBUG
     private let enableLocalLogging = true
+    #else
+    private let enableLocalLogging = false
+    #endif
 
     // Error tracking
     private var errorHistory: [PESTError] = []

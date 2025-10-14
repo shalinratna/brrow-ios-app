@@ -17,6 +17,7 @@ extension Date {
         // Check if date is today
         if calendar.isDateInToday(self) {
             let timeFormatter = DateFormatter()
+            timeFormatter.locale = Locale(identifier: "en_US_POSIX")
             timeFormatter.dateFormat = "h:mm a"
             return "Today at \(timeFormatter.string(from: self))"
         }
@@ -24,6 +25,7 @@ extension Date {
         // Check if date is yesterday
         if calendar.isDateInYesterday(self) {
             let timeFormatter = DateFormatter()
+            timeFormatter.locale = Locale(identifier: "en_US_POSIX")
             timeFormatter.dateFormat = "h:mm a"
             return "Yesterday at \(timeFormatter.string(from: self))"
         }
@@ -31,12 +33,14 @@ extension Date {
         // Check if date is within current year
         if calendar.component(.year, from: self) == calendar.component(.year, from: now) {
             let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "MMM d 'at' h:mm a"
             return formatter.string(from: self)
         }
 
         // Date is from a different year
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "MMM d, yyyy 'at' h:mm a"
         return formatter.string(from: self)
     }
@@ -60,12 +64,14 @@ extension Date {
         // Check if date is within current year
         if calendar.component(.year, from: self) == calendar.component(.year, from: now) {
             let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "MMM d"
             return formatter.string(from: self)
         }
 
         // Date is from a different year
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "MMM d, yyyy"
         return formatter.string(from: self)
     }
@@ -74,6 +80,7 @@ extension Date {
     /// - Returns: Time string like "3:45 PM"
     func toTimeString() -> String {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "h:mm a"
         return formatter.string(from: self)
     }
@@ -83,20 +90,100 @@ extension String {
     /// Converts ISO8601 date string to user-friendly format
     /// - Returns: Formatted string or original string if parsing fails
     func toUserFriendlyDate() -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: self) {
+        // First try the most common backend format: "2025-10-13T23:01:01.620Z"
+        let primaryFormatter = DateFormatter()
+        primaryFormatter.locale = Locale(identifier: "en_US_POSIX")
+        primaryFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        primaryFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        if let date = primaryFormatter.date(from: self) {
             return date.toUserFriendlyString()
         }
+
+        // Try ISO8601 formatters
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso8601Formatter.date(from: self) {
+            return date.toUserFriendlyString()
+        }
+
+        // Try without fractional seconds
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        if let date = iso8601Formatter.date(from: self) {
+            return date.toUserFriendlyString()
+        }
+
+        // Fallback: try other common formats
+        let fallbackFormatter = DateFormatter()
+        fallbackFormatter.locale = Locale(identifier: "en_US_POSIX")
+        fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let dateFormats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",  // Microseconds with timezone
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",     // Milliseconds with timezone offset
+            "yyyy-MM-dd'T'HH:mm:ssZ",         // No milliseconds with timezone
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",       // No milliseconds, Z literal
+            "yyyy-MM-dd HH:mm:ss"             // Simple format
+        ]
+
+        for format in dateFormats {
+            fallbackFormatter.dateFormat = format
+            if let date = fallbackFormatter.date(from: self) {
+                return date.toUserFriendlyString()
+            }
+        }
+
+        // If all parsing fails, return original string
         return self
     }
 
     /// Converts ISO8601 date string to short user-friendly format
     /// - Returns: Formatted string or original string if parsing fails
     func toShortUserFriendlyDate() -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: self) {
+        // First try the most common backend format: "2025-10-13T23:01:01.620Z"
+        let primaryFormatter = DateFormatter()
+        primaryFormatter.locale = Locale(identifier: "en_US_POSIX")
+        primaryFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        primaryFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        if let date = primaryFormatter.date(from: self) {
             return date.toShortUserFriendlyString()
         }
+
+        // Try ISO8601 formatters
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso8601Formatter.date(from: self) {
+            return date.toShortUserFriendlyString()
+        }
+
+        // Try without fractional seconds
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        if let date = iso8601Formatter.date(from: self) {
+            return date.toShortUserFriendlyString()
+        }
+
+        // Fallback: try other common formats
+        let fallbackFormatter = DateFormatter()
+        fallbackFormatter.locale = Locale(identifier: "en_US_POSIX")
+        fallbackFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let dateFormats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",  // Microseconds with timezone
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",     // Milliseconds with timezone offset
+            "yyyy-MM-dd'T'HH:mm:ssZ",         // No milliseconds with timezone
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",       // No milliseconds, Z literal
+            "yyyy-MM-dd HH:mm:ss"             // Simple format
+        ]
+
+        for format in dateFormats {
+            fallbackFormatter.dateFormat = format
+            if let date = fallbackFormatter.date(from: self) {
+                return date.toShortUserFriendlyString()
+            }
+        }
+
+        // If all parsing fails, return original string
         return self
     }
 }
