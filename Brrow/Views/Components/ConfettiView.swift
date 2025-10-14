@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Darwin
 
 struct ConfettiView: View {
     @State private var confettiParticles: [ConfettiParticle] = []
