@@ -820,10 +820,10 @@ struct ProfessionalListingCard: View {
                 }
             }
             .padding(12)
-            .frame(minHeight: 80)
         }
         .frame(maxWidth: .infinity)
-        .aspectRatio(0.75, contentMode: .fill)
+        .frame(height: 240)  // CRITICAL FIX: Use fixed height to prevent card overlap (140px image + 100px content)
+        .clipped()  // Ensure content doesn't overflow
         .background(Theme.Colors.cardBackground)
         .cornerRadius(Theme.CornerRadius.lg)
         .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
