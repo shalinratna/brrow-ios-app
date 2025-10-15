@@ -752,7 +752,6 @@ struct ProfessionalListingCard: View {
                     Theme.Colors.secondaryBackground
                 }
                 .frame(height: 140)
-                .frame(maxWidth: .infinity)
                 .clipped()
 
                 // Single overlay layer for both badge and heart (prevents overlap)
@@ -797,7 +796,7 @@ struct ProfessionalListingCard: View {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(Theme.Colors.text)
                     .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(alignment: .leading)
                 
                 HStack {
                     Text("$\(Int(listing.price))")
