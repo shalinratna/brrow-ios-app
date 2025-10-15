@@ -413,18 +413,14 @@ struct ProfessionalMarketplaceView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(viewModel.listings, id: \.listingId) { listing in
-                        GeometryReader { geo in
-                            ProfessionalListingCard(listing: listing) {
-                                // ✅ SAFER: Look up listing by ID instead of capturing object
-                                handleListingTap(listingId: listing.listingId)
-                            }
-                            .frame(width: geo.size.width, height: geo.size.width * 1.35)
+                        ProfessionalListingCard(listing: listing) {
+                            handleListingTap(listingId: listing.listingId)
                         }
-                        .aspectRatio(1/1.35, contentMode: .fit)
+                        .aspectRatio(0.75, contentMode: .fit)
                         .id(listing.listingId)
                     }
                 }
-                .padding(.horizontal, 4) // Edge padding
+                .padding(.horizontal, 4)
                 
                 // Load more button
                 if viewModel.hasMore {
