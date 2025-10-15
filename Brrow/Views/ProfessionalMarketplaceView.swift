@@ -411,13 +411,17 @@ struct ProfessionalMarketplaceView: View {
                 )
                 .frame(height: 300)
             } else {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(viewModel.listings, id: \.listingId) { listing in
-                        ProfessionalListingCard(listing: listing) {
-                            handleListingTap(listingId: listing.listingId)
+                GeometryReader { geometry in
+                    let cardWidth = (geometry.size.width - 16 - 8) / 2 // Total width - spacing - horizontal padding / 2 columns
+
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(viewModel.listings, id: \.listingId) { listing in
+                            ProfessionalListingCard(listing: listing) {
+                                handleListingTap(listingId: listing.listingId)
+                            }
+                            .frame(width: cardWidth)
+                            .id(listing.listingId)
                         }
-                        .aspectRatio(3/4, contentMode: .fit)
-                        .id(listing.listingId)
                     }
                 }
                 .padding(.horizontal, 4)
