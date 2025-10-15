@@ -820,8 +820,10 @@ struct ProfessionalListingCard: View {
                 }
             }
             .padding(12)
+            .frame(minHeight: 80)
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity)
+        .aspectRatio(0.75, contentMode: .fill)
         .background(Theme.Colors.cardBackground)
         .cornerRadius(Theme.CornerRadius.lg)
         .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
