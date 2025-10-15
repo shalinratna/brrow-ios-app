@@ -316,19 +316,25 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
             errorMessage = "Please fill in all required fields"
             return
         }
-        
+
+        // Validate end date is AFTER start date (not equal)
+        if endDate <= startDate {
+            errorMessage = "End date must be after start date. Please select a later end time."
+            return
+        }
+
         // Perform local content moderation
         let moderationResult = ContentModerator.shared.moderateGarageSaleContent(
             title: title,
             description: description,
             address: formatted.standardFormat
         )
-        
+
         if !moderationResult.isPassed {
             errorMessage = moderationResult.message
             return
         }
-        
+
         isCreating = true
         errorMessage = nil
         
@@ -378,7 +384,16 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.isCreating = false
-                    self.errorMessage = error.localizedDescription
+                    // Extract helpful error message from BrrowAPIError
+                    if let apiError = error as? BrrowAPIError {
+                        self.errorMessage = apiError.localizedDescription
+                    } else {
+                        self.errorMessage = error.localizedDescription
+                    }
+
+                    // Log for debugging
+                    print("❌ CreateGarageSaleViewModel: Failed to create garage sale")
+                    print("   🔍 Error: \(error)")
                 }
             }
         }

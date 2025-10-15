@@ -821,6 +821,7 @@ struct ProfessionalListingCard: View {
             }
             .padding(12)
         }
+        .frame(maxWidth: .infinity, alignment: .top)
         .background(Theme.Colors.cardBackground)
         .cornerRadius(Theme.CornerRadius.lg)
         .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
