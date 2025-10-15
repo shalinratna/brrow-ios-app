@@ -416,7 +416,6 @@ struct ProfessionalMarketplaceView: View {
                         ProfessionalListingCard(listing: listing) {
                             handleListingTap(listingId: listing.listingId)
                         }
-                        .aspectRatio(0.75, contentMode: .fit)
                         .id(listing.listingId)
                     }
                 }
