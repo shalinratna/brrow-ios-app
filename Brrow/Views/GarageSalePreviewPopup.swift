@@ -209,7 +209,7 @@ struct GarageSalePreviewPopup_Previews: PreviewProvider {
                 Spacer()
                 GarageSalePreviewPopup(
                     garageSale: GarageSale(
-                        id: 1,
+                        id: "preview-1",
                         hostId: "host123",
                         title: "Big Family Garage Sale",
                         description: "Lots of items for sale",
