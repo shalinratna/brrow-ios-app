@@ -188,7 +188,7 @@ class PersistenceController: ObservableObject {
             entity.createdAt = Date() // Convert from string later
             entity.updatedAt = Date() // Convert from string later
             entity.status = garageSale.isActive ? "active" : "inactive"
-            entity.attendeeCount = Int32(garageSale.rsvpCount)
+            entity.attendeeCount = Int32(garageSale.rsvpCount ?? 0)
             entity.maxAttendees = 0
             entity.isPublic = true
             
