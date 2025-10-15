@@ -745,6 +745,7 @@ struct ProfessionalListingCard: View {
                 } placeholder: {
                     Theme.Colors.secondaryBackground
                 }
+                .frame(maxWidth: .infinity)  // CRITICAL FIX: Constrain image width to prevent horizontal overlap
                 .frame(height: 140)
                 .clipped()
 
