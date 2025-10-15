@@ -411,20 +411,14 @@ struct ProfessionalMarketplaceView: View {
                 )
                 .frame(height: 300)
             } else {
-                GeometryReader { geometry in
-                    let cardWidth = (geometry.size.width - 16 - 8) / 2 // Total width - spacing - horizontal padding / 2 columns
-
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(viewModel.listings, id: \.listingId) { listing in
-                            ProfessionalListingCard(listing: listing) {
-                                handleListingTap(listingId: listing.listingId)
-                            }
-                            .frame(width: cardWidth)
-                            .id(listing.listingId)
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(viewModel.listings, id: \.listingId) { listing in
+                        ProfessionalListingCard(listing: listing) {
+                            handleListingTap(listingId: listing.listingId)
                         }
+                        .id(listing.listingId)
                     }
                 }
-                .padding(.horizontal, 4)
                 
                 // Load more button
                 if viewModel.hasMore {
