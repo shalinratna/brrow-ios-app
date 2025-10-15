@@ -10,8 +10,8 @@ import CoreData
 
 // MARK: - Seek Model (Codable for API)
 struct Seek: Codable, Identifiable {
-    let id: Int
-    let userId: Int
+    let id: String  // FIXED: Backend sends UUID string, not Int
+    let userId: String  // FIXED: Backend sends UUID string, not Int
     let title: String
     let description: String
     let category: String
@@ -27,10 +27,10 @@ struct Seek: Codable, Identifiable {
     let expiresAt: String?
     let images: [String]
     let tags: [String]
-    let matchCount: Int
-    var isActive: Bool { status == "active" }
-    var hasMatches: Bool { matchCount > 0 }
-    
+    let matchCount: Int?  // FIXED: Made optional since backend may not always return it
+    var isActive: Bool { status == "active" || status == "ACTIVE" }
+    var hasMatches: Bool { (matchCount ?? 0) > 0 }
+
     enum CodingKeys: String, CodingKey {
         case id, title, description, category, location, latitude, longitude, urgency, status, images, tags
         case userId = "user_id"
