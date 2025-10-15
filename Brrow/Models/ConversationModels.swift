@@ -240,16 +240,17 @@ struct ChatMessage: Codable, Identifiable {
     let sender: ConversationUser?
 
     enum CodingKeys: String, CodingKey {
-        case id, content, isRead, sender
-        case senderId = "senderId"
-        case receiverId = "receiverId"
-        case messageType = "messageType"
-        case createdAt = "createdAt"
-        case mediaUrl = "mediaUrl"
-        case thumbnailUrl = "thumbnailUrl"
-        case videoDuration = "videoDuration"
-        case deliveredAt = "deliveredAt"
-        case readAt = "readAt"
+        case id, content, sender
+        case senderId = "sender_id"  // Backend sends snake_case
+        case receiverId = "receiver_id"
+        case isRead = "is_read"
+        case messageType  // Backend sends camelCase (inconsistent but that's what it is)
+        case createdAt = "created_at"
+        case mediaUrl = "media_url"
+        case thumbnailUrl = "thumbnail_url"
+        case videoDuration = "video_duration"
+        case deliveredAt = "delivered_at"
+        case readAt = "read_at"
     }
 
     // MARK: - Computed Properties
