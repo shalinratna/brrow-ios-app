@@ -166,9 +166,22 @@ struct Message: Identifiable, Equatable {
 // Extension for Codable conformance (excluding non-Codable properties)
 extension Message: Codable {
     enum CodingKeys: String, CodingKey {
-        case id, chatId, senderId, receiverId, content, messageType
-        case mediaUrl, thumbnailUrl, listingId, isRead, isEdited
-        case editedAt, deletedAt, sentAt, createdAt, reactions
+        case id
+        case chatId = "chat_id"  // Backend uses snake_case
+        case senderId = "sender_id"
+        case receiverId = "receiver_id"
+        case content
+        case messageType
+        case mediaUrl = "media_url"
+        case thumbnailUrl = "thumbnail_url"
+        case listingId = "listing_id"
+        case isRead = "is_read"
+        case isEdited = "is_edited"
+        case editedAt = "edited_at"
+        case deletedAt = "deleted_at"
+        case sentAt = "sent_at"
+        case createdAt = "created_at"
+        case reactions
         // Exclude sender, tempId, and sendStatus from encoding/decoding
     }
     
