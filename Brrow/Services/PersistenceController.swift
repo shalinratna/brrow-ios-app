@@ -235,7 +235,7 @@ class PersistenceController: ObservableObject {
             entity.status = seek.status
             entity.createdAt = ISO8601DateFormatter().date(from: seek.createdAt) ?? Date()
             entity.expiresAt = seek.expiresAt != nil ? ISO8601DateFormatter().date(from: seek.expiresAt!) : nil
-            entity.matchCount = Int32(seek.matchCount)
+            entity.matchCount = Int32(seek.matchCount ?? 0)
             
             // Encode arrays as JSON data
             if let imageData = try? JSONEncoder().encode(seek.images) {
