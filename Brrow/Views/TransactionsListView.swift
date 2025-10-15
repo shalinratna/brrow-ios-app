@@ -45,7 +45,7 @@ struct TransactionsListView: View {
             switch self {
             case .buying: return "buyer"
             case .selling: return "seller"
-            default: return "all"
+            default: return nil  // Don't filter by role, backend will return user's transactions
             }
         }
     }
@@ -145,7 +145,7 @@ struct TransactionsListView: View {
             }
         }
         .onAppear {
-            viewModel.fetchPurchases(role: "all", status: nil, search: nil)
+            viewModel.fetchPurchases(role: nil, status: nil, search: nil)
         }
         .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("OK") { viewModel.errorMessage = nil }
