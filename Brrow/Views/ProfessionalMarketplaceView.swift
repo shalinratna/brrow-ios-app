@@ -416,7 +416,7 @@ struct ProfessionalMarketplaceView: View {
                         ProfessionalListingCard(listing: listing) {
                             handleListingTap(listingId: listing.listingId)
                         }
-                        .frame(maxWidth: .infinity)
+                        .aspectRatio(3/4, contentMode: .fit)
                         .id(listing.listingId)
                     }
                 }
