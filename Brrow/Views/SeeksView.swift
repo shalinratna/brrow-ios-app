@@ -171,8 +171,8 @@ struct SeekCard: View {
                 VStack {
                     urgencyBadge
                     
-                    if seek.matchCount > 0 {
-                        Text("\(seek.matchCount) matches")
+                    if (seek.matchCount ?? 0) > 0 {
+                        Text("\(seek.matchCount ?? 0) matches")
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Colors.success)
                     }
@@ -302,8 +302,8 @@ class SeeksViewModel: ObservableObject {
             }
             
             return Seek(
-                id: Int(entity.id) ?? 0,
-                userId: Int(entity.userId) ?? 0,
+                id: entity.id,
+                userId: entity.userId,
                 title: entity.title,
                 description: entity.seekDescription,
                 category: entity.category,
