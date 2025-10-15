@@ -151,6 +151,54 @@ if (typeof description !== 'string' || description.trim().length < 10) {
 
 ---
 
+## ✅ Bug 5: Garage Sale Creation HTTP 500 Error
+
+**Issue**: Creating a garage sale fails with HTTP 500 internal server error.
+
+**Root Cause**: Field name mismatch between JavaScript code and Prisma database schema.
+- Code used `imageUrl` but database expects `image_url` (snake_case)
+- Code used `contactInfo` but database expects `contact_info` (snake_case)
+
+**Fix**: Corrected field names to match database schema in both CREATE and UPDATE routes.
+
+**File**: `brrow-backend/routes/garage-sales.js` (lines 345-354, 685-688, 702-708)
+
+**Code Changes**:
+```javascript
+// CREATE route - Fixed field names
+contact_info: {  // Was: contactInfo
+  showExactAddress: actualShowExactAddress,
+  isPublic: actualIsPublic
+},
+images: {
+  create: validatedImages.map((imageUrl, index) => ({
+    image_url: imageUrl.trim(),  // Was: imageUrl
+    is_primary: index === 0,
+    display_order: index
+  }))
+}
+
+// UPDATE route - Fixed field names
+updateData.contact_info = {  // Was: contactInfo
+  ...existingGarageSale.contact_info,
+  isPublic: actualIsPublic
+};
+
+updateData.images = {
+  create: allImages.map((imageUrl, index) => ({
+    image_url: imageUrl.trim(),  // Was: imageUrl
+    is_primary: index === 0,
+    display_order: index
+  }))
+};
+```
+
+**Status**: ✅ Fixed & Deployed (commit `08e62e8`)
+
+**Test**: Create garage sale with all required fields - should create successfully.
+
+---
+
 ## 📋 Summary
 
 | Bug | Status | Requires | Test Method |
@@ -159,6 +207,7 @@ if (typeof description !== 'string' || description.trim().length < 10) {
 | Transactions filter | ✅ Fixed | iOS rebuild | View transactions → should see only yours |
 | Marketplace cards | ✅ Fixed | iOS rebuild | View marketplace → cards same width |
 | Seek creation | ⚠️ User error | Longer description | Create seek with 10+ char description |
+| Garage sale creation | ✅ Fixed & Deployed | Nothing | Create garage sale with valid data |
 
 ---
 
@@ -188,18 +237,22 @@ open Brrow.xcworkspace  # IMPORTANT: .xcworkspace not .xcodeproj
 4. **Seek Creation**: Create Seek → Enter description with 10+ characters
    - ✅ Should create successfully
 
+5. **Garage Sale Creation**: Create Garage Sale → Fill all required fields → Submit
+   - ✅ Should create successfully without HTTP 500 error
+
 ---
 
 ## 🚀 Latest Commits
 
 ```
+08e62e8 - Fix: Garage sale creation - correct field names (image_url, contact_info)
 09c494a - Fix: Remove GeometryReader causing card layout issues
 9813f41 - Fix: Transactions now only show current user's buyer/seller transactions
 67a23c5 - Add pre-release testing checklist and quick verification script
 3286efe - Fix: Profile update now allows changing display name without email conflict (backend)
 ```
 
-**All fixes committed and backend deployed!**
+**All fixes committed and backend deployed to Railway!**
 
 ---
 
