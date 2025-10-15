@@ -747,7 +747,8 @@ struct ProfessionalListingCard: View {
                 } placeholder: {
                     Theme.Colors.secondaryBackground
                 }
-                .frame(maxWidth: .infinity, idealHeight: 140, maxHeight: 140)
+                .frame(height: 140)
+                .frame(maxWidth: .infinity)
                 .clipped()
 
                 // Single overlay layer for both badge and heart (prevents overlap)
