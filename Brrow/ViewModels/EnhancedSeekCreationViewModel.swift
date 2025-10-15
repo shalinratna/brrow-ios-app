@@ -76,9 +76,25 @@ class EnhancedSeekCreationViewModel: ObservableObject {
 
     // MARK: - Computed Properties
 
+    var descriptionCharacterCount: Int {
+        description.trimmingCharacters(in: .whitespacesAndNewlines).count
+    }
+
+    var isDescriptionValid: Bool {
+        descriptionCharacterCount >= 10
+    }
+
+    var descriptionValidationMessage: String? {
+        guard !description.isEmpty else { return nil }
+        if descriptionCharacterCount < 10 {
+            return "\(descriptionCharacterCount)/10 characters (minimum 10 required)"
+        }
+        return "\(descriptionCharacterCount) characters"
+    }
+
     var canCreate: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        isDescriptionValid &&
         !category.isEmpty &&
         !location.isEmpty &&
         maxDistance > 0
@@ -231,8 +247,11 @@ class EnhancedSeekCreationViewModel: ObservableObject {
             errors.append("Title is required")
         }
 
-        if description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedDescription.isEmpty {
             errors.append("Description is required")
+        } else if trimmedDescription.count < 10 {
+            errors.append("Description must be at least 10 characters (currently \(trimmedDescription.count))")
         }
 
         if category.isEmpty {
@@ -331,7 +350,12 @@ class EnhancedSeekCreationViewModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.isCreating = false
-                    self.errorMessage = error.localizedDescription
+                    // Extract helpful error message from BrrowAPIError
+                    if let apiError = error as? BrrowAPIError {
+                        self.errorMessage = apiError.localizedDescription
+                    } else {
+                        self.errorMessage = error.localizedDescription
+                    }
                     print("❌ Failed to create seek: \(error)")
                 }
             }
