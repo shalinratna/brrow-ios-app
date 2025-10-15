@@ -310,8 +310,8 @@ struct ProfessionalSeekCard: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     UrgencyBadge(urgency: seek.urgency)
                     
-                    if seek.matchCount > 0 {
-                        Text("\(seek.matchCount) matches")
+                    if (seek.matchCount ?? 0) > 0 {
+                        Text("\(seek.matchCount ?? 0) matches")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(Theme.Colors.success)
                     }
