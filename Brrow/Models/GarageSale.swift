@@ -11,7 +11,7 @@ import CoreLocation
 
 // MARK: - GarageSale Model (Codable for API)
 struct GarageSale: Codable, Identifiable {
-    let id: Int
+    let id: String // UUID from backend
     let hostId: String
     let title: String
     let description: String?
@@ -26,8 +26,8 @@ struct GarageSale: Codable, Identifiable {
     let endDate: String
     let images: [String]
     let tags: [String]
-    var rsvpCount: Int
-    let interestedCount: Int
+    var rsvpCount: Int?
+    let interestedCount: Int?
     let isPublic: Bool
     let host: GarageSaleHost
     let isActive: Bool
@@ -51,8 +51,8 @@ struct GarageSale: Codable, Identifiable {
     var listingCount: Int?
     
     // Computed properties for backward compatibility
-    var userId: Int { return 0 } // Legacy support
-    var attendeeCount: Int { return rsvpCount }
+    var userId: String { return hostId } // Legacy support - use hostId
+    var attendeeCount: Int { return rsvpCount ?? 0 }
     var categories: [String] { return tags }
     var photos: [GarageSalePhoto] { 
         return images.enumerated().map { GarageSalePhoto(url: $1, order: $0) }

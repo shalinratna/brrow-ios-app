@@ -451,7 +451,7 @@ struct StandaloneEditGarageSaleView: View {
                 
                 // Call API to update garage sale
                 let _ = try await APIClient.shared.updateGarageSale(
-                    saleId: String(garageSale.id),
+                    saleId: garageSale.id,
                     updates: updates
                 )
                 
@@ -477,8 +477,8 @@ struct StandaloneEditGarageSaleView: View {
         
         Task {
             do {
-                try await APIClient.shared.deleteGarageSale(saleId: String(garageSale.id))
-                
+                try await APIClient.shared.deleteGarageSale(saleId: garageSale.id)
+
                 await MainActor.run {
                     isLoading = false
                     presentationMode.wrappedValue.dismiss()

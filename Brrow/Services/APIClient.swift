@@ -2262,24 +2262,24 @@ class APIClient: ObservableObject {
         )
     }
     
-    func deleteGarageSale(id: Int) async throws -> Void {
+    func deleteGarageSale(id: String) async throws -> Void {
         _ = try await performRequest(
             endpoint: "delete_garage_sale.php?id=\(id)",
             method: .DELETE,
             responseType: EmptyResponse.self
         )
     }
-    
-    func fetchGarageSaleDetails(id: Int) async throws -> GarageSale {
+
+    func fetchGarageSaleDetails(id: String) async throws -> GarageSale {
         return try await performRequest(
             endpoint: "api/get_garage_sale_details.php?id=\(id)",
             method: .GET,
             responseType: GarageSale.self
         )
     }
-    
-    func rsvpGarageSale(id: Int, isRsvp: Bool) async throws -> RSVPResponse {
-        let request = RSVPRequest(garageSaleId: String(id), isRsvp: isRsvp)
+
+    func rsvpGarageSale(id: String, isRsvp: Bool) async throws -> RSVPResponse {
+        let request = RSVPRequest(garageSaleId: id, isRsvp: isRsvp)
         let bodyData = try JSONEncoder().encode(request)
         
         return try await performRequest(
@@ -2290,10 +2290,10 @@ class APIClient: ObservableObject {
         )
     }
     
-    func toggleGarageSaleFavorite(id: Int) async throws -> FavoriteResponse {
-        let request = GarageSaleFavoriteRequest(garageSaleId: String(id))
+    func toggleGarageSaleFavorite(id: String) async throws -> FavoriteResponse {
+        let request = GarageSaleFavoriteRequest(garageSaleId: id)
         let bodyData = try JSONEncoder().encode(request)
-        
+
         return try await performRequest(
             endpoint: "api/garage_sales/favorite.php",
             method: .POST,
@@ -2301,11 +2301,11 @@ class APIClient: ObservableObject {
             responseType: FavoriteResponse.self
         )
     }
-    
-    func toggleGarageSaleActive(id: Int, isActive: Bool) async throws -> GarageSale {
+
+    func toggleGarageSaleActive(id: String, isActive: Bool) async throws -> GarageSale {
         let request = ToggleActiveRequest(isActive: isActive)
         let bodyData = try JSONEncoder().encode(request)
-        
+
         return try await performRequest(
             endpoint: "api/toggle_garage_sale_active.php",
             method: .POST,
@@ -2313,8 +2313,8 @@ class APIClient: ObservableObject {
             responseType: GarageSale.self
         )
     }
-    
-    func toggleGarageSaleFeatured(id: Int, isFeatured: Bool) async throws -> GarageSale {
+
+    func toggleGarageSaleFeatured(id: String, isFeatured: Bool) async throws -> GarageSale {
         let request = ToggleFeaturedRequest(isFeatured: isFeatured)
         let bodyData = try JSONEncoder().encode(request)
         
