@@ -1336,9 +1336,30 @@ class CreateGarageSaleViewModel: ObservableObject {
         if manualAddress.isEmpty || manualCity.isEmpty || manualZipCode.isEmpty {
             return "Please complete the address"
         }
-        if endDate <= startDate && isMultiDay {
+
+        // Validate dates for multi-day sales
+        if isMultiDay && endDate <= startDate {
             return "End date must be after start date"
         }
+
+        // Validate times for single-day sales
+        if !isMultiDay {
+            let calendar = Calendar.current
+            let startTimeComponents = calendar.dateComponents([.hour, .minute], from: startTime)
+            let endTimeComponents = calendar.dateComponents([.hour, .minute], from: endTime)
+
+            // Compare hours and minutes
+            if let startHour = startTimeComponents.hour, let startMinute = startTimeComponents.minute,
+               let endHour = endTimeComponents.hour, let endMinute = endTimeComponents.minute {
+                let startMinutes = startHour * 60 + startMinute
+                let endMinutes = endHour * 60 + endMinute
+
+                if endMinutes <= startMinutes {
+                    return "End time must be after start time"
+                }
+            }
+        }
+
         return nil
     }
     
