@@ -383,16 +383,24 @@ struct SimpleProfessionalProfileView: View {
     
     // MARK: - Email Verification
     private func sendEmailVerification() async {
+        print("📧 [PROFILE] sendEmailVerification() called")
+        print("📧 [PROFILE] Current auth token exists: \(AuthManager.shared.authToken != nil)")
+
         do {
+            print("📧 [PROFILE] Calling APIClient.sendEmailVerification()...")
             let response = try await APIClient.shared.sendEmailVerification()
+            print("📧 [PROFILE] API call succeeded, response: \(response)")
+
             await MainActor.run {
                 if response.alreadyVerified == true {
+                    print("📧 [PROFILE] Email already verified")
                     showEmailVerificationBanner = false
                     ToastManager.shared.showSuccess(
                         title: "Already Verified",
                         message: "Your email is already verified!"
                     )
                 } else {
+                    print("📧 [PROFILE] Verification email sent")
                     ToastManager.shared.showSuccess(
                         title: "Verification Email Sent",
                         message: "Check your inbox and click the verification link"
@@ -400,6 +408,10 @@ struct SimpleProfessionalProfileView: View {
                 }
             }
         } catch {
+            print("❌ [PROFILE] Email verification failed with error: \(error)")
+            print("❌ [PROFILE] Error type: \(type(of: error))")
+            print("❌ [PROFILE] Error description: \(error.localizedDescription)")
+
             await MainActor.run {
                 ToastManager.shared.showError(
                     title: "Verification Failed",

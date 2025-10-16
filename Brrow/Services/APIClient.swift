@@ -2607,11 +2607,19 @@ class APIClient: ObservableObject {
 
         let endpoint = "api/users/\(userId)"
 
-        return try await performRequest(
+        // ✅ FIXED: Backend returns {success, user, message}, not {success, data, message}
+        // Use UserProfileResponse which has "user" key instead of "data" key
+        let response = try await performRequest(
             endpoint: endpoint,
             method: .GET,
-            responseType: User.self
+            responseType: UserProfileResponse.self
         )
+
+        // ✅ FIXED: Properly unwrap optional user field
+        guard let user = response.user else {
+            throw BrrowAPIError.serverError("User data not found in profile response")
+        }
+        return user
     }
     
     func fetchUserRating(userId: Int) async throws -> UserRating {
@@ -4854,10 +4862,16 @@ class APIClient: ObservableObject {
     
     // MARK: - Email Verification Methods
     func sendEmailVerification() async throws -> EmailVerificationResponse {
+        print("📧 [EMAIL_VERIFICATION] Starting email verification request")
+
         let baseURL = await self.baseURL
+        print("📧 [EMAIL_VERIFICATION] Base URL: \(baseURL)")
+
         guard let url = URL(string: "\(baseURL)/api/auth/resend-verification") else {
+            print("❌ [EMAIL_VERIFICATION] Invalid URL construction")
             throw BrrowAPIError.invalidURL
         }
+        print("📧 [EMAIL_VERIFICATION] Request URL: \(url)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -4865,22 +4879,33 @@ class APIClient: ObservableObject {
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData // Force bypass cache
 
         if let token = authManager.authToken {
+            print("📧 [EMAIL_VERIFICATION] Auth token found: \(String(token.prefix(20)))...")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        } else {
+            print("⚠️ [EMAIL_VERIFICATION] No auth token available!")
         }
 
+        print("📧 [EMAIL_VERIFICATION] Making HTTP request...")
         let (data, response) = try await URLSession.shared.data(for: request)
+        print("📧 [EMAIL_VERIFICATION] Response received")
 
         guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ [EMAIL_VERIFICATION] Invalid HTTP response")
             throw BrrowAPIError.invalidResponse
         }
 
+        print("📧 [EMAIL_VERIFICATION] Status code: \(httpResponse.statusCode)")
+
         guard (200...299).contains(httpResponse.statusCode) else {
             if httpResponse.statusCode == 401 {
+                print("❌ [EMAIL_VERIFICATION] Unauthorized (401)")
                 throw BrrowAPIError.unauthorized
             }
+            print("❌ [EMAIL_VERIFICATION] Server error code: \(httpResponse.statusCode)")
             throw BrrowAPIError.serverErrorCode(httpResponse.statusCode)
         }
 
+        print("✅ [EMAIL_VERIFICATION] Success, decoding response")
         return try JSONDecoder().decode(EmailVerificationResponse.self, from: data)
     }
     
