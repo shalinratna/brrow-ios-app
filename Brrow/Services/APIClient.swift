@@ -4864,6 +4864,28 @@ class APIClient: ObservableObject {
     func sendEmailVerification() async throws -> EmailVerificationResponse {
         print("📧 [EMAIL_VERIFICATION] Starting email verification request")
 
+        // Try with retry mechanism (up to 3 attempts with exponential backoff)
+        var lastError: Error?
+
+        for attempt in 1...3 {
+            do {
+                print("📧 [EMAIL_VERIFICATION] Attempt \(attempt)/3")
+                return try await _sendEmailVerificationAttempt()
+            } catch BrrowAPIError.serverErrorCode(let code) where code == 404 && attempt < 3 {
+                print("⚠️ [EMAIL_VERIFICATION] Got 404 on attempt \(attempt), retrying in \(attempt)s...")
+                lastError = BrrowAPIError.serverErrorCode(code)
+                try await Task.sleep(nanoseconds: UInt64(attempt) * 1_000_000_000) // 1s, 2s delay
+                continue
+            } catch {
+                throw error // Non-404 errors or last attempt - throw immediately
+            }
+        }
+
+        // If we exhausted all retries, throw the last error
+        throw lastError ?? BrrowAPIError.serverError("All retry attempts failed")
+    }
+
+    private func _sendEmailVerificationAttempt() async throws -> EmailVerificationResponse {
         let baseURL = await self.baseURL
         print("📧 [EMAIL_VERIFICATION] Base URL: \(baseURL)")
 
@@ -4871,13 +4893,14 @@ class APIClient: ObservableObject {
             print("❌ [EMAIL_VERIFICATION] Invalid URL construction")
             throw BrrowAPIError.invalidURL
         }
-        print("📧 [EMAIL_VERIFICATION] Request URL: \(url)")
+        print("📧 [EMAIL_VERIFICATION] Full URL: \(url.absoluteString)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData // Force bypass cache
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
 
+        // DIAGNOSTIC: Log all request headers
         if let token = authManager.authToken {
             print("📧 [EMAIL_VERIFICATION] Auth token found: \(String(token.prefix(20)))...")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -4885,31 +4908,55 @@ class APIClient: ObservableObject {
             print("⚠️ [EMAIL_VERIFICATION] No auth token available!")
         }
 
-        // CRITICAL FIX: Clear any cached response for this URL to force fresh request
-        URLCache.shared.removeCachedResponse(for: request)
-        print("🗑️ [EMAIL_VERIFICATION] Cleared cached response for URL")
+        // Add diagnostic headers
+        request.setValue("Brrow-iOS/1.3.4", forHTTPHeaderField: "User-Agent")
+        request.setValue("sendEmailVerification", forHTTPHeaderField: "X-Request-Source")
 
-        // CRITICAL FIX: Use fresh URLSession with no cache to bypass iOS caching
+        print("📧 [EMAIL_VERIFICATION] Request Details:")
+        print("   Method: \(request.httpMethod ?? "UNKNOWN")")
+        print("   URL: \(request.url?.absoluteString ?? "UNKNOWN")")
+        print("   Headers: \(request.allHTTPHeaderFields ?? [:])")
+
+        // Clear cache
+        URLCache.shared.removeCachedResponse(for: request)
+        print("🗑️ [EMAIL_VERIFICATION] Cleared cached response")
+
+        // Use fresh URLSession with no cache
         let config = URLSessionConfiguration.default
         config.urlCache = nil
         config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
         let freshSession = URLSession(configuration: config)
 
-        print("📧 [EMAIL_VERIFICATION] Making HTTP request with fresh session (no cache)...")
+        print("📧 [EMAIL_VERIFICATION] Sending request...")
         let (data, response) = try await freshSession.data(for: request)
         print("📧 [EMAIL_VERIFICATION] Response received")
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("❌ [EMAIL_VERIFICATION] Invalid HTTP response")
+            print("❌ [EMAIL_VERIFICATION] Invalid HTTP response type")
             throw BrrowAPIError.invalidResponse
         }
 
-        print("📧 [EMAIL_VERIFICATION] Status code: \(httpResponse.statusCode)")
+        print("📧 [EMAIL_VERIFICATION] Response Details:")
+        print("   Status: \(httpResponse.statusCode)")
+        print("   Headers: \(httpResponse.allHeaderFields)")
+
+        // Log response body for debugging
+        if let responseBody = String(data: data, encoding: .utf8) {
+            print("   Body: \(responseBody.prefix(200))...")
+        }
 
         guard (200...299).contains(httpResponse.statusCode) else {
             if httpResponse.statusCode == 401 {
                 print("❌ [EMAIL_VERIFICATION] Unauthorized (401)")
                 throw BrrowAPIError.unauthorized
+            }
+            if httpResponse.statusCode == 404 {
+                print("❌ [EMAIL_VERIFICATION] Not Found (404) - Endpoint missing or routing issue")
+                if let body = String(data: data, encoding: .utf8) {
+                    print("   404 Response Body: \(body)")
+                }
             }
             print("❌ [EMAIL_VERIFICATION] Server error code: \(httpResponse.statusCode)")
             throw BrrowAPIError.serverErrorCode(httpResponse.statusCode)
