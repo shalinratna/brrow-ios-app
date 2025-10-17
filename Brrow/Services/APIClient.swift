@@ -4885,8 +4885,18 @@ class APIClient: ObservableObject {
             print("⚠️ [EMAIL_VERIFICATION] No auth token available!")
         }
 
-        print("📧 [EMAIL_VERIFICATION] Making HTTP request...")
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // CRITICAL FIX: Clear any cached response for this URL to force fresh request
+        URLCache.shared.removeCachedResponse(for: request)
+        print("🗑️ [EMAIL_VERIFICATION] Cleared cached response for URL")
+
+        // CRITICAL FIX: Use fresh URLSession with no cache to bypass iOS caching
+        let config = URLSessionConfiguration.default
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        let freshSession = URLSession(configuration: config)
+
+        print("📧 [EMAIL_VERIFICATION] Making HTTP request with fresh session (no cache)...")
+        let (data, response) = try await freshSession.data(for: request)
         print("📧 [EMAIL_VERIFICATION] Response received")
 
         guard let httpResponse = response as? HTTPURLResponse else {
