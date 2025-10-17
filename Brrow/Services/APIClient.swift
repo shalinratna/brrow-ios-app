@@ -4889,7 +4889,7 @@ class APIClient: ObservableObject {
         let baseURL = await self.baseURL
         print("📧 [EMAIL_VERIFICATION] Base URL: \(baseURL)")
 
-        guard let url = URL(string: "\(baseURL)/api/auth/resend-verification") else {
+        guard let url = URL(string: "\(baseURL)/api/auth/verify-email-send") else {
             print("❌ [EMAIL_VERIFICATION] Invalid URL construction")
             throw BrrowAPIError.invalidURL
         }
@@ -4952,7 +4952,7 @@ class APIClient: ObservableObject {
                 print("❌ [EMAIL_VERIFICATION] Unauthorized (401)")
                 throw BrrowAPIError.unauthorized
             }
-            if httpResponse.statusCode == 404 {
+            else if httpResponse.statusCode == 404 {
                 print("❌ [EMAIL_VERIFICATION] Not Found (404) - Endpoint missing or routing issue")
                 if let body = String(data: data, encoding: .utf8) {
                     print("   404 Response Body: \(body)")
