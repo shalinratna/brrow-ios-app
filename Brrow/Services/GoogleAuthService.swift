@@ -58,9 +58,11 @@ class GoogleAuthService: ObservableObject {
             let firstName = user.profile?.givenName ?? ""
             let lastName = user.profile?.familyName ?? ""
             let fullName = user.profile?.name ?? "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
-            // Disabled: Don't fetch Google profile pictures - use platform-only profile system
-            let profilePictureUrl: String? = nil
+            // ✅ ENABLED: Fetch Google profile pictures for persistent storage
+            let profilePictureUrl: String? = user.profile?.imageURL(withDimension: 400)?.absoluteString
             let googleId = user.userID ?? ""
+
+            print("🖼️ Google Profile Picture URL: \(profilePictureUrl ?? "none")")
             
             print("🔐 Google Sign-In successful for: \(email)")
             print("🔐 Google ID: \(googleId)")
@@ -101,10 +103,18 @@ class GoogleAuthService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // Send the idToken which will be decoded by the backend for account linking
-        let requestBody = ["idToken": idToken]
+        // Send profile information including profile picture URL
+        let requestBody: [String: Any] = [
+            "idToken": idToken,
+            "googleId": googleId,
+            "email": email,
+            "firstName": firstName,
+            "lastName": lastName,
+            "fullName": fullName,
+            "profilePictureUrl": profilePictureUrl ?? NSNull()
+        ]
 
-        request.httpBody = try JSONEncoder().encode(requestBody)
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -148,39 +158,48 @@ class GoogleAuthService: ObservableObject {
     
     private func handleSignInError(_ error: Error) {
         print("❌ Google Sign-In error: \(error)")
-        
+
         if let gidError = error as? GIDSignInError {
             switch gidError.code {
             case .canceled:
-                errorMessage = "Sign-in was cancelled"
+                // User cancelled - don't show error message
+                errorMessage = ""
+                print("ℹ️ Google Sign-In cancelled by user - no error shown")
             case .EMM:
-                errorMessage = "Enterprise Mobility Management error"
+                errorMessage = "Google Sign-In is restricted on this device"
             case .keychain:
-                errorMessage = "Keychain error occurred"
+                errorMessage = "Keychain error. Please check your device security settings."
             case .hasNoAuthInKeychain:
-                errorMessage = "No saved authentication found"
+                errorMessage = "No saved Google account found. Please sign in again."
             case .scopesAlreadyGranted:
-                errorMessage = "Permissions already granted"
+                errorMessage = ""
+                print("ℹ️ Permissions already granted")
             case .unknown:
-                errorMessage = "An unknown error occurred"
+                errorMessage = "Google Sign-In failed. Please try again."
             @unknown default:
-                errorMessage = "Sign-in failed: \(error.localizedDescription)"
+                errorMessage = "Google Sign-In failed. Please try again."
             }
         } else if let customError = error as? GoogleSignInError {
             switch customError {
             case .noPresentingViewController:
-                errorMessage = "Unable to present sign-in interface"
+                errorMessage = "Unable to show Google Sign-In. Please try again."
             case .noIDToken:
-                errorMessage = "Failed to obtain authentication token"
+                errorMessage = "Failed to authenticate with Google. Please try again."
             case .invalidURL:
-                errorMessage = "Configuration error - invalid server URL"
+                errorMessage = "Configuration error. Please contact support."
             case .invalidResponse:
-                errorMessage = "Invalid response from server"
+                errorMessage = "Invalid server response. Please check your internet connection."
             case .backendError(let message):
                 errorMessage = message
             }
         } else {
-            errorMessage = "Sign-in failed: \(error.localizedDescription)"
+            // Check for network errors
+            let errorDescription = error.localizedDescription.lowercased()
+            if errorDescription.contains("internet") || errorDescription.contains("network") || errorDescription.contains("offline") {
+                errorMessage = "Please check your internet connection and try again."
+            } else {
+                errorMessage = "Google Sign-In failed. Please try again."
+            }
         }
     }
     

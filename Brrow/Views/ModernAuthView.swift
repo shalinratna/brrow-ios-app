@@ -524,7 +524,9 @@ struct ModernAuthView: View {
         )
         .signInWithAppleButtonStyle(.black)
         .frame(height: 56)
+        .frame(maxWidth: .infinity) // Ensure button takes full width
         .cornerRadius(14)
+        .contentShape(Rectangle()) // Make entire button area tappable, not just text
         .disabled(viewModel.isLoading || isGoogleSignInLoading)
         .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
     }
@@ -813,27 +815,29 @@ struct ModernAuthView: View {
 
                 switch authError.code {
                 case .canceled:
-                    print("ℹ️ [APPLE SIGN-IN] User canceled")
+                    // User cancelled - don't show error, silent fail
+                    print("ℹ️ [APPLE SIGN-IN] User canceled - no error shown")
                     break
                 case .failed:
                     print("❌ [APPLE SIGN-IN] Sign in failed")
-                    viewModel.errorMessage = "Sign in failed. Please try again."
+                    viewModel.errorMessage = "Apple Sign-In failed. Please try again."
                     viewModel.showError = true
                 case .invalidResponse:
                     print("❌ [APPLE SIGN-IN] Invalid response")
-                    viewModel.errorMessage = "Invalid response from Apple. Please try again."
+                    viewModel.errorMessage = "Invalid response from Apple. Please check your internet connection."
                     viewModel.showError = true
                 case .notHandled:
                     print("❌ [APPLE SIGN-IN] Not handled")
-                    viewModel.errorMessage = "Unable to complete sign in."
+                    viewModel.errorMessage = "Apple Sign-In could not be completed."
                     viewModel.showError = true
                 case .unknown:
-                    print("❌ [APPLE SIGN-IN] Unknown error")
-                    viewModel.errorMessage = "An unknown error occurred."
+                    print("❌ [APPLE SIGN-IN] Unknown error - error code 1000")
+                    // Error code 1000 is typically user cancellation or system issue
+                    viewModel.errorMessage = "Apple Sign-In was cancelled or could not be completed."
                     viewModel.showError = true
                 @unknown default:
                     print("❌ [APPLE SIGN-IN] Default error case")
-                    viewModel.errorMessage = "Sign in failed."
+                    viewModel.errorMessage = "Apple Sign-In failed. Please try again."
                     viewModel.showError = true
                 }
             } else {
