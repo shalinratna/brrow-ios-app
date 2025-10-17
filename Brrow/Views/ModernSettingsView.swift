@@ -68,7 +68,8 @@ struct ModernSettingsView: View {
             ]
         case .support:
             return [
-                SettingsItem(icon: "questionmark.circle", title: "Help Center", color: .blue),
+                SettingsItem(icon: "shield.checkmark", title: "Safety Center", subtitle: "Learn about staying safe", color: .red),
+                SettingsItem(icon: "questionmark.circle", title: "Help Center", subtitle: "Get answers & support", color: .blue),
                 SettingsItem(icon: "envelope", title: "Contact Support", color: .green),
                 SettingsItem(icon: "doc.text", title: "Report a Problem", color: .orange)
             ]
@@ -452,6 +453,22 @@ struct ModernSettingsView: View {
             return
         }
 
+        // Special handling for Safety Center
+        if item.title == "Safety Center" {
+            if let url = URL(string: "https://brrowapp.com/safety") {
+                UIApplication.shared.open(url)
+            }
+            return
+        }
+
+        // Special handling for Help Center
+        if item.title == "Help Center" {
+            if let url = URL(string: "https://brrowapp.com/help") {
+                UIApplication.shared.open(url)
+            }
+            return
+        }
+
         // If item has a custom action, execute it
         if let action = item.action {
             action()
@@ -599,6 +616,11 @@ struct SimpleAccountSettingsView: View {
     @State private var showingChangePassword = false
     @State private var errorMessage = ""
 
+    // Check if user signed up with OAuth (Apple ID for now, can add Google later)
+    private var isOAuthUser: Bool {
+        return authManager.currentUser?.appleUserId != nil
+    }
+
     var body: some View {
         NavigationView {
             List {
@@ -628,11 +650,10 @@ struct SimpleAccountSettingsView: View {
                             .foregroundColor(Theme.Colors.primary)
                     }
 
-                    if authManager.currentUser?.appleUserId == nil {
-                        Button(action: { showingChangePassword = true }) {
-                            Label("Change Password", systemImage: "lock.rotation")
-                                .foregroundColor(Theme.Colors.primary)
-                        }
+                    // Show "Create Password" for OAuth users, "Change Password" for others
+                    Button(action: { showingChangePassword = true }) {
+                        Label(isOAuthUser ? "Create Password" : "Change Password", systemImage: "lock.rotation")
+                            .foregroundColor(Theme.Colors.primary)
                     }
                 }
 
@@ -676,6 +697,11 @@ struct AccountSettingsView: View {
     @State private var showingChangeUsername = false
     @State private var showingChangePassword = false
 
+    // Check if user signed up with OAuth
+    private var isOAuthUser: Bool {
+        return authManager.currentUser?.appleUserId != nil
+    }
+
     var body: some View {
         NavigationView {
             List {
@@ -688,10 +714,8 @@ struct AccountSettingsView: View {
                         Label("Change Username", systemImage: "at")
                     }
 
-                    if authManager.currentUser?.appleUserId == nil {
-                        Button(action: { showingChangePassword = true }) {
-                            Label("Change Password", systemImage: "lock.rotation")
-                        }
+                    Button(action: { showingChangePassword = true }) {
+                        Label(isOAuthUser ? "Create Password" : "Change Password", systemImage: "lock.rotation")
                     }
                 }
             }
@@ -730,25 +754,62 @@ struct SupportView: View {
         NavigationView {
             List {
                 Section {
-                    HStack {
-                        Image(systemName: "questionmark.circle")
-                            .foregroundColor(.blue)
-                        VStack(alignment: .leading) {
-                            Text("Help Center")
-                            Text("Browse FAQs and guides")
+                    Button(action: {
+                        if let url = URL(string: "https://brrowapp.com/safety") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "shield.checkmark")
+                                .foregroundColor(.red)
+                            VStack(alignment: .leading) {
+                                Text("Safety Center")
+                                Text("Learn about staying safe on Brrow")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
 
-                    HStack {
-                        Image(systemName: "envelope")
-                            .foregroundColor(.green)
-                        VStack(alignment: .leading) {
-                            Text("Contact Support")
-                            Text("support@brrow.com")
+                    Button(action: {
+                        if let url = URL(string: "https://brrowapp.com/help") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(.blue)
+                            VStack(alignment: .leading) {
+                                Text("Help Center")
+                                Text("Browse FAQs and guides")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Button(action: {
+                        if let url = URL(string: "mailto:support@brrow.com") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "envelope")
+                                .foregroundColor(.green)
+                            VStack(alignment: .leading) {
+                                Text("Contact Support")
+                                Text("support@brrow.com")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
 

@@ -813,37 +813,41 @@ struct ModernAuthView: View {
             if let authError = error as? ASAuthorizationError {
                 print("❌ [APPLE SIGN-IN] ASAuthorizationError code: \(authError.code.rawValue)")
 
-                switch authError.code {
-                case .canceled:
-                    // User cancelled - don't show error, silent fail
-                    print("ℹ️ [APPLE SIGN-IN] User canceled - no error shown")
-                    break
-                case .failed:
-                    print("❌ [APPLE SIGN-IN] Sign in failed")
-                    viewModel.errorMessage = "Apple Sign-In failed. Please try again."
-                    viewModel.showError = true
-                case .invalidResponse:
-                    print("❌ [APPLE SIGN-IN] Invalid response")
-                    viewModel.errorMessage = "Invalid response from Apple. Please check your internet connection."
-                    viewModel.showError = true
-                case .notHandled:
-                    print("❌ [APPLE SIGN-IN] Not handled")
-                    viewModel.errorMessage = "Apple Sign-In could not be completed."
-                    viewModel.showError = true
-                case .unknown:
-                    print("❌ [APPLE SIGN-IN] Unknown error - error code 1000")
-                    // Error code 1000 is typically user cancellation or system issue
-                    viewModel.errorMessage = "Apple Sign-In was cancelled or could not be completed."
-                    viewModel.showError = true
-                @unknown default:
-                    print("❌ [APPLE SIGN-IN] Default error case")
-                    viewModel.errorMessage = "Apple Sign-In failed. Please try again."
-                    viewModel.showError = true
+                Task { @MainActor in
+                    switch authError.code {
+                    case .canceled:
+                        // User cancelled - don't show error, silent fail
+                        print("ℹ️ [APPLE SIGN-IN] User canceled - no error shown")
+                        break
+                    case .failed:
+                        print("❌ [APPLE SIGN-IN] Sign in failed")
+                        viewModel.errorMessage = "Apple Sign-In failed. Please try again."
+                        viewModel.showError = true
+                    case .invalidResponse:
+                        print("❌ [APPLE SIGN-IN] Invalid response")
+                        viewModel.errorMessage = "Invalid response from Apple. Please check your internet connection."
+                        viewModel.showError = true
+                    case .notHandled:
+                        print("❌ [APPLE SIGN-IN] Not handled")
+                        viewModel.errorMessage = "Apple Sign-In could not be completed."
+                        viewModel.showError = true
+                    case .unknown:
+                        print("❌ [APPLE SIGN-IN] Unknown error - error code 1000")
+                        // Error code 1000 is typically user cancellation or system issue
+                        viewModel.errorMessage = "Apple Sign-In was cancelled or could not be completed."
+                        viewModel.showError = true
+                    @unknown default:
+                        print("❌ [APPLE SIGN-IN] Default error case")
+                        viewModel.errorMessage = "Apple Sign-In failed. Please try again."
+                        viewModel.showError = true
+                    }
                 }
             } else {
                 print("❌ [APPLE SIGN-IN] Generic error: \(error)")
-                viewModel.errorMessage = error.localizedDescription
-                viewModel.showError = true
+                Task { @MainActor in
+                    viewModel.errorMessage = error.localizedDescription
+                    viewModel.showError = true
+                }
             }
         }
     }
