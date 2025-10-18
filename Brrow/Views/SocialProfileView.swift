@@ -144,7 +144,7 @@ struct SocialProfileView: View {
                     // Refresh user data when verification view is dismissed
                     showIDmeBanner = false
                     Task {
-                        await authManager.refreshUserData()
+                        await authManager.refreshUserProfile()
                     }
                 }
         }
