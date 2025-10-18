@@ -403,32 +403,20 @@ struct BrrowApp: App {
             // Handle email verification success callback from web browser
             print("✅ [EMAIL VERIFICATION] Email verified via web - refreshing user state")
 
-            // Refresh user data to get updated email_verified_at status
+            // Refresh user profile to get updated email_verified_at status
             Task {
-                do {
-                    try await AuthManager.shared.refreshUserData()
-                    print("✅ [EMAIL VERIFICATION] User data refreshed")
+                await AuthManager.shared.refreshUserProfile()
+                print("✅ [EMAIL VERIFICATION] User profile refreshed")
 
-                    await MainActor.run {
-                        // Show success toast
-                        ToastManager.shared.showSuccess(
-                            title: "Email Verified!",
-                            message: "Your email has been verified successfully. You now have full marketplace access!"
-                        )
+                await MainActor.run {
+                    // Show success toast
+                    ToastManager.shared.showSuccess(
+                        title: "Email Verified!",
+                        message: "Your email has been verified successfully. You now have full marketplace access!"
+                    )
 
-                        // Navigate to profile tab to show updated verification status
-                        TabSelectionManager.shared.selectedTab = 4
-                    }
-                } catch {
-                    print("⚠️ [EMAIL VERIFICATION] Failed to refresh user data: \(error.localizedDescription)")
-
-                    await MainActor.run {
-                        // Still show success (verification happened on backend)
-                        ToastManager.shared.showSuccess(
-                            title: "Email Verified!",
-                            message: "Your email has been verified. Please restart the app to see your verified status."
-                        )
-                    }
+                    // Navigate to profile tab to show updated verification status
+                    TabSelectionManager.shared.selectedTab = 4
                 }
             }
 
