@@ -32,6 +32,8 @@ struct ModernTextField: View {
                     .font(.system(size: 16, weight: .regular, design: .rounded))
                     .foregroundColor(Theme.Colors.text)
                     .textContentType(textContentType)
+                    .textInputAutocapitalization(keyboardType == .emailAddress ? .never : .sentences)
+                    .autocorrectionDisabled(keyboardType == .emailAddress)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 15)
