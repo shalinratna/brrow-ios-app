@@ -17,6 +17,12 @@ struct SocialProfileView: View {
     @State private var showingWriteReview = false
     @State private var showingAllReviews = false
 
+    // Verification banner states
+    @ObservedObject private var authManager = AuthenticationManager.shared
+    @State private var showEmailBanner = true
+    @State private var showIDmeBanner = true
+    @State private var showIDmeVerification = false
+
     private let tabs = ["Activity", "Listings", "Reviews", "Stats"]
     
     var body: some View {
@@ -24,7 +30,59 @@ struct SocialProfileView: View {
             VStack(spacing: 0) {
                 // Profile Header
                 profileHeader
-                
+
+                // Verification Banners - Only show on own profile
+                if user.id == authManager.currentUser?.id {
+                    // Priority 1: Email verification (if not email verified)
+                    if authManager.isAuthenticated,
+                       let currentUser = authManager.currentUser,
+                       currentUser.emailVerified == false,
+                       showEmailBanner {
+                        EmailVerificationBanner(
+                            onVerifyTapped: {
+                                Task {
+                                    do {
+                                        try await APIClient.shared.sendEmailVerification()
+                                        ToastManager.shared.showSuccess(
+                                            title: "Verification Email Sent",
+                                            message: "Check your inbox and verify your email"
+                                        )
+                                    } catch {
+                                        ToastManager.shared.showError(
+                                            title: "Error",
+                                            message: "Failed to send verification email. Please try again."
+                                        )
+                                        print("❌ Email verification error: \(error)")
+                                    }
+                                }
+                            },
+                            onDismiss: {
+                                showEmailBanner = false
+                            }
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                    }
+
+                    // Priority 2: ID.me verification (if email verified but not ID.me verified)
+                    if authManager.isAuthenticated,
+                       let currentUser = authManager.currentUser,
+                       currentUser.emailVerified == true,
+                       currentUser.idVerified == false,
+                       showIDmeBanner {
+                        IDmeVerificationBanner(
+                            onVerifyTapped: {
+                                showIDmeVerification = true
+                            },
+                            onDismiss: {
+                                showIDmeBanner = false
+                            }
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                    }
+                }
+
                 // Stats Section
                 statsSection
                 
@@ -80,153 +138,317 @@ struct SocialProfileView: View {
                 ReviewsListView(revieweeId: user.id, reviewType: .user)
             }
         }
+        .sheet(isPresented: $showIDmeVerification) {
+            NavigationView {
+                IDmeVerificationView(onVerificationComplete: {
+                    showIDmeVerification = false
+                    showIDmeBanner = false
+                    // Refresh user data to get updated verification status
+                    Task {
+                        await authManager.refreshUserData()
+                    }
+                })
+            }
+        }
     }
     
-    // MARK: - Profile Header
+    // MARK: - Profile Header (Enhanced with Glassmorphism)
     private var profileHeader: some View {
         VStack(spacing: 16) {
-            // Background gradient
-            LinearGradient(
-                colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.7)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: 200)
+            // ✨ Modern animated gradient background
+            ZStack {
+                // Animated gradient mesh
+                LinearGradient(
+                    colors: [
+                        Theme.Colors.primary,
+                        Theme.Colors.primary.opacity(0.8),
+                        Theme.Colors.secondary.opacity(0.6)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 240)
+
+                // ✨ Glassmorphism overlay
+                Rectangle()
+                    .fill(.white.opacity(0.08))
+                    .frame(height: 240)
+                    .background(.ultraThinMaterial)
+
+                // Animated circles for depth
+                Circle()
+                    .fill(.white.opacity(0.1))
+                    .frame(width: 150, height: 150)
+                    .offset(x: -80, y: -40)
+                    .blur(radius: 30)
+
+                Circle()
+                    .fill(.white.opacity(0.08))
+                    .frame(width: 180, height: 180)
+                    .offset(x: 100, y: 30)
+                    .blur(radius: 40)
+            }
             .overlay(
                 VStack {
                     HStack {
                         Spacer()
-                        
-                        Button(action: { showingSettings = true }) {
-                            Image(systemName: "gearshape")
-                                .font(.title2)
+
+                        // ✨ Glassmorphic settings button
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showingSettings = true
+                            }
+                        }) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(.white)
+                                .frame(width: 44, height: 44)
+                                .background(.white.opacity(0.2))
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
                         }
                     }
                     .padding()
-                    
+
                     Spacer()
                 }
             )
             .overlay(
-                VStack(spacing: 12) {
-                    // Profile picture
-                    BrrowAsyncImage(url: user.fullProfilePictureURL ?? "") { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
+                VStack(spacing: 16) {
+                    // ✨ Enhanced profile picture with glow
+                    ZStack {
+                        // Glow effect
                         Circle()
-                            .fill(Color.white)
-                            .overlay(
-                                Text(String(user.username.prefix(1)).uppercased())
-                                    .font(.system(size: 32, weight: .bold))
-                                    .foregroundColor(Theme.Colors.primary)
+                            .fill(
+                                RadialGradient(
+                                    colors: [.white.opacity(0.3), .clear],
+                                    center: .center,
+                                    startRadius: 50,
+                                    endRadius: 70
+                                )
                             )
+                            .frame(width: 140, height: 140)
+                            .blur(radius: 10)
+
+                        BrrowAsyncImage(url: user.fullProfilePictureURL ?? "") { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.white, .white.opacity(0.9)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .overlay(
+                                    Text(String(user.username.prefix(1)).uppercased())
+                                        .font(.system(size: 38, weight: .bold))
+                                        .foregroundColor(Theme.Colors.primary)
+                                )
+                        }
+                        .frame(width: 110, height: 110)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [.white, .white.opacity(0.7)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 5
+                                )
+                        )
+                        .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 8)
+
+                        // ✨ Verified badge
+                        if user.idVerified == true {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(Theme.Colors.primary)
+                                .background(Circle().fill(.white))
+                                .offset(x: 40, y: 40)
+                                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        }
                     }
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white, lineWidth: 4)
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                    
-                    VStack(spacing: 4) {
+
+                    VStack(spacing: 8) {
+                        // Username with enhanced typography
                         Text(user.username)
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                        
+                            .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.white, .white.opacity(0.95)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+
                         if let bio = viewModel.userProfile?.bio {
                             Text(bio)
-                                .font(.system(size: 14))
-                                .foregroundColor(.white.opacity(0.9))
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.95))
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)
+                                .padding(.horizontal, 32)
                         }
-                        
-                        // Member since
-                        HStack(spacing: 4) {
-                            Image(systemName: "calendar")
-                                .font(.system(size: 12))
+
+                        // ✨ Enhanced member badge
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar.badge.checkmark")
+                                .font(.system(size: 11, weight: .semibold))
                             Text("Member since \(memberSinceText)")
-                                .font(.system(size: 12))
+                                .font(.system(size: 12, weight: .medium))
                         }
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.white.opacity(0.15))
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(12)
                     }
                 },
                 alignment: .center
             )
-            
-            // Action buttons
-            HStack(spacing: 16) {
+
+            // ✨ Enhanced action buttons with glassmorphism
+            HStack(spacing: 14) {
                 if user.id == AuthManager.shared.currentUser?.id {
-                    Button(action: { showingEditProfile = true }) {
-                        Text("Edit Profile")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Theme.Colors.primary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color.white)
-                            .cornerRadius(20)
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            showingEditProfile = true
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Edit Profile")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundColor(Theme.Colors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(.white)
+                        .cornerRadius(16)
+                        .shadow(color: Theme.Colors.primary.opacity(0.2), radius: 8, x: 0, y: 4)
                     }
                 } else {
                     Button(action: { /* Message user */ }) {
-                        Text("Message")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Theme.Colors.primary)
-                            .cornerRadius(20)
+                        HStack(spacing: 6) {
+                            Image(systemName: "bubble.right.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Message")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.85)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(16)
+                        .shadow(color: Theme.Colors.primary.opacity(0.4), radius: 12, x: 0, y: 6)
                     }
 
-                    Button(action: { showingWriteReview = true }) {
-                        Text("Write Review")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Theme.Colors.primary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color.white)
-                            .cornerRadius(20)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Theme.Colors.primary, lineWidth: 1)
-                            )
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            showingWriteReview = true
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Review")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundColor(Theme.Colors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(.white)
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.7)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 2
+                                )
+                        )
+                        .shadow(color: Theme.Colors.primary.opacity(0.15), radius: 8, x: 0, y: 4)
                     }
                 }
             }
             .padding(.horizontal, Theme.Spacing.lg)
-            .offset(y: -30)
+            .offset(y: -35)
         }
         .offset(y: -20)
     }
     
-    // MARK: - Stats Section
+    // MARK: - Stats Section (Enhanced with Glassmorphism)
     private var statsSection: some View {
         HStack(spacing: 0) {
             ForEach(Array(viewModel.stats.enumerated()), id: \.offset) { index, stat in
-                VStack(spacing: 4) {
+                VStack(spacing: 6) {
                     Text("\(stat.value)")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(Theme.Colors.text)
-                    
+                        .font(.system(size: 24, weight: .black, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
                     Text(stat.title)
-                        .font(.system(size: 12))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(Theme.Colors.secondaryText)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
                 }
                 .frame(maxWidth: .infinity)
-                
+                .padding(.vertical, 4)
+
                 if index < viewModel.stats.count - 1 {
                     Rectangle()
-                        .fill(Theme.Colors.border)
-                        .frame(width: 1, height: 30)
+                        .fill(
+                            LinearGradient(
+                                colors: [Theme.Colors.border.opacity(0.3), Theme.Colors.border.opacity(0.6), Theme.Colors.border.opacity(0.3)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 1, height: 40)
                 }
             }
         }
-        .padding(.vertical, Theme.Spacing.lg)
-        .background(Theme.Colors.surface)
-        .cornerRadius(Theme.CornerRadius.card)
+        .padding(.vertical, 20)
+        .background(.white.opacity(0.05))
+        .background(.ultraThinMaterial)
+        .cornerRadius(20)
+        .shadow(color: .black.opacity(0.08), radius: 15, x: 0, y: 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
         .padding(.horizontal, Theme.Spacing.lg)
         .offset(y: -40)
     }
@@ -406,103 +628,208 @@ struct SocialProfileView: View {
     }
 }
 
-// MARK: - Activity Card
+// MARK: - Activity Card (Enhanced with Glassmorphism)
 struct ActivityCard: View {
     let activity: UserActivity
-    
+
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
-            // Activity icon
-            Circle()
-                .fill(activity.type.color.opacity(0.2))
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Image(systemName: activity.type.iconName)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(activity.type.color)
-                )
-            
-            VStack(alignment: .leading, spacing: 4) {
+            // ✨ Enhanced activity icon with gradient
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [activity.type.color.opacity(0.15), activity.type.color.opacity(0.25)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 48, height: 48)
+
+                Circle()
+                    .strokeBorder(activity.type.color.opacity(0.3), lineWidth: 1)
+                    .frame(width: 48, height: 48)
+
+                Image(systemName: activity.type.iconName)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [activity.type.color, activity.type.color.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
                 Text(activity.title)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(Theme.Colors.text)
-                
+
                 Text(activity.description)
-                    .font(.system(size: 12))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundColor(Theme.Colors.secondaryText)
                     .lineLimit(2)
-                
+
                 Text(activity.timeAgo)
-                    .font(.system(size: 10))
-                    .foregroundColor(Theme.Colors.secondaryText)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Theme.Colors.tertiaryText)
             }
-            
+
             Spacer()
-            
+
             if let amount = activity.amount {
                 Text(amount)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Theme.Colors.primary)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.white.opacity(0.05))
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(12)
             }
         }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.surface)
-        .cornerRadius(Theme.CornerRadius.card)
+        .padding(16)
+        .background(.white.opacity(0.03))
+        .background(.ultraThinMaterial)
+        .cornerRadius(18)
+        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.2), .white.opacity(0.05)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
     }
 }
 
-// MARK: - Review Card
+// MARK: - Review Card (Enhanced with Glassmorphism)
 struct ReviewCard: View {
     let review: SocialUserReview
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            HStack {
-                BrrowAsyncImage(url: review.reviewerProfilePicture) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                // ✨ Enhanced profile picture
+                ZStack {
                     Circle()
-                        .fill(Theme.Colors.primary.opacity(0.2))
-                        .overlay(
-                            Text(String(review.reviewerName.prefix(1)).uppercased())
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(Theme.Colors.primary)
+                        .fill(
+                            RadialGradient(
+                                colors: [Theme.Colors.primary.opacity(0.15), Theme.Colors.primary.opacity(0.05)],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 20
+                            )
                         )
+                        .frame(width: 42, height: 42)
+
+                    BrrowAsyncImage(url: review.reviewerProfilePicture) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Theme.Colors.primary.opacity(0.3), Theme.Colors.primary.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                Text(String(review.reviewerName.prefix(1)).uppercased())
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(Theme.Colors.primary)
+                            )
+                    }
+                    .frame(width: 38, height: 38)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.4), .white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
                 }
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
-                
-                VStack(alignment: .leading, spacing: 2) {
+
+                VStack(alignment: .leading, spacing: 4) {
                     Text(review.reviewerName)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(Theme.Colors.text)
-                    
-                    HStack(spacing: 2) {
+
+                    // ✨ Enhanced star rating
+                    HStack(spacing: 3) {
                         ForEach(0..<5) { index in
                             Image(systemName: index < review.rating ? "star.fill" : "star")
-                                .font(.system(size: 10))
-                                .foregroundColor(index < review.rating ? .yellow : Theme.Colors.border)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(
+                                    index < review.rating ?
+                                        LinearGradient(
+                                            colors: [.yellow, .orange],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ) :
+                                        LinearGradient(
+                                            colors: [Theme.Colors.border, Theme.Colors.border],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                )
                         }
                     }
                 }
-                
+
                 Spacer()
-                
+
+                // ✨ Time badge
                 Text(review.timeAgo)
-                    .font(.system(size: 10))
-                    .foregroundColor(Theme.Colors.secondaryText)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Theme.Colors.tertiaryText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.white.opacity(0.05))
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(8)
             }
-            
+
             Text(review.comment)
-                .font(.system(size: 12))
+                .font(.system(size: 14, weight: .regular))
                 .foregroundColor(Theme.Colors.text)
                 .lineLimit(nil)
+                .lineSpacing(2)
         }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.surface)
-        .cornerRadius(Theme.CornerRadius.card)
+        .padding(16)
+        .background(.white.opacity(0.03))
+        .background(.ultraThinMaterial)
+        .cornerRadius(18)
+        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.2), .white.opacity(0.05)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
     }
 }
 

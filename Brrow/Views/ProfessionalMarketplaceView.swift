@@ -29,6 +29,12 @@ struct ProfessionalMarketplaceView: View {
     @State private var selectedInfoType: InfoType? = nil
     @State private var showingPostCreation = false
 
+    // Verification banner states
+    @ObservedObject private var authManager = AuthenticationManager.shared
+    @State private var showEmailBanner = true
+    @State private var showIDmeBanner = true
+    @State private var showIDmeVerification = false
+
     // Tap handler state for debouncing and safety
     @State private var lastTapTime: Date = .distantPast
     @State private var lastTappedId: String = ""
@@ -90,7 +96,55 @@ struct ProfessionalMarketplaceView: View {
                         .padding(.horizontal, Theme.Spacing.md)
                         .padding(.top, 10)
                         .background(Theme.Colors.background)
-                    
+
+                    // Verification Banners - Progressive verification flow
+                    // Priority 1: Email verification (if not email verified)
+                    if authManager.isAuthenticated,
+                       let user = authManager.currentUser,
+                       user.emailVerified == false,
+                       showEmailBanner {
+                        EmailVerificationBanner(
+                            onVerifyTapped: {
+                                Task {
+                                    do {
+                                        try await APIClient.shared.sendEmailVerification()
+                                        ToastManager.shared.showSuccess(
+                                            title: "Verification Email Sent",
+                                            message: "Check your inbox and verify your email"
+                                        )
+                                    } catch {
+                                        ToastManager.shared.showError(
+                                            title: "Error",
+                                            message: "Failed to send verification email. Please try again."
+                                        )
+                                        print("❌ Email verification error: \(error)")
+                                    }
+                                }
+                            },
+                            onDismiss: {
+                                showEmailBanner = false
+                            }
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    // Priority 2: ID.me verification (if email verified but not ID.me verified)
+                    if authManager.isAuthenticated,
+                       let user = authManager.currentUser,
+                       user.emailVerified == true,
+                       user.idVerified == false,
+                       showIDmeBanner {
+                        IDmeVerificationBanner(
+                            onVerifyTapped: {
+                                showIDmeVerification = true
+                            },
+                            onDismiss: {
+                                showIDmeBanner = false
+                            }
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
                             // Search Bar
@@ -216,6 +270,18 @@ struct ProfessionalMarketplaceView: View {
                         }
                     }
                 })
+            }
+            .sheet(isPresented: $showIDmeVerification) {
+                NavigationView {
+                    IDmeVerificationView(onVerificationComplete: {
+                        showIDmeVerification = false
+                        showIDmeBanner = false
+                        // Refresh user data to get updated verification status
+                        Task {
+                            await authManager.refreshUserData()
+                        }
+                    })
+                }
             }
     }
     
@@ -741,12 +807,15 @@ struct ProfessionalListingCard: View {
                 BrrowAsyncImage(url: listing.imageUrls.first) { image in
                     image
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(contentMode: .fit)  // FIX: Use .fit instead of .fill to prevent horizontal overflow
+                        .frame(maxWidth: .infinity, maxHeight: 140)  // Constrain both dimensions
+                        .clipped()
                 } placeholder: {
                     Theme.Colors.secondaryBackground
                 }
                 .frame(maxWidth: .infinity)  // CRITICAL FIX: Constrain image width to prevent horizontal overlap
                 .frame(height: 140)
+                .background(Theme.Colors.secondaryBackground)  // Fill empty space with background
                 .clipped()
 
                 // Single overlay layer for both badge and heart (prevents overlap)
