@@ -60,6 +60,7 @@ struct BrrowApp: App {
                 } else if authManager.isAuthenticated {
                     NativeMainTabView()
                         .applyRTLIfNeeded()
+                        .connectionStatusBanner()  // Show connection status banner
                         .withUniversalListingDetail()
                         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                             // Update widget data when app becomes active
@@ -72,6 +73,7 @@ struct BrrowApp: App {
                 } else {
                     ModernAuthView()
                         .applyRTLIfNeeded()
+                        .connectionStatusBanner()  // Show connection status banner
                         .withUniversalListingDetail()
                 }
             }
@@ -395,6 +397,39 @@ struct BrrowApp: App {
                     object: nil,
                     userInfo: ["purchaseId": purchaseId ?? ""]
                 )
+            }
+
+        case "verified":
+            // Handle email verification success callback from web browser
+            print("✅ [EMAIL VERIFICATION] Email verified via web - refreshing user state")
+
+            // Refresh user data to get updated email_verified_at status
+            Task {
+                do {
+                    try await AuthManager.shared.refreshUserData()
+                    print("✅ [EMAIL VERIFICATION] User data refreshed")
+
+                    await MainActor.run {
+                        // Show success toast
+                        ToastManager.shared.showSuccess(
+                            title: "Email Verified!",
+                            message: "Your email has been verified successfully. You now have full marketplace access!"
+                        )
+
+                        // Navigate to profile tab to show updated verification status
+                        TabSelectionManager.shared.selectedTab = 4
+                    }
+                } catch {
+                    print("⚠️ [EMAIL VERIFICATION] Failed to refresh user data: \(error.localizedDescription)")
+
+                    await MainActor.run {
+                        // Still show success (verification happened on backend)
+                        ToastManager.shared.showSuccess(
+                            title: "Email Verified!",
+                            message: "Your email has been verified. Please restart the app to see your verified status."
+                        )
+                    }
+                }
             }
 
         default:
