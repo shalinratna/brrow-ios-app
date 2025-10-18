@@ -272,16 +272,14 @@ struct ProfessionalMarketplaceView: View {
                 })
             }
             .sheet(isPresented: $showIDmeVerification) {
-                NavigationView {
-                    IDmeVerificationView(onVerificationComplete: {
-                        showIDmeVerification = false
+                IDmeVerificationView()
+                    .onDisappear {
+                        // Refresh user data when verification view is dismissed
                         showIDmeBanner = false
-                        // Refresh user data to get updated verification status
                         Task {
                             await authManager.refreshUserData()
                         }
-                    })
-                }
+                    }
             }
     }
     
