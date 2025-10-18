@@ -18,7 +18,7 @@ struct SocialProfileView: View {
     @State private var showingAllReviews = false
 
     // Verification banner states
-    @ObservedObject private var authManager = AuthenticationManager.shared
+    @ObservedObject private var authManager = AuthManager.shared
     @State private var showEmailBanner = true
     @State private var showIDmeBanner = true
     @State private var showIDmeVerification = false
