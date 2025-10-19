@@ -123,7 +123,7 @@ class IDmeService: NSObject, ObservableObject {
     // MARK: - Public Methods
     func startVerification(
         from viewController: UIViewController,
-        scope: String = IDmeConfig.basicScope,
+        scope: String = IDmeConfig.defaultScope,  // Use defaultScope (empty) instead of basicScope
         completion: @escaping (Result<IDmeUserProfile, Error>) -> Void
     ) {
         guard !isVerifying else {
