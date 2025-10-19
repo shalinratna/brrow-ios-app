@@ -140,6 +140,29 @@ struct ListingInfoSection: View {
 
                     Spacer()
                 }
+            } else {
+                // FIXED: Show message when listing is deleted/unavailable
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.orange)
+                        .frame(width: 80, height: 80)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(12)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Listing No Longer Available")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+
+                        Text("This listing has been removed or deleted by the owner")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .lineLimit(3)
+                    }
+
+                    Spacer()
+                }
             }
 
             Divider()

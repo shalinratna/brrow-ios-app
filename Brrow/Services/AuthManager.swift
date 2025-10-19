@@ -33,7 +33,11 @@ class AuthManager: ObservableObject {
     
     private init() {
         print("🎯 AuthManager.init() called")
-        
+
+        // CRITICAL FIX: Clear keychain on first launch after reinstall
+        // iOS keychain persists across app installations, causing auto-login
+        clearKeychainOnFirstLaunch()
+
         // Load stored authentication data
         loadStoredAuth()
         
@@ -539,7 +543,39 @@ class AuthManager: ObservableObject {
         trackAuthEvent("login")
         print("🎉 handleAuthSuccess completed")
     }
-    
+
+    /// Clears keychain on first launch after fresh install to prevent auto-login
+    /// iOS keychain persists across app deletions, this ensures clean state
+    private func clearKeychainOnFirstLaunch() {
+        let firstLaunchKey = "hasLaunchedBefore"
+        let hasLaunchedBefore = UserDefaults.standard.bool(forKey: firstLaunchKey)
+
+        if !hasLaunchedBefore {
+            print("🔐 [FIRST LAUNCH] Detected first launch after install")
+
+            // Check if keychain has auth data
+            let hasKeychainData = keychain.loadString(forKey: tokenKey) != nil ||
+                                 keychain.loadString(forKey: userKey) != nil
+
+            if hasKeychainData {
+                print("🔐 [FIRST LAUNCH] Found persisted keychain data - clearing to prevent auto-login")
+
+                // Clear all auth-related keychain data
+                keychain.delete(forKey: tokenKey)
+                keychain.delete(forKey: userKey)
+                keychain.delete(forKey: sessionKey)
+
+                print("✅ [FIRST LAUNCH] Keychain cleared successfully")
+            } else {
+                print("✅ [FIRST LAUNCH] No keychain data found - clean install")
+            }
+
+            // Mark that we've launched before
+            UserDefaults.standard.set(true, forKey: firstLaunchKey)
+            UserDefaults.standard.synchronize()
+        }
+    }
+
     private func loadStoredAuth() {
         print("🔔 loadStoredAuth called")
         

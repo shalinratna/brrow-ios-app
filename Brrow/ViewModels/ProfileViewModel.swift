@@ -89,6 +89,20 @@ class ProfileViewModel: ObservableObject {
         if authManager.isAuthenticated {
             loadUserListings()
             loadUserRating()
+
+            // CRITICAL FIX: Refresh user profile from API to get latest data (profile picture, verification status, etc.)
+            Task {
+                print("🔄 ProfileViewModel: Refreshing user data from API...")
+                await authManager.refreshUserProfile()
+                // Update local user reference after refresh
+                await MainActor.run {
+                    self.user = authManager.currentUser
+                    print("✅ ProfileViewModel: User data refreshed from API")
+                    if let refreshedUser = self.user {
+                        print("🖼️ ProfileViewModel: profilePicture after refresh = \(refreshedUser.profilePicture ?? "nil")")
+                    }
+                }
+            }
         }
     }
     
@@ -243,14 +257,23 @@ class ProfileViewModel: ObservableObject {
                 // Use the correct endpoint that properly stores profile pictures
                 let updatedUser = try await apiClient.uploadProfilePictureWithUserData(imageData: dataURL)
 
+                // CRITICAL FIX: Refresh user profile from API to ensure we have the absolute latest data
+                print("🔄 ProfileViewModel: Profile picture uploaded, refreshing from API...")
+                await authManager.refreshUserProfile()
+
                 await MainActor.run {
-                    self.user = updatedUser
-                    // Update AuthManager's current user and persist to keychain
-                    self.authManager.currentUser = updatedUser
-                    // Force save the updated user to keychain
-                    if let userData = try? JSONEncoder().encode(updatedUser) {
-                        KeychainHelper().save(String(data: userData, encoding: .utf8) ?? "", forKey: "brrow_user_data")
+                    // Use freshly refreshed user data from AuthManager
+                    self.user = self.authManager.currentUser
+                    print("✅ ProfileViewModel: Profile picture updated and user refreshed")
+                    if let user = self.user {
+                        print("🖼️ ProfileViewModel: New profile picture = \(user.profilePicture ?? "nil")")
                     }
+
+                    // Clear image cache to force reload of new image
+                    if let profilePictureUrl = self.user?.fullProfilePictureURL {
+                        ImageCacheManager.shared.clearSpecificImage(url: profilePictureUrl)
+                    }
+
                     self.isLoading = false
                     self.showingImagePicker = false
                 }

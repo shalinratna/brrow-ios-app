@@ -6,13 +6,14 @@
 //
 
 import SwiftUI
+import SafariServices
 
 struct ComplianceAgreementView: View {
     @Binding var hasAgreedToTerms: Bool
     @State private var agreedToTerms = false
     @State private var agreedToPrivacy = false
-    @State private var showingTerms = false
-    @State private var showingPrivacy = false
+    @State private var termsURL: URL?
+    @State private var privacyURL: URL?
     
     var body: some View {
         VStack(spacing: 30) {
@@ -53,7 +54,7 @@ struct ComplianceAgreementView: View {
                             .font(.body)
                         
                         Button(action: {
-                            showingTerms = true
+                            termsURL = URL(string: "https://brrowapp.com/terms")
                         }) {
                             Text("Read Terms of Service")
                                 .font(.caption)
@@ -80,7 +81,7 @@ struct ComplianceAgreementView: View {
                             .font(.body)
                         
                         Button(action: {
-                            showingPrivacy = true
+                            privacyURL = URL(string: "https://brrowapp.com/privacy")
                         }) {
                             Text("Read Privacy Policy")
                                 .font(.caption)
@@ -131,13 +132,38 @@ struct ComplianceAgreementView: View {
             .padding(.horizontal, 30)
             .padding(.bottom, 50)
         }
-        .sheet(isPresented: $showingTerms) {
-            TermsOfServiceView()
+        .fullScreenCover(item: Binding(
+            get: { termsURL != nil ? WebURL(url: termsURL!) : nil },
+            set: { termsURL = $0?.url }
+        )) { webURL in
+            SafariView(url: webURL.url)
         }
-        .sheet(isPresented: $showingPrivacy) {
-            PrivacyPolicyView()
+        .fullScreenCover(item: Binding(
+            get: { privacyURL != nil ? WebURL(url: privacyURL!) : nil },
+            set: { privacyURL = $0?.url }
+        )) { webURL in
+            SafariView(url: webURL.url)
         }
     }
+}
+
+// MARK: - SafariView Wrapper
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        return SFSafariViewController(url: url)
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
+        // No update needed
+    }
+}
+
+// MARK: - Identifiable URL Wrapper
+struct WebURL: Identifiable {
+    let id = UUID()
+    let url: URL
 }
 
 struct ComplianceAgreementView_Previews: PreviewProvider {
