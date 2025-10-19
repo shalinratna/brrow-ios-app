@@ -141,7 +141,7 @@ struct IDmeVerificationView: View {
                     description: "Verify your government-issued ID to build trust and unlock premium features",
                     icon: "person.crop.circle.fill.badge.checkmark",
                     isSelected: true,
-                    action: { selectedScope = IDmeConfig.basicScope }
+                    action: { selectedScopes = IDmeConfig.defaultScopes }
                 )
             }
             
