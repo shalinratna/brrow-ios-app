@@ -50,8 +50,8 @@ struct IDmeConfigHelper {
         print("Client ID: \(IDmeConfig.clientID == "YOUR_IDME_CLIENT_ID" ? "❌ Not Set" : "✅ Configured")")
         print("Client Secret: \(IDmeConfig.clientSecret == "YOUR_IDME_CLIENT_SECRET" ? "❌ Not Set" : "✅ Configured")")
         print("Redirect URI: \(IDmeConfig.redirectURI)")
-        print("Default Scope: \(IDmeConfig.defaultScope)")
-        
+        print("Default Scopes: \(IDmeConfig.defaultScopes)")
+
         let validation = validateConfiguration()
         if validation.isValid {
             print("✅ Configuration is valid!")
