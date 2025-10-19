@@ -24,17 +24,19 @@ struct IDmeConfig {
     static let userInfoURL = "https://api.id.me/api/public/v3/attributes.json"
     
     // Verification scopes - Using standard OAuth2 scopes
-    // ✅ CRITICAL FIX: Use minimal scope that ID.me always supports
-    // "openid" is the base scope that must work for all OAuth2 providers
-    static let basicScope = "openid"  // Minimal scope - always works
+    // ✅ CRITICAL FIX: ID.me OAuth app doesn't have scopes configured
+    // Sending ANY scope (even "openid") causes invalid_scope error
+    // Solution: Omit scope parameter entirely to use ID.me's default permissions
+    static let noScope = ""  // No scope - use ID.me defaults
+    static let basicScope = "openid"  // Minimal OpenID scope
     static let profileScope = "openid profile"  // Includes profile info
     static let emailScope = "openid profile email"  // Includes email
     static let identityScope = "openid profile email phone address"
     static let studentScope = "openid profile email student" // For Phase 2
 
-    // Use minimal scope to avoid invalid_scope errors
-    // Can be upgraded once ID.me dashboard is properly configured
-    static let defaultScope = basicScope
+    // Use empty scope to avoid invalid_scope errors
+    // ID.me will use default permissions configured in developer portal
+    static let defaultScope = noScope
 }
 
 // MARK: - ID.me Models
@@ -206,13 +208,23 @@ class IDmeService: NSObject, ObservableObject {
     // MARK: - Private Methods
     private func buildAuthorizationURL(scope: String) -> URL {
         var components = URLComponents(string: IDmeConfig.authURL)!
-        components.queryItems = [
+
+        // Build base query items without scope
+        var queryItems = [
             URLQueryItem(name: "client_id", value: IDmeConfig.clientID),
             URLQueryItem(name: "redirect_uri", value: IDmeConfig.redirectURI),
             URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: scope),
             URLQueryItem(name: "state", value: generateRandomState())
         ]
+
+        // CRITICAL FIX: Only add scope if not empty
+        // ID.me OAuth may not have scopes configured, causing invalid_scope error
+        // Omitting scope parameter uses ID.me's default permissions
+        if !scope.isEmpty {
+            queryItems.append(URLQueryItem(name: "scope", value: scope))
+        }
+
+        components.queryItems = queryItems
         return components.url!
     }
     
