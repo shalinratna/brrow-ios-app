@@ -18,28 +18,25 @@ struct IDmeConfig {
     // ✅ Updated to match ID.me dashboard configuration exactly
     
     // ID.me API Endpoints
+    // ✅ CRITICAL FIX: This is a Groups API integration, not standard OAuth!
+    // Groups API uses different endpoint and parameter names
     static let baseURL = "https://api.id.me"
-    static let authURL = "https://api.id.me/oauth/authorize"
+    static let authURL = "https://groups.id.me/"  // Groups API endpoint (not /oauth/authorize)
     static let tokenURL = "https://api.id.me/oauth/token"
     static let userInfoURL = "https://api.id.me/api/public/v3/attributes.json"
-    
-    // Verification scopes - ID.me Partner Integration
-    // Partner integrations have scopes configured by ID.me support team
-    // Testing to find which scope is configured for this Client ID
 
-    // Common ID.me scopes for identity verification:
-    static let noScope = ""  // No scope - use ID.me defaults
-    static let openIdScope = "openid"  // OpenID Connect basic
-    static let basicScope = "openid profile email"  // OpenID with profile
-    static let militaryScope = "military"  // Military verification
-    static let studentScope = "student"  // Student verification
-    static let responderScope = "responder"  // First responder
-    static let teacherScope = "teacher"  // Teacher verification
-    static let governmentScope = "government"  // Government employee
+    // ID.me Groups API Scopes
+    // ✅ Based on ID.me dashboard documentation for this Client ID
+    // Groups API uses "scopes" (plural) parameter with comma-separated values
+    // Configured scopes: alumni,student
+    static let alumniScope = "alumni"
+    static let studentScope = "student"
+    static let militaryScope = "military"
+    static let responderScope = "responder"
+    static let teacherScope = "teacher"
 
-    // For general identity verification (most common for partner integrations)
-    // Try "openid" first - standard OpenID Connect scope
-    static let defaultScope = openIdScope
+    // Use alumni,student as shown in ID.me Groups API documentation
+    static let defaultScopes = "alumni,student"
 }
 
 // MARK: - ID.me Models
@@ -126,25 +123,25 @@ class IDmeService: NSObject, ObservableObject {
     // MARK: - Public Methods
     func startVerification(
         from viewController: UIViewController,
-        scope: String = IDmeConfig.defaultScope,  // Use defaultScope (empty) instead of basicScope
+        scopes: String = IDmeConfig.defaultScopes,  // Groups API uses "scopes" (plural) with comma-separated values
         completion: @escaping (Result<IDmeUserProfile, Error>) -> Void
     ) {
         guard !isVerifying else {
             completion(.failure(IDmeError.verificationInProgress))
             return
         }
-        
+
         isVerifying = true
         currentViewController = viewController
         verificationCompletion = completion
-        
-        // Generate authorization URL
-        let authURL = buildAuthorizationURL(scope: scope)
-        
+
+        // Generate authorization URL for Groups API
+        let authURL = buildAuthorizationURL(scopes: scopes)
+
         // Present Safari View Controller
         safariViewController = SFSafariViewController(url: authURL)
         safariViewController?.delegate = self
-        
+
         viewController.present(safariViewController!, animated: true)
     }
     
@@ -209,22 +206,21 @@ class IDmeService: NSObject, ObservableObject {
     }
     
     // MARK: - Private Methods
-    private func buildAuthorizationURL(scope: String) -> URL {
+    private func buildAuthorizationURL(scopes: String) -> URL {
         var components = URLComponents(string: IDmeConfig.authURL)!
 
-        // Build base query items without scope
+        // Build query items for Groups API
+        // Groups API uses "scopes" (plural) parameter, not "scope" (singular)
         var queryItems = [
             URLQueryItem(name: "client_id", value: IDmeConfig.clientID),
             URLQueryItem(name: "redirect_uri", value: IDmeConfig.redirectURI),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "state", value: generateRandomState())
+            URLQueryItem(name: "response_type", value: "code")
         ]
 
-        // CRITICAL FIX: Only add scope if not empty
-        // ID.me OAuth may not have scopes configured, causing invalid_scope error
-        // Omitting scope parameter uses ID.me's default permissions
-        if !scope.isEmpty {
-            queryItems.append(URLQueryItem(name: "scope", value: scope))
+        // Add scopes parameter (required for Groups API)
+        // Format: scopes=alumni,student (comma-separated, no spaces)
+        if !scopes.isEmpty {
+            queryItems.append(URLQueryItem(name: "scopes", value: scopes))
         }
 
         components.queryItems = queryItems
