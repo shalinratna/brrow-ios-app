@@ -23,20 +23,23 @@ struct IDmeConfig {
     static let tokenURL = "https://api.id.me/oauth/token"
     static let userInfoURL = "https://api.id.me/api/public/v3/attributes.json"
     
-    // Verification scopes - Using standard OAuth2 scopes
-    // ✅ CRITICAL FIX: ID.me OAuth app doesn't have scopes configured
-    // Sending ANY scope (even "openid") causes invalid_scope error
-    // Solution: Omit scope parameter entirely to use ID.me's default permissions
-    static let noScope = ""  // No scope - use ID.me defaults
-    static let basicScope = "openid"  // Minimal OpenID scope
-    static let profileScope = "openid profile"  // Includes profile info
-    static let emailScope = "openid profile email"  // Includes email
-    static let identityScope = "openid profile email phone address"
-    static let studentScope = "openid profile email student" // For Phase 2
+    // Verification scopes - ID.me Partner Integration
+    // Partner integrations have scopes configured by ID.me support team
+    // Testing to find which scope is configured for this Client ID
 
-    // Use empty scope to avoid invalid_scope errors
-    // ID.me will use default permissions configured in developer portal
-    static let defaultScope = noScope
+    // Common ID.me scopes for identity verification:
+    static let noScope = ""  // No scope - use ID.me defaults
+    static let openIdScope = "openid"  // OpenID Connect basic
+    static let basicScope = "openid profile email"  // OpenID with profile
+    static let militaryScope = "military"  // Military verification
+    static let studentScope = "student"  // Student verification
+    static let responderScope = "responder"  // First responder
+    static let teacherScope = "teacher"  // Teacher verification
+    static let governmentScope = "government"  // Government employee
+
+    // For general identity verification (most common for partner integrations)
+    // Try "openid" first - standard OpenID Connect scope
+    static let defaultScope = openIdScope
 }
 
 // MARK: - ID.me Models
