@@ -15,10 +15,10 @@ struct CategoryResponse: Codable {
     let description: String?
     let iconUrl: String?
     let parentId: String?
-    let isActive: Bool
-    let sortOrder: Int
-    let createdAt: String
-    let updatedAt: String
+    let isActive: Bool?  // Optional to handle null from database
+    let sortOrder: Int?  // Optional to handle null from database
+    let createdAt: String?  // Optional to handle null from database
+    let updatedAt: String?  // Optional to handle null from database
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -46,7 +46,7 @@ struct CategoryItem: Identifiable, Hashable {
         self.name = response.name
         self.description = response.description ?? ""
         self.iconUrl = response.iconUrl
-        self.sortOrder = response.sortOrder
+        self.sortOrder = response.sortOrder ?? 999  // Default to end if no sort order
     }
 }
 
@@ -116,7 +116,7 @@ class CategoryService: ObservableObject {
 
             // Filter out "General" and "default-category" (legacy categories)
             let validCategories = categoryResponses
-                .filter { $0.isActive && $0.id != "default-category" }
+                .filter { ($0.isActive ?? true) && $0.id != "default-category" }
                 .map { CategoryItem(from: $0) }
                 .sorted { $0.sortOrder < $1.sortOrder }
 
