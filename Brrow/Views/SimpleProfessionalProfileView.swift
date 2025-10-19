@@ -25,9 +25,16 @@ struct SimpleProfessionalProfileView: View {
 
     // Show email verification banner if user is not verified and banner hasn't been dismissed
     private var shouldShowEmailBanner: Bool {
-        showEmailVerificationBanner && 
-        !(viewModel.user?.emailVerified ?? false) && 
+        showEmailVerificationBanner &&
+        !(viewModel.user?.isVerified ?? false) &&  // FIXED: Check isVerified field from API
         !idmeService.isVerified &&
+        !authManager.isGuestUser
+    }
+
+    // Show ID.me banner if email is verified but ID.me is not
+    private var shouldShowIDmeBanner: Bool {
+        (viewModel.user?.isVerified ?? false) &&  // Email is verified
+        !idmeService.isVerified &&  // But ID.me is not
         !authManager.isGuestUser
     }
     
@@ -44,7 +51,7 @@ struct SimpleProfessionalProfileView: View {
                     // Regular user view
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
-                        // Email Verification Banner
+                        // Email Verification Banner (show if email NOT verified)
                         if shouldShowEmailBanner {
                             EmailVerificationBanner(
                                 onVerifyTapped: {
@@ -58,7 +65,20 @@ struct SimpleProfessionalProfileView: View {
                             )
                             .padding(.top, 8)
                         }
-                        
+
+                        // ID.me Verification Banner (show if email IS verified but ID.me is NOT)
+                        if shouldShowIDmeBanner {
+                            IDmeVerificationBanner(
+                                onVerifyTapped: {
+                                    showIDmeVerification = true
+                                },
+                                onDismiss: {
+                                    // User dismissed ID.me banner
+                                }
+                            )
+                            .padding(.top, 8)
+                        }
+
                         // Header
                         headerSection
                             .padding(.horizontal, Theme.Spacing.md)

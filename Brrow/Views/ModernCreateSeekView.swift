@@ -666,11 +666,12 @@ struct FloatingLabelTextField: View {
                     .foregroundColor(isFocused ? Theme.Colors.primary : .secondary)
                     .offset(y: text.isEmpty && !isFocused ? 18 : 0)
                     .scaleEffect(text.isEmpty && !isFocused ? 1.2 : 1.0, anchor: .leading)
-                
+
                 TextField(placeholder, text: $text)
                     .focused($isFocused)
                     .font(.body)
                     .padding(.top, text.isEmpty && !isFocused ? 0 : 14)
+                    .opacity(text.isEmpty && !isFocused ? 0 : 1)  // Hide placeholder when title label is in placeholder position
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
