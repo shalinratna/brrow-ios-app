@@ -31,7 +31,7 @@ struct User: Codable, Identifiable {
     let id: String  // Changed from Int to String to match backend response
     let apiId: String?
     let username: String
-    let email: String
+    let email: String?  // Optional: only available for own profile
     let appleUserId: String?
     let authMethod: String?
     
@@ -46,7 +46,7 @@ struct User: Codable, Identifiable {
     let birthdate: String?
     var profilePicture: String?
     
-    // Verification Status  
+    // Verification Status
     let verified: Bool?  // Made optional since backend might not always send it
     let isVerified: Bool?  // Backend sends this as "isVerified"
     let emailVerified: Bool?
@@ -54,6 +54,7 @@ struct User: Codable, Identifiable {
     let phoneVerified: Bool?
     let idVerification: String?
     let verificationStatus: String?
+    let hasPassword: Bool?  // NEW: Check if user has password set (for Create Password vs Change Password button)
     
     // Account Status
     let isActive: Bool?
@@ -138,6 +139,7 @@ struct User: Codable, Identifiable {
         case phoneVerified = "phone_verified"
         case idVerification = "id_verification"
         case verificationStatus = "verification_status"
+        case hasPassword = "hasPassword"  // Backend sends camelCase
         
         // Account Status
         case isActive = "is_active"
@@ -194,12 +196,12 @@ struct User: Codable, Identifiable {
     }
     
     // Custom initializer for creating User instances
-    init(id: String, username: String, email: String, apiId: String? = nil, profilePicture: String? = nil, 
+    init(id: String, username: String, email: String? = nil, apiId: String? = nil, profilePicture: String? = nil,
          listerRating: Float? = 0.0, renteeRating: Float? = 0.0, bio: String? = nil,
          emailVerified: Bool = false, idVerified: Bool = false, stripeLinked: Bool = false) {
         self.id = id
         self.username = username
-        self.email = email
+        self.email = email  // Optional: may be nil for other users' profiles
         self.apiId = apiId ?? id
         self.birthdate = nil
         self.profilePicture = profilePicture
@@ -211,6 +213,7 @@ struct User: Codable, Identifiable {
         self.renteeRating = renteeRating
         self.emailVerified = emailVerified
         self.idVerified = idVerified
+        self.hasPassword = nil  // NEW: Default to nil for placeholder users
         self.lastActive = ISO8601DateFormatter().string(from: Date())
         self.stripeLinked = stripeLinked
         self.hasGreenMembership = false
@@ -289,7 +292,7 @@ struct User: Codable, Identifiable {
         }
         
         self.username = try container.decode(String.self, forKey: .username)
-        self.email = try container.decode(String.self, forKey: .email)
+        self.email = try container.decodeIfPresent(String.self, forKey: .email)  // Optional: not returned for other users' profiles
         self.appleUserId = try container.decodeIfPresent(String.self, forKey: .appleUserId)
         self.authMethod = try container.decodeIfPresent(String.self, forKey: .authMethod)
         
@@ -317,6 +320,7 @@ struct User: Codable, Identifiable {
         self.phoneVerified = try container.decodeIfPresent(Bool.self, forKey: .phoneVerified) ?? false
         self.idVerification = try container.decodeIfPresent(String.self, forKey: .idVerification)
         self.verificationStatus = try container.decodeIfPresent(String.self, forKey: .verificationStatus)
+        self.hasPassword = try container.decodeIfPresent(Bool.self, forKey: .hasPassword)
         
         // Account Status
         self.isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
@@ -384,7 +388,7 @@ struct User: Codable, Identifiable {
         try container.encodeIfPresent(id, forKey: .id)
         try container.encodeIfPresent(apiId, forKey: .apiId)
         try container.encode(username, forKey: .username)
-        try container.encode(email, forKey: .email)
+        try container.encodeIfPresent(email, forKey: .email)  // Optional: may be nil for other users
         try container.encodeIfPresent(appleUserId, forKey: .appleUserId)
         try container.encodeIfPresent(authMethod, forKey: .authMethod)
 

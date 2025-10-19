@@ -616,9 +616,10 @@ struct SimpleAccountSettingsView: View {
     @State private var showingChangePassword = false
     @State private var errorMessage = ""
 
-    // Check if user signed up with OAuth (Apple ID for now, can add Google later)
-    private var isOAuthUser: Bool {
-        return authManager.currentUser?.appleUserId != nil
+    // Check if user has password set - determines "Create Password" vs "Change Password" button text
+    private var userHasPassword: Bool {
+        // Check hasPassword field from backend (true if password_hash exists in database)
+        return authManager.currentUser?.hasPassword ?? true  // Default to true for safety
     }
 
     var body: some View {
@@ -650,9 +651,9 @@ struct SimpleAccountSettingsView: View {
                             .foregroundColor(Theme.Colors.primary)
                     }
 
-                    // Show "Create Password" for OAuth users, "Change Password" for others
+                    // Show "Create Password" if no password exists, "Change Password" if password exists
                     Button(action: { showingChangePassword = true }) {
-                        Label(isOAuthUser ? "Create Password" : "Change Password", systemImage: "lock.rotation")
+                        Label(userHasPassword ? "Change Password" : "Create Password", systemImage: "lock.rotation")
                             .foregroundColor(Theme.Colors.primary)
                     }
                 }
