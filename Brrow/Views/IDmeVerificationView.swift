@@ -10,7 +10,7 @@ import SwiftUI
 struct IDmeVerificationView: View {
     @StateObject private var idmeService = IDmeService.shared
     @State private var showingVerificationOptions = false
-    @State private var selectedScope = IDmeConfig.defaultScope
+    @State private var selectedScopes = IDmeConfig.defaultScopes
     @State private var alertMessage = ""
     @State private var showingAlert = false
     @Environment(\.dismiss) private var dismiss
@@ -280,8 +280,8 @@ struct IDmeVerificationView: View {
         }
         
         let presentingVC = rootViewController.presentedViewController ?? rootViewController
-        
-        idmeService.startVerification(from: presentingVC, scope: selectedScope) { result in
+
+        idmeService.startVerification(from: presentingVC, scopes: selectedScopes) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let profile):
