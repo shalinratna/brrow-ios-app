@@ -27,6 +27,12 @@ struct SimplifiedListingDetailView: View {
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
     @State private var showingMarkAsSoldConfirmation = false
+
+    // Animation state for delete
+    @State private var isDeleting = false
+    @State private var deleteAnimationScale: CGFloat = 1.0
+    @State private var deleteAnimationOpacity: Double = 1.0
+    @State private var deleteAnimationOffset: CGSize = .zero
     
     init(listing: Listing) {
         _viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
@@ -34,7 +40,11 @@ struct SimplifiedListingDetailView: View {
 
     private var isOwner: Bool {
         guard let currentUser = authManager.currentUser else { return false }
-        return viewModel.listing.userId == String(currentUser.id)
+        // FIXED: Compare with apiId instead of id (userId is API ID, not database ID)
+        // currentUser.id = "cmfrmr7l30000nz01qfyr0lc4" (database ID)
+        // currentUser.apiId = "usr_mfrmr7l11t" (API ID)
+        // viewModel.listing.userId = "usr_mfrmr7l11t" (API ID from backend)
+        return viewModel.listing.userId == currentUser.apiId
     }
 
     // Check if listing is new (updated in last 48 hours and available)
@@ -77,6 +87,10 @@ struct SimplifiedListingDetailView: View {
             bottomBar,
             alignment: .bottom
         )
+        // Apply delete animation
+        .scaleEffect(deleteAnimationScale)
+        .opacity(deleteAnimationOpacity)
+        .offset(deleteAnimationOffset)
         .sheet(isPresented: $showingMakeOffer) {
             ModernMakeOfferView(listing: viewModel.listing)
         }
@@ -134,6 +148,15 @@ struct SimplifiedListingDetailView: View {
                 print("🔄 [SIMPLIFIED LISTING DETAIL] Received refresh notification for listing: \(listingId)")
                 // Reload the listing details to show updated status
                 viewModel.loadListingDetails()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DismissListingDetail"))) { notification in
+            // Check if this notification is for our listing
+            if let listingId = notification.userInfo?["listingId"] as? String,
+               listingId == viewModel.listing.listingId {
+                print("🗑️ [SIMPLIFIED LISTING DETAIL] Received dismiss notification - closing view after delete")
+                // Dismiss the view (already animated)
+                dismiss()
             }
         }
     }
@@ -504,11 +527,36 @@ struct SimplifiedListingDetailView: View {
     }
     
     private func deleteListing() {
-        Task {
-            await viewModel.deleteListing()
-            // Navigate back after successful deletion
-            DispatchQueue.main.async {
-                dismiss()
+        print("🗑️ [DELETE ANIMATION] Starting delete animation")
+        isDeleting = true
+
+        // Step 1: Scale down and fade (0.3s)
+        withAnimation(.easeIn(duration: 0.3)) {
+            deleteAnimationScale = 0.6
+            deleteAnimationOpacity = 0.5
+        }
+
+        // Step 2: Move to trash position (bottom-right corner) (0.4s)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeInOut(duration: 0.4)) {
+                // Calculate screen bounds to move to bottom-right
+                let screenWidth = UIScreen.main.bounds.width
+                let screenHeight = UIScreen.main.bounds.height
+                self.deleteAnimationOffset = CGSize(
+                    width: screenWidth / 2 + 50,
+                    height: screenHeight / 2 + 100
+                )
+                self.deleteAnimationScale = 0.1
+                self.deleteAnimationOpacity = 0.0
+            }
+        }
+
+        // Step 3: Call API delete after animation (0.8s total)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            Task {
+                print("🗑️ [DELETE] Calling delete API")
+                await self.viewModel.deleteListing()
+                // The notification listener will handle dismissal
             }
         }
     }

@@ -24,12 +24,17 @@ struct IDmeConfig {
     static let userInfoURL = "https://api.id.me/api/public/v3/attributes.json"
     
     // Verification scopes - Using standard OAuth2 scopes
-    static let basicScope = "openid profile email"
+    // ✅ CRITICAL FIX: Use minimal scope that ID.me always supports
+    // "openid" is the base scope that must work for all OAuth2 providers
+    static let basicScope = "openid"  // Minimal scope - always works
+    static let profileScope = "openid profile"  // Includes profile info
+    static let emailScope = "openid profile email"  // Includes email
     static let identityScope = "openid profile email phone address"
     static let studentScope = "openid profile email student" // For Phase 2
 
-    // Current active scope for this version
-    static let defaultScope = identityScope
+    // Use minimal scope to avoid invalid_scope errors
+    // Can be upgraded once ID.me dashboard is properly configured
+    static let defaultScope = basicScope
 }
 
 // MARK: - ID.me Models
