@@ -16,27 +16,82 @@ class PersistenceController: ObservableObject {
     // MARK: - Core Data Stack
     lazy var container: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "BrrowDataModel")
-        
+
         // Configure for encryption and security (Warrior X10)
         container.persistentStoreDescriptions.forEach { description in
             description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
             description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-            
+
             // Enable encryption
             description.setOption(FileProtectionType.complete as NSString, forKey: NSPersistentStoreFileProtectionKey)
         }
-        
-        container.loadPersistentStores { _, error in
+
+        container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {
-                // Log to Shaiitech PEST X1
-                self.logError("Core Data failed to load: \(error), \(error.userInfo)")
-                fatalError("Core Data failed to load: \(error)")
+                // CRITICAL FIX: Handle corrupted database from app deletion/reinstall
+                // SQLite error 23 = SQLITE_AUTH (authorization denied)
+                // This happens when database file exists but app can't access it
+
+                print("❌ Core Data load error: \(error.localizedDescription)")
+                print("   Error code: \(error.code)")
+                print("   User info: \(error.userInfo)")
+
+                // Check if this is a corrupted database error (error code 256 = file couldn't be opened)
+                // or SQLite authorization error (code 23)
+                let isSQLiteError = error.code == 256 ||
+                                   (error.userInfo["NSSQLiteErrorDomain"] as? Int) == 23
+
+                if isSQLiteError {
+                    print("🔧 Attempting to recover: Deleting corrupted database...")
+
+                    // Get the store URL
+                    if let storeURL = storeDescription.url {
+                        let fileManager = FileManager.default
+
+                        // Delete the corrupted store and its support files
+                        let storePaths = [
+                            storeURL,
+                            storeURL.deletingLastPathComponent().appendingPathComponent("\(storeURL.lastPathComponent)-shm"),
+                            storeURL.deletingLastPathComponent().appendingPathComponent("\(storeURL.lastPathComponent)-wal")
+                        ]
+
+                        for path in storePaths {
+                            do {
+                                if fileManager.fileExists(atPath: path.path) {
+                                    try fileManager.removeItem(at: path)
+                                    print("   ✅ Deleted: \(path.lastPathComponent)")
+                                }
+                            } catch {
+                                print("   ⚠️ Failed to delete \(path.lastPathComponent): \(error)")
+                            }
+                        }
+
+                        // Try loading again with fresh database
+                        print("🔄 Attempting to load with fresh database...")
+                        container.loadPersistentStores { _, retryError in
+                            if let retryError = retryError as NSError? {
+                                // If it still fails, we have a bigger problem
+                                self.logError("Core Data recovery failed: \(retryError), \(retryError.userInfo)")
+                                fatalError("Core Data failed to load even after recovery: \(retryError)")
+                            } else {
+                                print("✅ Core Data recovered successfully with fresh database")
+                            }
+                        }
+                    } else {
+                        self.logError("Core Data failed to load and store URL is nil: \(error)")
+                        fatalError("Core Data failed to load: \(error)")
+                    }
+                } else {
+                    // Non-recoverable error
+                    self.logError("Core Data failed to load: \(error), \(error.userInfo)")
+                    fatalError("Core Data failed to load: \(error)")
+                }
             }
         }
-        
+
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        
+
         return container
     }()
     
@@ -63,7 +118,7 @@ class PersistenceController: ObservableObject {
         let userEntity = UserEntity(context: context)
         userEntity.id = Int32(Int(user.id) ?? 0)
         userEntity.username = user.username
-        userEntity.email = user.email
+        userEntity.email = user.email ?? ""  // Use empty string if email is not available
         userEntity.profilePicture = user.profilePicture
         userEntity.verified = user.verified ?? false
         userEntity.apiId = user.apiId ?? ""
