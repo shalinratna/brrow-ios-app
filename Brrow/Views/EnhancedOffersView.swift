@@ -146,8 +146,13 @@ struct EnhancedOffersView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(currentOffers) { offer in
-                    OfferCardView(offer: offer, isSent: selectedTab == .sent)
-                        .padding(.horizontal)
+                    EnhancedOfferCard(
+                        offer: offer,
+                        isSent: selectedTab == .sent,
+                        onAccept: { viewModel.acceptOffer(offer) },
+                        onReject: { viewModel.rejectOffer(offer) }
+                    )
+                    .padding(.horizontal)
                 }
             }
             .padding(.vertical, 8)
@@ -198,6 +203,110 @@ struct EnhancedOffersView: View {
             return "You haven't sent any offers yet"
         case .history:
             return "Your offer history will appear here"
+        }
+    }
+}
+
+// MARK: - Enhanced Offer Card Component
+struct EnhancedOfferCard: View {
+    let offer: Offer
+    let isSent: Bool
+    let onAccept: () -> Void
+    let onReject: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // Listing image
+            if let imageUrl = offer.listing?.images.first?.imageUrl, let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Theme.Colors.secondaryBackground)
+                        .overlay(
+                            ProgressView()
+                        )
+                }
+                .frame(width: 80, height: 80)
+                .cornerRadius(12)
+            } else {
+                Rectangle()
+                    .fill(Theme.Colors.secondaryBackground)
+                    .frame(width: 80, height: 80)
+                    .cornerRadius(12)
+                    .overlay(
+                        Image(systemName: "cube.box.fill")
+                            .font(.title2)
+                            .foregroundColor(Theme.Colors.secondary)
+                    )
+            }
+
+            // Content
+            VStack(alignment: .leading, spacing: 6) {
+                Text(offer.listing?.title ?? "Unknown Item")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+                    .lineLimit(1)
+
+                Text("$\(Int(offer.amount))")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(Theme.Colors.primary)
+
+                HStack {
+                    Image(systemName: "person.circle.fill")
+                        .font(.caption)
+                    Text(isSent ? (offer.listing?.userId ?? "Unknown") : (offer.borrower?.username ?? "Unknown"))
+                        .font(.caption)
+                }
+                .foregroundColor(Theme.Colors.secondaryText)
+            }
+
+            Spacer()
+
+            // Status
+            VStack(alignment: .trailing, spacing: 4) {
+                StatusPill(status: offer.status.rawValue)
+
+                Text(offer.createdAt.toRelativeTime())
+                    .font(.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Theme.Colors.cardBackground)
+                .shadow(color: Theme.Shadows.card, radius: 4, y: 2)
+        )
+    }
+}
+
+// MARK: - Status Pill Component
+struct StatusPill: View {
+    let status: String
+
+    var body: some View {
+        Text(status.capitalized)
+            .font(.caption.bold())
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(statusColor)
+            )
+    }
+
+    private var statusColor: Color {
+        switch status.lowercased() {
+        case "pending": return .orange
+        case "accepted": return .green
+        case "rejected": return .red
+        case "expired": return .gray
+        case "cancelled": return .gray
+        default: return Theme.Colors.secondary
         }
     }
 }
