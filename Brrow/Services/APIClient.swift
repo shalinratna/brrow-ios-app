@@ -230,7 +230,9 @@ class APIClient: ObservableObject {
     // MARK: - Shaiitech System Headers
     private func createRequest(for endpoint: String, method: HTTPMethod = .GET) async -> URLRequest {
         let baseURL = await self.baseURL
-        let urlString = "\(baseURL)/\(endpoint)"
+        // Clean up endpoint to remove leading slash, then add single slash
+        let cleanedEndpoint = endpoint.hasPrefix("/") ? String(endpoint.dropFirst()) : endpoint
+        let urlString = "\(baseURL)/\(cleanedEndpoint)"
         // Ensure URL is valid and won't cause NaN errors
         let sanitized = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !sanitized.isEmpty,

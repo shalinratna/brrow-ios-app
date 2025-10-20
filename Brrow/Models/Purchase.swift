@@ -52,6 +52,13 @@ struct Purchase: Codable, Identifiable {
     let refundedAt: Date?
     let meetupId: String?
 
+    // Boolean confirmation flags (returned by accept endpoint)
+    let sellerConfirmed: Bool?
+    let buyerConfirmed: Bool?
+    let transactionDisplayId: String?
+    let isActive: Bool?
+    let isPast: Bool?
+
     // Receipt fields
     let receiptId: String?
     let receiptGeneratedAt: Date?
@@ -72,7 +79,7 @@ struct Purchase: Codable, Identifiable {
     }
 
     // Custom init for Codable conformance
-    init(id: String, listingId: String, buyerId: String, sellerId: String, purchaseType: PurchaseType, amount: Double, paymentIntentId: String?, paymentStatus: PurchasePaymentStatus, verificationStatus: PurchaseVerificationStatus, deadline: Date, createdAt: Date, updatedAt: Date?, sellerConfirmedAt: Date?, buyerConfirmedAt: Date?, verificationCompletedAt: Date?, refundedAt: Date?, meetupId: String?, receiptId: String?, receiptGeneratedAt: Date?, receiptUrl: String?, listing: PurchaseListing?, buyer: PurchaseUser?, seller: PurchaseUser?) {
+    init(id: String, listingId: String, buyerId: String, sellerId: String, purchaseType: PurchaseType, amount: Double, paymentIntentId: String?, paymentStatus: PurchasePaymentStatus, verificationStatus: PurchaseVerificationStatus, deadline: Date, createdAt: Date, updatedAt: Date?, sellerConfirmedAt: Date?, buyerConfirmedAt: Date?, verificationCompletedAt: Date?, refundedAt: Date?, meetupId: String?, sellerConfirmed: Bool?, buyerConfirmed: Bool?, transactionDisplayId: String?, isActive: Bool?, isPast: Bool?, receiptId: String?, receiptGeneratedAt: Date?, receiptUrl: String?, listing: PurchaseListing?, buyer: PurchaseUser?, seller: PurchaseUser?) {
         self.id = id
         self.listingId = listingId
         self.buyerId = buyerId
@@ -90,6 +97,11 @@ struct Purchase: Codable, Identifiable {
         self.verificationCompletedAt = verificationCompletedAt
         self.refundedAt = refundedAt
         self.meetupId = meetupId
+        self.sellerConfirmed = sellerConfirmed
+        self.buyerConfirmed = buyerConfirmed
+        self.transactionDisplayId = transactionDisplayId
+        self.isActive = isActive
+        self.isPast = isPast
         self.receiptId = receiptId
         self.receiptGeneratedAt = receiptGeneratedAt
         self.receiptUrl = receiptUrl
@@ -133,6 +145,11 @@ struct Purchase: Codable, Identifiable {
         case verificationCompletedAt = "verification_completed_at"
         case refundedAt = "refunded_at"
         case meetupId = "meetup_id"
+        case sellerConfirmed = "sellerConfirmed"
+        case buyerConfirmed = "buyerConfirmed"
+        case transactionDisplayId = "transactionDisplayId"
+        case isActive = "isActive"
+        case isPast = "isPast"
         case receiptId = "receipt_id"
         case receiptGeneratedAt = "receipt_generated_at"
         case receiptUrl = "receipt_url"
