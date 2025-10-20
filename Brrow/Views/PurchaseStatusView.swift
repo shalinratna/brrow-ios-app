@@ -74,40 +74,10 @@ struct PurchaseStatusView: View {
                     )
                 }
             } else {
-                // Create new meetup
-                MeetupCreationView(
-                    purchaseId: viewModel.purchase.id,
-                    onMeetupCreated: { meetup in
-                        viewModel.purchase = Purchase(
-                            id: viewModel.purchase.id,
-                            listingId: viewModel.purchase.listingId,
-                            buyerId: viewModel.purchase.buyerId,
-                            sellerId: viewModel.purchase.sellerId,
-                            purchaseType: viewModel.purchase.purchaseType,
-                            amount: viewModel.purchase.amount,
-                            paymentIntentId: viewModel.purchase.paymentIntentId,
-                            paymentStatus: viewModel.purchase.paymentStatus,
-                            verificationStatus: viewModel.purchase.verificationStatus,
-                            deadline: viewModel.purchase.deadline,
-                            createdAt: viewModel.purchase.createdAt,
-                            updatedAt: viewModel.purchase.updatedAt,
-                            sellerConfirmedAt: viewModel.purchase.sellerConfirmedAt,
-                            buyerConfirmedAt: viewModel.purchase.buyerConfirmedAt,
-                            verificationCompletedAt: viewModel.purchase.verificationCompletedAt,
-                            refundedAt: viewModel.purchase.refundedAt,
-                            meetupId: meetup.id,
-                            sellerConfirmed: viewModel.purchase.sellerConfirmed,
-                            buyerConfirmed: viewModel.purchase.buyerConfirmed,
-                            transactionDisplayId: viewModel.purchase.transactionDisplayId,
-                            isActive: viewModel.purchase.isActive,
-                            isPast: viewModel.purchase.isPast,
-                            receiptId: viewModel.purchase.receiptId,
-                            receiptGeneratedAt: viewModel.purchase.receiptGeneratedAt,
-                            receiptUrl: viewModel.purchase.receiptUrl,
-                            listing: viewModel.purchase.listing,
-                            buyer: viewModel.purchase.buyer,
-                            seller: viewModel.purchase.seller
-                        )
+                // Schedule new meetup
+                MeetupSchedulingView(
+                    transactionId: viewModel.purchase.id,
+                    onMeetupScheduled: { meetup in
                         showingMeetupCreation = false
                     }
                 )
