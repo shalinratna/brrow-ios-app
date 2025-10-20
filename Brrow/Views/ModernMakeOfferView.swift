@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct ModernMakeOfferView: View {
     @Environment(\.dismiss) private var dismiss
@@ -314,6 +315,8 @@ class MakeOfferViewModel: ObservableObject {
 
     let listing: Listing
     let originalPrice: Double
+    private var currentTask: URLSessionDataTask?
+    private var cancellables = Set<AnyCancellable>()
 
     init(listing: Listing) {
         self.listing = listing
@@ -323,6 +326,12 @@ class MakeOfferViewModel: ObservableObject {
         let initialOffer = listing.price * 0.8
         self.offerAmount = initialOffer
         self.offerAmountText = String(Int(initialOffer))
+    }
+
+    deinit {
+        // Cancel any in-flight network requests
+        currentTask?.cancel()
+        cancellables.removeAll()
     }
 
     var canSendOffer: Bool {
@@ -352,6 +361,9 @@ class MakeOfferViewModel: ObservableObject {
 
     func sendOffer() {
         guard canSendOffer else { return }
+
+        // Cancel any existing request
+        currentTask?.cancel()
 
         isLoading = true
 
@@ -392,41 +404,52 @@ class MakeOfferViewModel: ObservableObject {
             return
         }
 
-        // Send request
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        // Send request and store task for cancellation
+        currentTask = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+
             DispatchQueue.main.async {
-                self?.isLoading = false
+                // Clear current task reference
+                self.currentTask = nil
+                self.isLoading = false
+
+                // Handle cancellation
+                if let error = error as NSError?, error.code == NSURLErrorCancelled {
+                    return // Silently ignore cancelled requests
+                }
 
                 if let error = error {
-                    self?.errorMessage = "Network error: \(error.localizedDescription)"
-                    self?.showErrorAlert = true
+                    self.errorMessage = "Network error: \(error.localizedDescription)"
+                    self.showErrorAlert = true
                     return
                 }
 
                 guard let httpResponse = response as? HTTPURLResponse else {
-                    self?.errorMessage = "Invalid response"
-                    self?.showErrorAlert = true
+                    self.errorMessage = "Invalid response"
+                    self.showErrorAlert = true
                     return
                 }
 
                 if httpResponse.statusCode == 201 {
                     // Success
-                    self?.showSuccessAlert = true
+                    self.showSuccessAlert = true
                 } else if httpResponse.statusCode == 402 {
-                    self?.errorMessage = "Payment method declined. Please add a valid payment method."
-                    self?.showErrorAlert = true
+                    self.errorMessage = "Payment method declined. Please add a valid payment method."
+                    self.showErrorAlert = true
                 } else {
                     // Parse error message
                     if let data = data,
                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let error = json["error"] as? String {
-                        self?.errorMessage = error
+                        self.errorMessage = error
                     } else {
-                        self?.errorMessage = "Failed to send offer. Please try again."
+                        self.errorMessage = "Failed to send offer. Please try again."
                     }
-                    self?.showErrorAlert = true
+                    self.showErrorAlert = true
                 }
             }
-        }.resume()
+        }
+
+        currentTask?.resume()
     }
 }

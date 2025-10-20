@@ -10,6 +10,8 @@ import SwiftUI
 struct PurchaseStatusView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: PurchaseStatusViewModel
+    @State private var showingMessageComposer = false
+    @State private var showingMeetupCreation = false
 
     init(purchase: Purchase) {
         self._viewModel = StateObject(wrappedValue: PurchaseStatusViewModel(purchase: purchase))
@@ -54,6 +56,62 @@ struct PurchaseStatusView: View {
         }
         .onDisappear {
             viewModel.stopTimer()
+        }
+        .sheet(isPresented: $showingMessageComposer) {
+            if let otherParty = otherPartyUser {
+                DirectMessageComposerView(recipient: otherParty)
+            }
+        }
+        .sheet(isPresented: $showingMeetupCreation) {
+            if let meetupId = viewModel.purchase.meetupId {
+                // Meetup already exists, navigate to tracking
+                NavigationView {
+                    MeetupTrackingView(
+                        meetupId: meetupId,
+                        onVerificationReady: { _ in
+                            showingMeetupCreation = false
+                        }
+                    )
+                }
+            } else {
+                // Create new meetup
+                MeetupCreationView(
+                    purchaseId: viewModel.purchase.id,
+                    onMeetupCreated: { meetup in
+                        viewModel.purchase = Purchase(
+                            id: viewModel.purchase.id,
+                            listingId: viewModel.purchase.listingId,
+                            buyerId: viewModel.purchase.buyerId,
+                            sellerId: viewModel.purchase.sellerId,
+                            purchaseType: viewModel.purchase.purchaseType,
+                            amount: viewModel.purchase.amount,
+                            paymentIntentId: viewModel.purchase.paymentIntentId,
+                            paymentStatus: viewModel.purchase.paymentStatus,
+                            verificationStatus: viewModel.purchase.verificationStatus,
+                            deadline: viewModel.purchase.deadline,
+                            createdAt: viewModel.purchase.createdAt,
+                            updatedAt: viewModel.purchase.updatedAt,
+                            sellerConfirmedAt: viewModel.purchase.sellerConfirmedAt,
+                            buyerConfirmedAt: viewModel.purchase.buyerConfirmedAt,
+                            verificationCompletedAt: viewModel.purchase.verificationCompletedAt,
+                            refundedAt: viewModel.purchase.refundedAt,
+                            meetupId: meetup.id,
+                            sellerConfirmed: viewModel.purchase.sellerConfirmed,
+                            buyerConfirmed: viewModel.purchase.buyerConfirmed,
+                            transactionDisplayId: viewModel.purchase.transactionDisplayId,
+                            isActive: viewModel.purchase.isActive,
+                            isPast: viewModel.purchase.isPast,
+                            receiptId: viewModel.purchase.receiptId,
+                            receiptGeneratedAt: viewModel.purchase.receiptGeneratedAt,
+                            receiptUrl: viewModel.purchase.receiptUrl,
+                            listing: viewModel.purchase.listing,
+                            buyer: viewModel.purchase.buyer,
+                            seller: viewModel.purchase.seller
+                        )
+                        showingMeetupCreation = false
+                    }
+                )
+            }
         }
     }
 
@@ -161,6 +219,11 @@ struct PurchaseStatusView: View {
 
     private var otherPartyRole: String {
         return isBuyer ? "seller" : "buyer"
+    }
+
+    private var otherPartyUser: User? {
+        let otherPartyPurchaseUser = isBuyer ? viewModel.purchase.seller : viewModel.purchase.buyer
+        return otherPartyPurchaseUser?.toUser()
     }
 
     // MARK: - Deadline Countdown
@@ -332,12 +395,13 @@ struct PurchaseStatusView: View {
     private var actionButtons: some View {
         VStack(spacing: Theme.Spacing.sm) {
             if !viewModel.purchase.isCompleted && !viewModel.purchase.isExpired {
+                // Schedule Meetup Button
                 Button(action: {
-                    // Navigate to meetup scheduling
+                    showingMeetupCreation = true
                 }) {
                     HStack {
                         Image(systemName: "location.fill")
-                        Text("Schedule Meetup")
+                        Text(viewModel.purchase.meetupId != nil ? "Track Meetup" : "Schedule Meetup")
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -346,8 +410,9 @@ struct PurchaseStatusView: View {
                     .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.primary))
                 }
 
+                // Message Other Party Button
                 Button(action: {
-                    // Open chat
+                    showingMessageComposer = true
                 }) {
                     HStack {
                         Image(systemName: "message.fill")

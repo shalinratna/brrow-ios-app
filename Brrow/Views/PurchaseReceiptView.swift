@@ -559,6 +559,15 @@ struct PurchaseReceiptView: View {
             VStack(spacing: Theme.Spacing.sm) {
                 detailRow(label: "Transaction ID", value: purchase.id.prefix(8).uppercased())
                 detailRow(label: "Purchase Type", value: purchase.purchaseType == .buyNow ? "Buy Now" : "Accepted Offer")
+
+                // Buyer and Seller Information
+                if let buyer = purchase.buyer {
+                    detailRow(label: "Buyer", value: "@\(buyer.username)")
+                }
+                if let seller = purchase.seller {
+                    detailRow(label: "Seller", value: "@\(seller.username)")
+                }
+
                 detailRow(label: "Payment Method", value: "Stripe")
                 detailRow(label: "Purchase Date", value: formattedDate(purchase.createdAt))
                 if let paymentIntentId = purchase.paymentIntentId {
