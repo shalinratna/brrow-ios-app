@@ -49,9 +49,14 @@ struct TransactionDetailView: View {
                     ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
 
                     // Meetup section - scheduling or tracking
-                    if let meetupId = purchase.meetup?.id {
-                        MeetupTrackingSection(meetupId: meetupId, viewModel: viewModel)
+                    // CRITICAL FIX: Check if meetup has actual data, not just if it exists
+                    // A meetup might exist but be incomplete (null location/time)
+                    if let meetup = purchase.meetup,
+                       meetup.meetupLocation != nil || meetup.scheduledTime != nil {
+                        // Meetup exists AND has data - show tracking
+                        MeetupTrackingSection(meetupId: meetup.id, viewModel: viewModel)
                     } else {
+                        // No meetup OR meetup is incomplete - show scheduling
                         MeetupSchedulingSection(
                             showingMeetupScheduling: $showingMeetupScheduling
                         )
