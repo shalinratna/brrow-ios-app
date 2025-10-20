@@ -195,7 +195,10 @@ struct LinkedAccountsView: View {
             // Unlink Button
             Button(action: {
                 // Check if this is the last sign-in method
-                if viewModel.linkedAccounts.count <= 1 {
+                // Count: linked accounts + password (if set)
+                let totalSignInMethods = viewModel.linkedAccounts.count + (authManager.currentUser?.hasPassword == true ? 1 : 0)
+
+                if totalSignInMethods <= 1 {
                     showingLastMethodWarning = true
                 } else {
                     providerToUnlink = provider
