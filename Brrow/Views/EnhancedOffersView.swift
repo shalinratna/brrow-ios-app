@@ -9,8 +9,7 @@ import SwiftUI
 
 struct EnhancedOffersView: View {
     @State private var selectedTab: OfferTab = .received
-    @State private var offers: [EnhancedOffer] = []
-    @State private var isLoading = false
+    @StateObject private var viewModel = OffersViewModel()
     @Environment(\.dismiss) private var dismiss
     
     enum OfferTab: String, CaseIterable {
@@ -42,9 +41,9 @@ struct EnhancedOffersView: View {
                     .padding(.vertical, 12)
                 
                 // Content
-                if isLoading {
+                if viewModel.isLoading {
                     loadingView
-                } else if offers.isEmpty {
+                } else if currentOffers.isEmpty {
                     emptyState
                 } else {
                     offersScrollView
@@ -52,7 +51,20 @@ struct EnhancedOffersView: View {
             }
         }
         .onAppear {
-            loadOffers()
+            viewModel.fetchOffers()
+        }
+    }
+
+    // Computed property to get current offers based on selected tab
+    private var currentOffers: [Offer] {
+        switch selectedTab {
+        case .received:
+            return viewModel.receivedOffers
+        case .sent:
+            return viewModel.sentOffers
+        case .history:
+            // History shows all offers that are not pending
+            return (viewModel.receivedOffers + viewModel.sentOffers).filter { $0.status != .pending }
         }
     }
     
@@ -96,7 +108,6 @@ struct EnhancedOffersView: View {
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
                         selectedTab = tab
-                        loadOffers()
                     }
                 }) {
                     VStack(spacing: 8) {
@@ -134,8 +145,8 @@ struct EnhancedOffersView: View {
     private var offersScrollView: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                ForEach(offers) { offer in
-                    EnhancedOfferCard(offer: offer)
+                ForEach(currentOffers) { offer in
+                    OfferCardView(offer: offer, isSent: selectedTab == .sent)
                         .padding(.horizontal)
                 }
             }
@@ -189,108 +200,4 @@ struct EnhancedOffersView: View {
             return "Your offer history will appear here"
         }
     }
-    
-    // MARK: - Load Offers
-    private func loadOffers() {
-        isLoading = true
-        
-        // Simulate loading
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            isLoading = false
-            offers = [] // Load actual offers from API
-        }
-    }
-}
-
-// MARK: - Enhanced Offer Card
-struct EnhancedOfferCard: View {
-    let offer: EnhancedOffer
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // Item image
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.Colors.secondaryBackground)
-                .frame(width: 80, height: 80)
-                .overlay(
-                    Image(systemName: "cube.box.fill")
-                        .font(.title2)
-                        .foregroundColor(Theme.Colors.secondary)
-                )
-            
-            // Content
-            VStack(alignment: .leading, spacing: 6) {
-                Text(offer.itemTitle)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(Theme.Colors.text)
-                    .lineLimit(1)
-                
-                Text("$\(Int(offer.amount))")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(Theme.Colors.primary)
-                
-                HStack {
-                    Image(systemName: "person.circle.fill")
-                        .font(.caption)
-                    Text(offer.userName)
-                        .font(.caption)
-                }
-                .foregroundColor(Theme.Colors.secondaryText)
-            }
-            
-            Spacer()
-            
-            // Status
-            VStack(alignment: .trailing, spacing: 4) {
-                StatusPill(status: offer.status)
-                
-                Text(offer.timeAgo)
-                    .font(.caption)
-                    .foregroundColor(Theme.Colors.secondaryText)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.Colors.cardBackground)
-                .shadow(color: Theme.Shadows.card, radius: 4, y: 2)
-        )
-    }
-}
-
-// MARK: - Status Pill
-struct StatusPill: View {
-    let status: String
-    
-    var body: some View {
-        Text(status.capitalized)
-            .font(.caption.bold())
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(statusColor)
-            )
-    }
-    
-    private var statusColor: Color {
-        switch status.lowercased() {
-        case "pending": return .orange
-        case "accepted": return .green
-        case "rejected": return .red
-        case "expired": return .gray
-        default: return Theme.Colors.secondary
-        }
-    }
-}
-
-// MARK: - Enhanced Offer Model
-struct EnhancedOffer: Identifiable {
-    let id = UUID()
-    let itemTitle: String
-    let amount: Double
-    let userName: String
-    let status: String
-    let timeAgo: String
 }

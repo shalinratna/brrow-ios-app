@@ -11,6 +11,7 @@ struct TransactionDetailView: View {
     let purchaseId: String
     @StateObject private var viewModel = TransactionDetailViewModel()
     @Environment(\.dismiss) private var dismiss
+    @State private var showingMeetupScheduling = false
 
     var body: some View {
         ScrollView {
@@ -47,9 +48,13 @@ struct TransactionDetailView: View {
                     // Receipt
                     ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
 
-                    // Meetup tracking button (if meetup exists)
+                    // Meetup section - scheduling or tracking
                     if let meetupId = purchase.meetup?.id {
                         MeetupTrackingSection(meetupId: meetupId, viewModel: viewModel)
+                    } else {
+                        MeetupSchedulingSection(
+                            showingMeetupScheduling: $showingMeetupScheduling
+                        )
                     }
 
                     // Action buttons (if applicable)
@@ -99,6 +104,18 @@ struct TransactionDetailView: View {
                     viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
                 }
             )
+        }
+        .sheet(isPresented: $showingMeetupScheduling) {
+            if let purchase = viewModel.purchase {
+                MeetupSchedulingView(
+                    transactionId: purchase.id,
+                    onMeetupScheduled: { meetup in
+                        showingMeetupScheduling = false
+                        // Refresh purchase details to show updated meetup
+                        viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
+                    }
+                )
+            }
         }
     }
 }
@@ -417,6 +434,43 @@ struct SellerActionsSection: View {
             }
         }
         .padding(.vertical)
+    }
+}
+
+struct MeetupSchedulingSection: View {
+    @Binding var showingMeetupScheduling: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Coordinate Meetup")
+                .font(.headline)
+
+            Text("Schedule a meetup location and time with the other party to complete this transaction safely.")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(action: {
+                showingMeetupScheduling = true
+            }) {
+                HStack {
+                    Image(systemName: "location")
+                    Text("Schedule Meetup")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(12)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
 }
 

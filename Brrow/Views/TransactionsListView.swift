@@ -24,6 +24,9 @@ struct TransactionsListView: View {
     @StateObject private var viewModel = TransactionsViewModel()
     @State private var searchText = ""
     @State private var selectedFilter: TransactionFilter = .all
+    @State private var selectedPurchaseForMeetup: PurchaseSummary?
+    @State private var showingMeetupScheduling = false
+    @State private var showingMeetupTracking = false
 
     enum TransactionFilter: String, CaseIterable {
         case all = "All"
@@ -133,10 +136,15 @@ struct TransactionsListView: View {
                     ScrollView {
                         LazyVStack(spacing: Theme.Spacing.gutter) {
                             ForEach(filteredPurchases) { purchase in
-                                NavigationLink(destination: TransactionDetailView(purchaseId: purchase.id)) {
-                                    TransactionCard(purchase: purchase)
+                                VStack(spacing: 0) {
+                                    NavigationLink(destination: TransactionDetailView(purchaseId: purchase.id)) {
+                                        TransactionCard(purchase: purchase)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+
+                                    // Meetup button
+                                    meetupButton(for: purchase)
                                 }
-                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                         .padding(Theme.Spacing.md)
@@ -151,6 +159,78 @@ struct TransactionsListView: View {
             Button("OK") { viewModel.errorMessage = nil }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+        .sheet(isPresented: $showingMeetupScheduling) {
+            if let purchase = selectedPurchaseForMeetup {
+                MeetupSchedulingView(
+                    transactionId: purchase.id,
+                    onMeetupScheduled: { meetup in
+                        showingMeetupScheduling = false
+                        selectedPurchaseForMeetup = nil
+                        // Refresh transactions to show updated meetup status
+                        viewModel.fetchPurchases(role: nil, status: nil, search: nil)
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showingMeetupTracking) {
+            if let purchase = selectedPurchaseForMeetup, let meetupId = purchase.meetup?.id {
+                NavigationView {
+                    MeetupTrackingView(
+                        meetupId: meetupId,
+                        onVerificationReady: { _ in
+                            showingMeetupTracking = false
+                            selectedPurchaseForMeetup = nil
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Meetup Button Helper
+    @ViewBuilder
+    private func meetupButton(for purchase: PurchaseSummary) -> some View {
+        if let meetup = purchase.meetup {
+            // Meetup exists - show Track Meetup button
+            Button(action: {
+                selectedPurchaseForMeetup = purchase
+                showingMeetupTracking = true
+            }) {
+                HStack {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 14))
+                    Text("Track Meetup")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundColor(Theme.Colors.info)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(Theme.Colors.info.opacity(0.1))
+                .cornerRadius(Theme.CornerRadius.card)
+            }
+            .padding(.horizontal, Theme.Spacing.gutter)
+            .padding(.top, Theme.Spacing.sm)
+        } else {
+            // No meetup - show Schedule Meetup button
+            Button(action: {
+                selectedPurchaseForMeetup = purchase
+                showingMeetupScheduling = true
+            }) {
+                HStack {
+                    Image(systemName: "location")
+                        .font(.system(size: 14))
+                    Text("Schedule Meetup")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundColor(Theme.Colors.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(Theme.Colors.primary.opacity(0.1))
+                .cornerRadius(Theme.CornerRadius.card)
+            }
+            .padding(.horizontal, Theme.Spacing.gutter)
+            .padding(.top, Theme.Spacing.sm)
         }
     }
 
