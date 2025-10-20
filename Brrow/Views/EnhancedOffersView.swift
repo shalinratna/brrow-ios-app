@@ -269,7 +269,7 @@ struct EnhancedOfferCard: View {
             VStack(alignment: .trailing, spacing: 4) {
                 StatusPill(status: offer.status.rawValue)
 
-                Text(offer.createdAt.toRelativeTime())
+                Text(offer.createdAt.toShortUserFriendlyString())
                     .font(.caption)
                     .foregroundColor(Theme.Colors.secondaryText)
             }
