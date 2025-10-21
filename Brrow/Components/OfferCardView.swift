@@ -224,6 +224,8 @@ struct OfferCardView_Previews: PreviewProvider {
                     editedAt: nil,
                     deletedAt: nil,
                     sentAt: nil,
+                    deliveredAt: nil,
+                    readAt: nil,
                     createdAt: ISO8601DateFormatter().string(from: Date()),
                     sender: nil,
                     reactions: nil
@@ -252,6 +254,8 @@ struct OfferCardView_Previews: PreviewProvider {
                     editedAt: nil,
                     deletedAt: nil,
                     sentAt: nil,
+                    deliveredAt: nil,
+                    readAt: nil,
                     createdAt: ISO8601DateFormatter().string(from: Date()),
                     sender: nil,
                     reactions: nil

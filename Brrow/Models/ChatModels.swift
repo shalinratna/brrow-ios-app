@@ -124,6 +124,8 @@ struct Message: Identifiable, Equatable {
     let editedAt: String?
     let deletedAt: String?
     let sentAt: String?
+    let deliveredAt: String?  // ✅ FIXED: Track when message was delivered
+    let readAt: String?  // ✅ FIXED: Track when message was read
     let createdAt: String
     let sender: User?
     let reactions: [MessageReaction]?
@@ -180,6 +182,8 @@ extension Message: Codable {
         case editedAt = "edited_at"
         case deletedAt = "deleted_at"
         case sentAt = "sent_at"
+        case deliveredAt = "delivered_at"  // ✅ FIXED: Decode delivered timestamp
+        case readAt = "read_at"  // ✅ FIXED: Decode read timestamp
         case createdAt = "created_at"
         case reactions
         // Exclude sender, tempId, and sendStatus from encoding/decoding
@@ -201,13 +205,26 @@ extension Message: Codable {
         editedAt = try container.decodeIfPresent(String.self, forKey: .editedAt)
         deletedAt = try container.decodeIfPresent(String.self, forKey: .deletedAt)
         sentAt = try container.decodeIfPresent(String.self, forKey: .sentAt)
+        deliveredAt = try container.decodeIfPresent(String.self, forKey: .deliveredAt)  // ✅ FIXED
+        readAt = try container.decodeIfPresent(String.self, forKey: .readAt)  // ✅ FIXED
         createdAt = try container.decode(String.self, forKey: .createdAt)
         reactions = try container.decodeIfPresent([MessageReaction].self, forKey: .reactions)
-        
+
         // Set default values for non-Codable properties
         sender = nil
         tempId = nil
-        sendStatus = .sent
+
+        // ✅ FIXED: Compute sendStatus based on backend fields (like iMessage)
+        // Priority: read > delivered > sent > sending
+        if let readAt = readAt, !readAt.isEmpty {
+            sendStatus = .read  // Blue double checkmark
+        } else if let deliveredAt = deliveredAt, !deliveredAt.isEmpty {
+            sendStatus = .delivered  // Gray double checkmark
+        } else if let sentAt = sentAt, !sentAt.isEmpty {
+            sendStatus = .sent  // Single gray checkmark
+        } else {
+            sendStatus = .sending  // Spinner (still sending)
+        }
     }
     
     func encode(to encoder: Encoder) throws {
@@ -226,6 +243,8 @@ extension Message: Codable {
         try container.encodeIfPresent(editedAt, forKey: .editedAt)
         try container.encodeIfPresent(deletedAt, forKey: .deletedAt)
         try container.encodeIfPresent(sentAt, forKey: .sentAt)
+        try container.encodeIfPresent(deliveredAt, forKey: .deliveredAt)  // ✅ FIXED
+        try container.encodeIfPresent(readAt, forKey: .readAt)  // ✅ FIXED
         try container.encode(createdAt, forKey: .createdAt)
         try container.encodeIfPresent(reactions, forKey: .reactions)
     }

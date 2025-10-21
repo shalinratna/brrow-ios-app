@@ -74,5 +74,23 @@
    <ArchiveAction
       buildConfiguration = "Release"
       revealArchiveInOrganizer = "YES">
+      <PostActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Add ApplicationProperties to Archive"
+               scriptText = "# Log to console and file for debugging&#10;LOG_FILE=&quot;/tmp/xcode-postarchive-log.txt&quot;&#10;echo &quot;=== Post-Archive Script Start ===&quot; | tee -a &quot;$LOG_FILE&quot;&#10;echo &quot;Date: $(date)&quot; | tee -a &quot;$LOG_FILE&quot;&#10;echo &quot;ARCHIVE_PATH: $ARCHIVE_PATH&quot; | tee -a &quot;$LOG_FILE&quot;&#10;echo &quot;SRCROOT: $SRCROOT&quot; | tee -a &quot;$LOG_FILE&quot;&#10;echo &quot;PWD: $PWD&quot; | tee -a &quot;$LOG_FILE&quot;&#10;&#10;if [ -z &quot;$ARCHIVE_PATH&quot; ]; then&#10;    echo &quot;❌ ERROR: ARCHIVE_PATH not set&quot; | tee -a &quot;$LOG_FILE&quot;&#10;    exit 1&#10;fi&#10;&#10;# Use absolute path to script&#10;SCRIPT_PATH=&quot;$SRCROOT/add-archive-properties.sh&quot;&#10;echo &quot;Script path: $SCRIPT_PATH&quot; | tee -a &quot;$LOG_FILE&quot;&#10;&#10;if [ ! -f &quot;$SCRIPT_PATH&quot; ]; then&#10;    echo &quot;❌ ERROR: Script not found at $SCRIPT_PATH&quot; | tee -a &quot;$LOG_FILE&quot;&#10;    exit 1&#10;fi&#10;&#10;echo &quot;Executing: $SCRIPT_PATH $ARCHIVE_PATH&quot; | tee -a &quot;$LOG_FILE&quot;&#10;/bin/bash &quot;$SCRIPT_PATH&quot; &quot;$ARCHIVE_PATH&quot; 2&gt;&amp;1 | tee -a &quot;$LOG_FILE&quot;&#10;EXIT_CODE=$?&#10;&#10;if [ $EXIT_CODE -eq 0 ]; then&#10;    echo &quot;✅ ApplicationProperties successfully added&quot; | tee -a &quot;$LOG_FILE&quot;&#10;else&#10;    echo &quot;❌ ERROR: Failed with exit code $EXIT_CODE&quot; | tee -a &quot;$LOG_FILE&quot;&#10;fi&#10;echo &quot;=== Post-Archive Script End ===&quot; | tee -a &quot;$LOG_FILE&quot;&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "ED419AF32E281A31006E8DB9"
+                     BuildableName = "Brrow.app"
+                     BlueprintName = "Brrow"
+                     ReferencedContainer = "container:Brrow.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PostActions>
    </ArchiveAction>
 </Scheme>

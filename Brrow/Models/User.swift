@@ -55,6 +55,7 @@ struct User: Codable, Identifiable {
     let idVerification: String?
     let verificationStatus: String?
     let hasPassword: Bool?  // NEW: Check if user has password set (for Create Password vs Change Password button)
+    let hasBlueCheckmark: Bool?  // NEW: True only when BOTH email AND ID are verified (Stripe Identity)
     
     // Account Status
     let isActive: Bool?
@@ -140,6 +141,7 @@ struct User: Codable, Identifiable {
         case idVerification = "id_verification"
         case verificationStatus = "verification_status"
         case hasPassword = "hasPassword"  // Backend sends camelCase
+        case hasBlueCheckmark = "hasBlueCheckmark"  // Backend sends camelCase - requires BOTH email + ID verified
         
         // Account Status
         case isActive = "is_active"
@@ -214,6 +216,7 @@ struct User: Codable, Identifiable {
         self.emailVerified = emailVerified
         self.idVerified = idVerified
         self.hasPassword = nil  // NEW: Default to nil for placeholder users
+        self.hasBlueCheckmark = emailVerified && idVerified  // Computed: requires BOTH email + ID verified
         self.lastActive = ISO8601DateFormatter().string(from: Date())
         self.stripeLinked = stripeLinked
         self.hasGreenMembership = false
@@ -321,6 +324,7 @@ struct User: Codable, Identifiable {
         self.idVerification = try container.decodeIfPresent(String.self, forKey: .idVerification)
         self.verificationStatus = try container.decodeIfPresent(String.self, forKey: .verificationStatus)
         self.hasPassword = try container.decodeIfPresent(Bool.self, forKey: .hasPassword)
+        self.hasBlueCheckmark = try container.decodeIfPresent(Bool.self, forKey: .hasBlueCheckmark) ?? false
         
         // Account Status
         self.isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true

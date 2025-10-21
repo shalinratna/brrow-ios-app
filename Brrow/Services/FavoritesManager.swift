@@ -130,9 +130,45 @@ class FavoritesManager: ObservableObject {
             // Try to extract more info from error
             let errorString = String(describing: error)
             print("   Full Error String: \(errorString)")
+
+            // Check if error is "already in favorites" - this is OK, just sync local state
+            let isAlreadyFavoritedError = errorString.contains("already in favorites") ||
+                                         errorString.contains("Listing already in favorites")
+            let isNotFavoritedError = errorString.contains("not in favorites") ||
+                                     errorString.contains("Favorite not found")
+
+            if isAlreadyFavoritedError {
+                print("   ℹ️ Item already favorited on backend - syncing local state")
+                // Keep the optimistic update (already added to local state)
+                // Just post notification and show success
+                await MainActor.run {
+                    ToastManager.shared.showSuccess(
+                        title: "Added to Favorites",
+                        message: "Item saved successfully"
+                    )
+                }
+                NotificationCenter.default.post(name: .favoriteStatusChanged, object: ["listingId": listingId, "isFavorited": true])
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                return
+            }
+
+            if isNotFavoritedError {
+                print("   ℹ️ Item not favorited on backend - syncing local state")
+                // Keep the optimistic update (already removed from local state)
+                await MainActor.run {
+                    ToastManager.shared.showSuccess(
+                        title: "Removed from Favorites",
+                        message: "Item removed successfully"
+                    )
+                }
+                NotificationCenter.default.post(name: .favoriteStatusChanged, object: ["listingId": listingId, "isFavorited": false])
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                return
+            }
+
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-            // Revert optimistic update on error
+            // Revert optimistic update only for real errors
             await MainActor.run {
                 if isFavorited {
                     self.favoriteListingIds.insert(listingId)

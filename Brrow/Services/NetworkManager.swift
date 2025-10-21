@@ -7,15 +7,44 @@
 
 import Foundation
 import Network
+import Combine
 
-class NetworkManager {
+// MARK: - Connection Quality
+enum ConnectionQuality {
+    case good       // Normal operation
+    case poor       // Experiencing timeouts/slow responses
+    case disconnected // No network connection
+
+    var message: String {
+        switch self {
+        case .good:
+            return ""
+        case .poor:
+            return "Slow Connection - Some features may be unavailable"
+        case .disconnected:
+            return "No Internet Connection"
+        }
+    }
+
+    var shouldShowBanner: Bool {
+        return self == .poor || self == .disconnected
+    }
+}
+
+class NetworkManager: ObservableObject {
     static let shared = NetworkManager()
-    
+
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
-    
+
     @Published var isConnected = true
     @Published var connectionType: NWInterface.InterfaceType?
+    @Published var connectionQuality: ConnectionQuality = .good
+
+    // Track recent failures to detect poor connection
+    private var recentFailures: [Date] = []
+    private let failureWindowSeconds: TimeInterval = 30  // Track failures in last 30 seconds
+    private let poorConnectionThreshold = 3  // 3+ failures = poor connection
     
     // Retry configuration
     struct RetryConfiguration {
@@ -34,18 +63,72 @@ class NetworkManager {
             DispatchQueue.main.async {
                 self?.isConnected = path.status == .satisfied
                 self?.connectionType = path.availableInterfaces.first?.type
-                
+
+                // Update connection quality
                 if !path.status.isConnected {
                     print("⚠️ Network disconnected")
+                    self?.connectionQuality = .disconnected
+                    self?.recentFailures.removeAll() // Clear failures when fully disconnected
                 } else {
                     print("✅ Network connected via \(path.availableInterfaces.first?.type.description ?? "unknown")")
+
+                    // Connection restored - check if we should upgrade from poor to good
+                    if self?.connectionQuality == .disconnected {
+                        // Just reconnected - assume good until proven otherwise
+                        self?.connectionQuality = .good
+                        self?.recentFailures.removeAll()
+                    }
                 }
             }
         }
-        
+
         monitor.start(queue: queue)
     }
-    
+
+    // MARK: - Connection Quality Tracking
+
+    /// Call this when a network request fails (timeout, connection lost, etc.)
+    func reportNetworkFailure() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            // Only track failures when we think we're connected
+            guard self.isConnected else { return }
+
+            let now = Date()
+            self.recentFailures.append(now)
+
+            // Remove failures outside the time window
+            self.recentFailures = self.recentFailures.filter {
+                now.timeIntervalSince($0) <= self.failureWindowSeconds
+            }
+
+            // Check if we should mark connection as poor
+            if self.recentFailures.count >= self.poorConnectionThreshold {
+                if self.connectionQuality != .poor {
+                    print("📶 Connection quality degraded to POOR (\(self.recentFailures.count) failures in \(self.failureWindowSeconds)s)")
+                    self.connectionQuality = .poor
+                }
+            }
+        }
+    }
+
+    /// Call this when a network request succeeds
+    func reportNetworkSuccess() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            // Clear recent failures on success
+            self.recentFailures.removeAll()
+
+            // Upgrade to good if we were poor
+            if self.connectionQuality == .poor {
+                print("📶 Connection quality restored to GOOD")
+                self.connectionQuality = .good
+            }
+        }
+    }
+
     // Enhanced URL session configuration
     static func createURLSession() -> URLSession {
         let config = URLSessionConfiguration.default
@@ -199,8 +282,12 @@ class NetworkManager {
                         let decoder = JSONDecoder()
                         // Most of our models use String for dates now, so we don't need custom date decoding
                         // This avoids the crash from date formatter issues
-                        
+
                         let decoded = try decoder.decode(responseType, from: data)
+
+                        // Report success to connection quality tracker
+                        NetworkManager.shared.reportNetworkSuccess()
+
                         return decoded
                     } catch {
                         // Log the raw response for debugging
@@ -283,21 +370,25 @@ class NetworkManager {
                 switch error.code {
                 case .timedOut:
                     print("⏱️ Request timed out (attempt \(attempt))")
+                    NetworkManager.shared.reportNetworkFailure()
                     lastError = BrrowAPIError.networkError("Request timed out")
-                    
+
                 case .notConnectedToInternet, .networkConnectionLost:
                     print("📵 Network connection lost (attempt \(attempt))")
+                    NetworkManager.shared.reportNetworkFailure()
                     lastError = BrrowAPIError.networkError("Network connection lost")
-                    
+
                 case .cannotConnectToHost, .cannotFindHost:
                     print("🚫 Cannot connect to server (attempt \(attempt))")
+                    NetworkManager.shared.reportNetworkFailure()
                     lastError = BrrowAPIError.networkError("Cannot connect to server")
-                    
+
                 default:
                     print("❌ Network error: \(error.localizedDescription)")
+                    NetworkManager.shared.reportNetworkFailure()
                     lastError = error
                 }
-                
+
             } catch {
                 // Check for task cancellation - don't retry
                 if Task.isCancelled || error is CancellationError {

@@ -18,6 +18,8 @@ struct EnhancedChatMessage: Identifiable {
     let mediaUrl: String?
     let createdAt: Date
     let isRead: Bool
+    let sendStatus: MessageSendStatus  // ✅ OPTIMISTIC: Track send status
+    let readAt: Date?  // ✅ INSTAGRAM-STYLE: Track when message was read for "Seen Xm ago"
 
     enum MessageType {
         case text
@@ -65,17 +67,9 @@ struct ChatDetailView: View {
             // Leave the WebSocket room when exiting chat
             WebSocketManager.shared.leaveChat(chatId: conversation.id)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .newMessageReceived)) { notification in
-            // CRITICAL: Handle real-time messages from WebSocket
-            guard let message = notification.object as? Message,
-                  let chatId = notification.userInfo?["chatId"] as? String,
-                  chatId == conversation.id else { return }
-
-            print("💬 [ChatDetailView] Received real-time message for chat \(chatId)")
-
-            // Reload messages to show the new message
-            viewModel.loadMessages(for: conversation.id)
-        }
+        // CRITICAL FIX: Removed duplicate .newMessageReceived listener
+        // The ChatDetailViewModel already handles this notification at lines 96-104
+        // Having two listeners caused messages to be fetched 7x times instead of once
         .onChange(of: selectedPhotosItem) { newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self) {
@@ -210,16 +204,42 @@ struct ChatDetailView: View {
                             .padding(.top, 8)
 
                         // Messages for this date
-                        ForEach(groupedMessagesByDate[date] ?? []) { message in
+                        ForEach(Array(groupedMessagesByDate[date]?.enumerated() ?? [].enumerated()), id: \.element.id) { index, message in
                             // CRITICAL FIX: Compare with user.id (CUID), not apiId
                             // Backend sends senderId as User.id (e.g., "clxyz123"), not User.apiId (e.g., "usr_abc")
                             let isOwnMessage = message.senderId == AuthManager.shared.currentUser?.id
 
+                            // ✅ MESSAGE GROUPING: Determine if this message should show timestamp
+                            let messagesForDate = groupedMessagesByDate[date] ?? []
+                            let previousMessage: Message? = index > 0 ? messagesForDate[index - 1] : nil
+                            let isLastInGroup = isLastMessageInGroup(message, nextMessage: index < messagesForDate.count - 1 ? messagesForDate[index + 1] : nil)
+                            let shouldShowTimestamp = shouldShowTimestamp(current: message, previous: previousMessage)
+
+                            // ✅ INSTAGRAM-STYLE: Check if this is the absolute last message in the conversation
+                            let isLastInConversation = viewModel.messages.last?.id == message.id
+
                             MessageBubbleView(
                                 message: message.toEnhancedChatMessage(),
-                                isOwnMessage: isOwnMessage
+                                isOwnMessage: isOwnMessage,
+                                showTimestamp: shouldShowTimestamp || isLastInGroup,  // Show timestamp on last in group or after 5 min
+                                isFirstInGroup: isFirstInGroup(message: message, previous: previousMessage),
+                                isLastInGroup: isLastInGroup,
+                                isLastInConversation: isLastInConversation  // ✅ INSTAGRAM-STYLE: For "Seen Xm ago"
                             )
                             .id(message.id)
+                            // ✅ MODERN ANIMATIONS: Different animations for sent vs received messages
+                            .transition(.asymmetric(
+                                insertion: isOwnMessage
+                                    ? .move(edge: .trailing).combined(with: .scale(scale: 0.8, anchor: .bottomTrailing)).combined(with: .opacity)
+                                    : .move(edge: .leading).combined(with: .scale(scale: 0.8, anchor: .bottomLeading)).combined(with: .opacity),
+                                removal: .opacity
+                            ))
+                            .onTapGesture {
+                                // ✅ OPTIMISTIC: Allow retry on failed messages
+                                if message.sendStatus == .failed {
+                                    viewModel.retryFailedMessage(message)
+                                }
+                            }
                         }
                     }
                 }
@@ -231,7 +251,8 @@ struct ChatDetailView: View {
             messagesContent
                 .onChange(of: viewModel.messages.count) { _ in
                     if let lastMessage = viewModel.messages.last {
-                        withAnimation {
+                        // ✅ MODERN ANIMATIONS: Smooth spring animation for scroll
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)
                         }
                     }
@@ -270,18 +291,19 @@ struct ChatDetailView: View {
         }
     }
 
-    // Get previous message for comparison
-    private func getPreviousMessage(for message: Message) -> Message? {
-        guard let index = viewModel.messages.firstIndex(where: { $0.id == message.id }),
-              index > 0 else { return nil }
-        return viewModel.messages[index - 1]
-    }
-
-    // Check if timestamp should be shown (show every 5 minutes)
+    // ✅ MESSAGE GROUPING: Check if timestamp should be shown (show every 5 minutes or when sender changes)
     private func shouldShowTimestamp(current: Message, previous: Message?) -> Bool {
-        guard let previous = previous else { return true }
+        guard let previous = previous else { return false }  // First message in date group doesn't show timestamp here
 
+        // Don't show timestamp when sender changes (timestamp appears on LAST message of group)
+        // iMessage behavior: timestamps appear BELOW the last message, not above the first
+        if current.senderId != previous.senderId {
+            return false  // ✅ FIXED: Don't show timestamp on first message of new group
+        }
+
+        // Show timestamp if more than 5 minutes passed
         let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let currentDate = dateFormatter.date(from: current.createdAt) ?? Date()
         let previousDate = dateFormatter.date(from: previous.createdAt) ?? Date()
 
@@ -289,15 +311,42 @@ struct ChatDetailView: View {
         return timeDifference > 300 // 5 minutes
     }
 
-    // Check if this is the first message in a group from the same sender
+    // ✅ MESSAGE GROUPING: Check if this is the first message in a group from the same sender
     private func isFirstInGroup(message: Message, previous: Message?) -> Bool {
         guard let previous = previous else { return true }
-        return message.senderId != previous.senderId
+
+        // Different sender = new group
+        if message.senderId != previous.senderId {
+            return true
+        }
+
+        // Same sender but > 5 minutes apart = new group
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let currentDate = dateFormatter.date(from: message.createdAt) ?? Date()
+        let previousDate = dateFormatter.date(from: previous.createdAt) ?? Date()
+
+        let timeDifference = currentDate.timeIntervalSince(previousDate)
+        return timeDifference > 300 // 5 minutes
     }
 
-    // Check if this is the last message in a group (simplified - checks if it's the last overall)
-    private func isLastInGroup(message: Message) -> Bool {
-        return message.id == viewModel.messages.last?.id
+    // ✅ MESSAGE GROUPING: Check if this is the last message in a group
+    private func isLastMessageInGroup(_ message: Message, nextMessage: Message?) -> Bool {
+        guard let next = nextMessage else { return true }  // Last message overall
+
+        // Different sender = end of group
+        if message.senderId != next.senderId {
+            return true
+        }
+
+        // Same sender but > 5 minutes until next = end of group
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let currentDate = dateFormatter.date(from: message.createdAt) ?? Date()
+        let nextDate = dateFormatter.date(from: next.createdAt) ?? Date()
+
+        let timeDifference = nextDate.timeIntervalSince(currentDate)
+        return timeDifference > 300 // 5 minutes
     }
     
     private var messageInputBar: some View {
@@ -317,8 +366,9 @@ struct ChatDetailView: View {
                 }
             } label: {
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 28))
+                    .font(.system(size: 32))
                     .foregroundColor(Theme.Colors.primary)
+                    .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
             }
             
             // Message Field
@@ -333,7 +383,7 @@ struct ChatDetailView: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.sm)
             .background(Theme.Colors.surface)
-            .cornerRadius(20)
+            .cornerRadius(26)
             
             // Send Button
             Button(action: sendMessage) {
@@ -353,9 +403,13 @@ struct ChatDetailView: View {
     
     private func sendMessage() {
         guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
+
+        // ✅ MODERN UX: Haptic feedback on send (like iMessage)
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+
         viewModel.sendTextMessage(messageText, to: conversation.id)
-        
+
         messageText = ""
     }
     
@@ -419,6 +473,16 @@ struct ChatDetailView: View {
     private func fetchAndShowProfile() {
         guard !isLoadingProfile else { return }
 
+        // ✅ PERFORMANCE: Check cache first for instant loading
+        if let cachedProfile = viewModel.cachedOtherUserProfile {
+            print("⚡ [ChatDetailView] Using cached profile for instant display")
+            self.otherUserProfile = cachedProfile
+            showingUserProfile = true
+            return
+        }
+
+        // Fallback: Fetch from API if not cached
+        print("🔍 [ChatDetailView] Cache miss - fetching profile from API")
         isLoadingProfile = true
         showingUserProfile = true  // Show sheet immediately with loading state
 
@@ -451,6 +515,7 @@ struct MessageBubbleView: View {
     var showTimestamp: Bool = true
     var isFirstInGroup: Bool = true
     var isLastInGroup: Bool = true
+    var isLastInConversation: Bool = false  // ✅ INSTAGRAM-STYLE: Track if this is the absolute last message
     @State private var showingFullScreenImage = false
 
     var body: some View {
@@ -458,15 +523,15 @@ struct MessageBubbleView: View {
             HStack(alignment: .bottom, spacing: 8) {
                 if isOwnMessage { Spacer(minLength: 50) }
 
-                VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 4) {
+                VStack(alignment: isOwnMessage ? .trailing : .leading, spacing: 2) {  // ✅ Tighter spacing for grouped messages
                     if message.type == .text || message.content.contains("inquiry") {
                         Text(message.content)
                             .font(.system(size: 16))
                             .foregroundColor(isOwnMessage ? .white : Theme.Colors.text)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             .background(isOwnMessage ? Theme.Colors.primary : Color(red: 0.95, green: 0.95, blue: 0.97))
-                            .cornerRadius(20)
+                            .cornerRadius(26)
                     } else if message.type == .image {
                         if let mediaData = try? JSONDecoder().decode(MediaMessageData.self, from: message.content.data(using: .utf8) ?? Data()) {
                             BrrowAsyncImage(url: mediaData.url) { image in
@@ -499,18 +564,55 @@ struct MessageBubbleView: View {
                         }
                     }
 
-                    // ALWAYS show timestamp on each message for clarity
-                    Text(formatTime(message.createdAt))
-                        .font(.system(size: 11))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .padding(.top, 2)
+                    // ✅ WHATSAPP-STYLE: Status and timestamp display
+                    if isOwnMessage {
+                        // For own messages, show status-specific UI
+                        if message.sendStatus == .sending {
+                            // SENDING: Show "sending..." text (no timestamp, no checkmark)
+                            Text("sending...")
+                                .font(.system(size: 10))
+                                .foregroundColor(Theme.Colors.secondaryText.opacity(0.7))
+                                .padding(.top, 2)
+                        } else if showTimestamp {
+                            // SENT/DELIVERED/READ: Show timestamp with optional checkmark
+                            HStack(spacing: 4) {
+                                Text(formatTime(message.createdAt))
+                                    .font(.system(size: 10))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+
+                                // READ: Show single green checkmark
+                                if message.sendStatus == .read {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(Theme.Colors.primary)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+
+                                // FAILED: Show red exclamation
+                                if message.sendStatus == .failed {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.red)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
+                    } else if showTimestamp {
+                        // For received messages, just show timestamp
+                        Text(formatTime(message.createdAt))
+                            .font(.system(size: 10))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                            .padding(.top, 2)
+                    }
                 }
 
                 if !isOwnMessage { Spacer(minLength: 50) }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
+
 
     private func formatTime(_ date: Date) -> String {
         let timeFormatter = DateFormatter()
@@ -518,6 +620,47 @@ struct MessageBubbleView: View {
         // Explicitly use local timezone (should be default, but being explicit)
         timeFormatter.timeZone = TimeZone.current
         return timeFormatter.string(from: date)
+    }
+
+    // ✅ INSTAGRAM-STYLE: Format relative time for "Seen Xm ago" indicator
+    private func formatRelativeTime(_ date: Date) -> String {
+        let now = Date()
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.minute, .hour, .day], from: date, to: now)
+
+        if let minutes = components.minute, let hours = components.hour, let days = components.day {
+            if days == 0 {
+                // Today
+                if hours == 0 {
+                    // Less than an hour
+                    if minutes == 0 {
+                        return "just now"
+                    } else if minutes == 1 {
+                        return "1m ago"
+                    } else {
+                        return "\(minutes)m ago"
+                    }
+                } else if hours == 1 {
+                    return "1h ago"
+                } else {
+                    return "\(hours)h ago"
+                }
+            } else if days == 1 {
+                return "yesterday"
+            } else if days < 7 {
+                // Within a week - show day name
+                let formatter = DateFormatter()
+                formatter.dateFormat = "EEEE" // Day name
+                return formatter.string(from: date)
+            } else {
+                // More than a week - show date
+                let formatter = DateFormatter()
+                formatter.dateStyle = .short
+                return formatter.string(from: date)
+            }
+        }
+
+        return "recently"
     }
 }
 
@@ -562,6 +705,19 @@ extension Message {
 
         let finalCreatedDate = createdDate!
 
+        // ✅ INSTAGRAM-STYLE: Parse readAt timestamp for "Seen Xm ago" indicator
+        var finalReadAt: Date? = nil
+        if let readAtString = self.readAt, !readAtString.isEmpty {
+            dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            finalReadAt = dateFormatter.date(from: readAtString)
+
+            // Fallback: Try without fractional seconds
+            if finalReadAt == nil {
+                dateFormatter.formatOptions = [.withInternetDateTime]
+                finalReadAt = dateFormatter.date(from: readAtString)
+            }
+        }
+
         // Convert MessageType to EnhancedChatMessage.MessageType
         let enhancedType: EnhancedChatMessage.MessageType
         switch self.messageType {
@@ -595,7 +751,9 @@ extension Message {
             type: enhancedType,
             mediaUrl: self.mediaUrl,
             createdAt: finalCreatedDate,
-            isRead: self.isRead
+            isRead: self.isRead,
+            sendStatus: self.sendStatus,  // ✅ OPTIMISTIC: Pass through send status
+            readAt: finalReadAt  // ✅ INSTAGRAM-STYLE: Pass through read timestamp
         )
     }
 }

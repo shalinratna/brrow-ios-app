@@ -88,13 +88,25 @@ struct StandaloneHelpSupportView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.md) {
                 HelpQuickActionCard(
-                    icon: "message.circle.fill",
-                    title: "Live Chat",
-                    subtitle: "Get instant help",
+                    icon: "shield.checkmark",
+                    title: "Safety Center",
+                    subtitle: "Stay safe on Brrow",
+                    color: .red
+                ) {
+                    if let url = URL(string: "https://brrowapp.com/safety") {
+                        UIApplication.shared.open(url)
+                    }
+                }
+
+                HelpQuickActionCard(
+                    icon: "questionmark.circle.fill",
+                    title: "Help Center",
+                    subtitle: "Browse FAQs",
                     color: .blue
                 ) {
-                    // Start live chat
-                    showingContactSupport = true
+                    if let url = URL(string: "https://brrowapp.com/help") {
+                        UIApplication.shared.open(url)
+                    }
                 }
 
                 HelpQuickActionCard(
@@ -109,21 +121,10 @@ struct StandaloneHelpSupportView: View {
                 }
 
                 HelpQuickActionCard(
-                    icon: "phone.circle.fill",
-                    title: "Call Support",
-                    subtitle: "Speak to an expert",
-                    color: .orange
-                ) {
-                    if let url = URL(string: "tel:+1-555-BRROW-01") {
-                        UIApplication.shared.open(url)
-                    }
-                }
-
-                HelpQuickActionCard(
-                    icon: "questionmark.circle.fill",
+                    icon: "doc.text.fill",
                     title: "Report Issue",
                     subtitle: "Something's wrong",
-                    color: .red
+                    color: .orange
                 ) {
                     showingContactSupport = true
                 }

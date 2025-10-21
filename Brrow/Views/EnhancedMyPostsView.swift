@@ -42,6 +42,11 @@ struct EnhancedMyPostsView: View {
         .onAppear {
             viewModel.loadPosts()
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshMyPosts"))) { notification in
+            print("🔄 [MY POSTS] Received RefreshMyPosts notification - reloading posts")
+            // Reload posts to show updated status
+            viewModel.loadPosts()
+        }
         .sheet(isPresented: $showingDetailView) {
             if let post = selectedPost {
                 PostDetailSheet(post: post, onEdit: {

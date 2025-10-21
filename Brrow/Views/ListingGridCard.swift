@@ -34,7 +34,8 @@ struct ListingGridCard: View {
                     content: { image in
                         image
                             .resizable()
-                            .aspectRatio(contentMode: .fill)
+                            .aspectRatio(contentMode: .fit)  // FIX: Use .fit instead of .fill to prevent horizontal overflow
+                            .frame(maxWidth: .infinity, maxHeight: 120)  // Constrain both dimensions
                     },
                     placeholder: {
                         Rectangle()
@@ -47,6 +48,7 @@ struct ListingGridCard: View {
                     }
                 )
                 .frame(height: 120)
+                .background(Theme.Colors.surface)  // Fill empty space with background
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .clipped()
 

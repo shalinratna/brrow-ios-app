@@ -20,8 +20,8 @@ struct SocialProfileView: View {
     // Verification banner states
     @ObservedObject private var authManager = AuthManager.shared
     @State private var showEmailBanner = true
-    @State private var showIDmeBanner = true
-    @State private var showIDmeVerification = false
+    @State private var showIdentityBanner = true
+    @State private var showIdentityVerificationFlow = false
 
     private let tabs = ["Activity", "Listings", "Reviews", "Stats"]
     
@@ -64,18 +64,15 @@ struct SocialProfileView: View {
                         .padding(.top, 8)
                     }
 
-                    // Priority 2: ID.me verification (if email verified but not ID.me verified)
+                    // Priority 2: Stripe Identity verification (if email verified but not ID verified)
                     if authManager.isAuthenticated,
                        let currentUser = authManager.currentUser,
                        currentUser.emailVerified == true,
                        currentUser.idVerified == false,
-                       showIDmeBanner {
-                        IDmeVerificationBanner(
-                            onVerifyTapped: {
-                                showIDmeVerification = true
-                            },
+                       showIdentityBanner {
+                        IdentityVerificationBanner(
                             onDismiss: {
-                                showIDmeBanner = false
+                                showIdentityBanner = false
                             }
                         )
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -108,6 +105,12 @@ struct SocialProfileView: View {
             if let userId = Int(user.id) {
                 viewModel.loadUserProfile(userId: userId)
             }
+
+            // Refresh user profile to get latest verification status
+            // This ensures the verification banners show/hide correctly
+            Task {
+                await authManager.refreshUserProfile()
+            }
         }
         .sheet(isPresented: $showingEditProfile) {
             EditProfileView(user: user)
@@ -138,11 +141,11 @@ struct SocialProfileView: View {
                 ReviewsListView(revieweeId: user.id, reviewType: .user)
             }
         }
-        .sheet(isPresented: $showIDmeVerification) {
-            IDmeVerificationView()
+        .sheet(isPresented: $showIdentityVerificationFlow) {
+            IdentityVerificationIntroView()
                 .onDisappear {
                     // Refresh user data when verification view is dismissed
-                    showIDmeBanner = false
+                    showIdentityBanner = false
                     Task {
                         await authManager.refreshUserProfile()
                     }

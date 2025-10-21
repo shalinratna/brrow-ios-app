@@ -294,7 +294,7 @@ struct PasswordResetResponse: Codable {
     let success: Bool
     let message: String?
     let data: PasswordResetData?
-    
+
     struct PasswordResetData: Codable {
         let token: String?
         let user: User?
@@ -541,11 +541,13 @@ struct SearchSuggestionsResponse: Codable {
 
 struct FavoritesResponse: Codable {
     let success: Bool
-    let favorites: [FavoriteItem]?
+    let favorites: [FavoriteItem]?  // Backend returns array of favorite items with nested listing
     let pagination: FavoritePagination?
     let message: String?
 
+    // Nested favorite item structure
     struct FavoriteItem: Codable {
+        let id: String
         let favoriteId: String
         let favoritedAt: String
         let listing: Listing
@@ -560,14 +562,9 @@ struct FavoritesResponse: Codable {
         let hasPreviousPage: Bool
     }
 
-    // Computed property for easy access to listings
+    // Computed property for easy access to listings (extracts listing from each favorite item)
     var listings: [Listing] {
         return favorites?.map { $0.listing } ?? []
-    }
-
-    // Backward compatibility
-    var count: Int? {
-        return pagination?.totalCount
     }
 }
 

@@ -1056,6 +1056,8 @@ struct EnhancedMessageBubble: View {
             editedAt: nil,
             deletedAt: nil,
             sentAt: nil,
+            deliveredAt: message.deliveredAt,
+            readAt: message.readAt,
             createdAt: message.createdAt,
             sender: nil,
             reactions: nil

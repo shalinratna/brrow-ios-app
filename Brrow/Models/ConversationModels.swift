@@ -376,13 +376,15 @@ extension Message {
             editedAt: nil,
             deletedAt: nil,
             sentAt: chatMessage.deliveredAt,
+            deliveredAt: chatMessage.deliveredAt,
+            readAt: chatMessage.readAt,
             createdAt: chatMessage.createdAt,
             sender: chatMessage.sender.map { User.from($0) },
             reactions: nil
         )
         // Set var properties after initialization
         message.tempId = nil
-        message.sendStatus = chatMessage.deliveryStatus == .read ? .read : (chatMessage.deliveryStatus == .delivered ? .delivered : .sent)
+        message.sendStatus = chatMessage.deliveryStatus == .read ? MessageSendStatus.read : (chatMessage.deliveryStatus == .delivered ? MessageSendStatus.delivered : MessageSendStatus.sent)
         return message
     }
 }

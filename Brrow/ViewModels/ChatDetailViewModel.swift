@@ -23,6 +23,7 @@ class ChatDetailViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var recordingDuration = 0
     @Published var otherUserIsTyping = false
+    @Published var cachedOtherUserProfile: User? = nil  // ✅ PERFORMANCE: Pre-loaded profile cache
 
     private var conversation: Conversation?
     private var cancellables = Set<AnyCancellable>()
@@ -103,14 +104,39 @@ class ChatDetailViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // ✅ READ RECEIPTS: Listen for message read notifications
+        // When recipient reads a message, sender receives this notification to update UI
+        NotificationCenter.default.publisher(for: .messageRead)
+            .sink { [weak self] notification in
+                guard let messageId = notification.object as? String,
+                      let chatId = notification.userInfo?["chatId"] as? String,
+                      chatId == conversationId else { return }
+
+                print("👁️ [ChatDetailViewModel] Message \(messageId) was read in chat \(chatId)")
+
+                // Update message status to .read on sender's side
+                if let index = self?.messages.firstIndex(where: { $0.id == messageId }) {
+                    var updatedMessage = self?.messages[index]
+                    updatedMessage?.sendStatus = .read
+                    self?.messages[index] = updatedMessage ?? self!.messages[index]
+                    print("✅ [ChatDetailViewModel] Updated message status to .read")
+                }
+            }
+            .store(in: &cancellables)
+
         Task {
             do {
+                // Fetch messages first
                 let loadedMessages = try await fetchMessages(conversationId: conversationId)
                 self.messages = loadedMessages
-                self.isUserOnline = true // TODO: Implement real online status
 
-                // Mark all unread messages as read when chat is opened
-                await markUnreadMessagesAsRead(conversationId: conversationId)
+                // ✅ PERFORMANCE: Now fetch profile concurrently with marking as read
+                async let profileFetch = fetchAndCacheOtherUserProfile(from: loadedMessages)
+                async let markAsRead = markUnreadMessagesAsRead(conversationId: conversationId)
+
+                _ = await profileFetch  // Don't throw if profile fetch fails
+                await markAsRead
+                self.isUserOnline = true // TODO: Implement real online status
             } catch {
                 self.errorMessage = error.localizedDescription
             }
@@ -130,10 +156,14 @@ class ChatDetailViewModel: ObservableObject {
     }
     
     func sendTextMessage(_ text: String, to conversationId: String) {
-        let message = Message(
-            id: UUID().uuidString,
+        // Generate temporary ID for optimistic UI
+        let tempId = UUID().uuidString
+
+        // OPTIMISTIC UI: Create message with .sending status
+        var message = Message(
+            id: tempId,
             chatId: conversationId,
-            senderId: AuthManager.shared.currentUser?.id ?? "current_user", // CRITICAL FIX: Use User.id (CUID), not apiId
+            senderId: AuthManager.shared.currentUser?.id ?? "current_user",
             receiverId: "other_user",
             content: text,
             messageType: .text,
@@ -145,12 +175,20 @@ class ChatDetailViewModel: ObservableObject {
             editedAt: nil,
             deletedAt: nil,
             sentAt: nil,
+            deliveredAt: nil,
+            readAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             sender: nil,
-            reactions: nil
+            reactions: nil,
+            tempId: tempId,
+            sendStatus: MessageSendStatus.sending  // ✅ OPTIMISTIC: Show as sending
         )
 
+        // Add to messages immediately (optimistic UI)
         messages.append(message)
+
+        // Store in pending messages for tracking
+        pendingMessages[tempId] = message
 
         // Track analytics
         AnalyticsService.shared.trackMessageSent(messageType: "text", conversationId: conversationId)
@@ -158,11 +196,34 @@ class ChatDetailViewModel: ObservableObject {
         // Send to server
         Task {
             do {
+                // Send to server and get real message ID back
                 try await sendMessageToServer(message, conversationId: conversationId)
 
-                // CRITICAL FIX: Update conversation preview with latest message
+                // ✅ SUCCESS: Update message status to .sent, then .delivered
                 await MainActor.run {
-                    print("✅ [ChatDetailViewModel] Message sent successfully, updating conversation list")
+                    if let index = messages.firstIndex(where: { $0.tempId == tempId || $0.id == tempId }) {
+                        var updatedMessage = messages[index]
+                        updatedMessage.sendStatus = .sent
+                        messages[index] = updatedMessage
+                        print("✅ [ChatDetailViewModel] Message sent successfully (tempId: \(tempId))")
+
+                        // ✅ AUTO-DELIVER: Messages are delivered immediately after being sent
+                        // (Backend sets delivered_at when creating message)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                            guard let self = self else { return }
+                            if let deliverIndex = self.messages.firstIndex(where: { $0.tempId == tempId || $0.id == tempId }) {
+                                var deliveredMessage = self.messages[deliverIndex]
+                                deliveredMessage.sendStatus = .delivered
+                                self.messages[deliverIndex] = deliveredMessage
+                                print("✅ [ChatDetailViewModel] Message delivered (tempId: \(tempId))")
+                            }
+                        }
+                    }
+
+                    // Remove from pending
+                    pendingMessages.removeValue(forKey: tempId)
+
+                    // Update conversation list
                     NotificationCenter.default.post(
                         name: .messageSent,
                         object: conversationId,
@@ -173,7 +234,15 @@ class ChatDetailViewModel: ObservableObject {
                     )
                 }
             } catch {
-                print("❌ [ChatDetailViewModel] Failed to send message: \(error)")
+                // ❌ FAILED: Update message status to .failed
+                await MainActor.run {
+                    if let index = messages.firstIndex(where: { $0.tempId == tempId || $0.id == tempId }) {
+                        var failedMessage = messages[index]
+                        failedMessage.sendStatus = .failed
+                        messages[index] = failedMessage
+                        print("❌ [ChatDetailViewModel] Message failed to send (tempId: \(tempId)): \(error)")
+                    }
+                }
             }
         }
     }
@@ -194,11 +263,13 @@ class ChatDetailViewModel: ObservableObject {
             editedAt: nil,
             deletedAt: nil,
             sentAt: nil,
+            deliveredAt: nil,
+            readAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             sender: nil,
             reactions: nil
         )
-        
+
         messages.append(message)
         
         // Upload image and send to server
@@ -293,11 +364,13 @@ class ChatDetailViewModel: ObservableObject {
             editedAt: nil,
             deletedAt: nil,
             sentAt: nil,
+            deliveredAt: nil,
+            readAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             sender: nil,
             reactions: nil
         )
-        
+
         await MainActor.run {
             self.messages.append(message)
         }
@@ -319,6 +392,8 @@ class ChatDetailViewModel: ObservableObject {
             editedAt: nil,
             deletedAt: nil,
             sentAt: nil,
+            deliveredAt: nil,
+            readAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             sender: nil,
             reactions: nil
@@ -348,6 +423,8 @@ class ChatDetailViewModel: ObservableObject {
             editedAt: nil,
             deletedAt: nil,
             sentAt: nil,
+            deliveredAt: nil,
+            readAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             sender: nil,
             reactions: nil
@@ -364,6 +441,48 @@ class ChatDetailViewModel: ObservableObject {
     func sendTypingIndicator(chatId: String, isTyping: Bool) {
         // Send typing indicator via WebSocket
         webSocketManager.sendTypingIndicator(chatId: chatId, isTyping: isTyping)
+    }
+
+    /// Retry sending a failed message
+    func retryFailedMessage(_ message: Message) {
+        guard let index = messages.firstIndex(where: { $0.id == message.id || $0.tempId == message.tempId }) else {
+            print("❌ [ChatDetailViewModel] Failed message not found")
+            return
+        }
+
+        // Update status to .sending
+        var retryingMessage = messages[index]
+        retryingMessage.sendStatus = .sending
+        messages[index] = retryingMessage
+
+        print("🔄 [ChatDetailViewModel] Retrying message (id: \(message.id))")
+
+        // Retry sending
+        Task {
+            do {
+                try await sendMessageToServer(retryingMessage, conversationId: retryingMessage.chatId)
+
+                // ✅ SUCCESS: Update to .sent
+                await MainActor.run {
+                    if let updatedIndex = messages.firstIndex(where: { $0.id == message.id || $0.tempId == message.tempId }) {
+                        var successMessage = messages[updatedIndex]
+                        successMessage.sendStatus = .sent
+                        messages[updatedIndex] = successMessage
+                        print("✅ [ChatDetailViewModel] Message retry successful")
+                    }
+                }
+            } catch {
+                // ❌ FAILED AGAIN: Update to .failed
+                await MainActor.run {
+                    if let failedIndex = messages.firstIndex(where: { $0.id == message.id || $0.tempId == message.tempId }) {
+                        var failedMessage = messages[failedIndex]
+                        failedMessage.sendStatus = .failed
+                        messages[failedIndex] = failedMessage
+                        print("❌ [ChatDetailViewModel] Message retry failed: \(error)")
+                    }
+                }
+            }
+        }
     }
     
     func startVoiceRecording() {
@@ -416,6 +535,39 @@ class ChatDetailViewModel: ObservableObject {
     
     private func fetchMessages(conversationId: String) async throws -> [Message] {
         return try await apiClient.fetchMessages(conversationId: conversationId)
+    }
+
+    /// ✅ PERFORMANCE: Fetch and cache the other user's profile from message list
+    private func fetchAndCacheOtherUserProfile(from messages: [Message]) async {
+        do {
+            guard !messages.isEmpty,
+                  let currentUserId = authManager.currentUser?.id else {
+                print("⚠️ [ChatDetailViewModel] Cannot fetch profile: no messages or no current user")
+                return
+            }
+
+            // Find the other user's ID from the first message
+            let firstMessage = messages.first!
+            let otherUserId = firstMessage.senderId == currentUserId ? firstMessage.receiverId : firstMessage.senderId
+
+            guard let otherUserId = otherUserId else {
+                print("⚠️ [ChatDetailViewModel] Cannot determine other user ID")
+                return
+            }
+
+            print("👤 [ChatDetailViewModel] Pre-loading profile for user: \(otherUserId)")
+
+            // Fetch the profile
+            let profile = try await apiClient.fetchUserProfile(userId: otherUserId)
+
+            await MainActor.run {
+                self.cachedOtherUserProfile = profile
+                print("✅ [ChatDetailViewModel] Profile cached successfully for: \(profile.username)")
+            }
+        } catch {
+            print("❌ [ChatDetailViewModel] Failed to cache profile: \(error)")
+            // Don't throw - profile caching is optional
+        }
     }
     
     private func sendMessageToServer(_ message: Message, conversationId: String) async throws {
@@ -674,6 +826,11 @@ class ChatDetailViewModel: ObservableObject {
 
     /// Mark a single message as read
     private func markMessageAsRead(messageId: String) async {
+        guard let chatId = conversation?.id else {
+            print("❌ [ChatDetailViewModel] No conversation ID available")
+            return
+        }
+
         do {
             struct MarkReadResponse: Codable {
                 let success: Bool
@@ -689,6 +846,9 @@ class ChatDetailViewModel: ObservableObject {
 
             if response.success {
                 print("✅ [ChatDetailViewModel] Message \(messageId) marked as read")
+
+                // ✅ READ RECEIPTS: Notify sender via WebSocket that message was read
+                webSocketManager.markMessageAsRead(messageId: messageId, chatId: chatId)
 
                 // Update local message state
                 await MainActor.run {
@@ -711,6 +871,8 @@ class ChatDetailViewModel: ObservableObject {
                             editedAt: updatedMessage.editedAt,
                             deletedAt: updatedMessage.deletedAt,
                             sentAt: updatedMessage.sentAt,
+                            deliveredAt: updatedMessage.deliveredAt,
+                            readAt: updatedMessage.readAt,
                             createdAt: updatedMessage.createdAt,
                             sender: updatedMessage.sender,
                             reactions: updatedMessage.reactions

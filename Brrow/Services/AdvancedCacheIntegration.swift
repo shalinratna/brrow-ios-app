@@ -126,7 +126,7 @@ class AdvancedCacheIntegration: ObservableObject {
 
             // Preload user's favorites
             if let favoritesResponse = try? await apiClient.fetchFavorites(),
-               let favorites = favoritesResponse.favorites?.map({ $0.listing.id }) {
+               let favorites = favoritesResponse.favorites?.map({ $0.id }) {
                 cacheUserFavorites(favorites)
             }
 

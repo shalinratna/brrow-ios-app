@@ -230,7 +230,7 @@ struct FeedbackHelpView: View {
         .onAppear {
             // Auto-fill email if user is logged in
             if let user = authManager.currentUser {
-                email = user.email
+                email = user.email ?? ""  // Handle optional email
             }
         }
     }

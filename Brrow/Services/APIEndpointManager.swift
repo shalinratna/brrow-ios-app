@@ -8,15 +8,15 @@ class APIEndpointManager: ObservableObject {
     @Published var currentEndpoint: String = ""
     @Published var isUsingBackup = false
     
-    // Use Railway as primary
+    // Use Railway as primary (and only) endpoint
     private let primaryEndpoint = "https://brrow-backend-nodejs-production.up.railway.app"
-    private let backupEndpoint = "https://brrowapp.com"
-    
+    private let backupEndpoint = "https://brrow-backend-nodejs-production.up.railway.app"  // Same as primary - Railway is highly available
+
     private var endpoints: [Endpoint] = []
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "EndpointManager")
     private let endpointsLock = NSLock()
-    
+
     struct Endpoint {
         let url: String
         let priority: Int
@@ -24,12 +24,11 @@ class APIEndpointManager: ObservableObject {
         var lastChecked: Date = Date()
         var responseTime: TimeInterval = 0
     }
-    
+
     init() {
-        // Initialize endpoints
+        // Initialize endpoints - Railway only (no backup needed)
         endpoints = [
-            Endpoint(url: primaryEndpoint, priority: 1),
-            Endpoint(url: backupEndpoint, priority: 2)
+            Endpoint(url: primaryEndpoint, priority: 1)
         ]
         
         // Set initial endpoint

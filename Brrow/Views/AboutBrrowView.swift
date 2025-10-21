@@ -245,6 +245,28 @@ struct AboutBrrowView: View {
 
             VStack(spacing: Theme.Spacing.sm) {
                 ContactRow(
+                    icon: "shield.checkmark",
+                    title: "Safety Center",
+                    subtitle: "Learn about staying safe",
+                    action: {
+                        if let url = URL(string: "https://brrowapp.com/safety") {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                )
+
+                ContactRow(
+                    icon: "questionmark.circle.fill",
+                    title: "Help Center",
+                    subtitle: "FAQs and support",
+                    action: {
+                        if let url = URL(string: "https://brrowapp.com/help") {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                )
+
+                ContactRow(
                     icon: "envelope.fill",
                     title: "Email Support",
                     subtitle: "help@brrowapp.com",

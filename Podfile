@@ -70,11 +70,12 @@ post_install do |installer|
       config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'NO'
     end
 
-    # Fix Alamofire bundle issue
+    # Alamofire privacy manifest fix: Allow privacy manifest to be included
+    # DO NOT exclude files - privacy manifest must be included for App Store
     if target.name == 'Alamofire'
       target.build_configurations.each do |config|
-        config.build_settings['EXCLUDED_SOURCE_FILE_NAMES'] = '*.bundle'
-        config.build_settings.delete('PRODUCT_BUNDLE_IDENTIFIER')
+        # Ensure privacy manifest is included as a resource
+        config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = nil if config.build_settings['PRODUCT_BUNDLE_IDENTIFIER']
       end
     end
   end
@@ -127,7 +128,6 @@ post_install do |installer|
     File.write(embed_script_path, script_content)
   end
 
-  # Remove problematic Alamofire bundle files
-  require 'fileutils'
-  FileUtils.rm_rf(Dir.glob("#{installer.sandbox.root}/Alamofire/**/*.bundle"))
+  # DO NOT remove Alamofire files - privacy manifest must be preserved for App Store
+  # Privacy manifests are required by Apple for third-party SDKs (ITMS-91061)
 end

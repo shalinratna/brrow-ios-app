@@ -344,12 +344,14 @@ class ChatService: ObservableObject {
             editedAt: nil,
             deletedAt: nil,
             sentAt: nil,
+            deliveredAt: nil,
+            readAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             sender: AuthManager.shared.currentUser,
             reactions: nil
         )
         tempMessage.tempId = tempId
-        tempMessage.sendStatus = .sending
+        tempMessage.sendStatus = MessageSendStatus.sending
         
         // Add to messages immediately
         if messages[chatId] == nil {
@@ -455,11 +457,13 @@ class ChatService: ObservableObject {
                         editedAt: message.editedAt,
                         deletedAt: message.deletedAt,
                         sentAt: message.sentAt,
+                        deliveredAt: message.deliveredAt,
+                        readAt: message.readAt,
                         createdAt: message.createdAt,
                         sender: message.sender,
                         reactions: message.reactions,
                         tempId: message.tempId,
-                        sendStatus: .read
+                        sendStatus: MessageSendStatus.read
                     )
                 }
                 return message
@@ -536,11 +540,13 @@ class ChatService: ObservableObject {
                     editedAt: message.editedAt,
                     deletedAt: message.deletedAt,
                     sentAt: message.sentAt,
+                    deliveredAt: message.deliveredAt,
+                    readAt: message.readAt,
                     createdAt: message.createdAt,
                     sender: message.sender,
                     reactions: message.reactions,
                     tempId: message.tempId,
-                    sendStatus: .read // Update sendStatus
+                    sendStatus: MessageSendStatus.read // Update sendStatus
                 )
                 messages[chatId]?[index] = updatedMessage
                 break

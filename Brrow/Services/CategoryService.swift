@@ -112,7 +112,39 @@ class CategoryService: ObservableObject {
                 throw CategoryServiceError.serverError(statusCode: httpResponse.statusCode)
             }
 
-            let categoryResponses = try JSONDecoder().decode([CategoryResponse].self, from: data)
+            // DETAILED LOGGING FOR DEBUGGING
+            if let rawString = String(data: data, encoding: .utf8) {
+                print("✅ Categories raw response (first 500 chars): \(String(rawString.prefix(500)))")
+            }
+
+            let categoryResponses: [CategoryResponse]
+            do {
+                categoryResponses = try JSONDecoder().decode([CategoryResponse].self, from: data)
+                print("✅ Successfully decoded \(categoryResponses.count) categories")
+            } catch let DecodingError.keyNotFound(key, context) {
+                print("❌ [CATEGORIES DECODE] Key '\(key.stringValue)' not found")
+                print("   Context: \(context.debugDescription)")
+                print("   Coding path: \(context.codingPath.map { $0.stringValue }.joined(separator: " → "))")
+                throw CategoryServiceError.decodingError(description: "Missing key: \(key.stringValue)")
+            } catch let DecodingError.typeMismatch(type, context) {
+                print("❌ [CATEGORIES DECODE] Type mismatch for type \(type)")
+                print("   Context: \(context.debugDescription)")
+                print("   Coding path: \(context.codingPath.map { $0.stringValue }.joined(separator: " → "))")
+                throw CategoryServiceError.decodingError(description: "Type mismatch: \(type)")
+            } catch let DecodingError.valueNotFound(type, context) {
+                print("❌ [CATEGORIES DECODE] Value not found for type \(type)")
+                print("   Context: \(context.debugDescription)")
+                print("   Coding path: \(context.codingPath.map { $0.stringValue }.joined(separator: " → "))")
+                throw CategoryServiceError.decodingError(description: "Value not found: \(type)")
+            } catch let DecodingError.dataCorrupted(context) {
+                print("❌ [CATEGORIES DECODE] Data corrupted")
+                print("   Context: \(context.debugDescription)")
+                print("   Coding path: \(context.codingPath.map { $0.stringValue }.joined(separator: " → "))")
+                throw CategoryServiceError.decodingError(description: "Data corrupted")
+            } catch {
+                print("❌ [CATEGORIES DECODE] Unknown error: \(error)")
+                throw CategoryServiceError.decodingError(description: error.localizedDescription)
+            }
 
             // Filter out "General" and "default-category" (legacy categories)
             let validCategories = categoryResponses
@@ -217,6 +249,7 @@ enum CategoryServiceError: LocalizedError {
     case invalidURL
     case invalidResponse
     case serverError(statusCode: Int)
+    case decodingError(description: String)
 
     var errorDescription: String? {
         switch self {
@@ -226,6 +259,8 @@ enum CategoryServiceError: LocalizedError {
             return "Invalid server response"
         case .serverError(let code):
             return "Server error: \(code)"
+        case .decodingError(let description):
+            return "Failed to decode categories: \(description)"
         }
     }
 }

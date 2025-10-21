@@ -36,6 +36,7 @@ struct EditProfileView: View {
     @State private var displayName: String
     @State private var bio: String
     @State private var email: String
+    @State private var originalEmail: String // Track original email to detect changes
     @State private var phone: String
     @State private var location: String
     @State private var website: String
@@ -58,12 +59,16 @@ struct EditProfileView: View {
     @State private var showSMSVerification = false
     @State private var pendingPhoneNumber = ""
 
+    // Email Verification states
+    @State private var showEmailChangeAlert = false
+    @State private var pendingEmail = ""
+
     // Loading states
     @State private var isLoading = false
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showSuccess = false
-    
+
     // Validation
     @State private var hasChanges = false
     
@@ -72,7 +77,9 @@ struct EditProfileView: View {
         self._username = State(initialValue: user.username)
         self._displayName = State(initialValue: user.displayName ?? user.username)
         self._bio = State(initialValue: user.bio ?? "")
-        self._email = State(initialValue: user.email)
+        let userEmail = user.email ?? ""
+        self._email = State(initialValue: userEmail)  // Handle optional email
+        self._originalEmail = State(initialValue: userEmail)  // Track original email
         self._phone = State(initialValue: user.phone ?? "")
         self._location = State(initialValue: user.location ?? "")
         self._website = State(initialValue: user.website ?? "")
@@ -103,6 +110,18 @@ struct EditProfileView: View {
             Button("OK") { }
         } message: {
             Text(errorMessage)
+        }
+        .alert("Email Change Confirmation", isPresented: $showEmailChangeAlert) {
+            Button("Cancel", role: .cancel) {
+                // Reset email to original
+                email = originalEmail
+            }
+            Button("Continue") {
+                // Proceed with email change and trigger re-verification
+                proceedWithEmailChange()
+            }
+        } message: {
+            Text("Changing your email address will reset your email verification status. You will receive a new verification email at \(pendingEmail).")
         }
         // Username change alert removed - username changes now handled in Settings
         .sheet(isPresented: $showChangePassword) {
@@ -352,7 +371,53 @@ struct EditProfileView: View {
     }
 
     private var emailField: some View {
-        formField(title: "Email", text: $email, placeholder: "Enter email", keyboardType: .emailAddress)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Email")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Theme.Colors.text)
+
+            HStack(spacing: 12) {
+                TextField("Enter email", text: $email)
+                    .keyboardType(.emailAddress)
+                    .autocapitalization(.none)
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Colors.surface)
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Theme.Colors.border, lineWidth: 1)
+                    )
+
+                // Verification status indicator
+                if user.emailVerified == true {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.green)
+                } else {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.orange)
+                }
+            }
+
+            // Helper text
+            if email.lowercased() != originalEmail.lowercased() {
+                Text("Changing your email will require re-verification")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, Theme.Spacing.md)
+            } else if user.emailVerified == true {
+                Text("Verified")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .padding(.horizontal, Theme.Spacing.md)
+            } else {
+                Text("Not verified - check your inbox for verification email")
+                    .font(.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .padding(.horizontal, Theme.Spacing.md)
+            }
+        }
     }
     
     private var phoneField: some View {
@@ -760,6 +825,15 @@ struct EditProfileView: View {
 
         // Username change logic removed - username changes now handled in Settings
 
+        // Check if email is being changed
+        let emailChanged = email.lowercased() != originalEmail.lowercased() && !email.isEmpty
+        if emailChanged {
+            // Show alert about email re-verification
+            pendingEmail = email
+            showEmailChangeAlert = true
+            return
+        }
+
         // Check if phone number is being changed
         let phoneChanged = phone != (user.phone ?? "") && !phone.isEmpty
         if phoneChanged {
@@ -868,6 +942,33 @@ struct EditProfileView: View {
     private func sendSMSVerificationCode() {
         // Just show the SMS verification sheet - it handles the rest
         showSMSVerification = true
+    }
+
+    // MARK: - Email Verification Methods
+    private func proceedWithEmailChange() {
+        // Save the profile with the new email
+        performSave()
+
+        // After successful save, send verification email
+        Task {
+            do {
+                try await APIClient.shared.sendEmailVerification()
+                await MainActor.run {
+                    ToastManager.shared.showSuccess(
+                        title: "Verification Email Sent",
+                        message: "Please check \(pendingEmail) for your verification email"
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    ToastManager.shared.showError(
+                        title: "Error",
+                        message: "Profile updated but failed to send verification email. Please try again from your profile."
+                    )
+                    print("❌ Email verification error: \(error)")
+                }
+            }
+        }
     }
 }
 

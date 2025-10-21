@@ -10,31 +10,30 @@ import SwiftUI
 struct SimpleProfessionalProfileView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = ProfileViewModel()
-    @StateObject private var idmeService = IDmeService.shared
     @State private var showSettings = false
     @State private var animateContent = false
     @State private var showProfilePictureEdit = false
-    @State private var showIDmeVerification = false
     @State private var showEmailVerificationBanner = true
-    @State private var showIDmeTest = false
+    @State private var showIdentityVerificationBanner = true
+    @State private var showIdentityVerificationFlow = false
     @State private var showingMyPosts = false
     @State private var showingOffers = false
     @State private var showingSavedItems = false
     @State private var showingTransactions = false
     @State private var selectedPurchaseId: String? = nil
 
-    // Show email verification banner if user is not verified and banner hasn't been dismissed
+    // Show email verification banner if user's email is not verified and banner hasn't been dismissed
     private var shouldShowEmailBanner: Bool {
         showEmailVerificationBanner &&
-        !(viewModel.user?.isVerified ?? false) &&  // FIXED: Check isVerified field from API
-        !idmeService.isVerified &&
+        !(viewModel.user?.emailVerified ?? false) &&  // Email not verified
         !authManager.isGuestUser
     }
 
-    // Show ID.me banner if email is verified but ID.me is not
-    private var shouldShowIDmeBanner: Bool {
-        (viewModel.user?.isVerified ?? false) &&  // Email is verified
-        !idmeService.isVerified &&  // But ID.me is not
+    // Show Identity verification banner if email IS verified but ID is NOT (Stripe Identity)
+    private var shouldShowIdentityBanner: Bool {
+        showIdentityVerificationBanner &&
+        (viewModel.user?.emailVerified ?? false) &&  // Email is verified
+        !(viewModel.user?.idVerified ?? false) &&  // But ID is not verified
         !authManager.isGuestUser
     }
     
@@ -66,14 +65,11 @@ struct SimpleProfessionalProfileView: View {
                             .padding(.top, 8)
                         }
 
-                        // ID.me Verification Banner (show if email IS verified but ID.me is NOT)
-                        if shouldShowIDmeBanner {
-                            IDmeVerificationBanner(
-                                onVerifyTapped: {
-                                    showIDmeVerification = true
-                                },
+                        // Identity Verification Banner (show if email IS verified but ID is NOT - Stripe Identity)
+                        if shouldShowIdentityBanner {
+                            IdentityVerificationBanner(
                                 onDismiss: {
-                                    // User dismissed ID.me banner
+                                    showIdentityVerificationBanner = false
                                 }
                             )
                             .padding(.top, 8)
@@ -83,12 +79,6 @@ struct SimpleProfessionalProfileView: View {
                         headerSection
                             .padding(.horizontal, Theme.Spacing.md)
                             .padding(.top, 10)
-                            .onLongPressGesture {
-                                // Debug: Long press to show ID.me test view
-                                #if DEBUG
-                                showIDmeTest = true
-                                #endif
-                            }
                         
                         // Profile Info
                         profileSection
@@ -119,12 +109,9 @@ struct SimpleProfessionalProfileView: View {
             .sheet(isPresented: $showProfilePictureEdit) {
                 ProfilePictureEditView()
             }
-            .sheet(isPresented: $showIDmeVerification) {
-                IDmeVerificationView()
+            .sheet(isPresented: $showIdentityVerificationFlow) {
+                IdentityVerificationIntroView()
             }
-            // .sheet(isPresented: $showIDmeTest) {
-            //     IDmeTestView()
-            // }
             .sheet(isPresented: $showingMyPosts) {
                 EnhancedMyPostsView()
             }
@@ -514,12 +501,12 @@ struct SimpleProfessionalProfileView: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            // ID.me Identity Verification
-            Button(action: { showIDmeVerification = true }) {
+            // Stripe Identity Verification
+            Button(action: { showIdentityVerificationFlow = true }) {
                 ProfileMenuRow(
                     icon: "checkmark.shield.fill",
                     title: "Identity Verification",
-                    badge: authManager.currentUser?.idVerified == true ? "Verified" : "Verify Now"
+                    badge: viewModel.user?.idVerified == true ? "Verified" : "Verify Now"
                 )
             }
             .buttonStyle(PlainButtonStyle())

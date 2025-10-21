@@ -323,6 +323,24 @@ class ListingDetailViewModel: ObservableObject {
         do {
             // Call API to delete listing
             _ = try await apiClient.deleteListing(listingId: listing.listingId)
+
+            // Post notifications to refresh UI across the app
+            await MainActor.run {
+                print("✅ [DELETE] Posting RefreshMyPosts notification for deleted listing: \(listing.listingId)")
+                NotificationCenter.default.post(
+                    name: Notification.Name("RefreshMyPosts"),
+                    object: nil,
+                    userInfo: ["listingId": listing.listingId, "action": "deleted"]
+                )
+
+                // Also post a dismissal notification so the detail view can close
+                print("✅ [DELETE] Posting DismissListingDetail notification")
+                NotificationCenter.default.post(
+                    name: Notification.Name("DismissListingDetail"),
+                    object: nil,
+                    userInfo: ["listingId": listing.listingId]
+                )
+            }
         } catch {
             await MainActor.run {
                 self.errorMessage = "Failed to delete listing: \(error.localizedDescription)"
@@ -361,6 +379,22 @@ class ListingDetailViewModel: ObservableObject {
 
         await MainActor.run {
             self.listing = updatedListing
+
+            // Post notifications to refresh UI across the app
+            print("✅ [STATUS UPDATE] Posting RefreshListingDetail notification for listing: \(updatedListing.listingId)")
+            NotificationCenter.default.post(
+                name: Notification.Name("RefreshListingDetail"),
+                object: nil,
+                userInfo: ["listingId": updatedListing.listingId]
+            )
+
+            // Also post MyPosts refresh notification so the list updates
+            print("✅ [STATUS UPDATE] Posting RefreshMyPosts notification")
+            NotificationCenter.default.post(
+                name: Notification.Name("RefreshMyPosts"),
+                object: nil,
+                userInfo: ["listingId": updatedListing.listingId, "newStatus": newStatus]
+            )
         }
     }
 
