@@ -50,6 +50,7 @@ struct EnhancedSavedItemsView: View {
         .sheet(item: $selectedListing) { listing in
             NavigationView {
                 SimplifiedListingDetailView(listing: listing)
+                    .id(listing.id) // FIXED: Force view recreation when listing changes to prevent stale data
             }
         }
     }

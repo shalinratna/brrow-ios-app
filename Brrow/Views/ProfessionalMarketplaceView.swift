@@ -29,10 +29,8 @@ struct ProfessionalMarketplaceView: View {
     @State private var selectedInfoType: InfoType? = nil
     @State private var showingPostCreation = false
 
-    // Verification banner states
+    // Auth manager for user state
     @ObservedObject private var authManager = AuthManager.shared
-    @State private var showEmailBanner = true
-    @State private var showIDmeBanner = true
     @State private var showIDmeVerification = false
 
     // Tap handler state for debouncing and safety
@@ -96,54 +94,6 @@ struct ProfessionalMarketplaceView: View {
                         .padding(.horizontal, Theme.Spacing.md)
                         .padding(.top, 10)
                         .background(Theme.Colors.background)
-
-                    // Verification Banners - Progressive verification flow
-                    // Priority 1: Email verification (if not email verified)
-                    if authManager.isAuthenticated,
-                       let user = authManager.currentUser,
-                       user.emailVerified == false,
-                       showEmailBanner {
-                        EmailVerificationBanner(
-                            onVerifyTapped: {
-                                Task {
-                                    do {
-                                        try await APIClient.shared.sendEmailVerification()
-                                        ToastManager.shared.showSuccess(
-                                            title: "Verification Email Sent",
-                                            message: "Check your inbox and verify your email"
-                                        )
-                                    } catch {
-                                        ToastManager.shared.showError(
-                                            title: "Error",
-                                            message: "Failed to send verification email. Please try again."
-                                        )
-                                        print("❌ Email verification error: \(error)")
-                                    }
-                                }
-                            },
-                            onDismiss: {
-                                showEmailBanner = false
-                            }
-                        )
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-
-                    // Priority 2: ID.me verification (if email verified but not ID.me verified)
-                    if authManager.isAuthenticated,
-                       let user = authManager.currentUser,
-                       user.emailVerified == true,
-                       user.idVerified == false,
-                       showIDmeBanner {
-                        IDmeVerificationBanner(
-                            onVerifyTapped: {
-                                showIDmeVerification = true
-                            },
-                            onDismiss: {
-                                showIDmeBanner = false
-                            }
-                        )
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
 
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
@@ -234,6 +184,7 @@ struct ProfessionalMarketplaceView: View {
                 if let listing = selectedListing {
                     NavigationView {
                         ProfessionalListingDetailView(listing: listing)
+                            .id(listing.id) // FIXED: Force view recreation when listing changes to prevent stale data
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationBarItems(trailing: Button("Done") {
                                 selectedListing = nil
@@ -275,7 +226,6 @@ struct ProfessionalMarketplaceView: View {
                 IDmeVerificationView()
                     .onDisappear {
                         // Refresh user data when verification view is dismissed
-                        showIDmeBanner = false
                         Task {
                             await authManager.refreshUserProfile()
                         }

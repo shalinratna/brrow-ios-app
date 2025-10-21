@@ -32,9 +32,10 @@ struct SocialChatView: View {
                     FeedbackHelpView()
                 }
                 .onAppear {
-                    // CRITICAL: Refresh conversations when view appears to show newly created conversations
-                    print("📱 [SocialChatView] View appeared, refreshing conversations with cache bypass")
-                    viewModel.fetchConversations(bypassCache: true)
+                    // FIXED: Use preloaded cache on first appearance for instant display
+                    // Manual refresh (pull-to-refresh) will still bypass cache
+                    print("📱 [SocialChatView] View appeared, using preloaded cache")
+                    viewModel.fetchConversations(bypassCache: false)
                 }
 
             // CRITICAL: Hidden NavigationLink for programmatic navigation from notifications
