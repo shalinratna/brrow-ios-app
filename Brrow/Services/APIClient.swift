@@ -4676,12 +4676,14 @@ class APIClient: ObservableObject {
     
     // MARK: - Categories
     func fetchCategories() async throws -> [APICategory] {
-        let response = try await performRequest(
+        // Backend returns plain array, not wrapped object
+        // See prisma-server.js:6556-6558
+        let categories = try await performRequest(
             endpoint: "api/categories",
             method: .GET,
-            responseType: CategoriesResponse.self
+            responseType: [APICategory].self
         )
-        return response.categories
+        return categories
     }
     
     // MARK: - Debug/Test Methods
