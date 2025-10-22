@@ -223,7 +223,7 @@ struct ProfessionalMarketplaceView: View {
                 })
             }
             .sheet(isPresented: $showIDmeVerification) {
-                IDmeVerificationView()
+                IdentityVerificationIntroView()
                     .onDisappear {
                         // Refresh user data when verification view is dismissed
                         Task {

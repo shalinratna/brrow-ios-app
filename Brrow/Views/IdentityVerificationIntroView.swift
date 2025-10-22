@@ -76,7 +76,7 @@ struct IdentityVerificationIntroView: View {
 
                         // Benefits
                         VStack(spacing: 20) {
-                            BenefitRow(
+                            IdentityBenefitRow(
                                 icon: "star.fill",
                                 title: "Unlock Full Access",
                                 description: "Get the blue verified badge and access all features",
@@ -84,7 +84,7 @@ struct IdentityVerificationIntroView: View {
                                 delay: 0.1
                             )
 
-                            BenefitRow(
+                            IdentityBenefitRow(
                                 icon: "shield.checkered",
                                 title: "Build Trust",
                                 description: "Show others you're a verified, trustworthy member",
@@ -92,7 +92,7 @@ struct IdentityVerificationIntroView: View {
                                 delay: 0.2
                             )
 
-                            BenefitRow(
+                            IdentityBenefitRow(
                                 icon: "lock.shield.fill",
                                 title: "Secure & Private",
                                 description: "Your data is encrypted and never shared",
@@ -100,7 +100,7 @@ struct IdentityVerificationIntroView: View {
                                 delay: 0.3
                             )
 
-                            BenefitRow(
+                            IdentityBenefitRow(
                                 icon: "clock.fill",
                                 title: "Takes 2 Minutes",
                                 description: "Quick and easy verification process",
@@ -120,9 +120,9 @@ struct IdentityVerificationIntroView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 12) {
-                                RequirementRow(icon: "doc.text.fill", text: "Government-issued ID (Driver's License, Passport, or ID Card)")
-                                RequirementRow(icon: "camera.fill", text: "Camera for live selfie verification")
-                                RequirementRow(icon: "lightbulb.fill", text: "Good lighting for clear photos")
+                                IdentityRequirementRow(icon: "doc.text.fill", text: "Government-issued ID (Driver's License, Passport, or ID Card)")
+                                IdentityRequirementRow(icon: "camera.fill", text: "Camera for live selfie verification")
+                                IdentityRequirementRow(icon: "lightbulb.fill", text: "Good lighting for clear photos")
                             }
                         }
                         .padding()
@@ -195,7 +195,7 @@ struct IdentityVerificationIntroView: View {
 }
 
 // MARK: - Benefit Row Component
-struct BenefitRow: View {
+struct IdentityBenefitRow: View {
     let icon: String
     let title: String
     let description: String
@@ -246,7 +246,7 @@ struct BenefitRow: View {
 }
 
 // MARK: - Requirement Row Component
-struct RequirementRow: View {
+struct IdentityRequirementRow: View {
     let icon: String
     let text: String
 

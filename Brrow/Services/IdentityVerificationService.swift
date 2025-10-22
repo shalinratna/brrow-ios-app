@@ -31,7 +31,7 @@ class IdentityVerificationService {
 
         let response: StripeVerificationSessionResponse = try await apiClient.performRequest(
             endpoint: endpoint,
-            method: .POST,
+            method: HTTPMethod.POST.rawValue,
             body: bodyData,
             responseType: StripeVerificationSessionResponse.self
         )
@@ -57,7 +57,7 @@ class IdentityVerificationService {
 
         let response: StripeVerificationStatusResponse = try await apiClient.performRequest(
             endpoint: endpoint,
-            method: .GET,
+            method: HTTPMethod.GET.rawValue,
             responseType: StripeVerificationStatusResponse.self
         )
 
@@ -77,7 +77,7 @@ class IdentityVerificationService {
 
         let response: StripeUserVerificationResponse = try await apiClient.performRequest(
             endpoint: endpoint,
-            method: .GET,
+            method: HTTPMethod.GET.rawValue,
             responseType: StripeUserVerificationResponse.self
         )
 
@@ -97,7 +97,7 @@ class IdentityVerificationService {
 
         let response: StripeIsVerifiedResponse = try await apiClient.performRequest(
             endpoint: endpoint,
-            method: .GET,
+            method: HTTPMethod.GET.rawValue,
             responseType: StripeIsVerifiedResponse.self
         )
 
@@ -118,7 +118,7 @@ class IdentityVerificationService {
 
         let response: StripeCancelSessionResponse = try await apiClient.performRequest(
             endpoint: endpoint,
-            method: .POST,
+            method: HTTPMethod.POST.rawValue,
             responseType: StripeCancelSessionResponse.self
         )
 
