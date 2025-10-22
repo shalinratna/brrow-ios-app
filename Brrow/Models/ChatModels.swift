@@ -160,10 +160,25 @@ struct Message: Identifiable, Equatable {
         // Debug logs showed: senderId = "cmfrmr7l30000nz01qfyr0lc4" (database ID from backend)
         //                    currentUser.id = "usr_mfrmr7l11t" (API ID - MISMATCH!)
         // Solution: Check both id and apiId fields to handle the ID format inconsistency
-        guard let currentUser = AuthManager.shared.currentUser else { return false }
+        guard let currentUser = AuthManager.shared.currentUser else {
+            print("🔍 [isFromCurrentUser] No current user found")
+            return false
+        }
+
+        print("🔍 [isFromCurrentUser] Comparing:")
+        print("   senderId = '\(senderId)'")
+        print("   currentUser.id = '\(currentUser.id)'")
+        print("   currentUser.apiId = '\(currentUser.apiId ?? "nil")'")
+
+        let matchesId = senderId == currentUser.id
+        let matchesApiId = senderId == (currentUser.apiId ?? "")
+
+        print("   matchesId: \(matchesId)")
+        print("   matchesApiId: \(matchesApiId)")
+        print("   result: \(matchesId || matchesApiId)")
 
         // Check if senderId matches either the id or apiId of current user
-        return senderId == currentUser.id || senderId == (currentUser.apiId ?? "")
+        return matchesId || matchesApiId
     }
     
     static func == (lhs: Self, rhs: Self) -> Bool {
