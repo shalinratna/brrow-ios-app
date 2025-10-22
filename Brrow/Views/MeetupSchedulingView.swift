@@ -2,7 +2,7 @@
 //  MeetupSchedulingView.swift
 //  Brrow
 //
-//  Created by Claude on 1/6/25.
+//  Enhanced with modern UI, animations, and Brrow theme
 //
 
 import SwiftUI
@@ -32,43 +32,67 @@ struct MeetupSchedulingView: View {
     @State private var errorMessage = ""
     @State private var showSuccess = false
     @State private var isSearching = false
+    @State private var showDatePicker = false
+    @State private var animateSelection = false
 
     @State private var cancellables = Set<AnyCancellable>()
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: Theme.Spacing.md) {
-                    // Map View
-                    mapSection
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    colors: [
+                        Theme.Colors.primary.opacity(0.03),
+                        Color.white
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
-                    // Location Search
-                    locationSearchSection
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Header with icon
+                        headerSection
 
-                    // Search Results
-                    if !searchResults.isEmpty {
-                        searchResultsSection
+                        // Map View with enhanced styling
+                        mapSection
+
+                        // Location Search
+                        locationSearchSection
+
+                        // Search Results
+                        if !searchResults.isEmpty {
+                            searchResultsSection
+                        }
+
+                        // Date/Time Picker
+                        dateTimeSection
+
+                        // Notes
+                        notesSection
+
+                        // Schedule Button
+                        scheduleButton
                     }
-
-                    // Date/Time Picker
-                    dateTimeSection
-
-                    // Notes
-                    notesSection
-
-                    // Schedule Button
-                    scheduleButton
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                 }
-                .padding(Theme.Spacing.md)
             }
             .navigationTitle("Schedule Meetup")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+                    Button(action: { dismiss() }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Cancel")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundColor(Theme.Colors.text)
                     }
-                    .foregroundColor(Theme.Colors.text)
                 }
             }
             .alert("Error", isPresented: $showError) {
@@ -77,168 +101,370 @@ struct MeetupSchedulingView: View {
                 Text(errorMessage)
             }
             .alert("Meetup Scheduled!", isPresented: $showSuccess) {
-                Button("OK") {
+                Button("Done") {
                     dismiss()
                 }
             } message: {
-                Text("Your meetup has been scheduled successfully.")
+                Text("Your meetup has been scheduled successfully. You'll receive a notification with the details.")
             }
             .onAppear {
                 setupInitialLocation()
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
+                    animateSelection = true
+                }
             }
         }
     }
 
+    // MARK: - Header Section
+    private var headerSection: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Theme.Colors.primary.opacity(0.2),
+                                Theme.Colors.primary.opacity(0.1)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                    .scaleEffect(animateSelection ? 1.0 : 0.8)
+
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .scaleEffect(animateSelection ? 1.0 : 0.8)
+            }
+            .animation(.spring(response: 0.6, dampingFraction: 0.7), value: animateSelection)
+
+            Text("Set meetup location and time")
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+                .opacity(animateSelection ? 1.0 : 0.0)
+                .animation(.easeOut(duration: 0.3).delay(0.2), value: animateSelection)
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
     // MARK: - Map Section
     private var mapSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Select Location")
-                .font(Theme.Typography.headline)
-                .foregroundColor(Theme.Colors.text)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "map.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Theme.Colors.primary)
+
+                Text("Meetup Location")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+
+                Spacer()
+
+                if selectedCoordinate != nil {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(Theme.Colors.primary)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: selectedCoordinate != nil)
 
             Map(coordinateRegion: $region, annotationItems: selectedCoordinate != nil ? [MapPoint(coordinate: selectedCoordinate!)] : []) { item in
                 MapMarker(coordinate: item.coordinate, tint: Theme.Colors.primary)
             }
-            .frame(height: 300)
-            .cornerRadius(Theme.CornerRadius.card)
+            .frame(height: 280)
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
-                    .stroke(Theme.Colors.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        selectedCoordinate != nil ? Theme.Colors.primary.opacity(0.3) : Color.clear,
+                        lineWidth: 2
+                    )
+                    .animation(.easeInOut(duration: 0.3), value: selectedCoordinate != nil)
             )
-            .onTapGesture { location in
-                // Note: MapKit tap gesture doesn't provide coordinate directly
-                // Users should use search instead
-            }
 
             if !selectedAddress.isEmpty {
-                HStack {
+                HStack(spacing: 12) {
                     Image(systemName: "mappin.circle.fill")
+                        .font(.system(size: 20))
                         .foregroundColor(Theme.Colors.primary)
+
                     Text(selectedAddress)
-                        .font(Theme.Typography.body)
-                        .foregroundColor(Theme.Colors.secondaryText)
+                        .font(.system(size: 15))
+                        .foregroundColor(Theme.Colors.text)
+                        .lineLimit(2)
+
                     Spacer()
                 }
-                .padding(Theme.Spacing.sm)
-                .background(Theme.Colors.secondaryBackground)
-                .cornerRadius(Theme.CornerRadius.sm)
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Theme.Colors.primary.opacity(0.06))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Theme.Colors.primary.opacity(0.2), lineWidth: 1)
+                )
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedAddress)
             }
         }
     }
 
     // MARK: - Location Search Section
     private var locationSearchSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            HStack {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Theme.Colors.secondaryText)
+
                 TextField("Search for a location", text: $searchText)
-                    .font(Theme.Typography.body)
+                    .font(.system(size: 16))
                     .foregroundColor(Theme.Colors.text)
                     .onChange(of: searchText) { _ in
                         performSearch()
                     }
 
-                if !searchText.isEmpty {
+                if isSearching {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .transition(.opacity)
+                } else if !searchText.isEmpty {
                     Button(action: {
-                        searchText = ""
-                        searchResults = []
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            searchText = ""
+                            searchResults = []
+                        }
                     }) {
                         Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18))
                             .foregroundColor(Theme.Colors.secondaryText)
                     }
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
-            .padding(Theme.Spacing.sm)
-            .background(Theme.Colors.inputBackground)
-            .cornerRadius(Theme.CornerRadius.sm)
+            .padding(14)
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(searchText.isEmpty ? Color.clear : Theme.Colors.primary.opacity(0.2), lineWidth: 1)
+                    .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
+            )
+            .animation(.default, value: isSearching)
 
             Button(action: useCurrentLocation) {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "location.fill")
+                        .font(.system(size: 15, weight: .semibold))
                     Text("Use Current Location")
+                        .font(.system(size: 15, weight: .semibold))
                 }
-                .font(Theme.Typography.body)
                 .foregroundColor(Theme.Colors.primary)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Theme.Colors.primary.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Theme.Colors.primary.opacity(0.3), lineWidth: 1)
+                )
             }
         }
     }
 
     // MARK: - Search Results Section
     private var searchResultsSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+        VStack(spacing: 8) {
             ForEach(searchResults, id: \.self) { item in
                 Button(action: {
-                    selectLocation(item)
-                }) {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                        Text(item.name ?? "Unknown")
-                            .font(Theme.Typography.body)
-                            .foregroundColor(Theme.Colors.text)
-                        if let address = item.placemark.title {
-                            Text(address)
-                                .font(Theme.Typography.footnote)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        selectLocation(item)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Theme.Spacing.sm)
-                    .background(Theme.Colors.secondaryBackground)
-                    .cornerRadius(Theme.CornerRadius.sm)
+                    HapticManager.impact(style: .light)
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(Theme.Colors.primary)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.name ?? "Unknown")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(Theme.Colors.text)
+                            if let address = item.placemark.title {
+                                Text(address)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                    .padding(12)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
                 }
+                .buttonStyle(ScaleButtonStyle())
             }
         }
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: searchResults.count)
     }
 
     // MARK: - Date/Time Section
     private var dateTimeSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Meetup Time")
-                .font(Theme.Typography.headline)
-                .foregroundColor(Theme.Colors.text)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "calendar")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Theme.Colors.primary)
 
-            DatePicker("", selection: $scheduledTime, in: Date()...)
-                .datePickerStyle(.graphical)
-                .padding(Theme.Spacing.sm)
-                .background(Theme.Colors.secondaryBackground)
-                .cornerRadius(Theme.CornerRadius.card)
+                Text("Meetup Time")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+
+                Spacer()
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showDatePicker.toggle()
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Text(scheduledTime, style: .date)
+                            .font(.system(size: 14, weight: .medium))
+                        Text(scheduledTime, style: .time)
+                            .font(.system(size: 14, weight: .medium))
+                        Image(systemName: showDatePicker ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(Theme.Colors.primary)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Theme.Colors.primary.opacity(0.08))
+                    )
+                }
+            }
+
+            if showDatePicker {
+                DatePicker("", selection: $scheduledTime, in: Date()...)
+                    .datePickerStyle(.graphical)
+                    .padding(12)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(14)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+            }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showDatePicker)
     }
 
     // MARK: - Notes Section
     private var notesSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Notes (Optional)")
-                .font(Theme.Typography.headline)
-                .foregroundColor(Theme.Colors.text)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "note.text")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Theme.Colors.primary)
 
-            TextEditor(text: $notes)
-                .font(Theme.Typography.body)
-                .foregroundColor(Theme.Colors.text)
-                .frame(height: 100)
-                .padding(Theme.Spacing.sm)
-                .background(Theme.Colors.inputBackground)
-                .cornerRadius(Theme.CornerRadius.sm)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
-                        .stroke(Theme.Colors.border, lineWidth: 1)
-                )
+                Text("Notes (Optional)")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+            }
+
+            ZStack(alignment: .topLeading) {
+                if notes.isEmpty {
+                    Text("Add any special instructions or details...")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(.systemGray3))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                }
+
+                TextEditor(text: $notes)
+                    .font(.system(size: 15))
+                    .foregroundColor(Theme.Colors.text)
+                    .frame(height: 100)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(notes.isEmpty ? Color.clear : Theme.Colors.primary.opacity(0.2), lineWidth: 1)
+                            .animation(.easeInOut(duration: 0.2), value: notes.isEmpty)
+                    )
+            }
         }
     }
 
     // MARK: - Schedule Button
     private var scheduleButton: some View {
-        Button(action: scheduleMeetup) {
-            if isScheduling {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-            } else {
-                Text("Schedule Meetup")
+        Button(action: {
+            HapticManager.impact(style: .medium)
+            scheduleMeetup()
+        }) {
+            HStack(spacing: 10) {
+                if isScheduling {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.9)
+                } else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                    Text("Schedule Meetup")
+                        .font(.system(size: 17, weight: .semibold))
+                }
             }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                LinearGradient(
+                    colors: selectedCoordinate == nil ? [Color.gray, Color.gray.opacity(0.8)] : [Theme.Colors.primary, Theme.Colors.primary.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(14)
+            .shadow(
+                color: selectedCoordinate == nil ? Color.clear : Theme.Colors.primary.opacity(0.3),
+                radius: 8,
+                x: 0,
+                y: 4
+            )
         }
-        .primaryButtonStyle()
         .disabled(selectedCoordinate == nil || isScheduling)
-        .opacity(selectedCoordinate == nil ? 0.5 : 1.0)
+        .opacity(selectedCoordinate == nil ? 0.6 : 1.0)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+        .animation(.easeInOut(duration: 0.2), value: selectedCoordinate != nil)
+        .animation(.easeInOut(duration: 0.2), value: isScheduling)
     }
 
     // MARK: - Helper Functions
@@ -253,26 +479,34 @@ struct MeetupSchedulingView: View {
 
     private func useCurrentLocation() {
         guard let location = locationService.currentLocation else {
-            errorMessage = "Unable to get current location. Please enable location services."
+            errorMessage = "Unable to get current location. Please enable location services in Settings."
             showError = true
             return
         }
 
-        selectedCoordinate = location.coordinate
-        region.center = location.coordinate
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            selectedCoordinate = location.coordinate
+            region.center = location.coordinate
+        }
 
         // Reverse geocode to get address
         let geocoder = CLGeocoder()
         geocoder.reverseGeocodeLocation(location) { placemarks, error in
             if let placemark = placemarks?.first {
-                selectedAddress = formatAddress(from: placemark)
+                withAnimation(.easeOut(duration: 0.3)) {
+                    selectedAddress = formatAddress(from: placemark)
+                }
             }
         }
+
+        HapticManager.impact(style: .medium)
     }
 
     private func performSearch() {
         guard !searchText.isEmpty else {
-            searchResults = []
+            withAnimation(.easeOut(duration: 0.2)) {
+                searchResults = []
+            }
             return
         }
 
@@ -285,7 +519,9 @@ struct MeetupSchedulingView: View {
         search.start { response, error in
             isSearching = false
             if let response = response {
-                searchResults = response.mapItems
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    searchResults = response.mapItems
+                }
             }
         }
     }
@@ -344,6 +580,7 @@ struct MeetupSchedulingView: View {
                 }
             },
             receiveValue: { meetup in
+                HapticManager.success()
                 onMeetupScheduled?(meetup)
                 showSuccess = true
             }
@@ -356,6 +593,15 @@ struct MeetupSchedulingView: View {
 private struct MapPoint: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
+}
+
+// MARK: - Scale Button Style
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
 }
 
 // MARK: - Preview
