@@ -580,7 +580,7 @@ struct MeetupSchedulingView: View {
                 }
             },
             receiveValue: { meetup in
-                HapticManager.success()
+                HapticManager.notification(type: .success)
                 onMeetupScheduled?(meetup)
                 showSuccess = true
             }
