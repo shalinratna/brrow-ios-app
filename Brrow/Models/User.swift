@@ -265,48 +265,32 @@ struct User: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        // CRITICAL DEBUG: Print raw JSON values being decoded
-        print("🔍 [User Decoder] === DECODING USER ===")
-
         // Core Identity - Try multiple field names for ID
         if let idString = try? container.decode(String.self, forKey: .id) {
             self.id = idString
-            print("🔍 [User Decoder] Decoded id (String): '\(idString)'")
         } else if let idInt = try? container.decode(Int.self, forKey: .id) {
             self.id = String(idInt)
-            print("🔍 [User Decoder] Decoded id (Int): \(idInt) -> '\(String(idInt))'")
         } else {
             // Fallback to a default if all else fails
             self.id = "unknown"
-            print("🔍 [User Decoder] ⚠️ No id field found, using 'unknown'")
         }
 
         // API ID - Try multiple field names and ensure it's not nil
         if let apiIdValue = try container.decodeIfPresent(String.self, forKey: .apiId) {
             self.apiId = apiIdValue
-            print("🔍 [User Decoder] Decoded apiId (String): '\(apiIdValue)'")
         } else {
             do {
                 if let apiIdInt = try container.decodeIfPresent(Int.self, forKey: .apiId) {
                     self.apiId = String(apiIdInt)
-                    print("🔍 [User Decoder] Decoded apiId (Int): \(apiIdInt) -> '\(String(apiIdInt))'")
                 } else {
                     // Fallback: use the main id if apiId is missing
-                    print("🔍 [User Decoder] ⚠️ WARNING: apiId not found in response, using id as fallback")
-                    print("🔍 [User Decoder] Falling back: apiId = id = '\(self.id)'")
                     self.apiId = self.id
                 }
             } catch {
                 // Fallback: use the main id if apiId is missing
-                print("🔍 [User Decoder] ⚠️ WARNING: apiId decode error, using id as fallback")
-                print("🔍 [User Decoder] Error: \(error)")
-                print("🔍 [User Decoder] Falling back: apiId = id = '\(self.id)'")
                 self.apiId = self.id
             }
         }
-
-        print("🔍 [User Decoder] FINAL VALUES: id = '\(self.id)', apiId = '\(self.apiId ?? "nil")'")
-        print("🔍 [User Decoder] === END DECODING ===\n")
         
         self.username = try container.decode(String.self, forKey: .username)
         self.email = try container.decodeIfPresent(String.self, forKey: .email)  // Optional: not returned for other users' profiles
