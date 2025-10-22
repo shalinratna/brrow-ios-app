@@ -174,7 +174,7 @@ struct MeetupConfirmationSheet: View {
     private var detailsSection: some View {
         VStack(spacing: 16) {
             // Date and Time
-            DetailRow(
+            MeetupDetailRow(
                 icon: "calendar",
                 title: "Date & Time",
                 value: scheduledTime.formatted(date: .abbreviated, time: .shortened)
@@ -183,7 +183,7 @@ struct MeetupConfirmationSheet: View {
             Divider()
 
             // Time from now
-            DetailRow(
+            MeetupDetailRow(
                 icon: "clock",
                 title: "Time from now",
                 value: timeFromNow(scheduledTime)
@@ -192,7 +192,7 @@ struct MeetupConfirmationSheet: View {
             if let notes = notes, !notes.isEmpty {
                 Divider()
 
-                DetailRow(
+                MeetupDetailRow(
                     icon: "note.text",
                     title: "Notes",
                     value: notes
@@ -269,8 +269,8 @@ struct MeetupConfirmationSheet: View {
     }
 }
 
-// MARK: - Detail Row
-struct DetailRow: View {
+// MARK: - Meetup Detail Row
+private struct MeetupDetailRow: View {
     let icon: String
     let title: String
     let value: String
