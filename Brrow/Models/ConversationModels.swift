@@ -79,7 +79,10 @@ struct ConversationUser: Codable, Identifiable {
     let username: String
     let displayName: String?
     let profilePicture: String?
-    let isVerified: Bool?
+    let hasBlueCheckmark: Bool?  // TRUE only when BOTH email AND ID verified (Stripe Identity)
+
+    // Computed property for backward compatibility (use hasBlueCheckmark instead)
+    var isVerified: Bool { hasBlueCheckmark ?? false }
 
     // Computed property for API compatibility
     var apiId: String { return id }
@@ -88,17 +91,18 @@ struct ConversationUser: Codable, Identifiable {
     var name: String { displayName ?? username }
 
     enum CodingKeys: String, CodingKey {
-        case id, username, displayName, isVerified
+        case id, username, displayName
         case profilePicture
+        case hasBlueCheckmark = "hasBlueCheckmark"  // Backend sends this for dual verification
     }
 
     // MARK: - Manual Initializer
-    init(id: String, username: String, displayName: String? = nil, profilePicture: String? = nil, isVerified: Bool = false) {
+    init(id: String, username: String, displayName: String? = nil, profilePicture: String? = nil, hasBlueCheckmark: Bool = false) {
         self.id = id
         self.username = username
         self.displayName = displayName
         self.profilePicture = profilePicture
-        self.isVerified = isVerified
+        self.hasBlueCheckmark = hasBlueCheckmark
     }
 
     // Computed property for full profile picture URL (platform-only)
@@ -143,7 +147,7 @@ struct ConversationUser: Codable, Identifiable {
             username: user.username,
             displayName: user.displayName,
             profilePicture: user.profilePicture,
-            isVerified: user.isVerified ?? user.verified ?? false
+            hasBlueCheckmark: user.hasBlueCheckmark ?? false  // Use hasBlueCheckmark for dual verification (email + Stripe Identity)
         )
     }
 
@@ -154,7 +158,7 @@ struct ConversationUser: Codable, Identifiable {
             username: "Loading...",
             displayName: nil,
             profilePicture: nil,
-            isVerified: false
+            hasBlueCheckmark: false
         )
     }
 }

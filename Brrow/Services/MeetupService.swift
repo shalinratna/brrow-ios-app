@@ -41,7 +41,7 @@ class MeetupService: ObservableObject {
             Task {
                 do {
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/meetups",
+                        "/api/meetups",
                         method: .POST,
                         parameters: parameters
                     )
@@ -65,7 +65,7 @@ class MeetupService: ObservableObject {
             Task {
                 do {
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/meetups/\(meetupId)",
+                        "/api/meetups/\(meetupId)",
                         method: .GET
                     )
 
@@ -96,7 +96,7 @@ class MeetupService: ObservableObject {
             Task {
                 do {
                     let response: LocationUpdateResponse = try await self.apiClient.request(
-                        "/meetups/\(meetupId)/update-location",
+                        "/api/meetups/\(meetupId)/update-location",
                         method: .PUT,
                         parameters: parameters
                     )
@@ -120,7 +120,7 @@ class MeetupService: ObservableObject {
             Task {
                 do {
                     let response: ProximityStatusResponse = try await self.apiClient.request(
-                        "/meetups/\(meetupId)/proximity-status",
+                        "/api/meetups/\(meetupId)/proximity-status",
                         method: .GET
                     )
 
@@ -203,7 +203,7 @@ class MeetupService: ObservableObject {
 
     // MARK: - Get User's Meetups
     func getUserMeetups(status: MeetupStatus? = nil) -> AnyPublisher<[Meetup], Error> {
-        var endpoint = "/meetups/user/my-meetups"
+        var endpoint = "/api/meetups/user/my-meetups"
         if let status = status {
             endpoint += "?status=\(status.rawValue)"
         }
@@ -240,7 +240,7 @@ class MeetupService: ObservableObject {
             Task {
                 do {
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/meetups/\(meetupId)",
+                        "/api/meetups/\(meetupId)",
                         method: .DELETE,
                         parameters: parameters.isEmpty ? nil : parameters
                     )
@@ -264,7 +264,7 @@ class MeetupService: ObservableObject {
             Task {
                 do {
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/meetups/purchases/\(purchaseId)/complete",
+                        "/api/meetups/purchases/\(purchaseId)/complete",
                         method: .PUT
                     )
 
