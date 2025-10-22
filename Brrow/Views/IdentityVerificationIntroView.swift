@@ -18,70 +18,73 @@ struct IdentityVerificationIntroView: View {
 
     var body: some View {
         NavigationView {
-            ZStack {
-                // Background gradient
-                LinearGradient(
-                    colors: [
-                        Theme.Colors.primary.opacity(0.05),
-                        Color.white
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+            GeometryReader { geometry in
+                ZStack {
+                    // Background gradient
+                    LinearGradient(
+                        colors: [
+                            Theme.Colors.primary.opacity(0.05),
+                            Color.white
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 12) {
-                        // Hero Icon
-                        ZStack {
-                            // Pulsing background
-                            Circle()
-                                .fill(Theme.Colors.primary.opacity(0.1))
-                                .frame(width: 100, height: 100)
-                                .scaleEffect(animateShield ? 1.1 : 1.0)
-                                .animation(
-                                    Animation.easeInOut(duration: 2.0)
-                                        .repeatForever(autoreverses: true),
-                                    value: animateShield
-                                )
-
-                            // Shield icon
-                            Image(systemName: "checkmark.shield.fill")
-                                .font(.system(size: 48))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .scaleEffect(animateShield ? 1.05 : 1.0)
-                                .animation(
-                                    Animation.easeInOut(duration: 2.0)
-                                        .repeatForever(autoreverses: true),
-                                    value: animateShield
-                                )
-                        }
-                        .padding(.top, 8)
-
-                        // Title
-                        VStack(spacing: 8) {
-                            Text("Verify Your Identity")
-                                .font(.system(size: 28, weight: .bold))
-                                .foregroundColor(.primary)
-
-                            Text("Join our trusted community")
-                                .font(.system(size: 16))
-                                .foregroundColor(.secondary)
-                        }
-                        .multilineTextAlignment(.center)
-
-                        // Benefits
+                    VStack(spacing: 0) {
+                        // Hero Icon - Top section (20% of screen)
                         VStack(spacing: 12) {
+                            ZStack {
+                                // Pulsing background
+                                Circle()
+                                    .fill(Theme.Colors.primary.opacity(0.1))
+                                    .frame(width: 80, height: 80)
+                                    .scaleEffect(animateShield ? 1.1 : 1.0)
+                                    .animation(
+                                        Animation.easeInOut(duration: 2.0)
+                                            .repeatForever(autoreverses: true),
+                                        value: animateShield
+                                    )
+
+                                // Shield icon
+                                Image(systemName: "checkmark.shield.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.7)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .scaleEffect(animateShield ? 1.05 : 1.0)
+                                    .animation(
+                                        Animation.easeInOut(duration: 2.0)
+                                            .repeatForever(autoreverses: true),
+                                        value: animateShield
+                                    )
+                            }
+
+                            // Title
+                            VStack(spacing: 6) {
+                                Text("Verify Your Identity")
+                                    .font(.system(size: 26, weight: .bold))
+                                    .foregroundColor(.primary)
+
+                                Text("Get your blue verified badge")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.secondary)
+                            }
+                            .multilineTextAlignment(.center)
+                        }
+                        .frame(height: geometry.size.height * 0.22)
+                        .frame(maxWidth: .infinity)
+
+                        // Benefits - Middle section (50% of screen)
+                        VStack(spacing: 16) {
                             IdentityBenefitRow(
                                 icon: "star.fill",
                                 title: "Unlock Full Access",
-                                description: "Get the blue verified badge and access all features",
+                                description: "Get verified badge and trust from the community",
                                 animate: animateCheckmarks,
                                 delay: 0.1
                             )
@@ -89,7 +92,7 @@ struct IdentityVerificationIntroView: View {
                             IdentityBenefitRow(
                                 icon: "shield.checkered",
                                 title: "Build Trust",
-                                description: "Show others you're a verified, trustworthy member",
+                                description: "Show you're a verified, trustworthy member",
                                 animate: animateCheckmarks,
                                 delay: 0.2
                             )
@@ -110,72 +113,68 @@ struct IdentityVerificationIntroView: View {
                                 delay: 0.4
                             )
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 24)
+                        .frame(height: geometry.size.height * 0.50)
 
-                        // What's Required Section
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Image(systemName: "info.circle.fill")
-                                    .foregroundColor(Theme.Colors.primary)
-                                Text("What You'll Need")
-                                    .font(.system(size: 17, weight: .semibold))
+                        // Requirements & CTA - Bottom section (28% of screen)
+                        VStack(spacing: 16) {
+                            // What's Required Section
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "info.circle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Theme.Colors.primary)
+                                    Text("What You'll Need")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(.primary)
+                                }
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    IdentityRequirementRow(icon: "doc.text.fill", text: "Government ID")
+                                    IdentityRequirementRow(icon: "camera.fill", text: "Live selfie")
+                                    IdentityRequirementRow(icon: "lightbulb.fill", text: "Good lighting")
+                                }
                             }
-
-                            VStack(alignment: .leading, spacing: 8) {
-                                IdentityRequirementRow(icon: "doc.text.fill", text: "Government-issued ID (Driver's License, Passport, or ID Card)")
-                                IdentityRequirementRow(icon: "camera.fill", text: "Camera for live selfie verification")
-                                IdentityRequirementRow(icon: "lightbulb.fill", text: "Good lighting for clear photos")
-                            }
-                        }
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(.systemBackground))
-                                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
-                        )
-                        .padding(.horizontal)
-
-                        // Cost Information
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(Theme.Colors.primary)
-                            Text("100% Free")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 4)
-
-                        Spacer(minLength: 8)
-
-                        // CTA Button
-                        Button(action: {
-                            // Check email verification before proceeding
-                            if authManager.currentUser?.emailVerified == true {
-                                showingGuide = true
-                            } else {
-                                showEmailVerificationAlert = true
-                            }
-                        }) {
-                            HStack(spacing: 12) {
-                                Text("Get Started")
-                                    .font(.system(size: 18, weight: .semibold))
-                                Image(systemName: "arrow.right")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .background(
-                                LinearGradient(
-                                    colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.8)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color(.systemBackground))
+                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
                             )
-                            .cornerRadius(16)
+                            .padding(.horizontal, 24)
+
+                            // CTA Button
+                            Button(action: {
+                                // Check email verification before proceeding
+                                if authManager.currentUser?.emailVerified == true {
+                                    showingGuide = true
+                                } else {
+                                    showEmailVerificationAlert = true
+                                }
+                            }) {
+                                HStack(spacing: 10) {
+                                    Text("Get Started")
+                                        .font(.system(size: 17, weight: .semibold))
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 15, weight: .semibold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 54)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.8)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(14)
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 20)
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 16)
+                        .frame(height: geometry.size.height * 0.28)
                     }
                 }
             }
@@ -273,16 +272,15 @@ struct IdentityRequirementRow: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Theme.Colors.primary)
-                .frame(width: 20)
+                .frame(width: 16)
 
             Text(text)
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
