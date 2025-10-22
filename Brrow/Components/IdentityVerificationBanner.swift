@@ -36,7 +36,7 @@ struct IdentityVerificationBanner: View {
                             .fontWeight(.bold)
                             .foregroundColor(.white)
 
-                        Text("Unlock the blue checkmark")
+                        Text("Help keep Brrow safe and secure")
                             .font(.footnote)
                             .foregroundColor(.white.opacity(0.95))
                     }
@@ -59,19 +59,18 @@ struct IdentityVerificationBanner: View {
                             if isVerifying {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.primary))
-                                    .scaleEffect(0.8)
-                                    .frame(width: 90, height: 30)
+                                    .scaleEffect(0.9)
+                                    .frame(width: 100, height: 38)
                             } else {
                                 Text("Verify Now")
-                                    .font(.footnote)
-                                    .fontWeight(.bold)
+                                    .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(Theme.Colors.primary)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 7)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
                             }
                         }
                         .background(Color.white)
-                        .cornerRadius(20)
+                        .cornerRadius(22)
                         .disabled(isVerifying)
 
                         Button(action: {
@@ -82,9 +81,9 @@ struct IdentityVerificationBanner: View {
                             onDismiss()
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
-                                .frame(width: 24, height: 24)
+                                .frame(width: 28, height: 28)
                         }
                     }
                 }
