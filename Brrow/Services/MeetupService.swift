@@ -41,12 +41,14 @@ class MeetupService: ObservableObject {
             Task {
                 do {
                     // Add cache-busting timestamp to bypass Railway CDN cache
+                    let timestamp = Date().timeIntervalSince1970
                     var requestParams = parameters
-                    requestParams["_t"] = Date().timeIntervalSince1970
+                    requestParams["_t"] = timestamp
 
-                    // WORKAROUND: Use /api/v2/meetups (versioned path to bypass Railway CDN cache)
+                    // WORKAROUND: Use /api/v2/meetups with query param to bypass Railway CDN cache
+                    let endpoint = "/api/v2/meetups?_cb=\(Int(timestamp))"
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/api/v2/meetups",
+                        endpoint,
                         method: .POST,
                         parameters: requestParams
                     )
