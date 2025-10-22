@@ -40,11 +40,14 @@ class MeetupService: ObservableObject {
         return Future { promise in
             Task {
                 do {
-                    // FINAL SOLUTION: Use /mx7k2p9s unique path (bypasses Railway CDN 404 cache)
-                    // Railway CDN has cached 404s for all previous paths. Using random unique path
-                    // that CDN has never seen before ensures request reaches Node.js server.
+                    // CACHE-BUSTING SOLUTION: Add timestamp to bypass Railway CDN caching
+                    // Railway CDN caches responses per URL, including query parameters
+                    // Adding unique timestamp ensures each request bypasses cache
+                    let timestamp = Int(Date().timeIntervalSince1970 * 1000) // milliseconds
+                    let endpoint = "/mx7k2p9s?_t=\(timestamp)"
+
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/mx7k2p9s",
+                        endpoint,
                         method: .POST,
                         parameters: parameters
                     )
