@@ -24,17 +24,19 @@ struct SimpleProfessionalProfileView: View {
 
     // Show email verification banner if user's email is not verified and banner hasn't been dismissed
     private var shouldShowEmailBanner: Bool {
-        showEmailVerificationBanner &&
-        !(authManager.currentUser?.emailVerified ?? false) &&  // Email not verified (use authManager for real-time updates)
-        !authManager.isGuestUser
+        let emailVerified = authManager.currentUser?.emailVerified ?? false
+        let shouldShow = showEmailVerificationBanner && !emailVerified && !authManager.isGuestUser
+        print("🔔 [Banner Debug] shouldShowEmailBanner = \(shouldShow) (emailVerified: \(emailVerified), showEmailVerificationBanner: \(showEmailVerificationBanner), isGuest: \(authManager.isGuestUser))")
+        return shouldShow
     }
 
     // Show Identity verification banner if email IS verified but ID is NOT (Stripe Identity)
     private var shouldShowIdentityBanner: Bool {
-        showIdentityVerificationBanner &&
-        (authManager.currentUser?.emailVerified ?? false) &&  // Email is verified (use authManager for real-time updates)
-        !(authManager.currentUser?.idVerified ?? false) &&  // But ID is not verified
-        !authManager.isGuestUser
+        let emailVerified = authManager.currentUser?.emailVerified ?? false
+        let idVerified = authManager.currentUser?.idVerified ?? false
+        let shouldShow = showIdentityVerificationBanner && emailVerified && !idVerified && !authManager.isGuestUser
+        print("🔔 [Banner Debug] shouldShowIdentityBanner = \(shouldShow) (emailVerified: \(emailVerified), idVerified: \(idVerified), showIdentityVerificationBanner: \(showIdentityVerificationBanner), isGuest: \(authManager.isGuestUser))")
+        return shouldShow
     }
     
     var body: some View {
