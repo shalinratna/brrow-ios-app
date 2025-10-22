@@ -25,15 +25,15 @@ struct SimpleProfessionalProfileView: View {
     // Show email verification banner if user's email is not verified and banner hasn't been dismissed
     private var shouldShowEmailBanner: Bool {
         showEmailVerificationBanner &&
-        !(viewModel.user?.emailVerified ?? false) &&  // Email not verified
+        !(authManager.currentUser?.emailVerified ?? false) &&  // Email not verified (use authManager for real-time updates)
         !authManager.isGuestUser
     }
 
     // Show Identity verification banner if email IS verified but ID is NOT (Stripe Identity)
     private var shouldShowIdentityBanner: Bool {
         showIdentityVerificationBanner &&
-        (viewModel.user?.emailVerified ?? false) &&  // Email is verified
-        !(viewModel.user?.idVerified ?? false) &&  // But ID is not verified
+        (authManager.currentUser?.emailVerified ?? false) &&  // Email is verified (use authManager for real-time updates)
+        !(authManager.currentUser?.idVerified ?? false) &&  // But ID is not verified
         !authManager.isGuestUser
     }
     
