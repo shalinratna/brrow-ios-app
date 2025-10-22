@@ -43,7 +43,7 @@ class ChatDetailViewModel: ObservableObject {
         isLoading = true
         conversation = Conversation(
             id: conversationId,
-            otherUser: ConversationUser(id: "", username: "", profilePicture: nil, isVerified: false),
+            otherUser: ConversationUser(id: "", username: "", profilePicture: nil, hasBlueCheckmark: false),
             lastMessage: nil,
             unreadCount: 0,
             updatedAt: ""
