@@ -44,9 +44,9 @@ class MeetupService: ObservableObject {
                     var requestParams = parameters
                     requestParams["_t"] = Date().timeIntervalSince1970
 
-                    // WORKAROUND: Use /api/meetups-create (fresh path to bypass Railway CDN 404 cache)
+                    // WORKAROUND: Use /api/v2/meetups (versioned path to bypass Railway CDN cache)
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/api/meetups-create",
+                        "/api/v2/meetups",
                         method: .POST,
                         parameters: requestParams
                     )
