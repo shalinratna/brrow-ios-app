@@ -19,19 +19,21 @@ class IdentityVerificationService {
     /// Creates a new Stripe Identity verification session
     /// - Parameter returnUrl: Deep link URL to return to after verification (default: brrow://identity/verification/complete)
     /// - Returns: Verification session with URL to Stripe's hosted verification page
-    func startVerification(returnUrl: String = "brrow://identity/verification/complete") async throws -> VerificationSessionResponse {
+    func startVerification(returnUrl: String = "brrow://identity/verification/complete") async throws -> StripeVerificationSessionResponse {
         let endpoint = "api/identity/start"
-        let body: [String: Any] = [
+        let bodyDict: [String: Any] = [
             "returnUrl": returnUrl
         ]
 
+        let bodyData = try JSONSerialization.data(withJSONObject: bodyDict)
+
         print("🔵 [Identity Service] Starting verification session...")
 
-        let response: VerificationSessionResponse = try await apiClient.performRequest(
+        let response: StripeVerificationSessionResponse = try await apiClient.performRequest(
             endpoint: endpoint,
             method: .POST,
-            body: body,
-            responseType: VerificationSessionResponse.self
+            body: bodyData,
+            responseType: StripeVerificationSessionResponse.self
         )
 
         if response.alreadyVerified == true {
@@ -48,15 +50,15 @@ class IdentityVerificationService {
     /// Checks the status of a verification session
     /// - Parameter sessionId: Stripe verification session ID
     /// - Returns: Current verification status
-    func checkVerificationStatus(sessionId: String) async throws -> VerificationStatusResponse {
+    func checkVerificationStatus(sessionId: String) async throws -> StripeVerificationStatusResponse {
         let endpoint = "api/identity/status/\(sessionId)"
 
         print("🔵 [Identity Service] Checking verification status: \(sessionId)")
 
-        let response: VerificationStatusResponse = try await apiClient.performRequest(
+        let response: StripeVerificationStatusResponse = try await apiClient.performRequest(
             endpoint: endpoint,
             method: .GET,
-            responseType: VerificationStatusResponse.self
+            responseType: StripeVerificationStatusResponse.self
         )
 
         print("✅ [Identity Service] Status: \(response.status.rawValue)")
@@ -68,56 +70,56 @@ class IdentityVerificationService {
 
     /// Gets the current user's verification details
     /// - Returns: User's complete verification information
-    func getUserVerification() async throws -> UserVerificationResponse {
+    func getUserVerification() async throws -> StripeUserVerificationResponse {
         let endpoint = "api/identity/verification"
 
         print("🔵 [Identity Service] Fetching user verification...")
 
-        let response: UserVerificationResponse = try await apiClient.performRequest(
+        let response: StripeUserVerificationResponse = try await apiClient.performRequest(
             endpoint: endpoint,
             method: .GET,
-            responseType: UserVerificationResponse.self
+            responseType: StripeUserVerificationResponse.self
         )
 
-        if response.verified {
-            print("✅ [Identity Service] User is verified")
-        } else {
-            print("ℹ️ [Identity Service] User is not verified")
-        }
+        print("✅ [Identity Service] User verified: \(response.verified)")
 
         return response
     }
 
     // MARK: - Quick Verification Check
 
-    /// Quick check if user is verified (lightweight)
-    /// - Returns: Boolean indicating verification status
+    /// Quick check if user is verified (lightweight endpoint)
+    /// - Returns: Boolean verification status
     func isUserVerified() async throws -> Bool {
         let endpoint = "api/identity/is-verified"
 
-        let response: QuickVerificationResponse = try await apiClient.performRequest(
+        print("🔵 [Identity Service] Quick verification check...")
+
+        let response: StripeIsVerifiedResponse = try await apiClient.performRequest(
             endpoint: endpoint,
             method: .GET,
-            responseType: QuickVerificationResponse.self
+            responseType: StripeIsVerifiedResponse.self
         )
+
+        print("✅ [Identity Service] Is verified: \(response.verified)")
 
         return response.verified
     }
 
     // MARK: - Cancel Verification
 
-    /// Cancels a pending verification session
+    /// Cancels an active verification session
     /// - Parameter sessionId: Stripe verification session ID
-    /// - Returns: Canceled session response
-    func cancelVerification(sessionId: String) async throws -> CancelSessionResponse {
+    /// - Returns: Canceled session details
+    func cancelVerification(sessionId: String) async throws -> StripeCancelSessionResponse {
         let endpoint = "api/identity/cancel/\(sessionId)"
 
         print("🔵 [Identity Service] Canceling verification session: \(sessionId)")
 
-        let response: CancelSessionResponse = try await apiClient.performRequest(
+        let response: StripeCancelSessionResponse = try await apiClient.performRequest(
             endpoint: endpoint,
             method: .POST,
-            responseType: CancelSessionResponse.self
+            responseType: StripeCancelSessionResponse.self
         )
 
         print("✅ [Identity Service] Session canceled")
@@ -125,48 +127,39 @@ class IdentityVerificationService {
         return response
     }
 
-    // MARK: - Polling Helper
+    // MARK: - Poll Verification Status
 
-    /// Polls verification status until completion or timeout
+    /// Polls verification status until complete or max attempts reached
     /// - Parameters:
     ///   - sessionId: Stripe verification session ID
-    ///   - maxAttempts: Maximum number of polling attempts (default: 60)
-    ///   - intervalSeconds: Seconds between polls (default: 2)
+    ///   - maxAttempts: Maximum number of polling attempts (default: 60 = 2 minutes at 2-second intervals)
+    ///   - intervalSeconds: Seconds between polling attempts (default: 2)
     /// - Returns: Final verification status
     func pollVerificationStatus(
         sessionId: String,
         maxAttempts: Int = 60,
         intervalSeconds: UInt64 = 2
-    ) async throws -> VerificationStatusResponse {
-        print("🔵 [Identity Service] Starting polling for session: \(sessionId)")
+    ) async throws -> StripeVerificationStatusResponse {
+        print("🔵 [Identity Service] Starting status polling (max \(maxAttempts) attempts)")
 
         for attempt in 1...maxAttempts {
             let status = try await checkVerificationStatus(sessionId: sessionId)
 
-            // Terminal states
-            if status.status == .verified || status.status == .failed || status.status == .canceled {
-                print("✅ [Identity Service] Polling complete - Final status: \(status.status.rawValue)")
+            // Check if verification is in final state
+            if status.status.isComplete || status.status == .failed || status.status == .canceled {
+                print("✅ [Identity Service] Verification reached final state: \(status.status.rawValue)")
                 return status
             }
 
-            // States that need user action
-            if status.status == .requiresInput {
-                print("⚠️ [Identity Service] Verification requires additional input")
-                return status
-            }
-
-            // Continue polling for pending/processing states
-            print("⏳ [Identity Service] Poll attempt \(attempt)/\(maxAttempts) - Status: \(status.status.rawValue)")
-
+            // Wait before next poll (except on last attempt)
             if attempt < maxAttempts {
+                print("⏳ [Identity Service] Attempt \(attempt)/\(maxAttempts) - Status: \(status.status.rawValue), waiting \(intervalSeconds)s...")
                 try await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)
             }
         }
 
-        throw IdentityVerificationError(
-            success: false,
-            error: "Polling timeout",
-            message: "Verification status check timed out after \(maxAttempts) attempts"
-        )
+        // Max attempts reached, return last status
+        print("⚠️ [Identity Service] Max polling attempts reached")
+        return try await checkVerificationStatus(sessionId: sessionId)
     }
 }

@@ -44,7 +44,7 @@ struct IdentityVerificationGuideView: View {
 
                 VStack(spacing: 0) {
                     // Progress indicator
-                    ProgressBar(currentStep: currentStep, totalSteps: steps.count)
+                    IdentityVerificationProgressBar(currentStep: currentStep, totalSteps: steps.count)
                         .padding(.horizontal)
                         .padding(.top, 8)
 
@@ -229,7 +229,7 @@ struct GuideStepView: View {
 }
 
 // MARK: - Progress Bar
-struct ProgressBar: View {
+struct IdentityVerificationProgressBar: View {
     let currentStep: Int
     let totalSteps: Int
 

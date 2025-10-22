@@ -9,7 +9,7 @@
 import Foundation
 
 // MARK: - Verification Session (POST /api/identity/start)
-struct VerificationSessionResponse: Codable {
+struct StripeVerificationSessionResponse: Codable {
     let success: Bool
     let sessionId: String
     let verificationUrl: String
@@ -30,12 +30,12 @@ struct VerificationSessionResponse: Codable {
 }
 
 // MARK: - Verification Status (GET /api/identity/status/:sessionId)
-struct VerificationStatusResponse: Codable {
+struct StripeVerificationStatusResponse: Codable {
     let success: Bool
     let sessionId: String
-    let status: VerificationStatus
-    let verifiedData: VerifiedData?
-    let lastError: VerificationError?
+    let status: StripeIdentityStatus
+    let verifiedData: StripeVerifiedData?
+    let lastError: StripeVerificationError?
     let expiresAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -48,8 +48,8 @@ struct VerificationStatusResponse: Codable {
     }
 }
 
-// MARK: - Verification Status Enum
-enum VerificationStatus: String, Codable {
+// MARK: - Stripe Identity Status Enum
+enum StripeIdentityStatus: String, Codable {
     case pending = "pending"
     case processing = "processing"
     case requiresInput = "requires_input"
@@ -84,7 +84,7 @@ enum VerificationStatus: String, Codable {
 }
 
 // MARK: - Verified Data
-struct VerifiedData: Codable {
+struct StripeVerifiedData: Codable {
     let name: String?
     let dob: DateOfBirth?
     let address: Address?
@@ -143,7 +143,7 @@ struct VerifiedData: Codable {
 }
 
 // MARK: - Verification Error
-struct VerificationError: Codable {
+struct StripeVerificationError: Codable {
     let code: String?
     let reason: String?
 
@@ -153,10 +153,10 @@ struct VerificationError: Codable {
 }
 
 // MARK: - User Verification Details (GET /api/identity/verification)
-struct UserVerificationResponse: Codable {
+struct StripeUserVerificationResponse: Codable {
     let success: Bool
     let verified: Bool
-    let verification: UserVerification?
+    let verification: StripeUserVerification?
 
     enum CodingKeys: String, CodingKey {
         case success
@@ -165,10 +165,10 @@ struct UserVerificationResponse: Codable {
     }
 }
 
-struct UserVerification: Codable {
+struct StripeUserVerification: Codable {
     let userId: String
     let sessionId: String
-    let verificationStatus: VerificationStatus
+    let verificationStatus: StripeIdentityStatus
     let verifiedName: String?
     let verifiedDob: String?
     let verifiedAddress: String?
@@ -220,13 +220,13 @@ struct UserVerification: Codable {
 }
 
 // MARK: - Quick Verification Check (GET /api/identity/is-verified)
-struct QuickVerificationResponse: Codable {
+struct StripeIsVerifiedResponse: Codable {
     let success: Bool
     let verified: Bool
 }
 
 // MARK: - Cancel Session Response (POST /api/identity/cancel/:sessionId)
-struct CancelSessionResponse: Codable {
+struct StripeCancelSessionResponse: Codable {
     let success: Bool
     let sessionId: String
     let status: String
@@ -241,7 +241,7 @@ struct CancelSessionResponse: Codable {
 }
 
 // MARK: - Error Response
-struct IdentityVerificationError: Codable, LocalizedError {
+struct StripeIdentityVerificationError: Codable, LocalizedError {
     let success: Bool
     let error: String
     let message: String?

@@ -327,9 +327,11 @@ struct BrrowApp: App {
                 passwordResetToken = token
                 showingPasswordReset = true
             }
-        case "idme", "verification":
-            // Handle ID.me verification callback
-            _ = IDmeService.shared.handleRedirectURL(url)
+        case "identity":
+            // Handle Stripe Identity verification callback
+            // Path will be: brrow://identity/verification/complete
+            // The IdentityVerificationWebView handles the completion logic
+            print("✅ [Deep Link] Stripe Identity verification completed")
         
         // Widget deep links
         case "listings":
