@@ -633,6 +633,15 @@ struct SocialProfileView: View {
 struct ActivityCard: View {
     let activity: UserActivity
 
+    // FIXED: Computed properties to handle both API activities (with type) and local activities (with icon/color)
+    private var activityColor: Color {
+        activity.color ?? activity.type?.color ?? Theme.Colors.primary
+    }
+
+    private var activityIcon: String {
+        activity.icon ?? activity.type?.iconName ?? "circle.fill"
+    }
+
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             // ✨ Enhanced activity icon with gradient
@@ -640,7 +649,7 @@ struct ActivityCard: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [activity.type.color.opacity(0.15), activity.type.color.opacity(0.25)],
+                            colors: [activityColor.opacity(0.15), activityColor.opacity(0.25)],  // FIXED: Use computed property
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -648,14 +657,14 @@ struct ActivityCard: View {
                     .frame(width: 48, height: 48)
 
                 Circle()
-                    .strokeBorder(activity.type.color.opacity(0.3), lineWidth: 1)
+                    .strokeBorder(activityColor.opacity(0.3), lineWidth: 1)  // FIXED: Use computed property
                     .frame(width: 48, height: 48)
 
-                Image(systemName: activity.type.iconName)
+                Image(systemName: activityIcon)  // FIXED: Use computed property
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [activity.type.color, activity.type.color.opacity(0.8)],
+                            colors: [activityColor, activityColor.opacity(0.8)],  // FIXED: Use computed property
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -667,7 +676,7 @@ struct ActivityCard: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(Theme.Colors.text)
 
-                Text(activity.description)
+                Text(activity.displaySubtitle)  // FIXED: Use displaySubtitle instead of description
                     .font(.system(size: 13, weight: .regular))
                     .foregroundColor(Theme.Colors.secondaryText)
                     .lineLimit(2)

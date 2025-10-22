@@ -31,7 +31,7 @@ class SmartNotificationService: ObservableObject {
     func loadPreferences() {
         Task {
             do {
-                guard let currentUser = AuthManager.shared.currentUser else {
+                guard AuthManager.shared.currentUser != nil else {
                     print("⚠️ [SmartNotificationService] No current user, cannot load preferences")
                     return
                 }
@@ -112,7 +112,7 @@ class SmartNotificationService: ObservableObject {
 
         // Check if should group
         if prefs.groupSimilarNotifications {
-            if let grouped = tryGroupNotification(type: type, title: title, body: body, category: category, in: prefs) {
+            if tryGroupNotification(type: type, title: title, body: body, category: category, in: prefs) {
                 print("📦 [SmartNotificationService] Grouped notification with existing")
                 return
             }
@@ -196,7 +196,7 @@ class SmartNotificationService: ObservableObject {
 
     private func parseTime(_ timeString: String) -> (Int?, Int) {
         let components = timeString.split(separator: ":").map { Int($0) }
-        return (components.first ?? nil, components.last ?? 0)
+        return (components.first ?? nil, components.last.flatMap { $0 } ?? 0)
     }
 
     // MARK: - Grouping
@@ -353,7 +353,9 @@ class SmartNotificationService: ObservableObject {
     private func scheduleHousekeeper() {
         // Clean up old records every hour
         Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
-            self?.cleanupOldRecords()
+            Task { @MainActor in
+                self?.cleanupOldRecords()
+            }
         }
     }
 

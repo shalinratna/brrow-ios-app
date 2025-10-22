@@ -537,11 +537,11 @@ struct CreatorAnalyticsResponse: Codable {
 
 struct UpdateCreatorSettingsRequest: Codable {
     let payoutFrequency: PayoutFrequency?
-    let notificationPreferences: NotificationPreferences?
+    let notificationPreferences: CreatorNotificationPreferences?
     let profileSettings: CreatorProfileSettings?
 }
 
-struct NotificationPreferences: Codable {
+struct CreatorNotificationPreferences: Codable {
     var newBooking: Bool
     var paymentReceived: Bool
     var newReview: Bool

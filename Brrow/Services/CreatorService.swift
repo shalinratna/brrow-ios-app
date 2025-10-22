@@ -23,7 +23,7 @@ class CreatorService: ObservableObject {
     @Published var insights: [CreatorInsight] = []
 
     // Settings
-    @Published var notificationPreferences: NotificationPreferences?
+    @Published var notificationPreferences: CreatorNotificationPreferences?
     @Published var profileSettings: CreatorProfileSettings?
 
     private let apiClient = APIClient.shared
@@ -198,7 +198,7 @@ class CreatorService: ObservableObject {
         try await updateSettings(settings)
     }
 
-    func updateNotificationPreferences(_ preferences: NotificationPreferences) async throws {
+    func updateNotificationPreferences(_ preferences: CreatorNotificationPreferences) async throws {
         let settings = UpdateCreatorSettingsRequest(
             payoutFrequency: nil,
             notificationPreferences: preferences,
@@ -308,11 +308,11 @@ class CreatorService: ObservableObject {
     private func loadCreatorSettings() {
         // Load notification preferences
         if let data = UserDefaults.standard.data(forKey: "creator_notification_preferences"),
-           let preferences = try? JSONDecoder().decode(NotificationPreferences.self, from: data) {
+           let preferences = try? JSONDecoder().decode(CreatorNotificationPreferences.self, from: data) {
             notificationPreferences = preferences
         } else {
             // Default preferences
-            notificationPreferences = NotificationPreferences(
+            notificationPreferences = CreatorNotificationPreferences(
                 newBooking: true,
                 paymentReceived: true,
                 newReview: true,
