@@ -62,11 +62,11 @@ struct SocialChatView: View {
     private var chatHeader: some View {
         HStack {
             Text(LocalizationHelper.localizedString("messages"))
-                .font(.system(size: 32, weight: .bold))
+                .font(.system(size: 34, weight: .bold))
                 .foregroundColor(Theme.Colors.text)
-            
+
             Spacer()
-            
+
             Button(action: { showingFeedbackHelp = true }) {
                 Image(systemName: "questionmark.circle")
                     .font(.system(size: 22))
@@ -221,68 +221,130 @@ struct SocialConversationRow: View {
     @State private var showingUserProfile = false
     @State private var otherUserProfile: User?
     @State private var isLoadingProfile = false
+    @State private var isPressed = false
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            // CRITICAL: Make profile picture tappable for Instagram-style profile view
-            Button(action: { fetchAndShowProfile() }) {
-                BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Theme.Colors.primary.opacity(0.2))
-                        .overlay(
-                            Text(String(conversation.otherUser.username.prefix(1)).uppercased())
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(Theme.Colors.primary)
-                        )
+        HStack(spacing: 14) {
+            // Instagram-style profile picture (64x64)
+            ZStack(alignment: .bottomTrailing) {
+                Button(action: {
+                    HapticManager.impact(style: .light)
+                    fetchAndShowProfile()
+                }) {
+                    BrrowAsyncImage(url: conversation.otherUser.profilePicture) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(Theme.Colors.primary.opacity(0.2))
+                            .overlay(
+                                Text(String(conversation.otherUser.username.prefix(1)).uppercased())
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundColor(Theme.Colors.primary)
+                            )
+                    }
+                    .frame(width: 64, height: 64)
+                    .clipShape(Circle())
                 }
-                .frame(width: 56, height: 56)
-                .clipShape(Circle())
+                .buttonStyle(PlainButtonStyle())
+
+                // Blue dot indicator for unread (Instagram style)
+                if conversation.unreadCount > 0 {
+                    Circle()
+                        .fill(Theme.Colors.primary)
+                        .frame(width: 14, height: 14)
+                        .overlay(
+                            Circle()
+                                .stroke(Theme.Colors.background, lineWidth: 2)
+                        )
+                        .offset(x: 2, y: 2)
+                }
             }
-            .buttonStyle(PlainButtonStyle())
 
             // Content
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .center, spacing: 6) {
                     Text(conversation.otherUser.username)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(Theme.Colors.text)
-                    
+
+                    // Blue checkmark if verified
+                    if conversation.otherUser.hasBlueCheckmark == true {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.primary)
+                    }
+
                     Spacer()
-                    
+
                     Text(timeAgo(conversation.lastMessage?.createdAt ?? conversation.updatedAt))
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
-                
-                HStack {
-                    Text(conversation.lastMessage?.content ?? "No messages yet")
-                        .font(.system(size: 14))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .lineLimit(2)
-                    
+
+                HStack(alignment: .center, spacing: 6) {
+                    // Message preview with media icon if applicable
+                    HStack(spacing: 4) {
+                        if let messageType = conversation.lastMessage?.messageType {
+                            if messageType == .image {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            } else if messageType == .video {
+                                Image(systemName: "video.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
+                        }
+
+                        Text(conversation.lastMessage?.content ?? "No messages yet")
+                            .font(.system(size: 15))
+                            .foregroundColor(conversation.unreadCount > 0 ? Theme.Colors.text : Theme.Colors.secondaryText)
+                            .fontWeight(conversation.unreadCount > 0 ? .medium : .regular)
+                            .lineLimit(2)
+                    }
+
                     Spacer()
-                    
+
+                    // Unread count badge (Instagram style)
                     if conversation.unreadCount > 0 {
-                        Circle()
-                            .fill(Theme.Colors.primary)
-                            .frame(width: 20, height: 20)
-                            .overlay(
-                                Text("\(min(conversation.unreadCount, 9))")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
+                        if conversation.unreadCount == 1 {
+                            // Just the dot for single unread
+                            Circle()
+                                .fill(Theme.Colors.primary)
+                                .frame(width: 8, height: 8)
+                        } else {
+                            // "X+ new" for multiple unread
+                            Text("\(min(conversation.unreadCount, 99))+ new")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Theme.Colors.primary)
+                        }
                     }
                 }
             }
         }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.vertical, Theme.Spacing.sm)
-        .background(Color.clear)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 0)
+                .fill(isPressed ? Theme.Colors.surface.opacity(0.5) : Color.clear)
+        )
         .contentShape(Rectangle())
+        .scaleEffect(isPressed ? 0.98 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        isPressed = true
+                        HapticManager.selection()
+                    }
+                }
+                .onEnded { _ in
+                    isPressed = false
+                }
+        )
         .sheet(isPresented: $showingUserProfile) {
             if let user = otherUserProfile {
                 NavigationView {
@@ -330,21 +392,24 @@ struct SocialConversationRow: View {
     private func timeAgo(_ dateString: String) -> String {
         let formatter = ISO8601DateFormatter()
         guard let date = formatter.date(from: dateString) else { return "" }
-        
+
         let now = Date()
         let timeInterval = now.timeIntervalSince(date)
-        
+
         if timeInterval < 60 {
-            return "now"
+            return "Just now"
         } else if timeInterval < 3600 {
             let minutes = Int(timeInterval / 60)
             return "\(minutes)m"
         } else if timeInterval < 86400 {
             let hours = Int(timeInterval / 3600)
             return "\(hours)h"
-        } else {
+        } else if timeInterval < 604800 {
             let days = Int(timeInterval / 86400)
             return "\(days)d"
+        } else {
+            let weeks = Int(timeInterval / 604800)
+            return "\(weeks)w"
         }
     }
 }
