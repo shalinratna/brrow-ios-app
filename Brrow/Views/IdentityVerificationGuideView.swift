@@ -10,9 +10,11 @@ import SwiftUI
 
 struct IdentityVerificationGuideView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var authManager: AuthManager
     @StateObject private var viewModel = IdentityVerificationGuideViewModel()
     @State private var currentStep = 0
     @State private var showingWebView = false
+    @State private var showEmailVerificationAlert = false
 
     private let steps: [GuideStep] = [
         GuideStep(
@@ -76,7 +78,12 @@ struct IdentityVerificationGuideView: View {
                         } else {
                             // Start Verification button
                             Button(action: {
-                                viewModel.startVerification()
+                                // Double-check email verification before starting
+                                if authManager.currentUser?.emailVerified == true {
+                                    viewModel.startVerification()
+                                } else {
+                                    showEmailVerificationAlert = true
+                                }
                             }) {
                                 HStack(spacing: 12) {
                                     if viewModel.isLoading {
@@ -152,6 +159,15 @@ struct IdentityVerificationGuideView: View {
                 if url != nil {
                     showingWebView = true
                 }
+            }
+            .alert("Email Verification Required", isPresented: $showEmailVerificationAlert) {
+                Button("Verify Email", role: .none) {
+                    dismiss()
+                    NotificationCenter.default.post(name: .openEmailVerification, object: nil)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("You must verify your email address before verifying your identity. This helps us ensure account security and prevents fraud.")
             }
         }
     }

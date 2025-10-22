@@ -10,9 +10,11 @@ import SwiftUI
 
 struct IdentityVerificationIntroView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var authManager: AuthManager
     @State private var showingGuide = false
     @State private var animateShield = false
     @State private var animateCheckmarks = false
+    @State private var showEmailVerificationAlert = false
 
     var body: some View {
         NavigationView {
@@ -147,7 +149,12 @@ struct IdentityVerificationIntroView: View {
 
                         // CTA Button
                         Button(action: {
-                            showingGuide = true
+                            // Check email verification before proceeding
+                            if authManager.currentUser?.emailVerified == true {
+                                showingGuide = true
+                            } else {
+                                showEmailVerificationAlert = true
+                            }
                         }) {
                             HStack(spacing: 12) {
                                 Text("Get Started")
@@ -184,6 +191,16 @@ struct IdentityVerificationIntroView: View {
             .sheet(isPresented: $showingGuide) {
                 IdentityVerificationGuideView()
             }
+            .alert("Email Verification Required", isPresented: $showEmailVerificationAlert) {
+                Button("Verify Email", role: .none) {
+                    // Navigate to email verification
+                    dismiss()
+                    NotificationCenter.default.post(name: .openEmailVerification, object: nil)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("You must verify your email address before verifying your identity. This helps us ensure account security and prevents fraud.")
+            }
         }
         .onAppear {
             animateShield = true
@@ -192,6 +209,11 @@ struct IdentityVerificationIntroView: View {
             }
         }
     }
+}
+
+// MARK: - Notification Extension
+extension Notification.Name {
+    static let openEmailVerification = Notification.Name("openEmailVerification")
 }
 
 // MARK: - Benefit Row Component

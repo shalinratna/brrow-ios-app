@@ -169,13 +169,20 @@ class WebViewCoordinator: NSObject, ObservableObject, WKNavigationDelegate {
         if let url = webView.url?.absoluteString {
             print("🔵 [Identity WebView] Loaded URL: \(url)")
 
-            // Check for deep link return (brrow://identity/verification/complete)
+            // Check for universal link return (https://brrowapp.com/verified)
+            if url.contains("brrowapp.com/verified") {
+                print("✅ [Identity WebView] Detected return URL - verification flow complete")
+                handleVerificationComplete()
+                return
+            }
+
+            // Check for deep link return (brrow://identity/verification/complete) - legacy
             if url.contains("brrow://") || url.contains("verification/complete") {
                 handleVerificationComplete()
             }
 
             // Check for Stripe success indicators
-            if url.contains("success") || url.contains("complete") || url.contains("verified") {
+            if url.contains("success") || url.contains("complete") {
                 handleVerificationComplete()
             }
         }
@@ -209,14 +216,23 @@ class WebViewCoordinator: NSObject, ObservableObject, WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        // Handle deep links
-        if let url = navigationAction.request.url,
-           url.scheme == "brrow" || url.absoluteString.contains("brrow://") {
-            print("🔵 [Identity WebView] Deep link detected: \(url.absoluteString)")
+        // Handle universal link return
+        if let url = navigationAction.request.url {
+            // Check for return URL (https://brrowapp.com/verified)
+            if url.absoluteString.contains("brrowapp.com/verified") {
+                print("✅ [Identity WebView] Universal link return detected: \(url.absoluteString)")
+                handleVerificationComplete()
+                decisionHandler(.cancel)
+                return
+            }
 
-            handleVerificationComplete()
-            decisionHandler(.cancel)
-            return
+            // Handle deep links (legacy)
+            if url.scheme == "brrow" || url.absoluteString.contains("brrow://") {
+                print("🔵 [Identity WebView] Deep link detected: \(url.absoluteString)")
+                handleVerificationComplete()
+                decisionHandler(.cancel)
+                return
+            }
         }
 
         decisionHandler(.allow)

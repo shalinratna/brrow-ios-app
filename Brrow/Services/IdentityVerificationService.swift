@@ -17,9 +17,9 @@ class IdentityVerificationService {
     // MARK: - Start Verification
 
     /// Creates a new Stripe Identity verification session
-    /// - Parameter returnUrl: Deep link URL to return to after verification (default: brrow://identity/verification/complete)
+    /// - Parameter returnUrl: HTTPS URL to return to after verification (default: https://brrowapp.com/verified)
     /// - Returns: Verification session with URL to Stripe's hosted verification page
-    func startVerification(returnUrl: String = "brrow://identity/verification/complete") async throws -> StripeVerificationSessionResponse {
+    func startVerification(returnUrl: String = "https://brrowapp.com/verified") async throws -> StripeVerificationSessionResponse {
         let endpoint = "api/identity/start"
         let bodyDict: [String: Any] = [
             "returnUrl": returnUrl
