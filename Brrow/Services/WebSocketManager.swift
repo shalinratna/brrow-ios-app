@@ -405,11 +405,16 @@ class WebSocketManager: NSObject, ObservableObject {
             print("✅ [WebSocket] Successfully decoded message: \(message.id) in chat: \(message.chatId)")
             print("📩 [WebSocket] Message content: \(message.content.prefix(50))...")
 
-            // Update unread count
-            if !message.isFromCurrentUser {
-                unreadMessageCount += 1
-                print("📊 [WebSocket] Updated unread count to: \(unreadMessageCount)")
+            // CRITICAL FIX: Skip processing our own messages to prevent duplication
+            // Our messages already appear via the send API, don't need WebSocket echo
+            if message.isFromCurrentUser {
+                print("⏭️ [WebSocket] Skipping own message \(message.id) - already displayed from send API")
+                return
             }
+
+            // Update unread count (only for messages from other users)
+            unreadMessageCount += 1
+            print("📊 [WebSocket] Updated unread count to: \(unreadMessageCount)")
 
             print("📢 [WebSocket] Posting .newMessageReceived notification for chat: \(message.chatId)")
             NotificationCenter.default.post(
