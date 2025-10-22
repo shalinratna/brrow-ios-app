@@ -133,14 +133,22 @@ struct MeetupTransaction: Codable {
     }
 }
 
+// MARK: - Meetup Purchase (same structure as MeetupTransaction but for purchases)
+struct MeetupPurchase: Codable {
+    let id: String
+    let amount: Double
+    let listings: MeetupListing
+}
+
 // MARK: - Meetup Model
 struct Meetup: Codable, Identifiable {
     let id: String
-    let transactionId: String
+    let transactionId: String?
+    let purchaseId: String?
     let buyerId: String
     let sellerId: String
-    let meetupLocation: MeetupLocation
-    let scheduledTime: Date
+    let meetupLocation: MeetupLocation?
+    let scheduledTime: Date?
     let buyerLocation: UserLocation?
     let sellerLocation: UserLocation?
     let buyerArrivedAt: Date?
@@ -158,10 +166,12 @@ struct Meetup: Codable, Identifiable {
     let buyers: MeetupUser?
     let sellers: MeetupUser?
     let transactions: MeetupTransaction?
+    let purchases: MeetupPurchase?
 
     enum CodingKeys: String, CodingKey {
         case id
         case transactionId = "transaction_id"
+        case purchaseId = "purchase_id"
         case buyerId = "buyer_id"
         case sellerId = "seller_id"
         case meetupLocation = "meetup_location"
@@ -177,7 +187,7 @@ struct Meetup: Codable, Identifiable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case expiresAt = "expires_at"
-        case buyers, sellers, transactions
+        case buyers, sellers, transactions, purchases
     }
 
     // Custom decoding for dates
@@ -185,10 +195,11 @@ struct Meetup: Codable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         id = try container.decode(String.self, forKey: .id)
-        transactionId = try container.decode(String.self, forKey: .transactionId)
+        transactionId = try container.decodeIfPresent(String.self, forKey: .transactionId)
+        purchaseId = try container.decodeIfPresent(String.self, forKey: .purchaseId)
         buyerId = try container.decode(String.self, forKey: .buyerId)
         sellerId = try container.decode(String.self, forKey: .sellerId)
-        meetupLocation = try container.decode(MeetupLocation.self, forKey: .meetupLocation)
+        meetupLocation = try container.decodeIfPresent(MeetupLocation.self, forKey: .meetupLocation)
         buyerLocation = try container.decodeIfPresent(UserLocation.self, forKey: .buyerLocation)
         sellerLocation = try container.decodeIfPresent(UserLocation.self, forKey: .sellerLocation)
         verificationMethod = try container.decodeIfPresent(VerificationMethod.self, forKey: .verificationMethod)
@@ -197,12 +208,16 @@ struct Meetup: Codable, Identifiable {
         buyers = try container.decodeIfPresent(MeetupUser.self, forKey: .buyers)
         sellers = try container.decodeIfPresent(MeetupUser.self, forKey: .sellers)
         transactions = try container.decodeIfPresent(MeetupTransaction.self, forKey: .transactions)
+        purchases = try container.decodeIfPresent(MeetupPurchase.self, forKey: .purchases)
 
         // Decode dates
         let dateFormatter = ISO8601DateFormatter()
 
-        let scheduledTimeString = try container.decode(String.self, forKey: .scheduledTime)
-        scheduledTime = dateFormatter.date(from: scheduledTimeString) ?? Date()
+        if let scheduledTimeString = try container.decodeIfPresent(String.self, forKey: .scheduledTime) {
+            scheduledTime = dateFormatter.date(from: scheduledTimeString)
+        } else {
+            scheduledTime = nil
+        }
 
         if let buyerArrivedString = try container.decodeIfPresent(String.self, forKey: .buyerArrivedAt) {
             buyerArrivedAt = dateFormatter.date(from: buyerArrivedString)
