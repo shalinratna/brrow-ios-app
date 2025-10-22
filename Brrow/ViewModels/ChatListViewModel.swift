@@ -314,7 +314,7 @@ class ChatListViewModel: ObservableObject {
             id: user.id,
             username: user.username,
             profilePicture: user.profilePicture,
-            isVerified: user.isVerified ?? false
+            hasBlueCheckmark: user.hasBlueCheckmark ?? false
         )
 
         let conversation = Conversation(
