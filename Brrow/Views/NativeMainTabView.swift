@@ -88,11 +88,16 @@ struct NativeMainTabView: View {
             .badge(chatViewModel.unreadCount > 0 ? "\(chatViewModel.unreadCount)" : nil)
             .tag(3)
             
-            // Profile Tab - Professional Design
+            // Profile Tab - Universal Profile
             NavigationView {
-                SimpleProfessionalProfileView()
-                    .environmentObject(profileViewModel)
-                    .environmentObject(authManager)
+                if let currentUser = authManager.currentUser {
+                    UniversalProfileView(user: currentUser)
+                        .environmentObject(authManager)
+                } else {
+                    SimpleProfessionalProfileView()
+                        .environmentObject(profileViewModel)
+                        .environmentObject(authManager)
+                }
             }
             .tabItem {
                 Label(LocalizationHelper.localizedString("profile"), systemImage: "person.fill")

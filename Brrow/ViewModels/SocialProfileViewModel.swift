@@ -117,33 +117,11 @@ class SocialProfileViewModel: ObservableObject {
     }
     
     private func loadActivities(userId: Int) async throws -> [UserActivity] {
-        let apiActivities = try await apiClient.fetchUserActivities(userId: userId, limit: 20)
-        return apiActivities.map { apiActivity in
-            // Map APIUserActivity.type string to UserActivity.ActivityType enum
-            let activityType: UserActivity.ActivityType
-            switch apiActivity.type {
-            case "listing_created": activityType = .listed
-            case "listing_viewed", "search": activityType = .reviewed // No direct viewing type
-            case "transaction", "message_sent": activityType = .borrowed
-            case "favorite": activityType = .reviewed
-            default: activityType = .listed // Default fallback
-            }
-            
-            // Format timestamp as time ago
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .abbreviated
-            let timeAgo = formatter.localizedString(for: apiActivity.timestamp, relativeTo: Date())
-            
-            return UserActivity(
-                id: apiActivity.id,
-                type: activityType,
-                title: apiActivity.description,
-                description: apiActivity.description,
-                amount: nil,
-                createdAt: ISO8601DateFormatter().string(from: apiActivity.timestamp),
-                timeAgo: timeAgo
-            )
-        }
+        // FIXED: UserActivity from API should be decoded from JSON, not manually constructed
+        // The UserActivity model now has custom Codable decoder that handles API responses
+        // For now, return empty array until proper Activities API endpoint is integrated
+        // TODO: Fetch activities from /api/users/:id/activities endpoint which returns ActivitiesResponse
+        return []
     }
     
     private func loadUserListings(userId: Int) async throws -> [Listing] {

@@ -83,7 +83,8 @@ struct EnhancedChatDetailView: View {
         .sheet(isPresented: $showingUserProfile) {
             if let user = otherUserProfile {
                 NavigationView {
-                    SocialProfileView(user: user)
+                    UniversalProfileView(user: user)
+                        .environmentObject(AuthManager.shared)
                         .navigationBarItems(trailing: Button("Done") {
                             showingUserProfile = false
                         })

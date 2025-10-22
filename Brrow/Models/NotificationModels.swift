@@ -68,10 +68,141 @@ struct NotificationSettings: Codable {
     var quietHoursEnabled: Bool = false
     var quietHoursStart: String = "22:00"
     var quietHoursEnd: String = "08:00"
-    
+
     static var `default`: NotificationSettings {
         return NotificationSettings()
     }
+}
+
+// MARK: - Enhanced Notification Preferences
+struct NotificationPreferences: Codable {
+    var userId: String
+
+    // General Settings
+    var pushNotificationsEnabled: Bool = true
+    var emailNotificationsEnabled: Bool = true
+    var smsNotificationsEnabled: Bool = false
+
+    // Category Preferences
+    var messages: CategoryPreference = CategoryPreference(push: true, email: true, sms: false)
+    var transactions: CategoryPreference = CategoryPreference(push: true, email: true, sms: true)
+    var listings: CategoryPreference = CategoryPreference(push: true, email: false, sms: false)
+    var reviews: CategoryPreference = CategoryPreference(push: true, email: true, sms: false)
+    var social: CategoryPreference = CategoryPreference(push: true, email: false, sms: false)
+    var security: CategoryPreference = CategoryPreference(push: true, email: true, sms: true)
+    var marketing: CategoryPreference = CategoryPreference(push: false, email: false, sms: false)
+
+    // Listing Activity Preferences
+    var listingViews: ListingActivityPreference = ListingActivityPreference(
+        enabled: true,
+        threshold: 100,
+        frequency: .once
+    )
+    var listingFavorites: ListingActivityPreference = ListingActivityPreference(
+        enabled: true,
+        threshold: 10,
+        frequency: .daily
+    )
+    var listingShares: ListingActivityPreference = ListingActivityPreference(
+        enabled: true,
+        threshold: 5,
+        frequency: .once
+    )
+
+    // Seek Matching Preferences
+    var seekMatching: SeekMatchingPreference = SeekMatchingPreference(
+        enabled: true,
+        minMatchScore: 70,
+        notifyImmediately: true,
+        digestFrequency: .never
+    )
+
+    // Meetup Preferences
+    var meetupReminders: MeetupPreference = MeetupPreference(
+        enabled: true,
+        reminderTimes: [24, 2, 0.5], // hours before
+        locationUpdates: true,
+        statusUpdates: true
+    )
+
+    // Quiet Hours
+    var quietHoursEnabled: Bool = false
+    var quietHoursStart: String = "22:00"
+    var quietHoursEnd: String = "08:00"
+    var quietHoursExceptions: [String] = ["security", "messages"] // Always allow these
+
+    // Rate Limiting
+    var maxNotificationsPerHour: Int = 10
+    var maxNotificationsPerDay: Int = 50
+    var groupSimilarNotifications: Bool = true
+    var groupingWindowMinutes: Int = 30
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case pushNotificationsEnabled = "push_enabled"
+        case emailNotificationsEnabled = "email_enabled"
+        case smsNotificationsEnabled = "sms_enabled"
+        case messages, transactions, listings, reviews, social, security, marketing
+        case listingViews = "listing_views"
+        case listingFavorites = "listing_favorites"
+        case listingShares = "listing_shares"
+        case seekMatching = "seek_matching"
+        case meetupReminders = "meetup_reminders"
+        case quietHoursEnabled = "quiet_hours_enabled"
+        case quietHoursStart = "quiet_hours_start"
+        case quietHoursEnd = "quiet_hours_end"
+        case quietHoursExceptions = "quiet_hours_exceptions"
+        case maxNotificationsPerHour = "max_per_hour"
+        case maxNotificationsPerDay = "max_per_day"
+        case groupSimilarNotifications = "group_similar"
+        case groupingWindowMinutes = "grouping_window_minutes"
+    }
+}
+
+// MARK: - Category Preference
+struct CategoryPreference: Codable {
+    var push: Bool
+    var email: Bool
+    var sms: Bool
+}
+
+// MARK: - Listing Activity Preference
+struct ListingActivityPreference: Codable {
+    var enabled: Bool
+    var threshold: Int
+    var frequency: NotificationFrequency
+}
+
+// MARK: - Seek Matching Preference
+struct SeekMatchingPreference: Codable {
+    var enabled: Bool
+    var minMatchScore: Int // 0-100
+    var notifyImmediately: Bool
+    var digestFrequency: NotificationFrequency
+}
+
+// MARK: - Meetup Preference
+struct MeetupPreference: Codable {
+    var enabled: Bool
+    var reminderTimes: [Double] // hours before meetup
+    var locationUpdates: Bool
+    var statusUpdates: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case reminderTimes = "reminder_times"
+        case locationUpdates = "location_updates"
+        case statusUpdates = "status_updates"
+    }
+}
+
+// MARK: - Notification Frequency
+enum NotificationFrequency: String, Codable {
+    case never = "NEVER"
+    case once = "ONCE"
+    case daily = "DAILY"
+    case weekly = "WEEKLY"
+    case immediately = "IMMEDIATELY"
 }
 
 // MARK: - Notification History Response

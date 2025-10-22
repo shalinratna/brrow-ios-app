@@ -218,7 +218,8 @@ struct ProfessionalListingDetailView: View {
         }
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
-                FullSellerProfileView(user: seller)
+                UniversalProfileView(user: seller)
+                    .environmentObject(AuthManager.shared)
             }
         }
         .sheet(isPresented: $showingEditView) {
