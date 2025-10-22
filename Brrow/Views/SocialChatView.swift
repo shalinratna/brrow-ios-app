@@ -221,7 +221,6 @@ struct SocialConversationRow: View {
     @State private var showingUserProfile = false
     @State private var otherUserProfile: User?
     @State private var isLoadingProfile = false
-    @State private var isPressed = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -326,25 +325,8 @@ struct SocialConversationRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 0)
-                .fill(isPressed ? Theme.Colors.surface.opacity(0.5) : Color.clear)
-        )
+        .background(Color.clear)
         .contentShape(Rectangle())
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !isPressed {
-                        isPressed = true
-                        HapticManager.selection()
-                    }
-                }
-                .onEnded { _ in
-                    isPressed = false
-                }
-        )
         .sheet(isPresented: $showingUserProfile) {
             if let user = otherUserProfile {
                 NavigationView {
