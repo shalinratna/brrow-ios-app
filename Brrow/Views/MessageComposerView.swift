@@ -268,7 +268,7 @@ struct MessageComposerView: View {
                     id: recipient?.apiId ?? "",
                     username: recipient?.displayName ?? recipient?.username ?? "User",
                     profilePicture: recipient?.profilePicture,
-                    isVerified: recipient?.isVerified ?? false
+                    hasBlueCheckmark: recipient?.hasBlueCheckmark ?? false
                 )
                 let tempMessage = ChatMessage(
                     id: "",
