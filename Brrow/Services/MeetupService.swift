@@ -40,17 +40,12 @@ class MeetupService: ObservableObject {
         return Future { promise in
             Task {
                 do {
-                    // Add cache-busting timestamp to bypass Railway CDN cache
-                    let timestamp = Date().timeIntervalSince1970
-                    var requestParams = parameters
-                    requestParams["_t"] = timestamp
-
-                    // WORKAROUND: Use /api/v2/meetups with query param to bypass Railway CDN cache
-                    let endpoint = "/api/v2/meetups?_cb=\(Int(timestamp))"
+                    // PROFESSIONAL SOLUTION: Use /schedule-meetup path (bypasses Railway CDN)
+                    // Railway CDN caches all /api/* paths. Using non-API path ensures request reaches server.
                     let response: MeetupResponse = try await self.apiClient.request(
-                        endpoint,
+                        "/schedule-meetup",
                         method: .POST,
-                        parameters: requestParams
+                        parameters: parameters
                     )
 
                     if response.success, let meetup = response.data {
