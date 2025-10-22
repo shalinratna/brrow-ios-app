@@ -159,11 +159,26 @@ struct Message: Identifiable, Equatable {
         // CRITICAL FIX: Backend sends database ID in senderId
         // Check both id and apiId fields to handle the ID format inconsistency
         guard let currentUser = AuthManager.shared.currentUser else {
+            print("🔍 [Message.isFromCurrentUser] No currentUser in AuthManager")
             return false
         }
 
+        print("🔍 [Message.isFromCurrentUser] === OWNERSHIP CHECK ===")
+        print("🔍 [Message.isFromCurrentUser] senderId: \(senderId)")
+        print("🔍 [Message.isFromCurrentUser] currentUser.id: \(currentUser.id)")
+        print("🔍 [Message.isFromCurrentUser] currentUser.apiId: \(currentUser.apiId ?? "nil")")
+
+        let matchesId = senderId == currentUser.id
+        let matchesApiId = senderId == (currentUser.apiId ?? "")
+
+        print("🔍 [Message.isFromCurrentUser] senderId == currentUser.id? \(matchesId)")
+        print("🔍 [Message.isFromCurrentUser] senderId == currentUser.apiId? \(matchesApiId)")
+
+        let result = matchesId || matchesApiId
+        print("🔍 [Message.isFromCurrentUser] FINAL RESULT: \(result)")
+
         // Check if senderId matches either the id or apiId of current user
-        return senderId == currentUser.id || senderId == (currentUser.apiId ?? "")
+        return result
     }
     
     static func == (lhs: Self, rhs: Self) -> Bool {
