@@ -40,10 +40,11 @@ class MeetupService: ObservableObject {
         return Future { promise in
             Task {
                 do {
-                    // PROFESSIONAL SOLUTION: Use /schedule-meetup path (bypasses Railway CDN)
-                    // Railway CDN caches all /api/* paths. Using non-API path ensures request reaches server.
+                    // FINAL SOLUTION: Use /mx7k2p9s unique path (bypasses Railway CDN 404 cache)
+                    // Railway CDN has cached 404s for all previous paths. Using random unique path
+                    // that CDN has never seen before ensures request reaches Node.js server.
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/schedule-meetup",
+                        "/mx7k2p9s",
                         method: .POST,
                         parameters: parameters
                     )
