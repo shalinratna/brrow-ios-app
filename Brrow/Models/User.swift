@@ -135,8 +135,8 @@ struct User: Codable, Identifiable {
         // Verification Status
         case verified
         case isVerified = "isVerified"  // Backend sends camelCase
-        case emailVerified = "email_verified"
-        case idVerified = "id_verified"
+        case emailVerified = "emailVerified"  // FIXED: Backend sends camelCase (not email_verified)
+        case idVerified = "idVerified"  // FIXED: Backend sends camelCase (not id_verified)
         case phoneVerified = "phone_verified"
         case idVerification = "id_verification"
         case verificationStatus = "verification_status"
