@@ -56,6 +56,17 @@ struct EnhancedChatDetailView: View {
         .navigationBarHidden(true)
         .onAppear {
             viewModel.loadMessages(for: conversation.id)
+            // Mark messages as read when opening chat
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s delay to let messages load
+                markUnreadMessagesAsRead()
+            }
+        }
+        .onChange(of: viewModel.messages) { _ in
+            // Mark new messages as read when they arrive
+            Task {
+                markUnreadMessagesAsRead()
+            }
         }
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker { image in
@@ -421,6 +432,28 @@ struct EnhancedChatDetailView: View {
     private func startVideoCall() {
         // In a real app, this would initiate a video call
         showingVideoCall = true
+    }
+
+    // MARK: - Read Receipts
+
+    /// Mark all unread messages in this chat as read
+    private func markUnreadMessagesAsRead() {
+        guard let currentUserId = AuthManager.shared.currentUser?.id else { return }
+
+        // Find all messages that:
+        // 1. Are NOT from the current user (we don't mark our own messages as read)
+        // 2. Are not already marked as read
+        let unreadMessages = viewModel.messages.filter { message in
+            message.senderId != currentUserId && !message.isRead
+        }
+
+        guard !unreadMessages.isEmpty else { return }
+
+        let messageIds = unreadMessages.map { $0.id }
+        print("📖 [EnhancedChatDetailView] Marking \(messageIds.count) messages as read in chat \(conversation.id)")
+
+        // Call ChatService to emit mark_read event to backend
+        ChatService.shared.markMessagesAsRead(messageIds: messageIds, chatId: conversation.id)
     }
 
     // MARK: - Typing Indicator Handling
