@@ -76,6 +76,7 @@ struct IdentityVerificationIntroView: View {
                             }
                             .multilineTextAlignment(.center)
                         }
+                        .padding(.top, 4)
                         .frame(height: geometry.size.height * 0.22)
                         .frame(maxWidth: .infinity)
 
