@@ -14,7 +14,7 @@ struct StripeVerificationSessionResponse: Codable {
     let sessionId: String
     let verificationUrl: String
     let clientSecret: String?
-    let expiresAt: Date
+    let expiresAt: Date?  // ✅ FIXED: Backend sends null, must be optional
     let status: String
     let alreadyVerified: Bool?
 
@@ -36,7 +36,7 @@ struct StripeVerificationStatusResponse: Codable {
     let status: StripeIdentityStatus
     let verifiedData: StripeVerifiedData?
     let lastError: StripeVerificationError?
-    let expiresAt: Date
+    let expiresAt: Date?  // ✅ FIXED: Backend may send null, must be optional
 
     enum CodingKeys: String, CodingKey {
         case success
@@ -230,7 +230,7 @@ struct StripeCancelSessionResponse: Codable {
     let success: Bool
     let sessionId: String
     let status: String
-    let canceledAt: Date
+    let canceledAt: Date?  // ✅ FIXED: Backend may send null, must be optional
 
     enum CodingKeys: String, CodingKey {
         case success
