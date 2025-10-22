@@ -40,14 +40,8 @@ class MeetupService: ObservableObject {
         return Future { promise in
             Task {
                 do {
-                    // CACHE-BUSTING SOLUTION: Add timestamp to bypass Railway CDN caching
-                    // Railway CDN caches responses per URL, including query parameters
-                    // Adding unique timestamp ensures each request bypasses cache
-                    let timestamp = Int(Date().timeIntervalSince1970 * 1000) // milliseconds
-                    let endpoint = "/mx7k2p9s?_t=\(timestamp)"
-
                     let response: MeetupResponse = try await self.apiClient.request(
-                        endpoint,
+                        "/api/meetups/schedule",
                         method: .POST,
                         parameters: parameters
                     )
