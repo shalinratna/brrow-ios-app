@@ -31,13 +31,13 @@ struct IdentityVerificationIntroView: View {
                 .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 12) {
                         // Hero Icon
                         ZStack {
                             // Pulsing background
                             Circle()
                                 .fill(Theme.Colors.primary.opacity(0.1))
-                                .frame(width: 140, height: 140)
+                                .frame(width: 100, height: 100)
                                 .scaleEffect(animateShield ? 1.1 : 1.0)
                                 .animation(
                                     Animation.easeInOut(duration: 2.0)
@@ -47,7 +47,7 @@ struct IdentityVerificationIntroView: View {
 
                             // Shield icon
                             Image(systemName: "checkmark.shield.fill")
-                                .font(.system(size: 64))
+                                .font(.system(size: 48))
                                 .foregroundStyle(
                                     LinearGradient(
                                         colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.7)],
@@ -62,22 +62,22 @@ struct IdentityVerificationIntroView: View {
                                     value: animateShield
                                 )
                         }
-                        .padding(.top, 20)
+                        .padding(.top, 8)
 
                         // Title
-                        VStack(spacing: 12) {
+                        VStack(spacing: 8) {
                             Text("Verify Your Identity")
-                                .font(.system(size: 32, weight: .bold))
+                                .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.primary)
 
                             Text("Join our trusted community")
-                                .font(.system(size: 17))
+                                .font(.system(size: 16))
                                 .foregroundColor(.secondary)
                         }
                         .multilineTextAlignment(.center)
 
                         // Benefits
-                        VStack(spacing: 20) {
+                        VStack(spacing: 12) {
                             IdentityBenefitRow(
                                 icon: "star.fill",
                                 title: "Unlock Full Access",
@@ -113,21 +113,21 @@ struct IdentityVerificationIntroView: View {
                         .padding(.horizontal)
 
                         // What's Required Section
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Image(systemName: "info.circle.fill")
                                     .foregroundColor(Theme.Colors.primary)
                                 Text("What You'll Need")
-                                    .font(.system(size: 18, weight: .semibold))
+                                    .font(.system(size: 17, weight: .semibold))
                             }
 
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 8) {
                                 IdentityRequirementRow(icon: "doc.text.fill", text: "Government-issued ID (Driver's License, Passport, or ID Card)")
                                 IdentityRequirementRow(icon: "camera.fill", text: "Camera for live selfie verification")
                                 IdentityRequirementRow(icon: "lightbulb.fill", text: "Good lighting for clear photos")
                             }
                         }
-                        .padding()
+                        .padding(12)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color(.systemBackground))
@@ -143,9 +143,9 @@ struct IdentityVerificationIntroView: View {
                                 .font(.system(size: 15, weight: .medium))
                                 .foregroundColor(.secondary)
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 4)
 
-                        Spacer(minLength: 20)
+                        Spacer(minLength: 8)
 
                         // CTA Button
                         Button(action: {
@@ -175,7 +175,7 @@ struct IdentityVerificationIntroView: View {
                             .cornerRadius(16)
                         }
                         .padding(.horizontal)
-                        .padding(.bottom, 32)
+                        .padding(.bottom, 16)
                     }
                 }
             }
