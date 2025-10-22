@@ -150,6 +150,14 @@ struct SimpleProfessionalProfileView: View {
                 }
 
             }
+            .onChange(of: authManager.currentUser?.emailVerified) { newEmailVerified in
+                // Force banner to re-evaluate when email verification status changes
+                print("🔄 [Profile] Email verification status changed: \(newEmailVerified ?? false)")
+            }
+            .onChange(of: authManager.currentUser?.idVerified) { newIdVerified in
+                // Force banner to re-evaluate when ID verification status changes
+                print("🔄 [Profile] ID verification status changed: \(newIdVerified ?? false)")
+            }
             .onReceive(NotificationCenter.default.publisher(for: .navigateToMyPosts)) { _ in
                 showingMyPosts = true
             }

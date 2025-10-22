@@ -31,7 +31,7 @@ struct IdentityVerificationIntroView: View {
                 .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 32) {
+                    VStack(spacing: 20) {
                         // Hero Icon
                         ZStack {
                             // Pulsing background
@@ -62,7 +62,7 @@ struct IdentityVerificationIntroView: View {
                                     value: animateShield
                                 )
                         }
-                        .padding(.top, 40)
+                        .padding(.top, 20)
 
                         // Title
                         VStack(spacing: 12) {
