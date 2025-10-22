@@ -156,8 +156,14 @@ struct Message: Identifiable, Equatable {
     }
     
     var isFromCurrentUser: Bool {
-        // CRITICAL FIX: Backend uses User.id (CUID), not apiId
-        senderId == AuthManager.shared.currentUser?.id
+        // CRITICAL FIX: Backend sends database ID in senderId, but currentUser.id contains API ID
+        // Debug logs showed: senderId = "cmfrmr7l30000nz01qfyr0lc4" (database ID from backend)
+        //                    currentUser.id = "usr_mfrmr7l11t" (API ID - MISMATCH!)
+        // Solution: Check both id and apiId fields to handle the ID format inconsistency
+        guard let currentUser = AuthManager.shared.currentUser else { return false }
+
+        // Check if senderId matches either the id or apiId of current user
+        return senderId == currentUser.id || senderId == (currentUser.apiId ?? "")
     }
     
     static func == (lhs: Self, rhs: Self) -> Bool {
