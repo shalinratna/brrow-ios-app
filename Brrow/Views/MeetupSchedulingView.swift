@@ -34,6 +34,7 @@ struct MeetupSchedulingView: View {
     @State private var isSearching = false
     @State private var showDatePicker = false
     @State private var animateSelection = false
+    @State private var showConfirmation = false
 
     @State private var cancellables = Set<AnyCancellable>()
 
@@ -106,6 +107,23 @@ struct MeetupSchedulingView: View {
                 }
             } message: {
                 Text("Your meetup has been scheduled successfully. You'll receive a notification with the details.")
+            }
+            .sheet(isPresented: $showConfirmation) {
+                if let coordinate = selectedCoordinate {
+                    MeetupConfirmationSheet(
+                        location: coordinate,
+                        address: selectedAddress,
+                        scheduledTime: scheduledTime,
+                        notes: notes.isEmpty ? nil : notes,
+                        onConfirm: {
+                            showConfirmation = false
+                            scheduleMeetup()
+                        },
+                        onCancel: {
+                            showConfirmation = false
+                        }
+                    )
+                }
             }
             .onAppear {
                 setupInitialLocation()
@@ -427,7 +445,7 @@ struct MeetupSchedulingView: View {
     private var scheduleButton: some View {
         Button(action: {
             HapticManager.impact(style: .medium)
-            scheduleMeetup()
+            showConfirmation = true
         }) {
             HStack(spacing: 10) {
                 if isScheduling {

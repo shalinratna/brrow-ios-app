@@ -40,10 +40,15 @@ class MeetupService: ObservableObject {
         return Future { promise in
             Task {
                 do {
+                    // Add cache-busting timestamp to bypass Railway CDN cache
+                    var requestParams = parameters
+                    requestParams["_t"] = Date().timeIntervalSince1970
+
+                    // WORKAROUND: Use /api/meetupsv2 until Railway cache clears
                     let response: MeetupResponse = try await self.apiClient.request(
-                        "/api/meetups",
+                        "/api/meetupsv2",
                         method: .POST,
-                        parameters: parameters
+                        parameters: requestParams
                     )
 
                     if response.success, let meetup = response.data {
