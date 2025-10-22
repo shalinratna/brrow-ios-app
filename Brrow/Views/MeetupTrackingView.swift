@@ -184,12 +184,14 @@ struct MeetupTrackingView: View {
     // MARK: - Time Info
     private func timeInfo(for meetup: Meetup) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            HStack {
-                Image(systemName: "clock")
-                    .foregroundColor(Theme.Colors.secondaryText)
-                Text("Scheduled: \(meetup.scheduledTime, style: .date) at \(meetup.scheduledTime, style: .time)")
-                    .font(Theme.Typography.footnote)
-                    .foregroundColor(Theme.Colors.secondaryText)
+            if let scheduledTime = meetup.scheduledTime {
+                HStack {
+                    Image(systemName: "clock")
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    Text("Scheduled: \(scheduledTime, style: .date) at \(scheduledTime, style: .time)")
+                        .font(Theme.Typography.footnote)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
             }
 
             let timeRemaining = meetup.expiresAt.timeIntervalSince(Date())
@@ -339,10 +341,21 @@ struct MeetupTrackingView: View {
     }
 
     private func updateMapRegion(for meetup: Meetup) {
-        var minLat = meetup.meetupLocation.latitude
-        var maxLat = meetup.meetupLocation.latitude
-        var minLon = meetup.meetupLocation.longitude
-        var maxLon = meetup.meetupLocation.longitude
+        guard let meetupLoc = meetup.meetupLocation else {
+            // If no meetup location, center on user's location or default
+            if let userLocation = locationManager.location {
+                region = MKCoordinateRegion(
+                    center: userLocation.coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                )
+            }
+            return
+        }
+
+        var minLat = meetupLoc.latitude
+        var maxLat = meetupLoc.latitude
+        var minLon = meetupLoc.longitude
+        var maxLon = meetupLoc.longitude
 
         if let buyerLoc = meetup.buyerLocation {
             minLat = min(minLat, buyerLoc.latitude)
@@ -374,13 +387,15 @@ struct MeetupTrackingView: View {
     private func buildAnnotations(for meetup: Meetup) -> [MapMarkerItem] {
         var items: [MapMarkerItem] = []
 
-        // Meetup location
-        items.append(MapMarkerItem(
-            coordinate: meetup.meetupLocation.coordinate,
-            label: "Meetup",
-            icon: "mappin.circle.fill",
-            color: Theme.Colors.primary
-        ))
+        // Meetup location (only if exists)
+        if let meetupLoc = meetup.meetupLocation {
+            items.append(MapMarkerItem(
+                coordinate: meetupLoc.coordinate,
+                label: "Meetup",
+                icon: "mappin.circle.fill",
+                color: Theme.Colors.primary
+            ))
+        }
 
         // Current user location
         let currentUserId = AuthManager.shared.currentUser?.id
