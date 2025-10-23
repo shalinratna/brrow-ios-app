@@ -290,9 +290,30 @@ class NetworkManager: ObservableObject {
 
                         return decoded
                     } catch {
-                        // Log the raw response for debugging
+                        // Log detailed decoding error for debugging
+                        print("❌ Decoding error for type: \(responseType)")
+                        if let decodingError = error as? DecodingError {
+                            switch decodingError {
+                            case .keyNotFound(let key, let context):
+                                print("  Key not found: \(key.stringValue)")
+                                print("  Path: \(context.codingPath.map { $0.stringValue }.joined(separator: " -> "))")
+                            case .typeMismatch(let type, let context):
+                                print("  Type mismatch for: \(type)")
+                                print("  Path: \(context.codingPath.map { $0.stringValue }.joined(separator: " -> "))")
+                                print("  Description: \(context.debugDescription)")
+                            case .valueNotFound(let type, let context):
+                                print("  Value not found for: \(type)")
+                                print("  Path: \(context.codingPath.map { $0.stringValue }.joined(separator: " -> "))")
+                            case .dataCorrupted(let context):
+                                print("  Data corrupted")
+                                print("  Path: \(context.codingPath.map { $0.stringValue }.joined(separator: " -> "))")
+                                print("  Description: \(context.debugDescription)")
+                            @unknown default:
+                                print("  Unknown decoding error")
+                            }
+                        }
                         if let responseString = String(data: data, encoding: .utf8) {
-                            print("❌ Decoding error. Raw response: \(responseString)")
+                            print("  Raw response: \(responseString)")
                         }
                         throw BrrowAPIError.decodingError(error)
                     }
