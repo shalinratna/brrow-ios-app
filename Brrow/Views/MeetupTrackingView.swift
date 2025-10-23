@@ -308,33 +308,19 @@ struct MeetupTrackingView: View {
                             case .validationError(let message):
                                 // 404 errors come as validation errors with "not found" message
                                 if message.lowercased().contains("not found") || message.lowercased().contains("meetup") {
-                                    print("🔍 [MEETUP TRACKING] Meetup deleted/expired - showing friendly message")
-                                    errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
-                                    showError = true
+                                    print("🔍 [MEETUP TRACKING] Meetup deleted/expired - dismissing immediately")
 
-                                    // Notify parent that meetup is invalid
+                                    // Notify parent that meetup is invalid (parent will handle dismissal)
                                     onMeetupNotFound?()
-
-                                    // Auto-dismiss after showing error
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                                        dismiss()
-                                    }
                                     return
                                 }
                             case .serverError(let message):
                                 // Also check server errors for "not found"
                                 if message.lowercased().contains("not found") {
-                                    print("🔍 [MEETUP TRACKING] Meetup deleted/expired - showing friendly message")
-                                    errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
-                                    showError = true
+                                    print("🔍 [MEETUP TRACKING] Meetup deleted/expired - dismissing immediately")
 
-                                    // Notify parent that meetup is invalid
+                                    // Notify parent that meetup is invalid (parent will handle dismissal)
                                     onMeetupNotFound?()
-
-                                    // Auto-dismiss after showing error
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                                        dismiss()
-                                    }
                                     return
                                 }
                             default:
