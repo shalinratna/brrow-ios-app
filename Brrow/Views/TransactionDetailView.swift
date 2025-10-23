@@ -12,6 +12,7 @@ struct TransactionDetailView: View {
     @StateObject private var viewModel = TransactionDetailViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showingMeetupScheduling = false
+    @State private var meetupIsInvalid = false  // Track if meetup ID is stale/deleted
 
     var body: some View {
         ScrollView {
@@ -49,14 +50,15 @@ struct TransactionDetailView: View {
                     ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
 
                     // Meetup section - scheduling or tracking
-                    // CRITICAL FIX: Check if meetup has actual data, not just if it exists
-                    // A meetup might exist but be incomplete (null location/time)
+                    // CRITICAL FIX: Check if meetup is valid AND has actual data
+                    // A meetup might exist but be incomplete (null location/time) OR deleted (stale ID)
                     if let meetup = purchase.meetup,
+                       !meetupIsInvalid,
                        meetup.meetupLocation != nil || meetup.scheduledTime != nil {
-                        // Meetup exists AND has data - show tracking
+                        // Meetup exists, is valid, AND has data - show tracking
                         MeetupTrackingSection(meetupId: meetup.id, viewModel: viewModel)
                     } else {
-                        // No meetup OR meetup is incomplete - show scheduling
+                        // No meetup OR meetup is incomplete OR meetup is invalid - show scheduling
                         MeetupSchedulingSection(
                             showingMeetupScheduling: $showingMeetupScheduling
                         )
@@ -73,6 +75,10 @@ struct TransactionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
+            // Proactively validate meetup exists if purchase has one
+            if let meetupId = viewModel.purchase?.meetup?.id {
+                validateMeetupExists(meetupId: meetupId)
+            }
         }
         .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("OK") { viewModel.errorMessage = nil }
@@ -124,6 +130,57 @@ struct TransactionDetailView: View {
                         viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
                     }
                 )
+            }
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    /// Proactively validate that a meetup exists before showing "Track Meetup" button
+    private func validateMeetupExists(meetupId: String) {
+        print("🔍 [TRANSACTION DETAIL] Proactively validating meetup exists: \(meetupId)")
+
+        Task {
+            do {
+                let response: MeetupResponse = try await APIClient.shared.request(
+                    "/api/meetups/\(meetupId)",
+                    method: .GET
+                )
+
+                if response.success, response.data != nil {
+                    print("✅ [TRANSACTION DETAIL] Meetup exists and is valid")
+                    // Meetup exists - keep button as "Track Meetup Location"
+                } else {
+                    print("⚠️ [TRANSACTION DETAIL] Meetup response invalid - marking as stale")
+                    await MainActor.run {
+                        meetupIsInvalid = true
+                    }
+                }
+            } catch {
+                // 404 or any error means meetup doesn't exist
+                print("❌ [TRANSACTION DETAIL] Meetup validation failed: \(error.localizedDescription)")
+
+                // Check if it's a 404 error
+                if let apiError = error as? BrrowAPIError {
+                    switch apiError {
+                    case .validationError(let message):
+                        if message.lowercased().contains("not found") || message.lowercased().contains("meetup") {
+                            print("🔍 [TRANSACTION DETAIL] Confirmed meetup deleted (404) - button will show 'Schedule Meetup'")
+                            await MainActor.run {
+                                meetupIsInvalid = true
+                            }
+                        }
+                    case .serverError(let message):
+                        if message.lowercased().contains("not found") {
+                            print("🔍 [TRANSACTION DETAIL] Confirmed meetup deleted (404) - button will show 'Schedule Meetup'")
+                            await MainActor.run {
+                                meetupIsInvalid = true
+                            }
+                        }
+                    default:
+                        break
+                    }
+                }
             }
         }
     }
