@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct TransactionDetailView: View {
     let purchaseId: String
@@ -444,6 +445,9 @@ struct MeetupTrackingSection: View {
     let meetupId: String
     @ObservedObject var viewModel: TransactionDetailViewModel
 
+    @State private var showCancelConfirmation = false
+    @State private var isCancelling = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Meetup & Verification")
@@ -467,6 +471,29 @@ struct MeetupTrackingSection: View {
                 .cornerRadius(12)
             }
 
+            // Cancel Meetup Button
+            Button(action: {
+                showCancelConfirmation = true
+            }) {
+                HStack {
+                    Image(systemName: "xmark.circle")
+                    Text("Cancel Meetup")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                }
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .disabled(isCancelling)
+
             Text("Once both parties arrive at the meetup location, you can verify the transaction using a PIN or QR code.")
                 .font(.caption)
                 .foregroundColor(.gray)
@@ -475,6 +502,39 @@ struct MeetupTrackingSection: View {
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(12)
+        .alert("Cancel Meetup?", isPresented: $showCancelConfirmation) {
+            Button("No, Keep It", role: .cancel) {}
+            Button("Yes, Cancel", role: .destructive) {
+                cancelMeetup()
+            }
+        } message: {
+            Text("Are you sure you want to cancel this meetup? You can schedule a new one later.")
+        }
+    }
+
+    private func cancelMeetup() {
+        isCancelling = true
+
+        MeetupService.shared.cancelMeetup(meetupId: meetupId)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    isCancelling = false
+                    if case .failure(let error) = completion {
+                        viewModel.errorMessage = error.localizedDescription
+                    }
+                },
+                receiveValue: { success in
+                    if success {
+                        viewModel.successMessage = "Meetup cancelled successfully"
+                        // Refresh purchase details to update UI
+                        if let purchaseId = viewModel.purchase?.id {
+                            viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
+                        }
+                    }
+                }
+            )
+            .store(in: &viewModel.cancellables)
     }
 }
 
@@ -590,6 +650,8 @@ class TransactionDetailViewModel: ObservableObject {
     @Published var successMessage: String?
     @Published var showMeetupTracking = false
     @Published var meetupToVerify: Meetup?
+
+    var cancellables = Set<AnyCancellable>()
 
     func fetchPurchaseDetails(purchaseId: String) {
         isLoading = true
