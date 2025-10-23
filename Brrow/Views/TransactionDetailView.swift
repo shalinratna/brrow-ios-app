@@ -50,13 +50,18 @@ struct TransactionDetailView: View {
                     ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
 
                     // Meetup section - scheduling or tracking
-                    // CRITICAL FIX: Check if meetup is valid AND has actual data
-                    // A meetup might exist but be incomplete (null location/time) OR deleted (stale ID)
+                    // CRITICAL FIX: Check if meetup is valid AND has actual data AND not expired/cancelled
+                    // A meetup might exist but be incomplete (null location/time) OR deleted (stale ID) OR expired
                     if let meetup = purchase.meetup,
                        !meetupIsInvalid,
+                       meetup.status != "EXPIRED",
+                       meetup.status != "CANCELLED",
                        meetup.meetupLocation != nil || meetup.scheduledTime != nil {
-                        // Meetup exists, is valid, AND has data - show tracking
+                        // Meetup exists, is valid, NOT expired/cancelled, AND has data - show tracking
                         MeetupTrackingSection(meetupId: meetup.id, viewModel: viewModel)
+                    } else if let meetup = purchase.meetup, (meetup.status == "EXPIRED") {
+                        // Meetup expired - show expired message
+                        MeetupExpiredSection()
                     } else {
                         // No meetup OR meetup is incomplete OR meetup is invalid - show scheduling
                         MeetupSchedulingSection(
@@ -466,6 +471,38 @@ struct MeetupTrackingSection: View {
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(12)
+    }
+}
+
+struct MeetupExpiredSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.red)
+                    .font(.title2)
+                Text("Meetup Expired")
+                    .font(.headline)
+                    .foregroundColor(.red)
+            }
+
+            Text("This meetup has expired. The transaction has been cancelled and any payment holds have been released. You can schedule a new meetup if both parties are still interested.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("To continue with this transaction, please schedule a new meetup with the other party.")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .background(Color.red.opacity(0.1))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
