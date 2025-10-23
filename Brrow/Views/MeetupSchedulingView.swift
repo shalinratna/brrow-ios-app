@@ -599,8 +599,14 @@ struct MeetupSchedulingView: View {
             },
             receiveValue: { meetup in
                 HapticManager.notification(type: .success)
-                onMeetupScheduled?(meetup)
+
+                // Show success alert first, then notify callback after a delay
                 showSuccess = true
+
+                // Delay callback to avoid alert presentation conflict
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    onMeetupScheduled?(meetup)
+                }
             }
         )
         .store(in: &cancellables)
