@@ -137,7 +137,11 @@ struct MeetupTransaction: Codable {
 struct MeetupPurchase: Codable {
     let id: String
     let amount: Double
-    let listings: MeetupListing
+    let listings: MeetupListing  // Note: Backend returns this as "listings" (plural) even though it's a single object
+
+    enum CodingKeys: String, CodingKey {
+        case id, amount, listings
+    }
 }
 
 // MARK: - Meetup Model
@@ -348,6 +352,13 @@ struct MeetupResponse: Codable {
     let success: Bool
     let data: Meetup?
     let message: String?
+
+    // Backend also returns these but we don't need them for the model
+    // They're handled separately in the UI
+    enum CodingKeys: String, CodingKey {
+        case success, data, message
+        // Ignore: payment, verificationCode
+    }
 }
 
 struct MeetupsListResponse: Codable {
