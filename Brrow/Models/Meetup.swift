@@ -109,7 +109,7 @@ struct MeetupUser: Codable, Identifiable {
 
 // MARK: - Meetup Listing
 struct MeetupListing: Codable {
-    let id: String
+    let id: String?  // Optional - backend doesn't always include it in meetup responses
     let title: String
     let listingImages: [ListingImage]?
 
