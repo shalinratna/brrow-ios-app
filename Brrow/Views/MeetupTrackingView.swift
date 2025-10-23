@@ -301,21 +301,44 @@ struct MeetupTrackingView: View {
                     isLoading = false
 
                     if case .failure(let error) = completion {
-                        // Check if it's a 404 (meetup not found/deleted)
-                        let errorString = error.localizedDescription
-                        if errorString.contains("404") || errorString.contains("not found") {
-                            // Meetup was deleted or expired - show helpful message and dismiss
-                            errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
-                            showError = true
+                        // Check if it's a BrrowAPIError (meetup not found/deleted)
+                        if let apiError = error as? BrrowAPIError {
+                            switch apiError {
+                            case .validationError(let message):
+                                // 404 errors come as validation errors with "not found" message
+                                if message.lowercased().contains("not found") || message.lowercased().contains("meetup") {
+                                    print("🔍 [MEETUP TRACKING] Meetup deleted/expired - showing friendly message")
+                                    errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
+                                    showError = true
 
-                            // Auto-dismiss after showing error
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                                dismiss()
+                                    // Auto-dismiss after showing error
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                        dismiss()
+                                    }
+                                    return
+                                }
+                            case .serverError(let message):
+                                // Also check server errors for "not found"
+                                if message.lowercased().contains("not found") {
+                                    print("🔍 [MEETUP TRACKING] Meetup deleted/expired - showing friendly message")
+                                    errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
+                                    showError = true
+
+                                    // Auto-dismiss after showing error
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                        dismiss()
+                                    }
+                                    return
+                                }
+                            default:
+                                break
                             }
-                        } else {
-                            errorMessage = error.localizedDescription
-                            showError = true
                         }
+
+                        // Default error handling for all other cases
+                        print("🔍 [MEETUP TRACKING] Error loading meetup: \(error.localizedDescription)")
+                        errorMessage = error.localizedDescription
+                        showError = true
                     }
                 },
                 receiveValue: { loadedMeetup in
