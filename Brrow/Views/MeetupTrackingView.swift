@@ -343,7 +343,7 @@ struct MeetupTrackingView: View {
     private func updateMapRegion(for meetup: Meetup) {
         guard let meetupLoc = meetup.meetupLocation else {
             // If no meetup location, center on user's location or default
-            if let userLocation = locationManager.location {
+            if let userLocation = locationService.currentLocation {
                 region = MKCoordinateRegion(
                     center: userLocation.coordinate,
                     span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
