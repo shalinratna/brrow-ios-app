@@ -12,6 +12,7 @@ import Combine
 struct MeetupTrackingView: View {
     let meetupId: String
     let onVerificationReady: ((Meetup) -> Void)?
+    let onMeetupNotFound: (() -> Void)?  // Callback when meetup is deleted/expired
 
     @Environment(\.dismiss) private var dismiss
     @StateObject private var meetupService = MeetupService.shared
@@ -311,6 +312,9 @@ struct MeetupTrackingView: View {
                                     errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
                                     showError = true
 
+                                    // Notify parent that meetup is invalid
+                                    onMeetupNotFound?()
+
                                     // Auto-dismiss after showing error
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                                         dismiss()
@@ -323,6 +327,9 @@ struct MeetupTrackingView: View {
                                     print("🔍 [MEETUP TRACKING] Meetup deleted/expired - showing friendly message")
                                     errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
                                     showError = true
+
+                                    // Notify parent that meetup is invalid
+                                    onMeetupNotFound?()
 
                                     // Auto-dismiss after showing error
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
@@ -518,6 +525,6 @@ private struct MapMarkerItem: Identifiable {
 // MARK: - Preview
 struct MeetupTrackingView_Previews: PreviewProvider {
     static var previews: some View {
-        MeetupTrackingView(meetupId: "test-meetup-id", onVerificationReady: nil)
+        MeetupTrackingView(meetupId: "test-meetup-id", onVerificationReady: nil, onMeetupNotFound: nil)
     }
 }

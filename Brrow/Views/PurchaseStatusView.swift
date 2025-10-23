@@ -12,6 +12,7 @@ struct PurchaseStatusView: View {
     @StateObject private var viewModel: PurchaseStatusViewModel
     @State private var showingMessageComposer = false
     @State private var showingMeetupCreation = false
+    @State private var meetupIsInvalid = false  // Track if meetup ID is stale/deleted
 
     init(purchase: Purchase) {
         self._viewModel = StateObject(wrappedValue: PurchaseStatusViewModel(purchase: purchase))
@@ -63,21 +64,27 @@ struct PurchaseStatusView: View {
             }
         }
         .sheet(isPresented: $showingMeetupCreation) {
-            if let meetupId = viewModel.purchase.meetupId {
-                // Meetup already exists, navigate to tracking
+            if let meetupId = viewModel.purchase.meetupId, !meetupIsInvalid {
+                // Meetup already exists and is valid, navigate to tracking
                 NavigationView {
                     MeetupTrackingView(
                         meetupId: meetupId,
                         onVerificationReady: { _ in
                             showingMeetupCreation = false
+                        },
+                        onMeetupNotFound: {
+                            // Meetup was deleted - mark as invalid and show schedule view instead
+                            meetupIsInvalid = true
+                            showingMeetupCreation = false
                         }
                     )
                 }
             } else {
-                // Schedule new meetup
+                // Schedule new meetup (either no meetupId or meetup is invalid)
                 MeetupSchedulingView(
                     transactionId: viewModel.purchase.id,
                     onMeetupScheduled: { meetup in
+                        meetupIsInvalid = false  // Reset flag when new meetup is scheduled
                         showingMeetupCreation = false
                     }
                 )
@@ -365,13 +372,13 @@ struct PurchaseStatusView: View {
     private var actionButtons: some View {
         VStack(spacing: Theme.Spacing.sm) {
             if !viewModel.purchase.isCompleted && !viewModel.purchase.isExpired {
-                // Schedule Meetup Button
+                // Schedule/Track Meetup Button
                 Button(action: {
                     showingMeetupCreation = true
                 }) {
                     HStack {
                         Image(systemName: "location.fill")
-                        Text(viewModel.purchase.meetupId != nil ? "Track Meetup" : "Schedule Meetup")
+                        Text((viewModel.purchase.meetupId != nil && !meetupIsInvalid) ? "Track Meetup" : "Schedule Meetup")
                             .font(.system(size: 16, weight: .semibold))
                     }
                     .foregroundColor(.white)
