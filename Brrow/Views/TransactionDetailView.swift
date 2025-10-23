@@ -95,6 +95,10 @@ struct TransactionDetailView: View {
                         onVerificationReady: { meetup in
                             viewModel.showMeetupTracking = false
                             viewModel.meetupToVerify = meetup
+                        },
+                        onMeetupNotFound: {
+                            // Meetup was deleted - just dismiss
+                            viewModel.showMeetupTracking = false
                         }
                     )
                 }
