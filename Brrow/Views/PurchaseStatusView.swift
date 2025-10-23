@@ -479,14 +479,6 @@ struct PurchaseStatusView: View {
                                 meetupIsInvalid = true
                             }
                         }
-                    case .httpError(let statusCode, _):
-                        // Handle HTTP error codes directly
-                        if statusCode == 404 || statusCode == 410 {
-                            print("🔍 [PURCHASE STATUS] Meetup not available (HTTP \(statusCode)) - button will show 'Schedule Meetup'")
-                            await MainActor.run {
-                                meetupIsInvalid = true
-                            }
-                        }
                     default:
                         break
                     }
