@@ -80,8 +80,11 @@ struct TransactionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
-            // Proactively validate meetup exists if purchase has one
-            if let meetupId = viewModel.purchase?.meetup?.id {
+        }
+        .onChange(of: viewModel.isLoading) { isLoading in
+            // Proactively validate meetup exists AFTER purchase details finish loading
+            if !isLoading, let meetupId = viewModel.purchase?.meetup?.id {
+                print("🔍 [TRANSACTION DETAIL] Purchase loaded, validating meetup: \(meetupId)")
                 validateMeetupExists(meetupId: meetupId)
             }
         }
