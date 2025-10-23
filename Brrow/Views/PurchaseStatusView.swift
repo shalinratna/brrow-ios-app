@@ -432,22 +432,57 @@ struct PurchaseStatusView: View {
                     }
                 }
             } catch {
-                // 404 or any error means meetup doesn't exist
+                // 404/410 or any error means meetup doesn't exist or is invalid
                 print("❌ [PURCHASE STATUS] Meetup validation failed: \(error.localizedDescription)")
 
-                // Check if it's a 404 error
+                // Check error type and handle all meetup error scenarios
                 if let apiError = error as? BrrowAPIError {
                     switch apiError {
                     case .validationError(let message):
-                        if message.lowercased().contains("not found") || message.lowercased().contains("meetup") {
-                            print("🔍 [PURCHASE STATUS] Confirmed meetup deleted (404) - button will show 'Schedule Meetup'")
+                        // Handle all meetup error scenarios
+                        if message.lowercased().contains("not found") ||
+                           message.lowercased().contains("meetup_not_found") ||
+                           message.lowercased().contains("expired") ||
+                           message.lowercased().contains("meetup_expired") ||
+                           message.lowercased().contains("cancelled") ||
+                           message.lowercased().contains("meetup_cancelled") {
+
+                            // Log specific error type
+                            if message.lowercased().contains("expired") {
+                                print("⏰ [PURCHASE STATUS] Meetup expired - button will show 'Schedule Meetup'")
+                            } else if message.lowercased().contains("cancelled") {
+                                print("🚫 [PURCHASE STATUS] Meetup cancelled - button will show 'Schedule Meetup'")
+                            } else {
+                                print("🔍 [PURCHASE STATUS] Meetup not found - button will show 'Schedule Meetup'")
+                            }
+
                             await MainActor.run {
                                 meetupIsInvalid = true
                             }
                         }
                     case .serverError(let message):
-                        if message.lowercased().contains("not found") {
-                            print("🔍 [PURCHASE STATUS] Confirmed meetup deleted (404) - button will show 'Schedule Meetup'")
+                        // Handle server errors (410 Gone for expired/cancelled)
+                        if message.lowercased().contains("not found") ||
+                           message.lowercased().contains("expired") ||
+                           message.lowercased().contains("cancelled") {
+
+                            // Log specific error type
+                            if message.lowercased().contains("expired") {
+                                print("⏰ [PURCHASE STATUS] Meetup expired (410) - button will show 'Schedule Meetup'")
+                            } else if message.lowercased().contains("cancelled") {
+                                print("🚫 [PURCHASE STATUS] Meetup cancelled (410) - button will show 'Schedule Meetup'")
+                            } else {
+                                print("🔍 [PURCHASE STATUS] Meetup not found (410) - button will show 'Schedule Meetup'")
+                            }
+
+                            await MainActor.run {
+                                meetupIsInvalid = true
+                            }
+                        }
+                    case .httpError(let statusCode, _):
+                        // Handle HTTP error codes directly
+                        if statusCode == 404 || statusCode == 410 {
+                            print("🔍 [PURCHASE STATUS] Meetup not available (HTTP \(statusCode)) - button will show 'Schedule Meetup'")
                             await MainActor.run {
                                 meetupIsInvalid = true
                             }
