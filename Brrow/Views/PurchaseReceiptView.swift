@@ -77,6 +77,10 @@ struct PurchaseReceiptView: View {
                     onVerificationReady: { meetup in
                         viewModel.selectedMeetup = nil
                         viewModel.meetupToVerify = meetup
+                    },
+                    onMeetupNotFound: {
+                        // Meetup was deleted - just dismiss and let user know
+                        viewModel.selectedMeetup = nil
                     }
                 )
             }
