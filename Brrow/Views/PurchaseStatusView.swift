@@ -54,6 +54,10 @@ struct PurchaseStatusView: View {
         }
         .onAppear {
             viewModel.startTimer()
+            // Proactively check if meetup exists
+            if let meetupId = viewModel.purchase.meetupId {
+                validateMeetupExists(meetupId: meetupId)
+            }
         }
         .onDisappear {
             viewModel.stopTimer()
@@ -400,6 +404,57 @@ struct PurchaseStatusView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).stroke(Theme.Colors.primary, lineWidth: 2))
+                }
+            }
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    /// Proactively validate that a meetup exists before showing "Track Meetup" button
+    private func validateMeetupExists(meetupId: String) {
+        print("🔍 [PURCHASE STATUS] Proactively validating meetup exists: \(meetupId)")
+
+        Task {
+            do {
+                let response: MeetupResponse = try await APIClient.shared.request(
+                    "/api/meetups/\(meetupId)",
+                    method: .GET
+                )
+
+                if response.success, response.data != nil {
+                    print("✅ [PURCHASE STATUS] Meetup exists and is valid")
+                    // Meetup exists - keep button as "Track Meetup"
+                } else {
+                    print("⚠️ [PURCHASE STATUS] Meetup response invalid - marking as stale")
+                    await MainActor.run {
+                        meetupIsInvalid = true
+                    }
+                }
+            } catch {
+                // 404 or any error means meetup doesn't exist
+                print("❌ [PURCHASE STATUS] Meetup validation failed: \(error.localizedDescription)")
+
+                // Check if it's a 404 error
+                if let apiError = error as? BrrowAPIError {
+                    switch apiError {
+                    case .validationError(let message):
+                        if message.lowercased().contains("not found") || message.lowercased().contains("meetup") {
+                            print("🔍 [PURCHASE STATUS] Confirmed meetup deleted (404) - button will show 'Schedule Meetup'")
+                            await MainActor.run {
+                                meetupIsInvalid = true
+                            }
+                        }
+                    case .serverError(let message):
+                        if message.lowercased().contains("not found") {
+                            print("🔍 [PURCHASE STATUS] Confirmed meetup deleted (404) - button will show 'Schedule Meetup'")
+                            await MainActor.run {
+                                meetupIsInvalid = true
+                            }
+                        }
+                    default:
+                        break
+                    }
                 }
             }
         }
