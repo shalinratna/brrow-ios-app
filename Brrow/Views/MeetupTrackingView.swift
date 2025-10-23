@@ -299,9 +299,23 @@ struct MeetupTrackingView: View {
             .sink(
                 receiveCompletion: { completion in
                     isLoading = false
+
                     if case .failure(let error) = completion {
-                        errorMessage = error.localizedDescription
-                        showError = true
+                        // Check if it's a 404 (meetup not found/deleted)
+                        let errorString = error.localizedDescription
+                        if errorString.contains("404") || errorString.contains("not found") {
+                            // Meetup was deleted or expired - show helpful message and dismiss
+                            errorMessage = "This meetup no longer exists. It may have been cancelled or expired."
+                            showError = true
+
+                            // Auto-dismiss after showing error
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                dismiss()
+                            }
+                        } else {
+                            errorMessage = error.localizedDescription
+                            showError = true
+                        }
                     }
                 },
                 receiveValue: { loadedMeetup in
