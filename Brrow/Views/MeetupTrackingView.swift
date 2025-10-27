@@ -137,7 +137,6 @@ struct MeetupTrackingView: View {
         let currentUserId = AuthManager.shared.currentUser?.id
         let isBuyer = currentUserId == meetup.buyerId
         let myDistance = isBuyer ? status.buyerDistance : status.sellerDistance
-        let otherDistance = isBuyer ? status.sellerDistance : status.buyerDistance
 
         return VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             if let distance = myDistance {
@@ -145,20 +144,6 @@ struct MeetupTrackingView: View {
                     Image(systemName: "location.fill")
                         .foregroundColor(distance <= 100 ? Theme.Colors.success : Theme.Colors.primary)
                     Text("You: \(distance)m away")
-                        .font(Theme.Typography.body)
-                        .foregroundColor(Theme.Colors.text)
-                    if distance <= 100 {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(Theme.Colors.success)
-                    }
-                }
-            }
-
-            if let distance = otherDistance {
-                HStack {
-                    Image(systemName: "person.fill")
-                        .foregroundColor(distance <= 100 ? Theme.Colors.success : Theme.Colors.secondaryText)
-                    Text("\(meetup.otherUser?.username ?? "Other user"): \(distance)m away")
                         .font(Theme.Typography.body)
                         .foregroundColor(Theme.Colors.text)
                     if distance <= 100 {
@@ -195,22 +180,25 @@ struct MeetupTrackingView: View {
                 }
             }
 
-            let timeRemaining = meetup.expiresAt.timeIntervalSince(Date())
-            if timeRemaining > 0 {
-                HStack {
-                    Image(systemName: "hourglass")
-                        .foregroundColor(timeRemaining < 86400 ? Theme.Colors.warning : Theme.Colors.secondaryText)
-                    Text("Expires in \(formattedTimeRemaining(timeRemaining))")
-                        .font(Theme.Typography.footnote)
-                        .foregroundColor(timeRemaining < 86400 ? Theme.Colors.warning : Theme.Colors.secondaryText)
-                }
-            } else {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(Theme.Colors.error)
-                    Text("Meetup expired")
-                        .font(Theme.Typography.footnote)
-                        .foregroundColor(Theme.Colors.error)
+            // Only show expiration status after initial load to avoid "expired" flash
+            if !isLoading {
+                let timeRemaining = meetup.expiresAt.timeIntervalSince(Date())
+                if timeRemaining > 0 {
+                    HStack {
+                        Image(systemName: "hourglass")
+                            .foregroundColor(timeRemaining < 86400 ? Theme.Colors.warning : Theme.Colors.secondaryText)
+                        Text("Expires in \(formattedTimeRemaining(timeRemaining))")
+                            .font(Theme.Typography.footnote)
+                            .foregroundColor(timeRemaining < 86400 ? Theme.Colors.warning : Theme.Colors.secondaryText)
+                    }
+                } else {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundColor(Theme.Colors.error)
+                        Text("Meetup expired")
+                            .font(Theme.Typography.footnote)
+                            .foregroundColor(Theme.Colors.error)
+                    }
                 }
             }
         }
@@ -245,13 +233,7 @@ struct MeetupTrackingView: View {
             } else {
                 VStack(spacing: Theme.Spacing.sm) {
                     if let proximityStatus = proximityStatus {
-                        if !proximityStatus.buyerArrived && !proximityStatus.sellerArrived {
-                            Text("Waiting for users to arrive...")
-                        } else if proximityStatus.buyerArrived && !proximityStatus.sellerArrived {
-                            Text("Buyer has arrived. Waiting for seller...")
-                        } else if !proximityStatus.buyerArrived && proximityStatus.sellerArrived {
-                            Text("Seller has arrived. Waiting for buyer...")
-                        }
+                        Text("Waiting for both users to arrive at the meetup location...")
                     } else {
                         Text("Loading location status...")
                     }
@@ -382,19 +364,21 @@ struct MeetupTrackingView: View {
             return
         }
 
+        let currentUserId = AuthManager.shared.currentUser?.id
+        let isBuyer = currentUserId == meetup.buyerId
+
         var minLat = meetupLoc.latitude
         var maxLat = meetupLoc.latitude
         var minLon = meetupLoc.longitude
         var maxLon = meetupLoc.longitude
 
-        if let buyerLoc = meetup.buyerLocation {
+        // Only include current user's location, not the other user's
+        if isBuyer, let buyerLoc = meetup.buyerLocation {
             minLat = min(minLat, buyerLoc.latitude)
             maxLat = max(maxLat, buyerLoc.latitude)
             minLon = min(minLon, buyerLoc.longitude)
             maxLon = max(maxLon, buyerLoc.longitude)
-        }
-
-        if let sellerLoc = meetup.sellerLocation {
+        } else if !isBuyer, let sellerLoc = meetup.sellerLocation {
             minLat = min(minLat, sellerLoc.latitude)
             maxLat = max(maxLat, sellerLoc.latitude)
             minLon = min(minLon, sellerLoc.longitude)
@@ -427,7 +411,7 @@ struct MeetupTrackingView: View {
             ))
         }
 
-        // Current user location
+        // Current user location only - DO NOT show other user's location for privacy
         let currentUserId = AuthManager.shared.currentUser?.id
         let isBuyer = currentUserId == meetup.buyerId
 
@@ -444,23 +428,6 @@ struct MeetupTrackingView: View {
                 label: "You",
                 icon: "location.fill",
                 color: Theme.Colors.accentBlue
-            ))
-        }
-
-        // Other user location
-        if isBuyer, let sellerLoc = meetup.sellerLocation {
-            items.append(MapMarkerItem(
-                coordinate: sellerLoc.coordinate,
-                label: meetup.sellers?.username ?? "Seller",
-                icon: "person.fill",
-                color: Theme.Colors.accentOrange
-            ))
-        } else if !isBuyer, let buyerLoc = meetup.buyerLocation {
-            items.append(MapMarkerItem(
-                coordinate: buyerLoc.coordinate,
-                label: meetup.buyers?.username ?? "Buyer",
-                icon: "person.fill",
-                color: Theme.Colors.accentOrange
             ))
         }
 
