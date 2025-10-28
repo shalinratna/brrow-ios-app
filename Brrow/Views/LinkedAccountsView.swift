@@ -145,6 +145,9 @@ struct LinkedAccountsView: View {
                 unlinkableAccountCard(provider: .apple)
             }
 
+            // Discord Account (custom verification code flow)
+            discordAccountCard
+
             // Stripe Connect Section
             stripeConnectSection
         }
@@ -316,6 +319,145 @@ struct LinkedAccountsView: View {
         }
     }
 
+    // MARK: - Discord Account Card
+    private var discordAccountCard: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack(spacing: Theme.Spacing.md) {
+                // Discord Icon
+                ZStack {
+                    Circle()
+                        .fill(OAuthProvider.discord.color.opacity(0.1))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: OAuthProvider.discord.icon)
+                        .font(.system(size: 24))
+                        .foregroundColor(OAuthProvider.discord.color)
+                }
+
+                // Discord Info
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(OAuthProvider.discord.displayName)
+                            .font(Theme.Typography.body)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Theme.Colors.text)
+
+                        if authManager.currentUser?.isDiscordLinked == true {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.green)
+                        }
+                    }
+
+                    if let discordUsername = authManager.currentUser?.discordUsername {
+                        Text(discordUsername)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    } else {
+                        Text("Link your Discord account")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
+
+                Spacer()
+            }
+
+            // Action Buttons
+            if authManager.currentUser?.isDiscordLinked == true {
+                // Unlink Button
+                Button(action: {
+                    Task {
+                        await viewModel.unlinkDiscord()
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "link.badge.minus")
+                        Text("Unlink Discord")
+                    }
+                    .font(Theme.Typography.callout)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(Theme.CornerRadius.sm)
+                }
+                .buttonStyle(PlainButtonStyle())
+            } else {
+                // Generate Code Button
+                if let verificationCode = viewModel.discordVerificationCode {
+                    VStack(spacing: Theme.Spacing.sm) {
+                        // Display verification code
+                        VStack(spacing: Theme.Spacing.xs) {
+                            Text("Your Verification Code")
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+
+                            Text(verificationCode)
+                                .font(.system(size: 32, weight: .bold, design: .monospaced))
+                                .foregroundColor(OAuthProvider.discord.color)
+                                .tracking(4)
+                                .padding(.vertical, Theme.Spacing.sm)
+                                .padding(.horizontal, Theme.Spacing.md)
+                                .background(OAuthProvider.discord.color.opacity(0.1))
+                                .cornerRadius(Theme.CornerRadius.sm)
+
+                            Text("Use /verify \(verificationCode) in Discord")
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                                .multilineTextAlignment(.center)
+
+                            if let expiresAt = viewModel.discordCodeExpiresAt {
+                                Text("Expires in \(viewModel.timeRemaining(until: expiresAt))")
+                                    .font(Theme.Typography.caption2)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        .padding(Theme.Spacing.md)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(Theme.CornerRadius.card)
+                    }
+                } else {
+                    Button(action: {
+                        Task {
+                            await viewModel.generateDiscordCode()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "qrcode")
+                            Text("Generate Verification Code")
+                        }
+                        .font(Theme.Typography.callout)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Theme.Spacing.sm)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [OAuthProvider.discord.color, OAuthProvider.discord.color.opacity(0.8)]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(Theme.CornerRadius.sm)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+
+            // Explanation
+            if authManager.currentUser?.isDiscordLinked != true {
+                Text("Verify your Brrow account on Discord to access exclusive features in our server. This does not link Discord sign-in to your Brrow account.")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.card)
+        .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+    }
+
     // MARK: - Stripe Connect Section
     private var stripeConnectSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -436,11 +578,13 @@ struct LinkedAccountsView: View {
 enum OAuthProvider: String {
     case google
     case apple
+    case discord
 
     var displayName: String {
         switch self {
         case .google: return "Google"
         case .apple: return "Apple"
+        case .discord: return "Discord"
         }
     }
 
@@ -448,6 +592,7 @@ enum OAuthProvider: String {
         switch self {
         case .google: return "g.circle.fill"
         case .apple: return "applelogo"
+        case .discord: return "bubble.left.and.bubble.right.fill"
         }
     }
 
@@ -455,6 +600,7 @@ enum OAuthProvider: String {
         switch self {
         case .google: return .red
         case .apple: return .primary
+        case .discord: return Color(red: 88/255, green: 101/255, blue: 242/255)
         }
     }
 }
@@ -481,6 +627,8 @@ class LinkedAccountsViewModel: ObservableObject {
     @Published var stripeStatus: StripeConnectStatus?
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var discordVerificationCode: String?
+    @Published var discordCodeExpiresAt: Date?
 
     func fetchLinkedAccounts() async {
         isLoading = true
@@ -562,6 +710,139 @@ class LinkedAccountsViewModel: ObservableObject {
             }
         } catch {
             errorMessage = "Failed to open Stripe onboarding: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Discord Methods
+    func generateDiscordCode() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            guard let token = AuthManager.shared.authToken else {
+                errorMessage = "Authentication required"
+                isLoading = false
+                return
+            }
+
+            let baseURL = await APIClient.shared.getBaseURL()
+            guard let url = URL(string: "\(baseURL)/api/discord/generate-code") else {
+                errorMessage = "Invalid URL"
+                isLoading = false
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                errorMessage = "Invalid response"
+                isLoading = false
+                return
+            }
+
+            if httpResponse.statusCode == 200 {
+                struct CodeResponse: Codable {
+                    let success: Bool
+                    let code: String
+                    let expiresAt: String
+
+                    enum CodingKeys: String, CodingKey {
+                        case success
+                        case code
+                        case expiresAt = "expires_at"
+                    }
+                }
+
+                let codeResponse = try JSONDecoder().decode(CodeResponse.self, from: data)
+                self.discordVerificationCode = codeResponse.code
+
+                // Parse ISO8601 date
+                let formatter = ISO8601DateFormatter()
+                self.discordCodeExpiresAt = formatter.date(from: codeResponse.expiresAt)
+
+                isLoading = false
+            } else if httpResponse.statusCode == 429 {
+                struct ErrorResponse: Codable {
+                    let message: String
+                }
+                let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data)
+                errorMessage = errorResponse?.message ?? "Rate limit exceeded. Please wait before generating a new code."
+                isLoading = false
+            } else {
+                errorMessage = "Failed to generate verification code"
+                isLoading = false
+            }
+        } catch {
+            errorMessage = "Error: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+
+    func unlinkDiscord() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            guard let token = AuthManager.shared.authToken else {
+                errorMessage = "Authentication required"
+                isLoading = false
+                return
+            }
+
+            let baseURL = await APIClient.shared.getBaseURL()
+            guard let url = URL(string: "\(baseURL)/api/discord/unlink") else {
+                errorMessage = "Invalid URL"
+                isLoading = false
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "DELETE"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+            let (_, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                errorMessage = "Failed to unlink Discord account"
+                isLoading = false
+                return
+            }
+
+            // Clear verification code state
+            self.discordVerificationCode = nil
+            self.discordCodeExpiresAt = nil
+
+            // Refresh user data
+            await AuthManager.shared.fetchUserProfile()
+
+            isLoading = false
+        } catch {
+            errorMessage = "Error unlinking Discord: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+
+    func timeRemaining(until date: Date) -> String {
+        let now = Date()
+        let timeInterval = date.timeIntervalSince(now)
+
+        if timeInterval <= 0 {
+            return "Expired"
+        }
+
+        let minutes = Int(timeInterval) / 60
+        let seconds = Int(timeInterval) % 60
+
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
         }
     }
 }

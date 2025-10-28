@@ -56,7 +56,12 @@ struct User: Codable, Identifiable {
     let verificationStatus: String?
     let hasPassword: Bool?  // NEW: Check if user has password set (for Create Password vs Change Password button)
     let hasBlueCheckmark: Bool?  // NEW: True only when BOTH email AND ID are verified (Stripe Identity)
-    
+
+    // Discord Integration
+    let discordUserId: String?
+    let discordUsername: String?
+    let discordLinkedAt: String?
+
     // Account Status
     let isActive: Bool?
     let isPremium: Bool?
@@ -142,7 +147,12 @@ struct User: Codable, Identifiable {
         case verificationStatus = "verification_status"
         case hasPassword = "hasPassword"  // Backend sends camelCase
         case hasBlueCheckmark = "hasBlueCheckmark"  // Backend sends camelCase - requires BOTH email + ID verified
-        
+
+        // Discord Integration
+        case discordUserId = "discord_user_id"
+        case discordUsername = "discord_username"
+        case discordLinkedAt = "discord_linked_at"
+
         // Account Status
         case isActive = "is_active"
         case isPremium = "is_premium"
@@ -217,6 +227,9 @@ struct User: Codable, Identifiable {
         self.idVerified = idVerified
         self.hasPassword = nil  // NEW: Default to nil for placeholder users
         self.hasBlueCheckmark = emailVerified && idVerified  // Computed: requires BOTH email + ID verified
+        self.discordUserId = nil
+        self.discordUsername = nil
+        self.discordLinkedAt = nil
         self.lastActive = ISO8601DateFormatter().string(from: Date())
         self.stripeLinked = stripeLinked
         self.hasGreenMembership = false
@@ -323,7 +336,12 @@ struct User: Codable, Identifiable {
         self.verificationStatus = try container.decodeIfPresent(String.self, forKey: .verificationStatus)
         self.hasPassword = try container.decodeIfPresent(Bool.self, forKey: .hasPassword)
         self.hasBlueCheckmark = try container.decodeIfPresent(Bool.self, forKey: .hasBlueCheckmark) ?? false
-        
+
+        // Discord Integration
+        self.discordUserId = try container.decodeIfPresent(String.self, forKey: .discordUserId)
+        self.discordUsername = try container.decodeIfPresent(String.self, forKey: .discordUsername)
+        self.discordLinkedAt = try container.decodeIfPresent(String.self, forKey: .discordLinkedAt)
+
         // Account Status
         self.isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
         self.isPremium = try container.decodeIfPresent(Bool.self, forKey: .isPremium) ?? false
@@ -423,7 +441,11 @@ struct User: Codable, Identifiable {
     var isFullyVerified: Bool {
         return (verified ?? false) && (emailVerified ?? false) && (idVerified ?? false)
     }
-    
+
+    var isDiscordLinked: Bool {
+        return discordUserId != nil && !discordUserId!.isEmpty
+    }
+
     var rating: Double {
         // Average of all three ratings
         let ratings = [listerRating, borrowerRating, renteeRating].compactMap { $0 }
