@@ -409,7 +409,7 @@ struct LinkedAccountsView: View {
 
                             if let expiresAt = viewModel.discordCodeExpiresAt {
                                 Text("Expires in \(viewModel.timeRemaining(until: expiresAt))")
-                                    .font(Theme.Typography.caption2)
+                                    .font(Theme.Typography.caption)
                                     .foregroundColor(.orange)
                             }
                         }
