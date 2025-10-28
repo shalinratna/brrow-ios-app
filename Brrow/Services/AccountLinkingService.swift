@@ -168,7 +168,7 @@ class AccountLinkingService: NSObject, ObservableObject {
             case .discord:
                 // Discord linking is handled through the Discord bot
                 // User needs to use /verify command in Discord
-                throw LinkingError.unsupportedProvider("Discord linking must be done through the Discord server using /verify command")
+                throw LinkingError.backendError("Discord linking must be done through the Discord server using /verify command")
             }
             isLinking = false
         } catch {
