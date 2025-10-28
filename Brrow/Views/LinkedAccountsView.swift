@@ -819,7 +819,7 @@ class LinkedAccountsViewModel: ObservableObject {
             self.discordCodeExpiresAt = nil
 
             // Refresh user data
-            await AuthManager.shared.fetchUserProfile()
+            await AuthManager.shared.refreshUserProfile()
 
             isLoading = false
         } catch {
