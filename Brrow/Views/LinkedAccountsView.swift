@@ -393,16 +393,35 @@ struct LinkedAccountsView: View {
                                 .font(Theme.Typography.caption)
                                 .foregroundColor(Theme.Colors.secondaryText)
 
-                            Text(verificationCode)
-                                .font(.system(size: 32, weight: .bold, design: .monospaced))
-                                .foregroundColor(OAuthProvider.discord.color)
-                                .tracking(4)
+                            Button(action: {
+                                // Copy to clipboard
+                                UIPasteboard.general.string = verificationCode
+
+                                // Show feedback
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
+
+                                // Optional: Show toast/banner (you can add this later)
+                                print("Copied verification code to clipboard")
+                            }) {
+                                HStack(spacing: Theme.Spacing.xs) {
+                                    Text(verificationCode)
+                                        .font(.system(size: 32, weight: .bold, design: .monospaced))
+                                        .foregroundColor(OAuthProvider.discord.color)
+                                        .tracking(4)
+
+                                    Image(systemName: "doc.on.doc")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(OAuthProvider.discord.color.opacity(0.6))
+                                }
                                 .padding(.vertical, Theme.Spacing.sm)
                                 .padding(.horizontal, Theme.Spacing.md)
                                 .background(OAuthProvider.discord.color.opacity(0.1))
                                 .cornerRadius(Theme.CornerRadius.sm)
+                            }
+                            .buttonStyle(PlainButtonStyle())
 
-                            Text("Use /verify \(verificationCode) in Discord")
+                            Text("Tap to copy • Use /verify \(verificationCode) in Discord")
                                 .font(Theme.Typography.caption)
                                 .foregroundColor(Theme.Colors.secondaryText)
                                 .multilineTextAlignment(.center)
