@@ -165,6 +165,10 @@ class AccountLinkingService: NSObject, ObservableObject {
                 try await linkGoogleAccount()
             case .apple:
                 try await linkAppleAccount()
+            case .discord:
+                // Discord linking is handled through the Discord bot
+                // User needs to use /verify command in Discord
+                throw LinkingError.unsupportedProvider("Discord linking must be done through the Discord server using /verify command")
             }
             isLinking = false
         } catch {
