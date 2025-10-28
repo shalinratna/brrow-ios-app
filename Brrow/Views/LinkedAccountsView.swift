@@ -479,6 +479,29 @@ struct LinkedAccountsView: View {
                     .foregroundColor(Theme.Colors.secondaryText)
                     .multilineTextAlignment(.leading)
             }
+
+            // Join Discord Server Button (always shown)
+            Button(action: {
+                if let url = URL(string: "https://discord.gg/NMzQsq2k2T") {
+                    UIApplication.shared.open(url)
+                }
+            }) {
+                HStack {
+                    Image(systemName: "person.2.fill")
+                    Text("Join Discord Server")
+                }
+                .font(Theme.Typography.callout)
+                .foregroundColor(OAuthProvider.discord.color)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(OAuthProvider.discord.color.opacity(0.1))
+                .cornerRadius(Theme.CornerRadius.sm)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                        .stroke(OAuthProvider.discord.color.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(Theme.Spacing.md)
         .background(Theme.Colors.surface)
