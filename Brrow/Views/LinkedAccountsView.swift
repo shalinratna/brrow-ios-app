@@ -71,7 +71,16 @@ struct LinkedAccountsView: View {
             .onAppear {
                 Task {
                     await viewModel.fetchLinkedAccounts()
+
+                    // Resume polling if we have a verification code and not yet verified
+                    if viewModel.discordVerificationCode != nil,
+                       AuthManager.shared.currentUser?.isDiscordLinked == false {
+                        viewModel.startVerificationPolling()
+                    }
                 }
+            }
+            .onDisappear {
+                viewModel.stopVerificationPolling()
             }
             .alert("Cannot Unlink", isPresented: $showingLastMethodWarning) {
                 Button("OK", role: .cancel) { }
@@ -649,6 +658,9 @@ class LinkedAccountsViewModel: ObservableObject {
     @Published var discordVerificationCode: String?
     @Published var discordCodeExpiresAt: Date?
 
+    private var verificationPollingTask: Task<Void, Never>?
+    private var isPollingActive = false
+
     func fetchLinkedAccounts() async {
         isLoading = true
         errorMessage = nil
@@ -785,6 +797,9 @@ class LinkedAccountsViewModel: ObservableObject {
                 self.discordCodeExpiresAt = formatter.date(from: codeResponse.expiresAt)
 
                 isLoading = false
+
+                // Start polling for verification status
+                startVerificationPolling()
             } else if httpResponse.statusCode == 429 {
                 struct ErrorResponse: Codable {
                     let message: String
@@ -863,6 +878,48 @@ class LinkedAccountsViewModel: ObservableObject {
         } else {
             return "\(seconds)s"
         }
+    }
+
+    // MARK: - Discord Verification Polling
+    func startVerificationPolling() {
+        guard !isPollingActive else { return }
+        guard discordVerificationCode != nil else { return }
+
+        isPollingActive = true
+
+        verificationPollingTask = Task { @MainActor in
+            while isPollingActive {
+                // Check if user is now Discord verified
+                await checkDiscordVerificationStatus()
+
+                // If verified, stop polling
+                if AuthManager.shared.currentUser?.isDiscordLinked == true {
+                    stopVerificationPolling()
+                    // Clear the verification code
+                    self.discordVerificationCode = nil
+                    self.discordCodeExpiresAt = nil
+                    break
+                }
+
+                // Wait 3 seconds before next check
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            }
+        }
+    }
+
+    func stopVerificationPolling() {
+        isPollingActive = false
+        verificationPollingTask?.cancel()
+        verificationPollingTask = nil
+    }
+
+    private func checkDiscordVerificationStatus() async {
+        // Silently refresh user profile to check Discord status
+        await AuthManager.shared.refreshUserProfile()
+    }
+
+    deinit {
+        stopVerificationPolling()
     }
 }
 
