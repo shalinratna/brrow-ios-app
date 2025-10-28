@@ -943,5 +943,6 @@ class LinkedAccountsViewModel: ObservableObject {
 #Preview {
     NavigationView {
         LinkedAccountsView()
+            .environmentObject(AuthManager.shared)
     }
 }

@@ -46,7 +46,7 @@ struct ModernSettingsView: View {
                 SettingsItem(icon: "person.circle", title: "Edit Profile", subtitle: "Update your profile info", color: .blue),
                 SettingsItem(icon: "at", title: "Username", subtitle: AuthManager.shared.currentUser?.username, color: .purple),
                 SettingsItem(icon: "lock.rotation", title: "Change Password", color: .orange),
-                SettingsItem(icon: "link", title: "Linked Accounts", subtitle: "Google, Apple, Stripe", color: .indigo)
+                SettingsItem(icon: "link", title: "Linked Accounts", subtitle: "Google, Apple, Discord, Stripe", color: .indigo)
             ]
         case .privacy:
             return [
@@ -130,10 +130,10 @@ struct ModernSettingsView: View {
                             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: animateIn)
 
                         // Quick Actions (My Posts & Transactions)
-                        quickActionsSection
-                            .scaleEffect(animateIn ? 1 : 0.9)
-                            .opacity(animateIn ? 1 : 0)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1), value: animateIn)
+                        //quickActionsSection
+                        //    .scaleEffect(animateIn ? 1 : 0.9)
+                        //    .opacity(animateIn ? 1 : 0)
+                        //    .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1), value: animateIn)
 
                         // Settings Sections
                         ForEach(SettingsSection.allCases, id: \.self) { section in
@@ -234,7 +234,7 @@ struct ModernSettingsView: View {
                         ),
                         lineWidth: 3
                     )
-                    .frame(width: 90, height: 90)
+                    .frame(width: 120, height: 90)
                     .scaleEffect(pulseAnimation ? 1.05 : 1.0)
                     .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: pulseAnimation)
 
