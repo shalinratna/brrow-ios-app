@@ -887,19 +887,24 @@ class LinkedAccountsViewModel: ObservableObject {
 
         isPollingActive = true
 
-        verificationPollingTask = Task { @MainActor in
-            while isPollingActive {
+        verificationPollingTask = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+
+            while !Task.isCancelled && self.isPollingActive {
                 // Check if user is now Discord verified
-                await checkDiscordVerificationStatus()
+                await self.checkDiscordVerificationStatus()
 
                 // If verified, stop polling
                 if AuthManager.shared.currentUser?.isDiscordLinked == true {
-                    stopVerificationPolling()
+                    self.stopVerificationPolling()
                     // Clear the verification code
                     self.discordVerificationCode = nil
                     self.discordCodeExpiresAt = nil
                     break
                 }
+
+                // Check cancellation before sleeping
+                guard !Task.isCancelled else { break }
 
                 // Wait 3 seconds before next check
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -915,18 +920,23 @@ class LinkedAccountsViewModel: ObservableObject {
 
     private func checkDiscordVerificationStatus() async {
         // Silently refresh user profile to check Discord status
-        await AuthManager.shared.refreshUserProfile()
+        do {
+            await AuthManager.shared.refreshUserProfile()
+        } catch {
+            // Silently fail if refresh fails (e.g., network error)
+            print("Failed to refresh user profile: \(error.localizedDescription)")
+        }
     }
 
     nonisolated func cleanup() {
         // Can be called from deinit since it's nonisolated
-        Task { @MainActor in
-            self.stopVerificationPolling()
-        }
+        // Don't create new task - just mark as inactive and cancel
+        // The verificationPollingTask will clean itself up via weak self
     }
 
     deinit {
-        cleanup()
+        // Just cancel the task - don't try to access MainActor properties
+        verificationPollingTask?.cancel()
     }
 }
 
