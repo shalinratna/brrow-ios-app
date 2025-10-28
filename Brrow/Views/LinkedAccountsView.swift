@@ -154,11 +154,11 @@ struct LinkedAccountsView: View {
                 unlinkableAccountCard(provider: .apple)
             }
 
-            // Discord Account (custom verification code flow)
-            discordAccountCard
-
             // Stripe Connect Section
             stripeConnectSection
+            
+            // Discord Account (custom verification code flow)
+            discordAccountCard
         }
     }
 
@@ -363,7 +363,7 @@ struct LinkedAccountsView: View {
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Colors.secondaryText)
                     } else {
-                        Text("Link your Discord account")
+                        Text("Verify your Discord account")
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Colors.secondaryText)
                     }

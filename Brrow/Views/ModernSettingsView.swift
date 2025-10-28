@@ -188,8 +188,10 @@ struct ModernSettingsView: View {
         }
         .sheet(isPresented: $showEditProfile) {
             if let currentUser = authManager.currentUser {
-                EditProfileView(user: currentUser)
-                    .environmentObject(authManager)
+                NavigationView {
+                    EditProfileView(user: currentUser)
+                        .environmentObject(authManager)
+                }
             }
         }
         .sheet(isPresented: $showLinkedAccounts) {
@@ -731,8 +733,10 @@ struct AccountSettingsView: View {
             }
             .sheet(isPresented: $showingEditProfile) {
                 if let currentUser = authManager.currentUser {
-                    EditProfileView(user: currentUser)
-                        .environmentObject(authManager)
+                    NavigationView {
+                        EditProfileView(user: currentUser)
+                            .environmentObject(authManager)
+                    }
                 }
             }
             .sheet(isPresented: $showingChangeUsername) {
