@@ -87,8 +87,49 @@ struct EditProfileView: View {
 
         // Parse birthdate if available
         if let birthdateString = user.birthdate {
-            let formatter = ISO8601DateFormatter()
-            self._birthdate = State(initialValue: formatter.date(from: birthdateString) ?? Date())
+            print("[EditProfile] Parsing birthdate string: \(birthdateString)")
+
+            // Try multiple date formats
+            var parsedDate: Date? = nil
+
+            // Try ISO8601 format first
+            let iso8601Formatter = ISO8601DateFormatter()
+            parsedDate = iso8601Formatter.date(from: birthdateString)
+
+            // Try standard date formats if ISO8601 fails
+            if parsedDate == nil {
+                let dateFormatter = DateFormatter()
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+
+                let formats = [
+                    "yyyy-MM-dd",
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+                    "yyyy-MM-dd'T'HH:mm:ssZ",
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    "MM/dd/yyyy"
+                ]
+
+                for format in formats {
+                    dateFormatter.dateFormat = format
+                    if let date = dateFormatter.date(from: birthdateString) {
+                        parsedDate = date
+                        print("[EditProfile] Successfully parsed birthdate with format: \(format)")
+                        break
+                    }
+                }
+            } else {
+                print("[EditProfile] Successfully parsed birthdate with ISO8601")
+            }
+
+            if let date = parsedDate {
+                self._birthdate = State(initialValue: date)
+            } else {
+                print("[EditProfile] ⚠️ Failed to parse birthdate, using default 18 years ago")
+                let defaultDate = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
+                self._birthdate = State(initialValue: defaultDate)
+            }
+        } else {
+            print("[EditProfile] ⚠️ No birthdate string provided from user object")
         }
     }
 
@@ -517,7 +558,7 @@ struct EditProfileView: View {
     }
     
     private var accountSettingsContent: some View {
-        VStack(spacing: Theme.Spacing.md) {
+        VStack(spacing: Theme.Spacing.lg) {
             // Security Section
             VStack(spacing: 0) {
                 settingsRowModern(
@@ -754,7 +795,7 @@ struct EditProfileView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(Theme.Colors.secondaryText.opacity(0.5))
             }
-            .padding(.vertical, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.lg)
             .padding(.horizontal, Theme.Spacing.md)
             .background(Color.clear)
         }

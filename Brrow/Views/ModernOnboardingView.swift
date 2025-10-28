@@ -341,8 +341,8 @@ struct OnboardingData {
         Page(
             iconName: "lock.shield.fill",
             title: "Safe & Secure",
-            description: "Every transaction is protected with insurance and secure payments.",
-            features: ["ID verified", "Insured", "24/7 support"]
+            description: "Secure payments powered by Stripe. Optional insurance protection available for added peace of mind.",
+            features: ["ID verified", "Optional insurance", "24/7 support"]
         )
     ]
 }

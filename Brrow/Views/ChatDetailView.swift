@@ -384,18 +384,27 @@ struct ChatDetailView: View {
             }
             
             // Message Field
-            HStack {
-                TextField("Type a message...", text: $messageText)
+            ZStack(alignment: .topLeading) {
+                // Placeholder text
+                if messageText.isEmpty {
+                    Text("Type a message...")
+                        .foregroundColor(Color(.placeholderText))
+                        .font(.system(size: 16))
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.top, 10)
+                }
+
+                TextEditor(text: $messageText)
                     .focused($isMessageFieldFocused)
                     .font(.system(size: 16))
-                    .onSubmit {
-                        sendMessage()
-                    }
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                    .frame(minHeight: 36, maxHeight: 120)
+                    .padding(.horizontal, Theme.Spacing.md - 4)
+                    .padding(.vertical, 6)
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
             .background(Theme.Colors.surface)
-            .cornerRadius(26)
+            .cornerRadius(20)
             
             // Send Button
             Button(action: sendMessage) {
