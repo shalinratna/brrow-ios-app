@@ -918,8 +918,15 @@ class LinkedAccountsViewModel: ObservableObject {
         await AuthManager.shared.refreshUserProfile()
     }
 
+    nonisolated func cleanup() {
+        // Can be called from deinit since it's nonisolated
+        Task { @MainActor in
+            self.stopVerificationPolling()
+        }
+    }
+
     deinit {
-        stopVerificationPolling()
+        cleanup()
     }
 }
 
