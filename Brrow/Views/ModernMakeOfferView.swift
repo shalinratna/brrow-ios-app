@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import StripePaymentSheet
 
 struct ModernMakeOfferView: View {
     @Environment(\.dismiss) private var dismiss
@@ -66,6 +67,11 @@ struct ModernMakeOfferView: View {
             Button("Try Again", role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage)
+        }
+        .onChange(of: viewModel.shouldPresentPaymentSheet) { shouldPresent in
+            if shouldPresent {
+                viewModel.presentPaymentSheet()
+            }
         }
     }
 
@@ -312,11 +318,15 @@ class MakeOfferViewModel: ObservableObject {
     @Published var showSuccessAlert: Bool = false
     @Published var showErrorAlert: Bool = false
     @Published var errorMessage: String = ""
+    @Published var paymentSheet: PaymentSheet?
+    @Published var shouldPresentPaymentSheet: Bool = false
 
     let listing: Listing
     let originalPrice: Double
     private var currentTask: URLSessionDataTask?
     private var cancellables = Set<AnyCancellable>()
+    private var currentOfferId: Int?
+    private var currentClientSecret: String?
 
     init(listing: Listing) {
         self.listing = listing
@@ -431,8 +441,23 @@ class MakeOfferViewModel: ObservableObject {
                 }
 
                 if httpResponse.statusCode == 201 {
-                    // Success
-                    self.showSuccessAlert = true
+                    // Success - parse response and setup payment
+                    guard let data = data,
+                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let responseData = json["data"] as? [String: Any],
+                          let clientSecret = responseData["clientSecret"] as? String,
+                          let offerId = responseData["id"] as? Int else {
+                        self.errorMessage = "Invalid response from server"
+                        self.showErrorAlert = true
+                        return
+                    }
+
+                    // Store offer ID and client secret
+                    self.currentOfferId = offerId
+                    self.currentClientSecret = clientSecret
+
+                    // Setup and present payment sheet
+                    self.setupPaymentSheet(clientSecret: clientSecret)
                 } else if httpResponse.statusCode == 402 {
                     self.errorMessage = "Payment method declined. Please add a valid payment method."
                     self.showErrorAlert = true
@@ -451,5 +476,56 @@ class MakeOfferViewModel: ObservableObject {
         }
 
         currentTask?.resume()
+    }
+
+    // MARK: - Stripe Payment Sheet
+
+    private func setupPaymentSheet(clientSecret: String) {
+        var configuration = PaymentSheet.Configuration()
+        configuration.merchantDisplayName = "Brrow"
+        configuration.allowsDelayedPaymentMethods = false
+
+        paymentSheet = PaymentSheet(
+            paymentIntentClientSecret: clientSecret,
+            configuration: configuration
+        )
+
+        // Trigger payment sheet presentation
+        shouldPresentPaymentSheet = true
+    }
+
+    func presentPaymentSheet() {
+        guard let paymentSheet = paymentSheet else { return }
+
+        if let rootViewController = UIApplication.shared.windows.first?.rootViewController {
+            paymentSheet.present(from: rootViewController) { [weak self] result in
+                self?.handlePaymentResult(result)
+            }
+        }
+    }
+
+    private func handlePaymentResult(_ result: PaymentSheetResult) {
+        switch result {
+        case .completed:
+            // Payment confirmed successfully
+            print("✅ Payment completed for offer \(currentOfferId ?? 0)")
+            showSuccessAlert = true
+
+        case .canceled:
+            // User cancelled payment
+            print("❌ Payment cancelled by user")
+            errorMessage = "Payment cancelled. Your offer was not sent."
+            showErrorAlert = true
+
+        case .failed(let error):
+            // Payment failed
+            print("❌ Payment failed: \(error.localizedDescription)")
+            errorMessage = "Payment failed: \(error.localizedDescription)"
+            showErrorAlert = true
+        }
+
+        // Clean up
+        paymentSheet = nil
+        shouldPresentPaymentSheet = false
     }
 }
