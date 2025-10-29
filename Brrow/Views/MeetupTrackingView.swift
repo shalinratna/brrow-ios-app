@@ -51,11 +51,18 @@ struct MeetupTrackingView: View {
                         .fontWeight(.bold)
                         .foregroundColor(Theme.Colors.text)
 
-                    Text("This meetup has expired. Please reschedule to continue.")
-                        .font(Theme.Typography.body)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, Theme.Spacing.xl)
+                    VStack(spacing: Theme.Spacing.sm) {
+                        Text("This meetup expired on \(meetup.expiresAt, style: .date) at \(meetup.expiresAt, style: .time)")
+                            .font(Theme.Typography.body)
+                            .foregroundColor(Theme.Colors.error)
+                            .multilineTextAlignment(.center)
+
+                        Text("The transaction will be automatically cancelled and funds released. Please reschedule to continue.")
+                            .font(Theme.Typography.body)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, Theme.Spacing.xl)
 
                     Button(action: {
                         // Dismiss and return to transaction detail
@@ -68,7 +75,7 @@ struct MeetupTrackingView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Theme.Colors.primary)
-                            .cornerRadius(Theme.CornerRadius.button)
+                            .cornerRadius(Theme.CornerRadius.md)
                     }
                     .padding(.horizontal, Theme.Spacing.xl)
 

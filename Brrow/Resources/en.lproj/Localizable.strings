@@ -132,6 +132,7 @@
 // MARK: - Post Creation
 "list_something" = "List Something";
 "find_something" = "Find Something";
+"seek_something" = "Seek Something";
 "host_garage_sale" = "Host Garage Sale";
 "share_items_services_community" = "Share items or services with your community";
 "post_what_looking_for" = "Post what you're looking for";

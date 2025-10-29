@@ -18,7 +18,6 @@ struct ProfessionalMarketplaceView: View {
     @State private var searchText = ""
     @State private var selectedCategory: String? = nil
     @State private var showFilters = false
-    @State private var showAdvancedSearch = false
     @State private var animateContent = false
     @State private var searchMode: MarketplaceSearchMode = .listings
     @FocusState private var isSearchFieldFocused: Bool
@@ -136,11 +135,6 @@ struct ProfessionalMarketplaceView: View {
                     // Apply filters
                 }
             }
-            .fullScreenCover(isPresented: $showAdvancedSearch) {
-                NavigationView {
-                    AdvancedSearchView()
-                }
-            }
             .sheet(isPresented: $showingInfoPopup) {
                 if let infoType = selectedInfoType {
                     InfoPopupView(infoType: infoType) { type in
@@ -186,10 +180,8 @@ struct ProfessionalMarketplaceView: View {
                         ProfessionalListingDetailView(listing: listing)
                             .id(listing.id) // FIXED: Force view recreation when listing changes to prevent stale data
                             .navigationBarTitleDisplayMode(.inline)
-                            .navigationBarItems(trailing: Button("Done") {
-                                selectedListing = nil
-                            })
                     }
+                    .navigationViewStyle(.stack) // Prevent split view on iPad
                 }
             }
             .sheet(isPresented: $showingPostCreation) {
@@ -239,23 +231,8 @@ struct ProfessionalMarketplaceView: View {
             Text(LocalizationHelper.localizedString("marketplace"))
                 .font(.system(size: 28, weight: .bold, design: .rounded))
                 .foregroundColor(Theme.Colors.text)
-            
+
             Spacer()
-            
-            // Filter button
-            Button(action: { showFilters = true }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 16, weight: .medium))
-                    Text(LocalizationHelper.localizedString("filters"))
-                        .font(.system(size: 15, weight: .medium))
-                }
-                .foregroundColor(Theme.Colors.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Theme.Colors.primary.opacity(0.1))
-                .cornerRadius(20)
-            }
         }
     }
     
@@ -266,7 +243,7 @@ struct ProfessionalMarketplaceView: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(Theme.Colors.secondaryText)
-                
+
                 TextField(LocalizationHelper.localizedString("search_items"), text: $searchText)
                     .font(.system(size: 16))
                     .foregroundColor(Theme.Colors.text)
@@ -274,7 +251,7 @@ struct ProfessionalMarketplaceView: View {
                     .onSubmit {
                         viewModel.performSearch(searchText)
                     }
-                
+
                 if !searchText.isEmpty {
                     Button(action: {
                         searchText = ""
@@ -290,9 +267,9 @@ struct ProfessionalMarketplaceView: View {
             .padding(.vertical, 14)
             .background(Theme.Colors.secondaryBackground)
             .cornerRadius(12)
-            
-            // Advanced search button
-            Button(action: { showAdvancedSearch = true }) {
+
+            // Filter button
+            Button(action: { showFilters = true }) {
                 Image(systemName: "slider.vertical.3")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(Theme.Colors.primary)

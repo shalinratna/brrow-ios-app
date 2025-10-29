@@ -11,6 +11,7 @@ import AuthenticationServices
 struct ModernAuthView: View {
     @StateObject private var viewModel = LoginViewModel()
     @EnvironmentObject private var authManager: AuthManager
+    @AppStorage("shouldStartInSignupMode") private var shouldStartInSignupMode = false
     @State private var isSignUpMode = false
     @State private var showPassword = false
     @State private var animateContent = false
@@ -79,6 +80,12 @@ struct ModernAuthView: View {
         }
         .padding(.top, 30)
         .onAppear {
+            // Check if we should start in signup mode (from onboarding)
+            if shouldStartInSignupMode {
+                isSignUpMode = true
+                shouldStartInSignupMode = false // Reset flag after using it
+            }
+
             withAnimation(.easeOut(duration: 0.5).delay(0.1)) {
                 animateContent = true
             }

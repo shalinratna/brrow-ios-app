@@ -197,21 +197,7 @@ struct NativeMainTabView: View {
             listingNavManager.clearListing()
         }) {
             if let listing = listingNavManager.selectedListing {
-                NavigationView {
-                    ProfessionalListingDetailView(listing: listing)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button(action: {
-                                    listingNavManager.clearListing()
-                                }) {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                }
+                ProfessionalListingDetailView(listing: listing)
             }
         }
         .alert("Sign In Required", isPresented: $showingGuestAlert) {

@@ -42,7 +42,6 @@ struct ModernPostCreationView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 60))
                             .foregroundColor(Theme.Colors.primary)
-                            .rotationEffect(.degrees(floatingAnimation ? 5 : -5))
                             .scaleEffect(floatingAnimation ? 1.1 : 1.0)
                         
                         Text(LocalizationHelper.localizedString("what_would_you_like_to_do"))
@@ -82,10 +81,10 @@ struct ModernPostCreationView: View {
                         .opacity(animateCards ? 1.0 : 0.0)
                         .animation(.spring().delay(0.1), value: animateCards)
                         
-                        // Find Something card
+                        // Seek Something card
                         OptionCard(
                             icon: "magnifyingglass",
-                            title: LocalizationHelper.localizedString("find_something"),
+                            title: LocalizationHelper.localizedString("seek_something"),
                             subtitle: LocalizationHelper.localizedString("post_what_looking_for"),
                             gradientColors: [Color(hex: "007AFF"), Color(hex: "007AFF").opacity(0.7)],
                             isSelected: selectedOption == .seek

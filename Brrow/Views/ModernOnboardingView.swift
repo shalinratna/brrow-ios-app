@@ -12,7 +12,8 @@ struct ModernOnboardingView: View {
     @State private var animateContent = false
     @State private var liquidOffset: CGFloat = 0
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    
+    @AppStorage("shouldStartInSignupMode") private var shouldStartInSignupMode = false
+
     private let onboardingPages = OnboardingData.pages
     
     var body: some View {
@@ -156,8 +157,9 @@ struct ModernOnboardingView: View {
     private func completeOnboarding() {
         withAnimation {
             hasCompletedOnboarding = true
+            shouldStartInSignupMode = true // Set flag to show signup mode after onboarding
         }
-        
+
         // Track achievement for completing onboarding
         AchievementManager.shared.trackOnboardingCompleted()
     }

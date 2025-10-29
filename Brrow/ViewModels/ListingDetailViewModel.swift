@@ -153,21 +153,8 @@ class ListingDetailViewModel: ObservableObject {
     }
     
     private func checkFavoriteStatus() {
-        guard let userId = authManager.currentUser?.id else { return }
-        
-        Task {
-            do {
-                guard let userIdInt = Int(userId) else { return }
-                let favorited = try await apiClient.checkFavoriteStatus(listingId: Int(listing.id) ?? 0, userId: userIdInt)
-                await MainActor.run {
-                    self.isFavorited = favorited
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                }
-            }
-        }
+        // Use FavoritesManager for instant state sync
+        self.isFavorited = FavoritesManager.shared.isFavorited(listing.id)
     }
     
     private func loadSimilarListings() {
@@ -306,15 +293,12 @@ class ListingDetailViewModel: ObservableObject {
         guard authManager.currentUser != nil else { return }
 
         Task {
-            do {
-                let newStatus = try await apiClient.toggleFavoriteByListingId(listing.listingId)
-                await MainActor.run {
-                    self.isFavorited = newStatus
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                }
+            // Use FavoritesManager's toggle method which handles both API and state sync
+            await FavoritesManager.shared.toggleFavorite(listing: listing)
+
+            // Update local state to match FavoritesManager
+            await MainActor.run {
+                self.isFavorited = FavoritesManager.shared.isFavorited(listing.id)
             }
         }
     }

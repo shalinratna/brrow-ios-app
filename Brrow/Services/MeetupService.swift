@@ -137,6 +137,30 @@ class MeetupService: ObservableObject {
         .eraseToAnyPublisher()
     }
 
+    // MARK: - Manual Arrival Override
+    func manualArrival(meetupId: String) -> AnyPublisher<Meetup, Error> {
+        return Future { promise in
+            Task {
+                do {
+                    let response: MeetupResponse = try await self.apiClient.request(
+                        "/api/meetups/\(meetupId)/manual-arrival",
+                        method: .POST,
+                        parameters: nil
+                    )
+
+                    if response.success, let meetup = response.data {
+                        promise(.success(meetup))
+                    } else {
+                        promise(.failure(BrrowAPIError.serverError(response.message ?? "Failed to mark manual arrival")))
+                    }
+                } catch {
+                    promise(.failure(error))
+                }
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+
     // MARK: - Generate Verification Code
     func generateVerificationCode(
         meetupId: String,

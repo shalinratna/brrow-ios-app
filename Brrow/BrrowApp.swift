@@ -18,6 +18,7 @@ struct BrrowApp: App {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("HasAgreedToTerms") private var hasAgreedToTerms = false
     @AppStorage("shouldShowWelcomeOnboarding") private var shouldShowWelcomeOnboarding = false
+    @AppStorage("shouldStartInSignupMode") private var shouldStartInSignupMode = false
     @State private var showingPasswordReset = false
     @State private var passwordResetToken = ""
     @State private var splashComplete = false
