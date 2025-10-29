@@ -16,7 +16,11 @@ class LoginViewModel: ObservableObject {
     @Published var username = ""
     @Published var firstName = ""
     @Published var lastName = ""
-    @Published var birthdate = Date()
+    // Default birthdate to 18 years ago (reasonable default that passes validation)
+    @Published var birthdate: Date = {
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .year, value: -18, to: Date()) ?? Date()
+    }()
     @Published var birthdateText = ""  // For text input field
     @Published var isLoading = false
     @Published var errorMessage = ""
