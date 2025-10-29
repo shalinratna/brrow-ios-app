@@ -497,10 +497,36 @@ class MakeOfferViewModel: ObservableObject {
     func presentPaymentSheet() {
         guard let paymentSheet = paymentSheet else { return }
 
-        if let rootViewController = UIApplication.shared.windows.first?.rootViewController {
-            paymentSheet.present(from: rootViewController) { [weak self] result in
-                self?.handlePaymentResult(result)
+        // CRITICAL FIX: Get the topmost presented view controller, not just root
+        // This prevents "already presenting" crash when ModernMakeOfferView is shown as sheet
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            print("❌ Failed to get root view controller for PaymentSheet")
+            errorMessage = "Unable to present payment sheet"
+            showErrorAlert = true
+            return
+        }
+
+        // Find the topmost presented view controller
+        var topController = rootViewController
+        while let presented = topController.presentedViewController {
+            topController = presented
+        }
+
+        // Ensure we're not already presenting something
+        guard topController.presentedViewController == nil else {
+            print("⚠️ View controller is already presenting, waiting...")
+            // Retry after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.presentPaymentSheet()
             }
+            return
+        }
+
+        print("✅ Presenting PaymentSheet from: \(type(of: topController))")
+        paymentSheet.present(from: topController) { [weak self] result in
+            self?.handlePaymentResult(result)
         }
     }
 
