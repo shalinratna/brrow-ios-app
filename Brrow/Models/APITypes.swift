@@ -1027,6 +1027,7 @@ struct PurchaseDetail: Codable, Identifiable {
     let capturedAt: String?
     let refundedAt: String?
     let cancelledAt: String?
+    let cancellationReason: String?
     let sellerConfirmed: Bool
     let buyerConfirmed: Bool
     let sellerConfirmedAt: String?
@@ -1055,6 +1056,7 @@ struct PurchaseDetail: Codable, Identifiable {
         case capturedAt = "captured_at"
         case refundedAt = "refunded_at"
         case cancelledAt = "cancelled_at"
+        case cancellationReason = "cancellation_reason"
         case sellerConfirmed = "seller_confirmed"
         case buyerConfirmed = "buyer_confirmed"
         case sellerConfirmedAt = "seller_confirmed_at"
