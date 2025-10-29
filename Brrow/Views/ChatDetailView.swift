@@ -33,6 +33,7 @@ struct ChatDetailView: View {
     let conversation: Conversation
     @StateObject private var viewModel = ChatDetailViewModel()
     @State private var messageText = ""
+    @State private var textEditorHeight: CGFloat = 36  // Dynamic height for text editor
     @State private var isKeyboardVisible = false
     @Environment(\.presentationMode) var presentationMode
     @FocusState private var isMessageFieldFocused: Bool
@@ -383,28 +384,34 @@ struct ChatDetailView: View {
                     .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 4, x: 0, y: 2)
             }
             
-            // Message Field
-            ZStack(alignment: .topLeading) {
+            // Message Field - iMessage style
+            ZStack(alignment: .leading) {
                 // Placeholder text
                 if messageText.isEmpty {
-                    Text("Type a message...")
+                    Text("Message")
                         .foregroundColor(Color(.placeholderText))
-                        .font(.system(size: 16))
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.top, 10)
+                        .font(.system(size: 17))
+                        .padding(.leading, 12)
                 }
 
                 TextEditor(text: $messageText)
                     .focused($isMessageFieldFocused)
-                    .font(.system(size: 16))
+                    .font(.system(size: 17))
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
-                    .frame(minHeight: 36, maxHeight: 120)
-                    .padding(.horizontal, Theme.Spacing.md - 4)
+                    .frame(height: max(36, min(textEditorHeight, 100)))
+                    .padding(.horizontal, 8)
                     .padding(.vertical, 6)
+                    .onChange(of: messageText) { _ in
+                        updateTextEditorHeight()
+                    }
             }
-            .background(Theme.Colors.surface)
-            .cornerRadius(20)
+            .background(Color(.systemBackground))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+            )
+            .cornerRadius(18)
             
             // Send Button
             Button(action: sendMessage) {
@@ -432,6 +439,24 @@ struct ChatDetailView: View {
         viewModel.sendTextMessage(messageText, to: conversation.id)
 
         messageText = ""
+        textEditorHeight = 36  // Reset height after sending
+    }
+
+    private func updateTextEditorHeight() {
+        let font = UIFont.systemFont(ofSize: 17)
+        let maxSize = CGSize(width: UIScreen.main.bounds.width - 120, height: .infinity)
+        let text = messageText.isEmpty ? " " : messageText
+        let attributes = [NSAttributedString.Key.font: font]
+        let boundingRect = (text as NSString).boundingRect(
+            with: maxSize,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes,
+            context: nil
+        )
+
+        // Add some padding and ensure minimum height
+        let newHeight = max(36, boundingRect.height + 16)
+        textEditorHeight = newHeight
     }
     
     private func uploadMedia(data: Data, isVideo: Bool) async {

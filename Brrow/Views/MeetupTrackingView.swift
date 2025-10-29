@@ -29,42 +29,89 @@ struct MeetupTrackingView: View {
     @State private var errorMessage = ""
     @State private var locationUpdateTimer: Timer?
     @State private var proximityCheckTimer: Timer?
+    @State private var showManualArrivalAlert = false
+    @State private var userDistanceFromMeetup: Double?
 
     @State private var cancellables = Set<AnyCancellable>()
 
     var body: some View {
         ZStack {
-            // Map View
-            if let meetup = meetup {
-                mapView(for: meetup)
+            // Check if meetup is expired
+            if let meetup = meetup, meetup.expiresAt < Date() {
+                // Expired Meetup View
+                VStack(spacing: Theme.Spacing.lg) {
+                    Spacer()
+
+                    Image(systemName: "clock.badge.exclamationmark")
+                        .font(.system(size: 60))
+                        .foregroundColor(Theme.Colors.error)
+
+                    Text("Meetup Expired")
+                        .font(Theme.Typography.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(Theme.Colors.text)
+
+                    Text("This meetup has expired. Please reschedule to continue.")
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Theme.Spacing.xl)
+
+                    Button(action: {
+                        // Dismiss and return to transaction detail
+                        dismiss()
+                    }) {
+                        Text("Go Back to Reschedule")
+                            .font(Theme.Typography.body)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Theme.Colors.primary)
+                            .cornerRadius(Theme.CornerRadius.button)
+                    }
+                    .padding(.horizontal, Theme.Spacing.xl)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Colors.background)
             } else {
-                Theme.Colors.background
-            }
+                // Normal Tracking View
+                ZStack {
+                    // Map View
+                    if let meetup = meetup {
+                        mapView(for: meetup)
+                    } else {
+                        Theme.Colors.background
+                    }
 
-            // Overlay UI
-            VStack {
-                // Status Card
-                if let meetup = meetup {
-                    statusCard(for: meetup)
-                        .padding(Theme.Spacing.md)
+                    // Overlay UI
+                    VStack {
+                        // Status Card
+                        if let meetup = meetup {
+                            statusCard(for: meetup)
+                                .padding(Theme.Spacing.md)
+                        }
+
+                        Spacer()
+
+                        // Bottom Action Card
+                        if let meetup = meetup {
+                            bottomActionCard(for: meetup)
+                                .padding(Theme.Spacing.md)
+                        }
+                    }
+
+                    // Loading Overlay
+                    if isLoading {
+                        Color.black.opacity(0.3)
+                            .edgesIgnoringSafeArea(.all)
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
+                    }
                 }
-
-                Spacer()
-
-                // Bottom Action Card
-                if let meetup = meetup {
-                    bottomActionCard(for: meetup)
-                        .padding(Theme.Spacing.md)
-                }
-            }
-
-            // Loading Overlay
-            if isLoading {
-                Color.black.opacity(0.3)
-                    .edgesIgnoringSafeArea(.all)
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
             }
         }
         .navigationTitle("Track Meetup")
@@ -103,50 +150,99 @@ struct MeetupTrackingView: View {
         .edgesIgnoringSafeArea(.all)
     }
 
+
     // MARK: - Status Card
     private func statusCard(for meetup: Meetup) -> some View {
-        VStack(spacing: Theme.Spacing.sm) {
-            // Status Header
-            HStack {
-                Image(systemName: meetup.status.icon)
-                    .foregroundColor(statusColor(for: meetup.status))
-                Text(meetup.status.displayName)
-                    .font(Theme.Typography.headline)
-                    .foregroundColor(Theme.Colors.text)
-                Spacer()
+        VStack(spacing: Theme.Spacing.md) {
+            // Status Header with glassmorphism
+            VStack(spacing: Theme.Spacing.sm) {
+                HStack {
+                    // Status icon with background
+                    Image(systemName: meetup.status.icon)
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(statusColor(for: meetup.status))
+                        .frame(width: 44, height: 44)
+                        .background(statusColor(for: meetup.status).opacity(0.1))
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(meetup.status.displayName)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.primary)
+
+                        // Subtitle based on status
+                        if let proximityStatus = proximityStatus, proximityStatus.bothArrived {
+                            Text("Ready to verify")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.Colors.success)
+                        } else {
+                            Text("In progress")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+                }
+
+                // Distance Info
+                if let proximityStatus = proximityStatus {
+                    Divider()
+                    distanceInfo(proximityStatus, for: meetup)
+                }
+
+                // Time Info
+                Divider()
+                timeInfo(for: meetup)
             }
+            .padding(Theme.Spacing.lg)
+            .background(
+                // Glassmorphism effect
+                ZStack {
+                    // Blur background
+                    Color.white.opacity(0.7)
 
-            Divider()
-
-            // Distance Info
-            if let proximityStatus = proximityStatus {
-                distanceInfo(proximityStatus, for: meetup)
-            }
-
-            // Time Info
-            timeInfo(for: meetup)
+                    // Gradient overlay
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.25),
+                            Color.white.opacity(0.1)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+                .background(.ultraThinMaterial)
+            )
+            .cornerRadius(20)
+            .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
+            )
         }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Colors.cardBackground)
-        .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+        .padding(.horizontal, Theme.Spacing.md)
     }
 
     // MARK: - Distance Info
     private func distanceInfo(_ status: ProximityStatus, for meetup: Meetup) -> some View {
         let currentUserId = AuthManager.shared.currentUser?.id
         let isBuyer = currentUserId == meetup.buyerId
-        let myDistance = isBuyer ? status.buyerDistance : status.sellerDistance
+        let myDistanceMeters = isBuyer ? status.buyerDistance : status.sellerDistance
 
         return VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            if let distance = myDistance {
+            if let distanceMeters = myDistanceMeters {
+                let distanceDouble = Double(distanceMeters)
+                let formattedDistance = DistanceFormatter.formatDistance(distanceDouble)
+                let isWithinProximity = distanceDouble <= DistanceFormatter.proximityThresholdMeters
+
                 HStack {
                     Image(systemName: "location.fill")
-                        .foregroundColor(distance <= 100 ? Theme.Colors.success : Theme.Colors.primary)
-                    Text("You: \(distance)m away")
+                        .foregroundColor(isWithinProximity ? Theme.Colors.success : Theme.Colors.primary)
+                    Text("You: \(formattedDistance) away")
                         .font(Theme.Typography.body)
                         .foregroundColor(Theme.Colors.text)
-                    if distance <= 100 {
+                    if isWithinProximity {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(Theme.Colors.success)
                     }
@@ -234,16 +330,48 @@ struct MeetupTrackingView: View {
                 VStack(spacing: Theme.Spacing.sm) {
                     if let proximityStatus = proximityStatus {
                         Text("Waiting for both users to arrive at the meetup location...")
+                            .font(Theme.Typography.body)
+                            .foregroundColor(Theme.Colors.secondaryText)
+
+                        // Manual "I'm here" button
+                        if !isUserArrived(meetup: meetup) {
+                            Button(action: {
+                                handleManualArrival(meetup: meetup)
+                            }) {
+                                HStack {
+                                    Image(systemName: "location.fill")
+                                    Text("I'm Here")
+                                }
+                                .font(Theme.Typography.body)
+                                .foregroundColor(Theme.Colors.primary)
+                                .padding(.vertical, Theme.Spacing.sm)
+                                .padding(.horizontal, Theme.Spacing.md)
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     } else {
                         Text("Loading location status...")
+                            .font(Theme.Typography.body)
+                            .foregroundColor(Theme.Colors.secondaryText)
                     }
                 }
-                .font(Theme.Typography.body)
-                .foregroundColor(Theme.Colors.secondaryText)
                 .frame(maxWidth: .infinity)
                 .padding(Theme.Spacing.md)
                 .background(Theme.Colors.cardBackground)
                 .cornerRadius(Theme.CornerRadius.card)
+            }
+        }
+        .alert("Confirm Manual Arrival", isPresented: $showManualArrivalAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Yes, I'm Here") {
+                confirmManualArrival(meetup: meetup)
+            }
+        } message: {
+            if let distance = userDistanceFromMeetup {
+                let distanceText = DistanceFormatter.formatDistance(distance)
+                Text("Your location doesn't indicate you're nearby (\(distanceText) away). Are you sure you want to mark yourself as arrived?")
+            } else {
+                Text("Are you sure you want to mark yourself as arrived?")
             }
         }
     }
@@ -398,6 +526,63 @@ struct MeetupTrackingView: View {
         region = MKCoordinateRegion(center: center, span: span)
     }
 
+    // MARK: - Manual Arrival Functions
+
+    private func isUserArrived(meetup: Meetup) -> Bool {
+        let currentUserId = AuthManager.shared.currentUser?.id
+        let isBuyer = currentUserId == meetup.buyerId
+
+        if let proximityStatus = proximityStatus {
+            return isBuyer ? proximityStatus.buyerArrived : proximityStatus.sellerArrived
+        }
+        return false
+    }
+
+    private func handleManualArrival(meetup: Meetup) {
+        // Calculate distance from user to meetup location
+        guard let userLocation = locationService.currentLocation,
+              let meetupLoc = meetup.meetupLocation else {
+            // If we can't get locations, just show the confirmation
+            showManualArrivalAlert = true
+            return
+        }
+
+        let meetupLocation = CLLocation(latitude: meetupLoc.latitude, longitude: meetupLoc.longitude)
+        let distanceMeters = userLocation.distance(from: meetupLocation)
+        userDistanceFromMeetup = distanceMeters
+
+        // Check if within 30 miles
+        let distanceMiles = DistanceFormatter.metersToMiles(distanceMeters)
+
+        if distanceMiles > DistanceFormatter.maxManualOverrideMiles {
+            // Show alert with distance warning
+            showManualArrivalAlert = true
+        } else {
+            // Within acceptable range, confirm directly
+            confirmManualArrival(meetup: meetup)
+        }
+    }
+
+    private func confirmManualArrival(meetup: Meetup) {
+        // Call API to manually mark user as arrived
+        meetupService.manualArrival(meetupId: meetup.id)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        errorMessage = "Failed to mark arrival: \(error.localizedDescription)"
+                        showError = true
+                    }
+                },
+                receiveValue: { updatedMeetup in
+                    self.meetup = updatedMeetup
+                    // Refresh proximity status
+                    checkProximityStatus()
+                }
+            )
+            .store(in: &cancellables)
+    }
+
     private func buildAnnotations(for meetup: Meetup) -> [MapMarkerItem] {
         var items: [MapMarkerItem] = []
 
@@ -407,7 +592,8 @@ struct MeetupTrackingView: View {
                 coordinate: meetupLoc.coordinate,
                 label: "Meetup",
                 icon: "mappin.circle.fill",
-                color: Theme.Colors.primary
+                color: Theme.Colors.primary,
+                userId: nil // Meetup location, not a user
             ))
         }
 
@@ -420,14 +606,16 @@ struct MeetupTrackingView: View {
                 coordinate: buyerLoc.coordinate,
                 label: "You",
                 icon: "location.fill",
-                color: Theme.Colors.accentBlue
+                color: Theme.Colors.accentBlue,
+                userId: meetup.buyerId
             ))
         } else if !isBuyer, let sellerLoc = meetup.sellerLocation {
             items.append(MapMarkerItem(
                 coordinate: sellerLoc.coordinate,
                 label: "You",
                 icon: "location.fill",
-                color: Theme.Colors.accentBlue
+                color: Theme.Colors.accentBlue,
+                userId: meetup.sellerId
             ))
         }
 
@@ -473,6 +661,7 @@ private struct MapMarkerItem: Identifiable {
     let label: String
     let icon: String
     let color: Color
+    let userId: String? // nil for meetup location, user ID for user pins
 }
 
 // MARK: - Preview
