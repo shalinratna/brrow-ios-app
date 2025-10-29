@@ -180,9 +180,16 @@ struct ProfessionalListingDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Done") {
+                    dismiss()
+                }
+                .foregroundColor(Theme.Colors.primary)
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
-                    Button(action: { 
+                    Button(action: {
                         impactFeedback.impactOccurred()
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             favoriteScale = 1.3
@@ -199,7 +206,7 @@ struct ProfessionalListingDetailView: View {
                             .scaleEffect(favoriteScale)
                             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.isFavorited)
                     }
-                    
+
                     Button(action: { showingShareSheet = true }) {
                         Image(systemName: "square.and.arrow.up")
                             .foregroundColor(Theme.Colors.text)
