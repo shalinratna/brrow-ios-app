@@ -44,16 +44,20 @@ struct TransactionDetailView: View {
                     // Listing info
                     ListingInfoSection(purchase: purchase)
 
-                    // Timeline
-                    TimelineSection(steps: purchase.timeline)
+                    // Only show timeline and receipt for active transactions
+                    if purchase.paymentStatus != "CANCELLED" {
+                        // Timeline
+                        TimelineSection(steps: purchase.timeline)
 
-                    // Receipt
-                    ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
+                        // Receipt
+                        ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
+                    }
 
-                    // Meetup section - scheduling or tracking
-                    // CRITICAL FIX: Check if meetup is valid AND has actual data AND not expired/cancelled
-                    // A meetup might exist but be incomplete (null location/time) OR deleted (stale ID) OR expired
-                    if let meetup = purchase.meetup,
+                    // Check if purchase is cancelled (expired)
+                    if purchase.paymentStatus == "CANCELLED" {
+                        // Transaction cancelled/expired - show expired message
+                        TransactionExpiredSection(cancellationReason: purchase.cancellationReason, cancelledAt: purchase.cancelledAt)
+                    } else if let meetup = purchase.meetup,
                        !meetupIsInvalid,
                        meetup.status != "EXPIRED",
                        meetup.status != "CANCELLED",
@@ -535,6 +539,56 @@ struct MeetupTrackingSection: View {
                 }
             )
             .store(in: &viewModel.cancellables)
+    }
+}
+
+struct TransactionExpiredSection: View {
+    let cancellationReason: String?
+    let cancelledAt: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .foregroundColor(.red)
+                    .font(.system(size: 40))
+                Text("Transaction Expired")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.red)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                if let cancelledAt = cancelledAt {
+                    Text("Expired on \(formatDate(cancelledAt))")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Text(cancellationReason ?? "This transaction has expired and been automatically cancelled.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("The payment hold has been released and your funds are available. No charges were made.")
+                    .font(.callout)
+                    .fontWeight(.medium)
+                    .foregroundColor(.green)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(20)
+        .background(Color.red.opacity(0.05))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.red.opacity(0.2), lineWidth: 2)
+        )
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        return dateString.toUserFriendlyDate()
     }
 }
 
