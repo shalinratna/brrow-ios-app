@@ -226,7 +226,11 @@ class ChatListViewModel: ObservableObject {
     }
     
     func markConversationAsRead(_ conversationId: String) {
+        print("📖 [ChatListViewModel] Marking conversation as read: \(conversationId)")
+
         if let index = conversations.firstIndex(where: { $0.id == conversationId }) {
+            print("📖 [ChatListViewModel] Found conversation at index \(index), current unread: \(conversations[index].unreadCount)")
+
             conversations[index] = Conversation(
                 id: conversations[index].id,
                 otherUser: conversations[index].otherUser,
@@ -234,7 +238,27 @@ class ChatListViewModel: ObservableObject {
                 unreadCount: 0,
                 updatedAt: conversations[index].updatedAt
             )
-            unreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
+
+            // Update filtered conversations too
+            if !searchQuery.isEmpty {
+                if let filteredIndex = filteredConversations.firstIndex(where: { $0.id == conversationId }) {
+                    filteredConversations[filteredIndex] = conversations[index]
+                }
+            } else {
+                filteredConversations = conversations
+            }
+
+            // Recalculate total unread count
+            let newUnreadCount = conversations.reduce(0) { $0 + $1.unreadCount }
+            print("📖 [ChatListViewModel] Updated unread count: \(unreadCount) → \(newUnreadCount)")
+            unreadCount = newUnreadCount
+
+            // CRITICAL FIX: Also update the preloaded cache to ensure badge stays cleared
+            AppDataPreloader.shared.conversations = conversations
+            AppDataPreloader.shared.unreadCount = newUnreadCount
+            print("✅ [ChatListViewModel] Updated preloaded cache with new unread count")
+        } else {
+            print("⚠️ [ChatListViewModel] Conversation not found: \(conversationId)")
         }
     }
     
