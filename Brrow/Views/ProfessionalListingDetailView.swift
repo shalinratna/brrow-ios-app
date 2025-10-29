@@ -180,7 +180,7 @@ struct ProfessionalListingDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 HStack(spacing: 16) {
                     Button(action: {
                         impactFeedback.impactOccurred()
@@ -204,13 +204,15 @@ struct ProfessionalListingDetailView: View {
                         Image(systemName: "square.and.arrow.up")
                             .foregroundColor(Theme.Colors.text)
                     }
-
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(Theme.Colors.primary)
-                    .fontWeight(.semibold)
                 }
+            }
+
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
+                    dismiss()
+                }
+                .foregroundColor(Theme.Colors.primary)
+                .fontWeight(.semibold)
             }
         }
         .sheet(isPresented: $showingMakeOffer) {
@@ -1087,6 +1089,14 @@ struct ProfessionalListingDetailView: View {
                         }
                     }) {
                         Image(systemName: "message.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Theme.Colors.primary))
+                    }
+
+                    Button(action: { showingShareSheet = true }) {
+                        Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 20))
                             .foregroundColor(.white)
                             .frame(width: 44, height: 44)
