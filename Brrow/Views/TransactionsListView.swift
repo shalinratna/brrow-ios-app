@@ -326,7 +326,7 @@ struct TransactionCard: View {
             return "Refunded"
         case "cancelled":
             // Check if it's an expired transaction
-            if let reason = purchase.cancellationReason, reason.lowercased().contains("expired") {
+            if let reason = purchase.≈cancellationReason, reason.lowercased().contains("expired") {
                 return "Expired"
             }
             return "Cancelled"
