@@ -40,6 +40,8 @@ struct EnhancedChatDetailView: View {
     @State private var selectedListing: Listing?
     @State private var showingFullScreenImage = false
     @State private var selectedImageURL: String?
+    @State private var dragOffset: CGFloat = 0
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 0) {
@@ -53,6 +55,27 @@ struct EnhancedChatDetailView: View {
             messageInputView
         }
         .background(Theme.Colors.background)
+        .offset(x: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    // Only allow right swipe (positive translation)
+                    if value.translation.width > 0 {
+                        dragOffset = value.translation.width
+                    }
+                }
+                .onEnded { value in
+                    // Dismiss if swipe is significant (> 100pts) and moving right
+                    if value.translation.width > 100 && value.predictedEndTranslation.width > value.translation.width {
+                        dismiss()
+                    } else {
+                        // Snap back with animation
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            dragOffset = 0
+                        }
+                    }
+                }
+        )
         .navigationBarHidden(true)
         .onAppear {
             viewModel.loadMessages(for: conversation.id)
@@ -361,10 +384,10 @@ struct EnhancedChatDetailView: View {
                 // Message text field
                 HStack(spacing: 8) {
                     TextField("Message...", text: $messageText, axis: .vertical)
-                        .lineLimit(1...4)
-                        .font(.system(size: 16))
+                        .lineLimit(1...3)
+                        .font(.system(size: 15))
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         .onChange(of: messageText) { newValue in
                             handleTextChange(newValue)
                         }
@@ -399,8 +422,8 @@ struct EnhancedChatDetailView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background(Theme.Colors.background)
 
             // Voice recorder overlay
@@ -506,24 +529,30 @@ struct EnhancedChatDetailView: View {
 
     // MARK: - Profile Fetching
     private func fetchAndShowProfile() {
-        guard !isLoadingProfile else { return }
+        // Use cached profile if available, otherwise fetch
+        if let cached = viewModel.cachedOtherUserProfile {
+            otherUserProfile = cached
+            showingUserProfile = true
+        } else {
+            guard !isLoadingProfile else { return }
 
-        isLoadingProfile = true
-        showingUserProfile = true
+            isLoadingProfile = true
+            showingUserProfile = true
 
-        Task {
-            do {
-                let profile = try await APIClient.shared.fetchUserProfile(userId: conversation.otherUser.id)
+            Task {
+                do {
+                    let profile = try await APIClient.shared.fetchUserProfile(userId: conversation.otherUser.id)
 
-                await MainActor.run {
-                    self.otherUserProfile = profile
-                    self.isLoadingProfile = false
-                }
-            } catch {
-                print("❌ Failed to fetch user profile: \(error)")
-                await MainActor.run {
-                    self.isLoadingProfile = false
-                    self.showingUserProfile = false
+                    await MainActor.run {
+                        self.otherUserProfile = profile
+                        self.isLoadingProfile = false
+                    }
+                } catch {
+                    print("❌ Failed to fetch user profile: \(error)")
+                    await MainActor.run {
+                        self.isLoadingProfile = false
+                        self.showingUserProfile = false
+                    }
                 }
             }
         }
@@ -549,9 +578,9 @@ struct EnhancedChatDetailView: View {
             return true
         }
 
-        // More than 1 minute apart = new group
+        // More than 5 minutes apart = new group
         let timeDifference = message.timestamp.timeIntervalSince(previousMessage.timestamp)
-        return timeDifference > 60
+        return timeDifference > 300
     }
 
     private func isLastMessageInGroup(message: Message, next: Message?) -> Bool {
@@ -562,9 +591,9 @@ struct EnhancedChatDetailView: View {
             return true
         }
 
-        // More than 1 minute apart = end of group
+        // More than 5 minutes apart = end of group
         let timeDifference = nextMessage.timestamp.timeIntervalSince(message.timestamp)
-        return timeDifference > 60
+        return timeDifference > 300
     }
 }
 

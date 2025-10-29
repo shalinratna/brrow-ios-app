@@ -180,13 +180,6 @@ struct ProfessionalListingDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Done") {
-                    dismiss()
-                }
-                .foregroundColor(Theme.Colors.primary)
-            }
-
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
                     Button(action: {
@@ -211,6 +204,12 @@ struct ProfessionalListingDetailView: View {
                         Image(systemName: "square.and.arrow.up")
                             .foregroundColor(Theme.Colors.text)
                     }
+
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(Theme.Colors.primary)
+                    .fontWeight(.semibold)
                 }
             }
         }

@@ -23,7 +23,8 @@ class PushNotificationManager: NSObject, ObservableObject {
     
     override init() {
         super.init()
-        UNUserNotificationCenter.current().delegate = self
+        // AppDelegate handles notification delegate - avoid duplicate registration
+        // UNUserNotificationCenter.current().delegate = self
         checkAuthorizationStatus()
     }
     

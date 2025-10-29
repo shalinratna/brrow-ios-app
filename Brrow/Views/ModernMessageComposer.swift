@@ -427,14 +427,8 @@ struct ModernMessageComposer: View {
                     dismiss()
                     print("✅ [ModernMessageComposer] Dismiss called")
 
-                    // CRITICAL FIX: Give SocialChatView's onAppear time to complete the refresh
-                    // The onAppear will call fetchConversations(bypassCache: true) when the tab appears
-                    print("⏰ [ModernMessageComposer] Scheduling tab switch in 0.3s")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        print("🔀 [ModernMessageComposer] Posting switchToMessagesTab notification")
-                        NotificationCenter.default.post(name: .switchToMessagesTab, object: nil)
-                        print("✅ [ModernMessageComposer] Tab switch notification posted - SocialChatView.onAppear will refresh list")
-                    }
+                    // User stays on current tab (e.g., Marketplace) after sending message
+                    // Messages are available in Messages tab without forcing navigation
                 }
 
             } catch {

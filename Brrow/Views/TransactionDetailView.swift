@@ -547,44 +547,49 @@ struct TransactionExpiredSection: View {
     let cancelledAt: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "clock.badge.exclamationmark")
-                    .foregroundColor(.red)
-                    .font(.system(size: 40))
+                    .foregroundColor(Theme.Colors.error)
+                    .font(.system(size: 36))
                 Text("Transaction Expired")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.red)
+                    .font(Theme.Typography.title)
+                    .foregroundColor(Theme.Colors.error)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 if let cancelledAt = cancelledAt {
                     Text("Expired on \(formatDate(cancelledAt))")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .font(Theme.Typography.subheadline)
+                        .foregroundColor(Theme.Colors.secondaryText)
                 }
 
                 Text(cancellationReason ?? "This transaction has expired and been automatically cancelled.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.text)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("The payment hold has been released and your funds are available. No charges were made.")
-                    .font(.callout)
-                    .fontWeight(.medium)
-                    .foregroundColor(.green)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 4)
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(Theme.Colors.success)
+                        .font(.system(size: 16))
+                    Text("The payment hold has been released and your funds are available. No charges were made.")
+                        .font(Theme.Typography.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(Theme.Colors.success)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, Theme.Spacing.xs)
             }
         }
-        .padding(20)
-        .background(Color.red.opacity(0.05))
-        .cornerRadius(16)
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Colors.error.opacity(0.08))
+        .cornerRadius(Theme.CornerRadius.card)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.red.opacity(0.2), lineWidth: 2)
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(Theme.Colors.error.opacity(0.3), lineWidth: 1.5)
         )
+        .padding(.horizontal, Theme.Spacing.md)
     }
 
     private func formatDate(_ dateString: String) -> String {

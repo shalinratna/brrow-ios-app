@@ -163,16 +163,23 @@ struct NativeMainTabView: View {
             if let userInfo = notification.userInfo,
                let chatId = userInfo["chatId"] as? String {
                 print("🔔 Switching to chat tab with chatId: \(chatId)")
-                // Switch to messages tab
-                tabSelectionManager.selectedTab = 3
 
-                // Pass the chat ID to the chat view model
-                if let listing = userInfo["listing"] as? Listing {
-                    print("🔔 Navigating to chat with listing: \(listing.title)")
-                    chatViewModel.navigateToChat(chatId: chatId, listing: listing)
-                } else {
-                    print("🔔 Navigating to chat without listing")
-                    chatViewModel.navigateToChat(chatId: chatId, listing: nil)
+                // Close any presented sheets first
+                listingNavManager.showingListingDetail = false
+
+                // Small delay to allow sheet dismissal
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    // Switch to messages tab
+                    tabSelectionManager.selectedTab = 3
+
+                    // Pass the chat ID to the chat view model
+                    if let listing = userInfo["listing"] as? Listing {
+                        print("🔔 Navigating to chat with listing: \(listing.title)")
+                        chatViewModel.navigateToChat(chatId: chatId, listing: listing)
+                    } else {
+                        print("🔔 Navigating to chat without listing")
+                        chatViewModel.navigateToChat(chatId: chatId, listing: nil)
+                    }
                 }
             } else {
                 print("❌ Invalid notification data for navigateToChat")
