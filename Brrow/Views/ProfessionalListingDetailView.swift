@@ -1417,8 +1417,13 @@ struct BorrowOptionsView: View {
     @State private var selectedDuration = 1
     @State private var startDate = Date()
     @State private var includeInsurance = true
+    @State private var showingPaymentFlow = false
     @Environment(\.dismiss) private var dismiss
-    
+
+    var endDate: Date {
+        Calendar.current.date(byAdding: .day, value: selectedDuration, to: startDate) ?? startDate
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -1426,85 +1431,131 @@ struct BorrowOptionsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Rental Duration")
                         .font(.headline)
-                    
+
                     Picker("Duration", selection: $selectedDuration) {
-                        ForEach(1...7, id: \.self) { days in
+                        ForEach(1...30, id: \.self) { days in
                             Text("\(days) \(days == 1 ? "day" : "days")")
                                 .tag(days)
                         }
                     }
-                    .pickerStyle(SegmentedPickerStyle())
+                    .pickerStyle(WheelPickerStyle())
+                    .frame(height: 120)
+                    .clipped()
                 }
-                
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(UIColor.systemBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                )
+
                 // Start Date
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Start Date")
                         .font(.headline)
-                    
-                    DatePicker("", selection: $startDate, displayedComponents: .date)
+
+                    DatePicker("", selection: $startDate, in: Date()..., displayedComponents: .date)
                         .datePickerStyle(GraphicalDatePickerStyle())
+                        .frame(maxHeight: 350)
                 }
-                
-                // Insurance Option
-                Toggle(isOn: $includeInsurance) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Include Insurance")
-                            .font(.headline)
-                        Text("$5.00 additional")
-                            .font(.caption)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(UIColor.systemBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                )
+
+                // Rental Period Summary
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Rental Period")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                            Text(formatDate(startDate))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+
+                        Image(systemName: "arrow.right")
                             .foregroundColor(Theme.Colors.secondaryText)
+                            .padding(.horizontal, 8)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Return Date")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                            Text(formatDate(endDate))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
-                
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(UIColor.systemGray6))
+                )
+
                 // Price Summary
                 VStack(spacing: 12) {
                     HStack {
-                        Text("Rental (\(selectedDuration) days)")
+                        Text("Rental Cost")
+                        Spacer()
+                        Text("$\(listing.displayPrice, specifier: "%.2f") × \(selectedDuration) \(selectedDuration == 1 ? "day" : "days")")
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                    .font(.subheadline)
+
+                    HStack {
+                        Text("Subtotal")
                         Spacer()
                         Text("$\(listing.displayPrice * Double(selectedDuration), specifier: "%.2f")")
                     }
-                    
-                    if includeInsurance {
-                        HStack {
-                            Text("Insurance")
-                            Spacer()
-                            Text("$5.00")
-                        }
-                    }
-                    
+                    .font(.subheadline)
+
                     Divider()
-                    
+
                     HStack {
                         Text("Total")
                             .font(.headline)
                         Spacer()
-                        Text("$\(calculateTotal(), specifier: "%.2f")")
+                        Text("$\(listing.displayPrice * Double(selectedDuration), specifier: "%.2f")")
                             .font(.headline)
                             .foregroundColor(Theme.Colors.primary)
                     }
+
+                    Text("Additional fees and insurance will be calculated at checkout")
+                        .font(.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                        .multilineTextAlignment(.center)
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
-                
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(UIColor.systemGray6))
+                )
+
                 Spacer()
-                
+
                 // Continue Button
                 Button(action: proceedToCheckout) {
-                    Text("Continue to Payment")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Theme.Colors.primary)
-                        .cornerRadius(12)
+                    HStack {
+                        Text("Continue to Payment")
+                            .font(.headline)
+                        Image(systemName: "arrow.right")
+                            .font(.subheadline)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Theme.Colors.primary)
+                    .cornerRadius(12)
+                    .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
             }
             .padding()
-            .navigationTitle("Borrow Options")
+            .navigationTitle("Rental Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -1514,17 +1565,67 @@ struct BorrowOptionsView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $showingPaymentFlow) {
+            RentalPaymentFlowWrapper(
+                listing: listing,
+                startDate: startDate,
+                endDate: endDate,
+                onComplete: {
+                    showingPaymentFlow = false
+                    dismiss()
+                }
+            )
+        }
     }
-    
-    private func calculateTotal() -> Double {
-        let rentalCost = listing.displayPrice * Double(selectedDuration)
-        let insuranceCost = includeInsurance ? 5.0 : 0.0
-        return rentalCost + insuranceCost
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
     }
-    
+
     private func proceedToCheckout() {
-        // Proceed to payment
-        dismiss()
+        showingPaymentFlow = true
+    }
+}
+
+// Wrapper view to pre-configure PaymentFlowView for rental
+struct RentalPaymentFlowWrapper: View {
+    let listing: Listing
+    let startDate: Date
+    let endDate: Date
+    let onComplete: () -> Void
+
+    @Environment(\.presentationMode) var presentationMode
+
+    var body: some View {
+        RentalPaymentFlowView(
+            listing: listing,
+            startDate: startDate,
+            endDate: endDate,
+            onDismiss: {
+                presentationMode.wrappedValue.dismiss()
+                onComplete()
+            }
+        )
+    }
+}
+
+// Simplified rental payment flow view
+struct RentalPaymentFlowView: View {
+    let listing: Listing
+    let startDate: Date
+    let endDate: Date
+    let onDismiss: () -> Void
+
+    var body: some View {
+        PaymentFlowView(listing: listing)
+            .onAppear {
+                // Note: PaymentFlowView will need to be updated to accept
+                // pre-configured rental dates as parameters.
+                // For now, this navigates to the payment flow
+                // where the user will configure rental details again.
+            }
     }
 }
 
