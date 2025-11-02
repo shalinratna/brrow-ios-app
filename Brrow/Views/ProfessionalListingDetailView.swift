@@ -375,12 +375,12 @@ struct ProfessionalListingDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Price first (like Facebook Marketplace)
             HStack(alignment: .bottom, spacing: 4) {
-                Text("$\(Int(viewModel.listing.price))")
+                Text("$\(Int(viewModel.listing.displayPrice))")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(Theme.Colors.text)
-                
-                if viewModel.listing.listingType == "rental" {
-                    Text("/\(viewModel.listing.rentalPeriod ?? "day")")
+
+                if viewModel.listing.isRental {
+                    Text("/day")
                         .font(.system(size: 16))
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
@@ -580,7 +580,8 @@ struct ProfessionalListingDetailView: View {
                             )
                         }
 
-                        if viewModel.listing.isNegotiable {
+                        // Show "Make Offer" button for sale items (always) or negotiable rentals
+                        if viewModel.listing.listingType == "sale" || viewModel.listing.isNegotiable {
                             Button(action: {
                                 showingMakeOffer = true
                             }) {
@@ -688,7 +689,7 @@ struct ProfessionalListingDetailView: View {
             Button(action: { showingSellerProfile = true }) {
                 HStack(spacing: 12) {
                     // Seller Avatar
-                    if let avatarUrl = viewModel.seller?.profilePicture {
+                    if let avatarUrl = viewModel.listing.ownerProfilePicture {
                         BrrowAsyncImage(url: avatarUrl) { image in
                             image
                                 .resizable()
@@ -875,9 +876,9 @@ struct ProfessionalListingDetailView: View {
                     .fill(viewModel.listing.isAvailable ? Color.green : Color.red)
                     .frame(width: 8, height: 8)
                 
-                Text(viewModel.listing.isAvailable ? 
-                     (viewModel.listing.listingType == "sale" ? "Available for purchase" : "Available for rent") : 
-                     (viewModel.listing.listingType == "sale" ? "Sold" : "Currently rented"))
+                Text(viewModel.listing.isAvailable ?
+                     (viewModel.listing.isRental ? "Available for rent" : "Available for purchase") :
+                     (viewModel.listing.isRental ? "Currently rented" : "Sold"))
                     .font(.body)
                     .foregroundColor(Theme.Colors.text)
                 
@@ -1032,11 +1033,11 @@ struct ProfessionalListingDetailView: View {
             HStack(spacing: 16) {
                 // Price
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("$\(Int(viewModel.listing.price))")
+                    Text("$\(Int(viewModel.listing.displayPrice))")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(Theme.Colors.text)
-                    if viewModel.listing.listingType == "rental" {
-                        Text("per \(viewModel.listing.rentalPeriod ?? "day")")
+                    if viewModel.listing.isRental {
+                        Text("per day")
                             .font(.system(size: 12))
                             .foregroundColor(Theme.Colors.secondaryText)
                     }
@@ -1110,12 +1111,12 @@ struct ProfessionalListingDetailView: View {
                             showingBorrowOptions = true
                         }
                     }) {
-                        Text(viewModel.listing.listingType == "sale" ? "Buy Now" : "Rent Now")
+                        Text(viewModel.listing.isRental ? "Rent Now" : "Buy Now")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 24)
                             .frame(height: 44)
-                            .background(viewModel.listing.listingType == "sale" ? Color.red : Theme.Colors.primary)
+                            .background(viewModel.listing.isRental ? Theme.Colors.primary : Color.red)
                             .cornerRadius(22)
                     }
                 }
@@ -1242,7 +1243,7 @@ struct SimilarItemCard: View {
                 .frame(width: 150, alignment: .leading)
             
             // Price
-            Text("$\(listing.price, specifier: "%.2f")/\(listing.rentalPeriod ?? "day")")
+            Text("$\(listing.displayPrice, specifier: "%.2f")\(listing.priceSuffix)")
                 .font(.caption)
                 .fontWeight(.bold)
                 .foregroundColor(Theme.Colors.primary)
@@ -1280,7 +1281,7 @@ struct MakeOfferView: View {
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(12)
                     
-                    Text("Original price: $\(listing.price, specifier: "%.2f")")
+                    Text("Original price: $\(listing.displayPrice, specifier: "%.2f")\(listing.priceSuffix)")
                         .font(.caption)
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
@@ -1355,7 +1356,7 @@ struct MakeOfferView: View {
         }
 
         // Check if offer is less than listing price (optional warning)
-        if amount > listing.price * 1.5 {
+        if amount > listing.displayPrice * 1.5 {
             errorMessage = "Your offer is significantly higher than the listing price. Please review your amount."
             return
         }
@@ -1463,7 +1464,7 @@ struct BorrowOptionsView: View {
                     HStack {
                         Text("Rental (\(selectedDuration) days)")
                         Spacer()
-                        Text("$\(listing.price * Double(selectedDuration), specifier: "%.2f")")
+                        Text("$\(listing.displayPrice * Double(selectedDuration), specifier: "%.2f")")
                     }
                     
                     if includeInsurance {
@@ -1516,7 +1517,7 @@ struct BorrowOptionsView: View {
     }
     
     private func calculateTotal() -> Double {
-        let rentalCost = listing.price * Double(selectedDuration)
+        let rentalCost = listing.displayPrice * Double(selectedDuration)
         let insuranceCost = includeInsurance ? 5.0 : 0.0
         return rentalCost + insuranceCost
     }
