@@ -1426,135 +1426,199 @@ struct BorrowOptionsView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                // Duration Selection
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Rental Duration")
-                        .font(.headline)
-
-                    Picker("Duration", selection: $selectedDuration) {
-                        ForEach(1...30, id: \.self) { days in
-                            Text("\(days) \(days == 1 ? "day" : "days")")
-                                .tag(days)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    // Duration Selection
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "clock.fill")
+                                .foregroundColor(Theme.Colors.primary)
+                                .font(.system(size: 20))
+                            Text("Rental Duration")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
                         }
+
+                        Picker("Duration", selection: $selectedDuration) {
+                            ForEach(1...30, id: \.self) { days in
+                                Text("\(days) \(days == 1 ? "day" : "days")")
+                                    .tag(days)
+                            }
+                        }
+                        .pickerStyle(WheelPickerStyle())
+                        .frame(height: 120)
+                        .clipped()
                     }
-                    .pickerStyle(WheelPickerStyle())
-                    .frame(height: 120)
-                    .clipped()
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.systemBackground))
-                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-                )
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Theme.Colors.cardBackground)
+                            .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+                    )
 
-                // Start Date
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Start Date")
-                        .font(.headline)
-
-                    DatePicker("", selection: $startDate, in: Date()..., displayedComponents: .date)
-                        .datePickerStyle(GraphicalDatePickerStyle())
-                        .frame(maxHeight: 350)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.systemBackground))
-                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-                )
-
-                // Rental Period Summary
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                    // Rental Period Summary
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "calendar")
+                                .foregroundColor(Theme.Colors.primary)
+                                .font(.system(size: 20))
                             Text("Rental Period")
-                                .font(.caption)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                            Text(formatDate(startDate))
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
                         }
 
-                        Image(systemName: "arrow.right")
-                            .foregroundColor(Theme.Colors.secondaryText)
-                            .padding(.horizontal, 8)
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Start Date")
+                                    .font(.caption)
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                                Text(formatDate(startDate))
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(Theme.Colors.text)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Theme.Colors.secondaryBackground)
+                            )
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Return Date")
-                                .font(.caption)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                            Text(formatDate(endDate))
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                            Image(systemName: "arrow.right")
+                                .foregroundColor(Theme.Colors.primary)
+                                .font(.system(size: 18, weight: .semibold))
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Return Date")
+                                    .font(.caption)
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                                Text(formatDate(endDate))
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(Theme.Colors.text)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Theme.Colors.secondaryBackground)
+                            )
                         }
                     }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.systemGray6))
-                )
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Theme.Colors.cardBackground)
+                            .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+                    )
 
-                // Price Summary
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Rental Cost")
-                        Spacer()
-                        Text("$\(listing.displayPrice, specifier: "%.2f") × \(selectedDuration) \(selectedDuration == 1 ? "day" : "days")")
+                    // Start Date Picker
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "calendar.badge.clock")
+                                .foregroundColor(Theme.Colors.primary)
+                                .font(.system(size: 20))
+                            Text("Select Start Date")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
+                        }
+
+                        DatePicker("", selection: $startDate, in: Date()..., displayedComponents: .date)
+                            .datePickerStyle(GraphicalDatePickerStyle())
+                            .tint(Theme.Colors.primary)
+                    }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Theme.Colors.cardBackground)
+                            .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+                    )
+
+                    // Price Summary
+                    VStack(spacing: 16) {
+                        HStack {
+                            Image(systemName: "dollarsign.circle.fill")
+                                .foregroundColor(Theme.Colors.primary)
+                                .font(.system(size: 20))
+                            Text("Price Summary")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Rental Cost")
+                                    .foregroundColor(Theme.Colors.text)
+                                Spacer()
+                                Text("$\(listing.displayPrice, specifier: "%.2f") × \(selectedDuration) \(selectedDuration == 1 ? "day" : "days")")
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
+                            .font(.system(size: 15))
+
+                            HStack {
+                                Text("Subtotal")
+                                    .foregroundColor(Theme.Colors.text)
+                                Spacer()
+                                Text("$\(listing.displayPrice * Double(selectedDuration), specifier: "%.2f")")
+                                    .foregroundColor(Theme.Colors.text)
+                            }
+                            .font(.system(size: 15))
+
+                            Divider()
+                                .background(Theme.Colors.secondary.opacity(0.3))
+
+                            HStack {
+                                Text("Total")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(Theme.Colors.text)
+                                Spacer()
+                                Text("$\(listing.displayPrice * Double(selectedDuration), specifier: "%.2f")")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundColor(Theme.Colors.primary)
+                            }
+                        }
+
+                        Text("Additional fees and insurance will be calculated at checkout")
+                            .font(.system(size: 13))
                             .foregroundColor(Theme.Colors.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 4)
                     }
-                    .font(.subheadline)
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Theme.Colors.cardBackground)
+                            .shadow(color: Theme.Shadows.card, radius: Theme.Shadows.cardRadius, x: 0, y: 2)
+                    )
 
-                    HStack {
-                        Text("Subtotal")
-                        Spacer()
-                        Text("$\(listing.displayPrice * Double(selectedDuration), specifier: "%.2f")")
+                    // Continue Button
+                    Button(action: proceedToCheckout) {
+                        HStack {
+                            Text("Continue to Payment")
+                                .font(.system(size: 17, weight: .semibold))
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [Theme.Colors.primary, Theme.Colors.primary.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(16)
+                        .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 10, x: 0, y: 5)
                     }
-                    .font(.subheadline)
+                    .padding(.top, 8)
 
-                    Divider()
-
-                    HStack {
-                        Text("Total")
-                            .font(.headline)
-                        Spacer()
-                        Text("$\(listing.displayPrice * Double(selectedDuration), specifier: "%.2f")")
-                            .font(.headline)
-                            .foregroundColor(Theme.Colors.primary)
-                    }
-
-                    Text("Additional fees and insurance will be calculated at checkout")
-                        .font(.caption)
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .multilineTextAlignment(.center)
+                    // Bottom padding for safe area
+                    Color.clear.frame(height: 20)
                 }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.systemGray6))
-                )
-
-                Spacer()
-
-                // Continue Button
-                Button(action: proceedToCheckout) {
-                    HStack {
-                        Text("Continue to Payment")
-                            .font(.headline)
-                        Image(systemName: "arrow.right")
-                            .font(.subheadline)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Theme.Colors.primary)
-                    .cornerRadius(12)
-                    .shadow(color: Theme.Colors.primary.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
+                .padding(20)
             }
-            .padding()
+            .background(Theme.Colors.background)
             .navigationTitle("Rental Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1562,6 +1626,7 @@ struct BorrowOptionsView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(Theme.Colors.primary)
                 }
             }
         }

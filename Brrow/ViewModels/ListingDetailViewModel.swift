@@ -22,7 +22,9 @@ class ListingDetailViewModel: ObservableObject {
     @Published var similarItems: [Listing] = []
     @Published var sellerActiveListings: Int = 0
     @Published var sellerCompletedTransactions: Int = 0
-    
+    @Published var toastMessage: String?
+    @Published var toastType: ToastModifier.ToastType = .success
+
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
     private let authManager = AuthManager.shared
@@ -317,6 +319,14 @@ class ListingDetailViewModel: ObservableObject {
                     userInfo: ["listingId": listing.listingId, "action": "deleted"]
                 )
 
+                // Post marketplace refresh notification to instantly remove listing
+                print("✅ [DELETE] Posting listingDidDelete notification for marketplace")
+                NotificationCenter.default.post(
+                    name: .listingDidDelete,
+                    object: nil,
+                    userInfo: ["listingId": listing.listingId]
+                )
+
                 // Also post a dismissal notification so the detail view can close
                 print("✅ [DELETE] Posting DismissListingDetail notification")
                 NotificationCenter.default.post(
@@ -324,6 +334,10 @@ class ListingDetailViewModel: ObservableObject {
                     object: nil,
                     userInfo: ["listingId": listing.listingId]
                 )
+
+                // Show success toast notification
+                self.toastType = .success
+                self.toastMessage = "Listing deleted successfully!"
             }
         } catch {
             await MainActor.run {

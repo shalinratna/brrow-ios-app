@@ -97,6 +97,7 @@ struct Listing: Codable, Identifiable, Equatable {
     let condition: String  // Changed from ItemCondition to String
     let price: Double
     let dailyRate: Double?  // Optional daily rental rate
+    let estimatedValue: Double?  // Estimated value for rental insurance
     let pricingType: String?  // Explicit pricing type from backend
     let isNegotiable: Bool
     let availabilityStatus: ListingStatus
@@ -172,12 +173,30 @@ struct Listing: Codable, Identifiable, Equatable {
         // Calculate distance client-side if needed
         return nil
     }
-    
+
+    // MARK: - Rental Helper Properties
+
+    /// Determines if this listing is a rental based on the presence of dailyRate
+    var isRental: Bool {
+        return dailyRate != nil
+    }
+
+    /// Returns the appropriate display price (dailyRate for rentals, price for sales)
+    var displayPrice: Double {
+        return dailyRate ?? price
+    }
+
+    /// Returns the price suffix ("/day" for rentals, empty for sales)
+    var priceSuffix: String {
+        return isRental ? "/day" : ""
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, title, description
         case categoryId = "category_id"
         case condition, price
         case dailyRate = "daily_rate"
+        case estimatedValue = "estimated_value"
         case pricingType = "pricing_type"
         case isNegotiable = "is_negotiable"
         case availabilityStatus = "availability_status"
@@ -208,11 +227,11 @@ struct Listing: Codable, Identifiable, Equatable {
         enum RawKeys: String, CodingKey {
             case id, title, description, condition, price, location, tags, metadata, user, videos, imageUrl
             // camelCase versions
-            case categoryId, dailyRate, pricingType, isNegotiable, availabilityStatus, userId
+            case categoryId, dailyRate, estimatedValue, pricingType, isNegotiable, availabilityStatus, userId
             case viewCount, favoriteCount, isActive, isPremium, premiumExpiresAt, deliveryOptions
             case createdAt, updatedAt, category, images
             // snake_case versions
-            case category_id, daily_rate, pricing_type, is_negotiable, availability_status, user_id
+            case category_id, daily_rate, estimated_value, pricing_type, is_negotiable, availability_status, user_id
             case view_count, favorite_count, is_active, is_premium, premium_expires_at, delivery_options
             case created_at, updated_at, categories, listing_images, imageUrls, _count
         }
@@ -238,6 +257,13 @@ struct Listing: Codable, Identifiable, Equatable {
             dailyRate = val
         } else {
             dailyRate = try? rawContainer.decodeIfPresent(Double.self, forKey: .daily_rate)
+        }
+
+        // Try both formats for estimatedValue
+        if let val = try? rawContainer.decodeIfPresent(Double.self, forKey: .estimatedValue) {
+            estimatedValue = val
+        } else {
+            estimatedValue = try? rawContainer.decodeIfPresent(Double.self, forKey: .estimated_value)
         }
 
         // Try both formats for pricingType

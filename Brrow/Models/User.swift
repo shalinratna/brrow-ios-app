@@ -110,6 +110,9 @@ struct User: Codable, Identifiable {
     let lastActive: String?
     let createdAt: String?
     let updatedAt: String?
+
+    // ML & Personalization
+    let personalizationEnabled: Bool?
     
     // Additional
     let stats: UserStats?
@@ -201,7 +204,10 @@ struct User: Codable, Identifiable {
         case lastActive = "last_active"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
-        
+
+        // ML & Personalization
+        case personalizationEnabled = "personalization_enabled"
+
         // Additional
         case stats
         case isOwnProfile = "is_own_profile"
@@ -273,6 +279,7 @@ struct User: Codable, Identifiable {
         self.activeRentals = 0
         self.offersMade = 0
         self.updatedAt = nil
+        self.personalizationEnabled = true
     }
     
     init(from decoder: Decoder) throws {
@@ -394,7 +401,10 @@ struct User: Codable, Identifiable {
         self.lastActive = try container.decodeIfPresent(String.self, forKey: .lastActive)
         self.createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         self.updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
-        
+
+        // ML & Personalization
+        self.personalizationEnabled = try container.decodeIfPresent(Bool.self, forKey: .personalizationEnabled) ?? true
+
         // Additional
         self.stats = try container.decodeIfPresent(UserStats.self, forKey: .stats)
         self.isOwnProfile = try container.decodeIfPresent(Bool.self, forKey: .isOwnProfile)

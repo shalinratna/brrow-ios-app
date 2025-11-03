@@ -163,6 +163,12 @@ struct ProfessionalMarketplaceView: View {
                 // Refresh marketplace when notification is received
                 viewModel.loadMarketplace()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .listingDidDelete)) { notification in
+                // Remove deleted listing instantly from marketplace
+                if let listingId = notification.userInfo?["listingId"] as? String {
+                    viewModel.removeListing(withId: listingId)
+                }
+            }
             .onChange(of: tabSelectionManager.shouldFocusMarketplaceSearch) { shouldFocus in
                 if shouldFocus {
                     // Focus the search field
@@ -976,7 +982,49 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
     func loadMarketplace() {
         print("🏪 [MARKETPLACE] loadMarketplace() called")
 
-        // PRIORITY 1: Check comprehensive preloader first (fastest)
+        // PRIORITY 1: Try ML-powered personalized recommendations first (if enabled)
+        let currentUser = AuthManager.shared.currentUser
+        let personalizationEnabled = currentUser?.personalizationEnabled ?? true
+
+        if personalizationEnabled {
+            print("✨ [MARKETPLACE] Personalization enabled, fetching ML recommendations...")
+            Task {
+                await MainActor.run { isLoading = true }
+
+                do {
+                    // Get user location if available
+                    let userLocation = LocationManager.shared.currentLocation?.coordinate
+
+                    // Fetch personalized "For You" feed
+                    let recommendedListings = try await RecommendationsService.shared.fetchForYouFeed(
+                        limit: 30,
+                        userLocation: userLocation
+                    )
+
+                    await MainActor.run {
+                        print("✅ [MARKETPLACE] ML recommendations fetched: \(recommendedListings.count) listings")
+                        self.allListings = recommendedListings
+                        self.applyFiltersAndSort()
+                        self.totalListings = recommendedListings.count
+                        self.nearbyListings = recommendedListings.count
+                        self.todaysDeals = recommendedListings.filter { $0.price < 50 }.count
+                        self.hasMore = recommendedListings.count >= 20
+                        self.isLoading = false
+
+                        // Track that user viewed recommendations
+                        BehaviorTracker.shared.trackListingView(listingId: "for-you-feed")
+                    }
+                    return
+                } catch {
+                    print("⚠️ [MARKETPLACE] ML recommendations failed: \(error), falling back to standard feed")
+                    await MainActor.run { isLoading = false }
+                    // Fall through to standard feed logic
+                }
+            }
+            // Don't return here - allow fallback to preloaded data
+        }
+
+        // PRIORITY 2: Check comprehensive preloader (fastest fallback)
         let preloadedListings = AppDataPreloader.shared.marketplaceListings
 
         if !preloadedListings.isEmpty {
@@ -995,7 +1043,7 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
             return
         }
 
-        // PRIORITY 2: Fallback to legacy preloader
+        // PRIORITY 3: Fallback to legacy preloader
         let legacyPreloadedListings = MarketplaceDataPreloader.shared.getPreloadedListings()
 
         if !legacyPreloadedListings.isEmpty {
@@ -1012,7 +1060,7 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
             return
         }
 
-        // PRIORITY 3: Last resort - fetch from API if no preloaded data
+        // PRIORITY 4: Last resort - fetch from API if no preloaded data
         print("⚠️ [MARKETPLACE] No preloaded data available, fetching from API...")
         Task {
             await MainActor.run { isLoading = true }
@@ -1254,6 +1302,14 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    // Remove a deleted listing from the marketplace
+    func removeListing(withId listingId: String) {
+        allListings.removeAll { $0.id == listingId }
+        applyFiltersAndSort()
+        totalListings = listings.count
+        print("[MARKETPLACE] Removed deleted listing: \(listingId)")
     }
 }
 

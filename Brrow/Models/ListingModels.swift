@@ -117,7 +117,9 @@ struct DeliveryOptions: Codable {
 struct CreateListingRequest: Codable {
     let title: String
     let description: String
-    let dailyRate: Double  // Changed from price to match Railway backend
+    let price: Double?  // Sale price (for sale listings)
+    let dailyRate: Double?  // Daily rental rate (for rental listings)
+    let estimatedValue: Double?  // Estimated value for rental insurance
     let categoryId: String
     let condition: String
     let location: Location

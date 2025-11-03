@@ -456,6 +456,10 @@ class MakeOfferViewModel: ObservableObject {
                     self.currentOfferId = offerId
                     self.currentClientSecret = clientSecret
 
+                    print("💳 Received offer response:")
+                    print("   Offer ID: \(offerId)")
+                    print("   Client Secret: \(clientSecret.prefix(30))...")
+
                     // Setup and present payment sheet
                     self.setupPaymentSheet(clientSecret: clientSecret)
                 } else if httpResponse.statusCode == 402 {

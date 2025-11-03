@@ -44,9 +44,12 @@ struct ModernCreateListingView: View {
     @State private var category = ""
     @State private var tags: [String] = []
     @State private var price = ""
+    @State private var estimatedValue = ""  // For rental insurance
+    @State private var enableInsurance = false  // Toggle for insurance add-on
     @State private var negotiable = false
     @State private var selectedCondition: ItemCondition = .good
     @State private var priceValidationError: String? = nil
+    @State private var estimatedValueValidationError: String? = nil
 
     // Item condition options
     enum ItemCondition: String, CaseIterable {
@@ -683,6 +686,81 @@ struct ModernCreateListingView: View {
                 .padding()
                 .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
                 .padding(.horizontal)
+
+                // Insurance Add-on (for rentals only)
+                if transactionType == "rental" {
+                    VStack(spacing: 16) {
+                        Text("Insurance Protection")
+                            .font(.title3.bold())
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle(isOn: $enableInsurance) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Image(systemName: "shield.checkered")
+                                            .font(.title3)
+                                            .foregroundColor(enableInsurance ? .blue : .secondary)
+                                        Text("Add Insurance Protection")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundColor(.primary)
+                                    }
+                                    Text("Protect your item with insurance coverage during rental")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .tint(.blue)
+                            .padding()
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
+
+                            // Estimated value input (only when insurance is enabled)
+                            if enableInsurance {
+                                VStack(spacing: 8) {
+                                    Text("Estimated Item Value")
+                                        .font(.subheadline.weight(.medium))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    HStack(spacing: 4) {
+                                        Text("$")
+                                            .font(.title3.bold())
+                                            .foregroundColor(Theme.Colors.primary)
+
+                                        TextField("0", text: $estimatedValue)
+                                            .font(.system(size: 24, weight: .semibold))
+                                            .keyboardType(.numberPad)
+                                            .onChange(of: estimatedValue) { newValue in
+                                                validateEstimatedValue(newValue)
+                                            }
+                                    }
+                                    .padding()
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(.systemGray6))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(estimatedValueValidationError != nil ? Color.red : Color.clear, lineWidth: 2)
+                                            )
+                                    )
+
+                                    // Validation error message
+                                    if let error = estimatedValueValidationError {
+                                        HStack {
+                                            Image(systemName: "exclamationmark.triangle.fill")
+                                                .font(.caption)
+                                                .foregroundColor(.red)
+                                            Text(error)
+                                                .font(.caption)
+                                                .foregroundColor(.red)
+                                        }
+                                    }
+                                }
+                                .transition(.opacity)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
             }
         }
     }
@@ -755,7 +833,13 @@ struct ModernCreateListingView: View {
                 return false
             }
             return true
-        case 4: return true
+        case 4:
+            // Review step - validate insurance add-on if enabled for rentals
+            if transactionType == "rental" && enableInsurance {
+                guard !estimatedValue.isEmpty, estimatedValueValidationError == nil else { return false }
+                guard let estValue = Double(estimatedValue), estValue > 0 else { return false }
+            }
+            return true
         default: return false
         }
     }
@@ -790,6 +874,34 @@ struct ModernCreateListingView: View {
         // Check minimum price for sale items
         if transactionType == "sale" && priceValue < 3 {
             priceValidationError = "Minimum price for sale items is $3"
+            return
+        }
+    }
+
+    private func validateEstimatedValue(_ newValue: String) {
+        // Reset error
+        estimatedValueValidationError = nil
+
+        // Empty is okay - user is typing
+        if newValue.isEmpty {
+            return
+        }
+
+        // Check if it's a valid number (integers only - no decimals)
+        if newValue.contains(".") {
+            estimatedValueValidationError = "Only whole numbers allowed (no decimals)"
+            return
+        }
+
+        // Check if it can be converted to a number
+        guard let value = Double(newValue) else {
+            estimatedValueValidationError = "Invalid value"
+            return
+        }
+
+        // Check if it's positive
+        if value <= 0 {
+            estimatedValueValidationError = "Value must be greater than $0"
             return
         }
     }
@@ -915,7 +1027,9 @@ struct ModernCreateListingView: View {
                     let listing = CreateListingRequest(
                         title: title,
                         description: description,
-                        dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
+                        price: transactionType == "sale" ? (Double(price) ?? 0) : nil,  // Sale price
+                        dailyRate: transactionType == "rental" ? (Double(price) ?? 0) : nil,  // Rental daily rate
+                        estimatedValue: (transactionType == "rental" && enableInsurance) ? (Double(estimatedValue) ?? nil) : nil,  // Rental insurance value (only if enabled)
                         categoryId: "default-category",
                         condition: selectedCondition.rawValue,
                         location: Location(
@@ -953,7 +1067,9 @@ struct ModernCreateListingView: View {
                     let request = CreateListingRequest(
                         title: title,
                         description: description,
-                        dailyRate: Double(price) ?? 0,  // Changed to dailyRate for Railway backend
+                        price: transactionType == "sale" ? (Double(price) ?? 0) : nil,  // Sale price
+                        dailyRate: transactionType == "rental" ? (Double(price) ?? 0) : nil,  // Rental daily rate
+                        estimatedValue: (transactionType == "rental" && enableInsurance) ? (Double(estimatedValue) ?? nil) : nil,  // Rental insurance value (only if enabled)
                         categoryId: "default-category",
                         condition: selectedCondition.rawValue,
                         location: Location(

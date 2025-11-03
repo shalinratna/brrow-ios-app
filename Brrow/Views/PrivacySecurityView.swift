@@ -15,6 +15,8 @@ struct PrivacySecurityView: View {
     @State private var autoLockEnabled = true
     @State private var showLocationToContacts = true
     @State private var allowDataSharing = false
+    @State private var personalizationEnabled = true
+    @State private var isUpdatingPersonalization = false
 
     @State private var showingChangePassword = false
     @State private var showingCreatePassword = false
@@ -64,7 +66,7 @@ struct PrivacySecurityView: View {
                         Image(systemName: "location.fill")
                             .foregroundColor(Theme.Colors.primary)
                             .frame(width: 24)
-                        
+
                         VStack(alignment: .leading) {
                             Text("Share Location")
                                 .foregroundColor(Theme.Colors.text)
@@ -74,13 +76,13 @@ struct PrivacySecurityView: View {
                         }
                     }
                 }
-                
+
                 Toggle(isOn: $allowDataSharing) {
                     HStack {
                         Image(systemName: "chart.bar.fill")
                             .foregroundColor(Theme.Colors.primary)
                             .frame(width: 24)
-                        
+
                         VStack(alignment: .leading) {
                             Text("Analytics")
                                 .foregroundColor(Theme.Colors.text)
@@ -89,6 +91,32 @@ struct PrivacySecurityView: View {
                                 .foregroundColor(Theme.Colors.secondaryText)
                         }
                     }
+                }
+
+                Toggle(isOn: $personalizationEnabled) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(Theme.Colors.primary)
+                            .frame(width: 24)
+
+                        VStack(alignment: .leading) {
+                            Text("Personalized Recommendations")
+                                .foregroundColor(Theme.Colors.text)
+                            Text("Smart feed based on your interests and behavior")
+                                .font(.caption)
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+
+                        if isUpdatingPersonalization {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .padding(.leading, 8)
+                        }
+                    }
+                }
+                .disabled(isUpdatingPersonalization)
+                .onChange(of: personalizationEnabled) { newValue in
+                    updatePersonalizationSetting(newValue)
                 }
             }
             
@@ -180,6 +208,79 @@ struct PrivacySecurityView: View {
         }
         .onAppear {
             checkPasswordStatus()
+            loadPersonalizationSetting()
+        }
+    }
+
+    private func loadPersonalizationSetting() {
+        // Load from user profile
+        if let user = authManager.currentUser {
+            personalizationEnabled = user.personalizationEnabled ?? true
+        }
+    }
+
+    private func updatePersonalizationSetting(_ enabled: Bool) {
+        guard !isUpdatingPersonalization else { return }
+
+        isUpdatingPersonalization = true
+
+        Task {
+            do {
+                let baseURL = await APIClient.shared.getBaseURL()
+                guard let url = URL(string: "\(baseURL)/api/auth/update-personalization"),
+                      let authToken = authManager.authToken else {
+                    await MainActor.run {
+                        isUpdatingPersonalization = false
+                    }
+                    return
+                }
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "PUT"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+
+                let payload: [String: Any] = ["personalizationEnabled": enabled]
+                request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+                let (data, response) = try await URLSession.shared.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    print("❌ Failed to update personalization setting")
+                    await MainActor.run {
+                        // Revert toggle on failure
+                        personalizationEnabled = !enabled
+                        isUpdatingPersonalization = false
+                    }
+                    return
+                }
+
+                struct PersonalizationResponse: Codable {
+                    let success: Bool
+                    let message: String
+                }
+
+                let result = try JSONDecoder().decode(PersonalizationResponse.self, from: data)
+
+                await MainActor.run {
+                    if result.success {
+                        print("✅ Personalization updated: \(enabled ? "enabled" : "disabled")")
+                        // Setting is saved on server and will be reflected on next user refresh
+                    } else {
+                        // Revert toggle on failure
+                        personalizationEnabled = !enabled
+                    }
+                    isUpdatingPersonalization = false
+                }
+            } catch {
+                print("❌ Error updating personalization: \(error)")
+                await MainActor.run {
+                    // Revert toggle on failure
+                    personalizationEnabled = !enabled
+                    isUpdatingPersonalization = false
+                }
+            }
         }
     }
 

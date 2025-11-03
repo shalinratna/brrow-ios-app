@@ -108,9 +108,15 @@ struct ListingGridCard: View {
 
                 // Show pricing based on pricing type
                 if listing.pricingType == "RENTAL" {
-                    Text("$\(listing.price, specifier: "%.0f")/day")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Theme.Colors.primary)
+                    HStack(spacing: 2) {
+                        Text("$\(listing.price, specifier: "%.0f")")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Theme.Colors.primary)
+
+                        Text("/day")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
                 } else {
                     Text("$\(listing.price, specifier: "%.0f")")
                         .font(.system(size: 12, weight: .medium))

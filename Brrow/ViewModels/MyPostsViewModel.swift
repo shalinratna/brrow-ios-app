@@ -88,8 +88,17 @@ class MyPostsViewModel: ObservableObject {
         }
     }
 
-    // Delete post
+    // Delete post with optimistic UI update
     func deletePost(_ post: UserPost) {
+        // Store backup for rollback if delete fails
+        let deletedPost = post
+        let deletedIndex = posts.firstIndex(where: { $0.id == post.id })
+
+        // Optimistic UI update - remove immediately for instant feedback
+        posts.removeAll { $0.id == post.id }
+        print("[MyPosts] Optimistically removed post: \(post.id)")
+
+        // Perform actual delete in background
         Task {
             do {
                 // Call appropriate delete API based on post type
@@ -105,15 +114,38 @@ class MyPostsViewModel: ObservableObject {
                     throw BrrowAPIError.validationError("Unknown post type")
                 }
 
-                await MainActor.run {
-                    // Remove from local array
-                    self.posts.removeAll { $0.id == post.id }
-                    print("[MyPosts] Deleted post: \(post.id)")
-                }
+                // Success - notify marketplace to refresh
+                NotificationCenter.default.post(name: .listingDidDelete, object: nil, userInfo: ["listingId": post.id])
+                print("[MyPosts] Successfully deleted post: \(post.id)")
+
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "Failed to delete post: \(error.localizedDescription)"
-                    print("[MyPosts] Error deleting post: \(error)")
+                    // Rollback - restore the deleted post
+                    if let index = deletedIndex {
+                        self.posts.insert(deletedPost, at: min(index, self.posts.count))
+                    } else {
+                        self.posts.append(deletedPost)
+                    }
+
+                    // Check if error is due to active transactions/offers
+                    let errorDesc = error.localizedDescription.lowercased()
+                    if errorDesc.contains("active transaction") || errorDesc.contains("pending") || errorDesc.contains("offer") {
+                        self.errorMessage = """
+                        Unable to delete listing - Active offers or transactions in progress
+
+                        This listing has pending sales or rentals with money being held. To delete this listing:
+
+                        1. Cancel or complete all pending offers
+                        2. Wait for active rentals to be returned
+                        3. Resolve any transactions with held funds
+
+                        Check your Offers tab to manage pending transactions.
+                        """
+                    } else {
+                        self.errorMessage = "Failed to delete post: \(error.localizedDescription)"
+                    }
+
+                    print("[MyPosts] Error deleting post, rolled back: \(error)")
                 }
             }
         }

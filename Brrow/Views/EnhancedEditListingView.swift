@@ -73,7 +73,7 @@ struct EnhancedEditListingView: View {
         self._category = State(initialValue: listing.category?.name ?? "Other")
         self._condition = State(initialValue: listing.condition)
         self._location = State(initialValue: "\(listing.location.city), \(listing.location.state)")
-        self._securityDeposit = State(initialValue: "0.00")
+        self._securityDeposit = State(initialValue: listing.securityDeposit != nil ? String(format: "%.2f", listing.securityDeposit!) : "0.00")
         self._deliveryAvailable = State(initialValue: listing.deliveryOptions?.delivery ?? false)
         self._pickupAvailable = State(initialValue: listing.deliveryOptions?.pickup ?? true)
         self._shippingAvailable = State(initialValue: listing.deliveryOptions?.shipping ?? false)
@@ -363,18 +363,20 @@ struct EnhancedEditListingView: View {
                 }
             }
 
-            // Security deposit
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Security Deposit (optional)")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                HStack {
-                    Text("$")
+            // Security deposit (for rentals)
+            if pricingType == "rental" {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Security Deposit (optional)")
+                        .font(.caption)
                         .foregroundColor(.gray)
-                    TextField("0.00", text: $securityDeposit)
-                        .keyboardType(.decimalPad)
+                    HStack {
+                        Text("$")
+                            .foregroundColor(.gray)
+                        TextField("0.00", text: $securityDeposit)
+                            .keyboardType(.decimalPad)
+                    }
+                    .textFieldStyle(EnhancedTextFieldStyle())
                 }
-                .textFieldStyle(EnhancedTextFieldStyle())
             }
 
             // Negotiable toggle
@@ -747,6 +749,10 @@ struct EnhancedEditListingView: View {
                     updates["daily_rate"] = dailyRateValue
                 }
 
+                if let depositValue = Double(securityDeposit) {
+                    updates["security_deposit"] = depositValue
+                }
+
                 updates["pricing_type"] = pricingType
                 updates["category"] = category
                 updates["condition"] = condition
@@ -767,10 +773,6 @@ struct EnhancedEditListingView: View {
                 updates["pickup_available"] = pickupAvailable
                 updates["delivery_available"] = deliveryAvailable
                 updates["shipping_available"] = shippingAvailable
-
-                if let depositValue = Double(securityDeposit) {
-                    updates["security_deposit"] = depositValue
-                }
 
                 // Handle images
                 if !newImages.isEmpty || !imagesToDelete.isEmpty {

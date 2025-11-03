@@ -424,14 +424,65 @@ struct BrrowApp: App {
             }
 
         default:
-            // Check if it's a web URL format: https://brrowapp.com/listing/123
+            // Check if it's a web URL format: https://brrowapp.com/listing/123 or https://brrowapp.com/profile/456
             let path = components.path ?? ""
+
             if path.hasPrefix("/listing/") {
-                let listingId = String(path.dropFirst("/listing/".count))
+                // Extract the listing ID - supports both formats:
+                // Old: /listing/f923e46e-71f9-481e-8f39-21926fa4055f
+                // New: /listing/canon-camera-x7k2p?id=f923e46e-71f9-481e-8f39-21926fa4055f
+                let listingId = extractListingId(from: url, components: components, pathPrefix: "/listing/")
+                print("🔗 [Deep Link] Opening listing from web URL: \(listingId)")
                 // Use the universal listing navigation manager
                 ListingNavigationManager.shared.showListingById(listingId)
+            } else if path.hasPrefix("/profile/") {
+                // Extract the user ID - supports both formats:
+                // Old: /profile/f923e46e-71f9-481e-8f39-21926fa4055f
+                // New: /profile/john-doe-a3f9k2?id=f923e46e-71f9-481e-8f39-21926fa4055f
+                let userId = extractListingId(from: url, components: components, pathPrefix: "/profile/")
+                print("🔗 [Deep Link] Opening profile from web URL: \(userId)")
+
+                // Navigate to profile view with specific user ID
+                TabSelectionManager.shared.selectedTab = 4 // Profile tab
+
+                // Wait for tab switch, then show the specific user's profile
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("ShowUserProfile"),
+                        object: nil,
+                        userInfo: ["userId": userId]
+                    )
+                }
             }
             break
         }
+    }
+
+    /// Extracts the UUID from either slug-based or direct UUID URLs
+    /// Supports:
+    /// - New format: /listing/canon-camera-x7k2p?id=uuid
+    /// - Old format: /listing/uuid
+    private func extractListingId(from url: URL, components: URLComponents, pathPrefix: String) -> String {
+        // First, check for ?id= query parameter (new slug-based format)
+        if let idParam = components.queryItems?.first(where: { $0.name == "id" })?.value {
+            print("🔗 [Deep Link] Extracted UUID from query param: \(idParam)")
+            return idParam
+        }
+
+        // Fallback: extract from path (old UUID format or if query param missing)
+        let path = components.path ?? ""
+        let pathId = String(path.dropFirst(pathPrefix.count))
+
+        // Check if this looks like a UUID (backward compatibility)
+        let uuidPattern = "^[a-fA-F0-9-]{36}$"
+        if pathId.range(of: uuidPattern, options: .regularExpression) != nil {
+            print("🔗 [Deep Link] Using UUID from path (old format): \(pathId)")
+            return pathId
+        }
+
+        // If it's a slug without query param, treat the whole slug as the ID
+        // (This handles edge cases where the website might not include ?id=)
+        print("🔗 [Deep Link] Using slug as ID (fallback): \(pathId)")
+        return pathId
     }
 }

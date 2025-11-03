@@ -473,7 +473,7 @@ struct ProfessionalHomeView: View {
             // News Carousel
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.md) {
-                    // Welcome Promotion
+                    // Welcome Promotion (ACTIVE)
                     NewsPromotionCard(
                         title: "🎉 Brrow is Just Getting Started!",
                         subtitle: "Discover amazing items from your neighbors",
@@ -484,8 +484,38 @@ struct ProfessionalHomeView: View {
                         },
                         actionText: "View Listings"
                     )
-                    
-                    // Subscription Promotion
+
+                    // Instagram Promotion
+                    NewsPromotionCard(
+                        title: "📸 Follow Us on Instagram",
+                        subtitle: "@brrowapp",
+                        description: "Get daily tips, featured listings, and connect with the Brrow community",
+                        gradientColors: [Color(hex: "#667eea"), Color(hex: "#f093fb")], // Modern blue-to-pink gradient
+                        action: {
+                            if let url = URL(string: "https://instagram.com/brrowapp") {
+                                UIApplication.shared.open(url)
+                            }
+                        },
+                        actionText: "Follow Now"
+                    )
+
+                    // Discord Promotion
+                    NewsPromotionCard(
+                        title: "💬 Join Our Discord",
+                        subtitle: "Chat with the community",
+                        description: "Get support, share feedback, and connect with other Brrow users",
+                        gradientColors: [Color(hex: "#7289DA"), Color(hex: "#5865F2")], // Discord purple/blue
+                        action: {
+                            if let url = URL(string: "https://discord.gg/NMzQsq2k2T") {
+                                UIApplication.shared.open(url)
+                            }
+                        },
+                        actionText: "Join Server"
+                    )
+
+                    /* ARCHIVED SLIDES - Stored for later use:
+
+                    // Subscription Promotion (GOLD/YELLOW)
                     NewsPromotionCard(
                         title: "🌟 Upgrade to Brrow Green",
                         subtitle: "Unlock premium features",
@@ -496,8 +526,8 @@ struct ProfessionalHomeView: View {
                         },
                         actionText: "Learn More"
                     )
-                    
-                    // Feature Announcement
+
+                    // Feature Announcement (BLUE)
                     NewsPromotionCard(
                         title: "📱 New: Media Messaging",
                         subtitle: "Share photos & videos in chat",
@@ -508,6 +538,8 @@ struct ProfessionalHomeView: View {
                         },
                         actionText: "Try Now"
                     )
+
+                    */
                 }
                 .padding(.horizontal, Theme.Spacing.md)
             }

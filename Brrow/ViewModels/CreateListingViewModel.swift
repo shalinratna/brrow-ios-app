@@ -422,7 +422,9 @@ class CreateListingViewModel: ObservableObject {
             let request = CreateListingRequest(
                 title: title,
                 description: description,
+                price: nil,  // This is for sale listings only
                 dailyRate: isFree ? 0.0 : Double(price) ?? 0.0,  // Changed to dailyRate for Railway backend
+                estimatedValue: nil,  // Not collected in this simplified flow
                 categoryId: categoryId,  // Using proper category ID
                 condition: "GOOD",  // Default condition, you can make this selectable
                 location: listingLocation,
