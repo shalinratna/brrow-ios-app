@@ -1676,7 +1676,7 @@ struct RentalPaymentFlowWrapper: View {
     }
 }
 
-// Simplified rental payment flow view
+// Modern rental payment flow view
 struct RentalPaymentFlowView: View {
     let listing: Listing
     let startDate: Date
@@ -1684,13 +1684,12 @@ struct RentalPaymentFlowView: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        PaymentFlowView(listing: listing)
-            .onAppear {
-                // Note: PaymentFlowView will need to be updated to accept
-                // pre-configured rental dates as parameters.
-                // For now, this navigates to the payment flow
-                // where the user will configure rental details again.
-            }
+        ModernRentalCheckoutView(
+            listing: listing,
+            startDate: startDate,
+            endDate: endDate,
+            onDismiss: onDismiss
+        )
     }
 }
 

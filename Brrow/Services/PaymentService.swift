@@ -60,7 +60,20 @@ class PaymentService: NSObject, ObservableObject {
             body: try JSONEncoder().encode(request),
             responseType: APIResponse<MarketplacePaymentIntent>.self
         )
-        
+
+        // DEBUG: Log response
+        print("🌐 DEBUG - API Response:")
+        print("   Success: \(response.success)")
+        if let data = response.data {
+            print("   Has payment intent data: true")
+            print("   Client Secret exists: \(!data.clientSecret.isEmpty)")
+            print("   Ephemeral Key exists: \(!data.ephemeralKey.isEmpty)")
+            print("   Customer ID exists: \(!data.customerId.isEmpty)")
+        } else {
+            print("   Has payment intent data: false")
+            print("   Message: \(response.message ?? "none")")
+        }
+
         guard response.success, let paymentIntent = response.data else {
             let errorMessage = response.message ?? "Failed to create payment intent"
             if errorMessage.contains("Seller needs to set up payment account") {
@@ -385,6 +398,8 @@ enum PaymentError: LocalizedError {
 // MARK: - New Payment Models
 struct MarketplacePaymentIntent: Codable {
     let clientSecret: String
+    let ephemeralKey: String
+    let customerId: String
     let transactionId: String
     let amount: Double
     let platformFee: Double
@@ -399,6 +414,33 @@ struct CreatePaymentIntentRequest: Codable {
     let rentalEndDate: Date?
     let deliveryMethod: String
     let buyerMessage: String?
+
+    enum CodingKeys: String, CodingKey {
+        case listingId, sellerId, transactionType, rentalStartDate, rentalEndDate, deliveryMethod, buyerMessage
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(listingId, forKey: .listingId)
+        try container.encode(sellerId, forKey: .sellerId)
+        try container.encode(transactionType, forKey: .transactionType)
+        try container.encode(deliveryMethod, forKey: .deliveryMethod)
+
+        // Encode dates as ISO 8601 strings if present
+        if let rentalStartDate = rentalStartDate {
+            let formatter = ISO8601DateFormatter()
+            try container.encode(formatter.string(from: rentalStartDate), forKey: .rentalStartDate)
+        }
+
+        if let rentalEndDate = rentalEndDate {
+            let formatter = ISO8601DateFormatter()
+            try container.encode(formatter.string(from: rentalEndDate), forKey: .rentalEndDate)
+        }
+
+        if let buyerMessage = buyerMessage {
+            try container.encode(buyerMessage, forKey: .buyerMessage)
+        }
+    }
 }
 
 struct ConnectAccount: Codable {
