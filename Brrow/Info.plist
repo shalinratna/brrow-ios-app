@@ -127,7 +127,7 @@
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Brrow uses this information to provide you with a better experience and relevant content.</string>
 	<key>StripePublishableKey</key>
-	<string>pk_live_51RBObQDZizGZADzcPqHYkTMK22bvLOabxRDrV0iCjF28Fm7kfYldOQePyRCyeAvg1u2xoeyHSdbcJ58ZbWvKsaLw00vPqAVWYg</string>
+	<string>pk_test_51RBObeDElThvrB3uy8YnsZm0zv9U4rjf3BVoFLJ7y1eUdHlDYQVwGmPeWW0ySlI2ycHLqMCk75FGdFPr1Hl9J46W00tAX29oWE</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
