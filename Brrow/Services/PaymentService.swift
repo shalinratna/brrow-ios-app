@@ -67,7 +67,7 @@ class PaymentService: NSObject, ObservableObject {
         if let data = response.data {
             print("   Has payment intent data: true")
             print("   Client Secret exists: \(!data.clientSecret.isEmpty)")
-            print("   Customer Session Client Secret exists: \(!data.customerSessionClientSecret.isEmpty)")
+            print("   Ephemeral Key exists: \(!data.ephemeralKey.isEmpty)")
             print("   Customer ID exists: \(!data.customerId.isEmpty)")
         } else {
             print("   Has payment intent data: false")
@@ -398,7 +398,7 @@ enum PaymentError: LocalizedError {
 // MARK: - New Payment Models
 struct MarketplacePaymentIntent: Codable {
     let clientSecret: String
-    let customerSessionClientSecret: String  // Customer Session for SDK 25.0+
+    let ephemeralKey: String  // Ephemeral key for reliable iOS SDK compatibility
     let customerId: String
     let transactionId: String
     let amount: Double

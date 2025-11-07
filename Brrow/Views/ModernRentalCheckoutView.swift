@@ -612,7 +612,7 @@ struct ModernRentalCheckoutView: View {
                 // DEBUG: Print payment intent details
                 print("🔍 DEBUG - Payment Intent Received:")
                 print("   Client Secret: \(intent.clientSecret.prefix(30))...")
-                print("   Customer Session Client Secret: \(intent.customerSessionClientSecret.prefix(30))...")
+                print("   Ephemeral Key: \(intent.ephemeralKey.prefix(30))...")
                 print("   Customer ID: \(intent.customerId)")
                 print("   Amount: $\(intent.amount)")
 
@@ -620,7 +620,7 @@ struct ModernRentalCheckoutView: View {
                     self.paymentIntent = intent
                     setupPaymentSheet(
                         clientSecret: intent.clientSecret,
-                        customerSessionClientSecret: intent.customerSessionClientSecret,
+                        ephemeralKeySecret: intent.ephemeralKey,
                         customerId: intent.customerId
                     )
                     presentPaymentSheet()
@@ -642,23 +642,17 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String, customerId: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet (SDK 25.0):")
-        print("   Customer ID: \(customerId)")
-        print("   Customer Session Client Secret length: \(customerSessionClientSecret.count)")
-        print("   Customer Session Client Secret prefix: \(customerSessionClientSecret.prefix(5))")
+    private func setupPaymentSheet(clientSecret: String, ephemeralKeySecret: String, customerId: String) {
+        print("🔧 DEBUG - Setting up PaymentSheet (simplified - no customer config):")
         print("   Client Secret length: \(clientSecret.count)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
 
-        // Customer Session - modern approach for SDK 25.0+
-        // This replaces the deprecated ephemeral keys method
-        configuration.customer = PaymentSheet.CustomerConfiguration(
-            id: customerId,
-            customerSessionClientSecret: customerSessionClientSecret
-        )
+        // WORKAROUND: Don't use customer configuration to match working purchase flow
+        // This avoids API version dependency issues
+        // TODO: Re-enable customer configuration once API version 2024-06-20 is deployed
 
         print("   ✅ Configuration created")
 
