@@ -643,7 +643,7 @@ struct ModernRentalCheckoutView: View {
     }
 
     private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String, customerId: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet (SDK 23.32.0 with Customer Session):")
+        print("🔧 DEBUG - Setting up PaymentSheet (SDK 23.32.0):")
         print("   Customer ID: \(customerId)")
         print("   Customer Session Client Secret length: \(customerSessionClientSecret.count)")
         print("   Client Secret length: \(clientSecret.count)")
@@ -651,16 +651,23 @@ struct ModernRentalCheckoutView: View {
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
-        configuration.customer = .init(id: customerId, customerSessionClientSecret: customerSessionClientSecret)
 
-        print("   ✅ Configuration created with Customer Session")
+        // For SDK 23.32.0, ephemeralKeySecret still works but is deprecated
+        // customerSessionClientSecret is the new API but not yet in stable release
+        // Use ephemeralKeySecret with the customerSession value from backend
+        configuration.customer = PaymentSheet.CustomerConfiguration(
+            id: customerId,
+            ephemeralKeySecret: customerSessionClientSecret
+        )
+
+        print("   ✅ Configuration created")
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
             configuration: configuration
         )
 
-        print("   ✅ PaymentSheet initialized with new Customer Session API")
+        print("   ✅ PaymentSheet initialized")
     }
 
     private func presentPaymentSheet() {
