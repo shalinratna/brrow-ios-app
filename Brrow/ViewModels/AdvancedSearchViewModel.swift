@@ -146,7 +146,7 @@ class AdvancedSearchViewModel: ObservableObject {
         // Remove specific filter based on the filter string
         if filter.contains("Category:") {
             let category = filter.replacingOccurrences(of: "Category: ", with: "")
-            filters.categories.remove(category)
+            filters.categories.removeAll(where: { $0 == category })
         } else if filter == "Free Items" {
             filters.freeItemsOnly = false
         } else if filter.contains("Within") {
