@@ -100,25 +100,25 @@ PODS:
   - Socket.IO-Client-Swift (16.1.1):
     - Starscream (~> 4.0.8)
   - Starscream (4.0.8)
-  - StripeApplePay (23.32.0):
-    - StripeCore (= 23.32.0)
-  - StripeCore (23.32.0)
-  - StripePayments (23.32.0):
-    - StripeCore (= 23.32.0)
-    - StripePayments/Stripe3DS2 (= 23.32.0)
-  - StripePayments/Stripe3DS2 (23.32.0):
-    - StripeCore (= 23.32.0)
-  - StripePaymentSheet (23.32.0):
-    - StripeApplePay (= 23.32.0)
-    - StripeCore (= 23.32.0)
-    - StripePayments (= 23.32.0)
-    - StripePaymentsUI (= 23.32.0)
-  - StripePaymentsUI (23.32.0):
-    - StripeCore (= 23.32.0)
-    - StripePayments (= 23.32.0)
-    - StripeUICore (= 23.32.0)
-  - StripeUICore (23.32.0):
-    - StripeCore (= 23.32.0)
+  - StripeApplePay (25.0.0):
+    - StripeCore (= 25.0.0)
+  - StripeCore (25.0.0)
+  - StripePayments (25.0.0):
+    - StripeCore (= 25.0.0)
+    - StripePayments/Stripe3DS2 (= 25.0.0)
+  - StripePayments/Stripe3DS2 (25.0.0):
+    - StripeCore (= 25.0.0)
+  - StripePaymentSheet (25.0.0):
+    - StripeApplePay (= 25.0.0)
+    - StripeCore (= 25.0.0)
+    - StripePayments (= 25.0.0)
+    - StripePaymentsUI (= 25.0.0)
+  - StripePaymentsUI (25.0.0):
+    - StripeCore (= 25.0.0)
+    - StripePayments (= 25.0.0)
+    - StripeUICore (= 25.0.0)
+  - StripeUICore (25.0.0):
+    - StripeCore (= 25.0.0)
 
 DEPENDENCIES:
   - Alamofire (~> 5.8)
@@ -128,7 +128,7 @@ DEPENDENCIES:
   - GoogleSignIn
   - SDWebImage (~> 5.18)
   - Socket.IO-Client-Swift (~> 16.1.0)
-  - StripePaymentSheet (~> 23.0)
+  - StripePaymentSheet (~> 25.0)
 
 SPEC REPOS:
   trunk:
@@ -192,13 +192,13 @@ SPEC CHECKSUMS:
   SDWebImage: 9f177d83116802728e122410fb25ad88f5c7608a
   Socket.IO-Client-Swift: 3614bea82ba005df1c2ff01154f4004993e05ad7
   Starscream: 19b5533ddb925208db698f0ac508a100b884a1b9
-  StripeApplePay: fd4aeaa8af1ebbfe5e38390ef7b4607f66494f80
-  StripeCore: 4999b0c234127b28b9e656caa558ba4406ce58b3
-  StripePayments: a1260c9fecdb8640462c1fe70c4e2e17df2ab3a8
-  StripePaymentSheet: 155d402ee01447002d23c982e905ce06e6d7ef66
-  StripePaymentsUI: 2084d4398cb4869b13dd9eac43a00481476b152f
-  StripeUICore: 2c115cc8498f3badc19b4a41b3b1fdac0ae21d41
+  StripeApplePay: 09bbe6a24d2cd4c37b2422fdd6e18f2be9f37e02
+  StripeCore: a671e360dc0ede1275e98a8c5b6e0b694509c611
+  StripePayments: f1fbddb747c62dca90810e69fecfaca45f31b667
+  StripePaymentSheet: 645a5787595c667c5ea6de8c47a809003e837a99
+  StripePaymentsUI: 719d201ab61087c974ed44cbd0d43c30d9276688
+  StripeUICore: a8f8f38daf0eddb8f6c43ac9d7f051290af9bf2a
 
-PODFILE CHECKSUM: 9d068c7e3462990824a190c9953ea59a6a918aed
+PODFILE CHECKSUM: a34bf0636c130e5440554dc8d0bf85af3ea1c878
 
 COCOAPODS: 1.16.2
