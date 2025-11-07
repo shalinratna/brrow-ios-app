@@ -612,7 +612,7 @@ struct ModernRentalCheckoutView: View {
                 // DEBUG: Print payment intent details
                 print("🔍 DEBUG - Payment Intent Received:")
                 print("   Client Secret: \(intent.clientSecret.prefix(30))...")
-                print("   Ephemeral Key: \(intent.ephemeralKey.prefix(30))...")
+                print("   Customer Session Client Secret: \(intent.customerSessionClientSecret.prefix(30))...")
                 print("   Customer ID: \(intent.customerId)")
                 print("   Amount: $\(intent.amount)")
 
@@ -620,7 +620,7 @@ struct ModernRentalCheckoutView: View {
                     self.paymentIntent = intent
                     setupPaymentSheet(
                         clientSecret: intent.clientSecret,
-                        ephemeralKey: intent.ephemeralKey,
+                        customerSessionClientSecret: intent.customerSessionClientSecret,
                         customerId: intent.customerId
                     )
                     presentPaymentSheet()
@@ -642,25 +642,25 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String, ephemeralKey: String, customerId: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet:")
+    private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String, customerId: String) {
+        print("🔧 DEBUG - Setting up PaymentSheet (SDK 23.32.0 with Customer Session):")
         print("   Customer ID: \(customerId)")
-        print("   Ephemeral Key length: \(ephemeralKey.count)")
+        print("   Customer Session Client Secret length: \(customerSessionClientSecret.count)")
         print("   Client Secret length: \(clientSecret.count)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
-        configuration.customer = .init(id: customerId, ephemeralKeySecret: ephemeralKey)
+        configuration.customer = .init(id: customerId, customerSessionClientSecret: customerSessionClientSecret)
 
-        print("   ✅ Configuration created with customer")
+        print("   ✅ Configuration created with Customer Session")
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
             configuration: configuration
         )
 
-        print("   ✅ PaymentSheet initialized")
+        print("   ✅ PaymentSheet initialized with new Customer Session API")
     }
 
     private func presentPaymentSheet() {
