@@ -612,7 +612,7 @@ struct ModernRentalCheckoutView: View {
                 // DEBUG: Print payment intent details
                 print("🔍 DEBUG - Payment Intent Received:")
                 print("   Client Secret: \(intent.clientSecret.prefix(30))...")
-                print("   Ephemeral Key: \(intent.ephemeralKey.prefix(30))...")
+                print("   Customer Session Client Secret: \(intent.customerSessionClientSecret.prefix(30))...")
                 print("   Customer ID: \(intent.customerId)")
                 print("   Amount: $\(intent.amount)")
 
@@ -620,7 +620,7 @@ struct ModernRentalCheckoutView: View {
                     self.paymentIntent = intent
                     setupPaymentSheet(
                         clientSecret: intent.clientSecret,
-                        ephemeralKey: intent.ephemeralKey,
+                        customerSessionClientSecret: intent.customerSessionClientSecret,
                         customerId: intent.customerId
                     )
                     presentPaymentSheet()
@@ -642,21 +642,22 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String, ephemeralKey: String, customerId: String) {
+    private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String, customerId: String) {
         print("🔧 DEBUG - Setting up PaymentSheet (SDK 25.0):")
         print("   Customer ID: \(customerId)")
-        print("   Ephemeral Key length: \(ephemeralKey.count)")
+        print("   Customer Session Client Secret length: \(customerSessionClientSecret.count)")
+        print("   Customer Session Client Secret prefix: \(customerSessionClientSecret.prefix(5))")
         print("   Client Secret length: \(clientSecret.count)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
 
-        // Ephemeral key - proven approach that works with all SDK versions (23.x, 24.x, 25.x)
-        // This is the reliable method for authenticating payment intents on mobile
+        // Customer Session - modern approach for SDK 25.0+
+        // This replaces the deprecated ephemeral keys method
         configuration.customer = PaymentSheet.CustomerConfiguration(
             id: customerId,
-            ephemeralKeySecret: ephemeralKey
+            customerSessionClientSecret: customerSessionClientSecret
         )
 
         print("   ✅ Configuration created")
