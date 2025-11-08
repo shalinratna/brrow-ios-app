@@ -612,17 +612,12 @@ struct ModernRentalCheckoutView: View {
                 // DEBUG: Print payment intent details
                 print("🔍 DEBUG - Payment Intent Received:")
                 print("   Client Secret: \(intent.clientSecret.prefix(30))...")
-                print("   Customer Session: \(intent.customerSessionClientSecret.prefix(30))...")
-                print("   Customer ID: \(intent.customerId)")
                 print("   Amount: $\(intent.amount)")
 
                 await MainActor.run {
                     self.paymentIntent = intent
-                    setupPaymentSheet(
-                        clientSecret: intent.clientSecret,
-                        customerSessionClientSecret: intent.customerSessionClientSecret,
-                        customerId: intent.customerId
-                    )
+                    // CRITICAL: Use simple PaymentSheet config like purchases (NO customer config)
+                    setupPaymentSheet(clientSecret: intent.clientSecret)
                     presentPaymentSheet()
                 }
 
@@ -642,21 +637,18 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String, customerId: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet with Customer Session:")
+    private func setupPaymentSheet(clientSecret: String) {
+        print("🔧 DEBUG - Setting up PaymentSheet (matching purchase flow - NO customer config):")
         print("   Client Secret length: \(clientSecret.count)")
-        print("   Customer Session length: \(customerSessionClientSecret.count)")
-        print("   Customer ID: \(customerId)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
 
-        // CRITICAL: Use Customer Session for Stripe iOS SDK 25.0+
-        // Customer Sessions replaced ephemeral keys as the modern authentication method
-        configuration.customer = .init(id: customerId, customerSessionClientSecret: customerSessionClientSecret)
+        // CRITICAL: NO customer configuration - same as working purchase flow
+        // This is what makes purchases work reliably, so rentals should use the same pattern
 
-        print("   ✅ Configuration created with Customer Session config")
+        print("   ✅ Configuration created (no customer config)")
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
