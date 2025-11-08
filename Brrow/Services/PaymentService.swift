@@ -67,7 +67,7 @@ class PaymentService: NSObject, ObservableObject {
         if let data = response.data {
             print("   Has payment intent data: true")
             print("   Client Secret exists: \(!data.clientSecret.isEmpty)")
-            print("   Ephemeral Key exists: \(!data.ephemeralKey.isEmpty)")
+            print("   Customer Session exists: \(!data.customerSessionClientSecret.isEmpty)")
             print("   Customer ID exists: \(!data.customerId.isEmpty)")
         } else {
             print("   Has payment intent data: false")
