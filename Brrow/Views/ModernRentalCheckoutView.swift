@@ -612,7 +612,7 @@ struct ModernRentalCheckoutView: View {
                 // DEBUG: Print payment intent details
                 print("🔍 DEBUG - Payment Intent Received:")
                 print("   Client Secret: \(intent.clientSecret.prefix(30))...")
-                print("   Ephemeral Key: \(intent.ephemeralKey.prefix(30))...")
+                print("   Customer Session: \(intent.customerSessionClientSecret.prefix(30))...")
                 print("   Customer ID: \(intent.customerId)")
                 print("   Amount: $\(intent.amount)")
 
@@ -620,7 +620,7 @@ struct ModernRentalCheckoutView: View {
                     self.paymentIntent = intent
                     setupPaymentSheet(
                         clientSecret: intent.clientSecret,
-                        ephemeralKeySecret: intent.ephemeralKey,
+                        customerSessionClientSecret: intent.customerSessionClientSecret,
                         customerId: intent.customerId
                     )
                     presentPaymentSheet()
@@ -642,21 +642,21 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String, ephemeralKeySecret: String, customerId: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet with ephemeral key:")
+    private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String, customerId: String) {
+        print("🔧 DEBUG - Setting up PaymentSheet with Customer Session:")
         print("   Client Secret length: \(clientSecret.count)")
-        print("   Ephemeral Key length: \(ephemeralKeySecret.count)")
+        print("   Customer Session length: \(customerSessionClientSecret.count)")
         print("   Customer ID: \(customerId)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
 
-        // CRITICAL: Use ephemeralKeySecret with CustomerConfiguration for SDK 25.0+
-        // This is required for PaymentSheet to load the elements session correctly
-        configuration.customer = .init(id: customerId, ephemeralKeySecret: ephemeralKeySecret)
+        // CRITICAL: Use Customer Session for Stripe iOS SDK 25.0+
+        // Customer Sessions replaced ephemeral keys as the modern authentication method
+        configuration.customer = .init(id: customerId, customerSessionClientSecret: customerSessionClientSecret)
 
-        print("   ✅ Configuration created with ephemeral key customer config")
+        print("   ✅ Configuration created with Customer Session config")
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
