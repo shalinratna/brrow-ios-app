@@ -67,8 +67,8 @@ class PaymentService: NSObject, ObservableObject {
         if let data = response.data {
             print("   Has payment intent data: true")
             print("   Client Secret exists: \(!data.clientSecret.isEmpty)")
-            print("   Customer Session exists: \(!data.customerSessionClientSecret.isEmpty)")
-            print("   Customer ID exists: \(!data.customerId.isEmpty)")
+            print("   Transaction ID: \(data.transactionId)")
+            print("   Amount: $\(data.amount)")
         } else {
             print("   Has payment intent data: false")
             print("   Message: \(response.message ?? "none")")
