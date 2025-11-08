@@ -398,8 +398,8 @@ enum PaymentError: LocalizedError {
 // MARK: - New Payment Models
 struct MarketplacePaymentIntent: Codable {
     let clientSecret: String
-    let customerSessionClientSecret: String  // Customer Session for Stripe iOS SDK 25.0+
-    let customerId: String
+    // REMOVED: customerSessionClientSecret and customerId
+    // Using simple PaymentSheet without customer authentication (same as purchase flow)
     let transactionId: String
     let amount: Double
     let platformFee: Double
