@@ -643,18 +643,20 @@ struct ModernRentalCheckoutView: View {
     }
 
     private func setupPaymentSheet(clientSecret: String, ephemeralKeySecret: String, customerId: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet (simplified - no customer config):")
+        print("🔧 DEBUG - Setting up PaymentSheet with ephemeral key:")
         print("   Client Secret length: \(clientSecret.count)")
+        print("   Ephemeral Key length: \(ephemeralKeySecret.count)")
+        print("   Customer ID: \(customerId)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
 
-        // WORKAROUND: Don't use customer configuration to match working purchase flow
-        // This avoids API version dependency issues
-        // TODO: Re-enable customer configuration once API version 2024-06-20 is deployed
+        // CRITICAL: Use ephemeralKeySecret with CustomerConfiguration for SDK 25.0+
+        // This is required for PaymentSheet to load the elements session correctly
+        configuration.customer = .init(id: customerId, ephemeralKeySecret: ephemeralKeySecret)
 
-        print("   ✅ Configuration created")
+        print("   ✅ Configuration created with ephemeral key customer config")
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
