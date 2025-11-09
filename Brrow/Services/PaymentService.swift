@@ -398,8 +398,7 @@ enum PaymentError: LocalizedError {
 // MARK: - New Payment Models
 struct MarketplacePaymentIntent: Codable {
     let clientSecret: String
-    let customerId: String               // REQUIRED for PaymentSheet session
-    let ephemeralKey: String             // REQUIRED for PaymentSheet session
+    let customerSessionClientSecret: String  // MODERN: Customer Session (iOS SDK 25.0+)
     let transactionId: String
     let amount: Double
     let platformFee: Double

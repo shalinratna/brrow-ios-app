@@ -616,8 +616,8 @@ struct ModernRentalCheckoutView: View {
 
                 await MainActor.run {
                     self.paymentIntent = intent
-                    // Setup PaymentSheet WITH customer authentication (REQUIRED for PaymentSheet session)
-                    setupPaymentSheet(clientSecret: intent.clientSecret, customerId: intent.customerId, ephemeralKey: intent.ephemeralKey)
+                    // Setup PaymentSheet WITH Customer Session (MODERN auth for iOS SDK 25.0+)
+                    setupPaymentSheet(clientSecret: intent.clientSecret, customerSessionClientSecret: intent.customerSessionClientSecret)
                     presentPaymentSheet()
                 }
 
@@ -637,21 +637,20 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String, customerId: String, ephemeralKey: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet WITH customer authentication:")
-        print("   Client Secret length: \(clientSecret.count)")
-        print("   Customer ID: \(customerId)")
-        print("   Ephemeral Key length: \(ephemeralKey.count)")
+    private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String) {
+        print("🔧 DEBUG - Setting up PaymentSheet WITH Customer Session (MODERN auth):")
+        print("   Payment Intent Client Secret length: \(clientSecret.count)")
+        print("   Customer Session Client Secret length: \(customerSessionClientSecret.count)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
         configuration.returnURL = "brrow://stripe-redirect"
 
-        // REQUIRED: Add customer authentication using ephemeral key
+        // MODERN: Customer Session authentication (iOS SDK 25.0+)
+        // Replaces legacy ephemeralKeySecret approach
         configuration.customer = PaymentSheet.CustomerConfiguration(
-            id: customerId,
-            ephemeralKeySecret: ephemeralKey
+            customerSessionClientSecret: customerSessionClientSecret
         )
 
         paymentSheet = PaymentSheet(
@@ -659,7 +658,7 @@ struct ModernRentalCheckoutView: View {
             configuration: configuration
         )
 
-        print("   ✅ PaymentSheet initialized WITH customer authentication")
+        print("   ✅ PaymentSheet initialized WITH Customer Session (MODERN auth - not legacy)")
     }
 
     private func presentPaymentSheet() {
