@@ -616,12 +616,8 @@ struct ModernRentalCheckoutView: View {
 
                 await MainActor.run {
                     self.paymentIntent = intent
-                    // Setup PaymentSheet WITH customer authentication (ephemeral key)
-                    setupPaymentSheet(
-                        clientSecret: intent.clientSecret,
-                        customerId: intent.customerId,
-                        ephemeralKey: intent.ephemeralKey
-                    )
+                    // Setup PaymentSheet WITH customer authentication (REQUIRED for PaymentSheet session)
+                    setupPaymentSheet(clientSecret: intent.clientSecret, customerId: intent.customerId, ephemeralKey: intent.ephemeralKey)
                     presentPaymentSheet()
                 }
 
@@ -650,25 +646,20 @@ struct ModernRentalCheckoutView: View {
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
-
-        // CRITICAL: Add return URL for redirect-based payment methods
         configuration.returnURL = "brrow://stripe-redirect"
 
-        // CRITICAL: Add customer authentication using ephemeral key
-        // This is required for PaymentSheet to establish elements session
+        // REQUIRED: Add customer authentication using ephemeral key
         configuration.customer = PaymentSheet.CustomerConfiguration(
             id: customerId,
             ephemeralKeySecret: ephemeralKey
         )
-
-        print("   ✅ Configuration created WITH customer authentication")
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
             configuration: configuration
         )
 
-        print("   ✅ PaymentSheet initialized with customer config")
+        print("   ✅ PaymentSheet initialized WITH customer authentication")
     }
 
     private func presentPaymentSheet() {
