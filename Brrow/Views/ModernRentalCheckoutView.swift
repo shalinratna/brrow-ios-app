@@ -651,6 +651,9 @@ struct ModernRentalCheckoutView: View {
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
 
+        // CRITICAL: Add return URL for redirect-based payment methods
+        configuration.returnURL = "brrow://stripe-redirect"
+
         // CRITICAL: Add customer authentication using ephemeral key
         // This is required for PaymentSheet to establish elements session
         configuration.customer = PaymentSheet.CustomerConfiguration(
