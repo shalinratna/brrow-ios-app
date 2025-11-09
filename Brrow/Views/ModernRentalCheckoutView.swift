@@ -616,8 +616,12 @@ struct ModernRentalCheckoutView: View {
 
                 await MainActor.run {
                     self.paymentIntent = intent
-                    // CRITICAL: Use simple PaymentSheet config like purchases (NO customer config)
-                    setupPaymentSheet(clientSecret: intent.clientSecret)
+                    // Setup PaymentSheet WITH customer authentication (ephemeral key)
+                    setupPaymentSheet(
+                        clientSecret: intent.clientSecret,
+                        customerId: intent.customerId,
+                        ephemeralKey: intent.ephemeralKey
+                    )
                     presentPaymentSheet()
                 }
 
@@ -637,25 +641,31 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet (matching purchase flow - NO customer config):")
+    private func setupPaymentSheet(clientSecret: String, customerId: String, ephemeralKey: String) {
+        print("🔧 DEBUG - Setting up PaymentSheet WITH customer authentication:")
         print("   Client Secret length: \(clientSecret.count)")
+        print("   Customer ID: \(customerId)")
+        print("   Ephemeral Key length: \(ephemeralKey.count)")
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
 
-        // CRITICAL: NO customer configuration - same as working purchase flow
-        // This is what makes purchases work reliably, so rentals should use the same pattern
+        // CRITICAL: Add customer authentication using ephemeral key
+        // This is required for PaymentSheet to establish elements session
+        configuration.customer = PaymentSheet.CustomerConfiguration(
+            id: customerId,
+            ephemeralKeySecret: ephemeralKey
+        )
 
-        print("   ✅ Configuration created (no customer config)")
+        print("   ✅ Configuration created WITH customer authentication")
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
             configuration: configuration
         )
 
-        print("   ✅ PaymentSheet initialized")
+        print("   ✅ PaymentSheet initialized with customer config")
     }
 
     private func presentPaymentSheet() {

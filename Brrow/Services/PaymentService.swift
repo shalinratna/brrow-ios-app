@@ -398,8 +398,8 @@ enum PaymentError: LocalizedError {
 // MARK: - New Payment Models
 struct MarketplacePaymentIntent: Codable {
     let clientSecret: String
-    // REMOVED: customerSessionClientSecret and customerId
-    // Using simple PaymentSheet without customer authentication (same as purchase flow)
+    let customerId: String
+    let ephemeralKey: String
     let transactionId: String
     let amount: Double
     let platformFee: Double
