@@ -617,7 +617,7 @@ struct ModernRentalCheckoutView: View {
                 await MainActor.run {
                     self.paymentIntent = intent
                     // Setup PaymentSheet WITH Customer Session (MODERN auth for iOS SDK 25.0+)
-                    setupPaymentSheet(clientSecret: intent.clientSecret, customerSessionClientSecret: intent.customerSessionClientSecret)
+                    setupPaymentSheet(clientSecret: intent.clientSecret, customerId: intent.customerId, customerSessionClientSecret: intent.customerSessionClientSecret)
                     presentPaymentSheet()
                 }
 
@@ -637,9 +637,10 @@ struct ModernRentalCheckoutView: View {
         }
     }
 
-    private func setupPaymentSheet(clientSecret: String, customerSessionClientSecret: String) {
+    private func setupPaymentSheet(clientSecret: String, customerId: String, customerSessionClientSecret: String) {
         print("🔧 DEBUG - Setting up PaymentSheet WITH Customer Session (MODERN auth):")
         print("   Payment Intent Client Secret length: \(clientSecret.count)")
+        print("   Customer ID: \(customerId)")
         print("   Customer Session Client Secret length: \(customerSessionClientSecret.count)")
 
         var configuration = PaymentSheet.Configuration()
@@ -648,8 +649,9 @@ struct ModernRentalCheckoutView: View {
         configuration.returnURL = "brrow://stripe-redirect"
 
         // MODERN: Customer Session authentication (iOS SDK 25.0+)
-        // Replaces legacy ephemeralKeySecret approach
-        configuration.customer = PaymentSheet.CustomerConfiguration(
+        // Requires BOTH customer ID and customer session client secret
+        configuration.customer = .init(
+            id: customerId,
             customerSessionClientSecret: customerSessionClientSecret
         )
 
