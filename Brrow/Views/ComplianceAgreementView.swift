@@ -12,9 +12,9 @@ struct ComplianceAgreementView: View {
     @Binding var hasAgreedToTerms: Bool
     @State private var agreedToTerms = false
     @State private var agreedToPrivacy = false
-    @State private var termsURL: URL?
-    @State private var privacyURL: URL?
-    
+    @State private var showTerms = false
+    @State private var showPrivacy = false
+
     var body: some View {
         VStack(spacing: 30) {
             // Logo and Welcome
@@ -54,7 +54,7 @@ struct ComplianceAgreementView: View {
                             .font(.body)
                         
                         Button(action: {
-                            termsURL = URL(string: "https://brrowapp.com/terms")
+                            showTerms = true
                         }) {
                             Text("Read Terms of Service")
                                 .font(.caption)
@@ -81,7 +81,7 @@ struct ComplianceAgreementView: View {
                             .font(.body)
                         
                         Button(action: {
-                            privacyURL = URL(string: "https://brrowapp.com/privacy")
+                            showPrivacy = true
                         }) {
                             Text("Read Privacy Policy")
                                 .font(.caption)
@@ -132,25 +132,58 @@ struct ComplianceAgreementView: View {
             .padding(.horizontal, 30)
             .padding(.bottom, 50)
         }
-        .fullScreenCover(item: Binding(
-            get: { termsURL != nil ? WebURL(url: termsURL!) : nil },
-            set: { termsURL = $0?.url }
-        )) { webURL in
-            SafariView(url: webURL.url)
+        .sheet(isPresented: $showTerms) {
+            if let url = URL(string: "https://brrowapp.com/terms") {
+                ComplianceSafariView(url: url)
+            }
         }
-        .fullScreenCover(item: Binding(
-            get: { privacyURL != nil ? WebURL(url: privacyURL!) : nil },
-            set: { privacyURL = $0?.url }
-        )) { webURL in
-            SafariView(url: webURL.url)
+        .sheet(isPresented: $showPrivacy) {
+            if let url = URL(string: "https://brrowapp.com/privacy") {
+                ComplianceSafariView(url: url)
+            }
         }
     }
 }
 
-// MARK: - Identifiable URL Wrapper
-struct WebURL: Identifiable {
-    let id = UUID()
+// MARK: - Safari View for Compliance Documents
+struct ComplianceSafariView: UIViewControllerRepresentable {
     let url: URL
+    @Environment(\.dismiss) var dismiss
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        config.barCollapsingEnabled = true
+
+        let safariVC = SFSafariViewController(url: url, configuration: config)
+        safariVC.preferredControlTintColor = .systemBlue
+        safariVC.preferredBarTintColor = .systemBackground
+        safariVC.dismissButtonStyle = .done
+        safariVC.delegate = context.coordinator
+
+        return safariVC
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
+        // No updates needed
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    class Coordinator: NSObject, SFSafariViewControllerDelegate {
+        let parent: ComplianceSafariView
+
+        init(parent: ComplianceSafariView) {
+            self.parent = parent
+        }
+
+        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+            print("🌐 [SAFARI] User tapped Done button in Compliance Safari view")
+            // Safari will automatically dismiss
+        }
+    }
 }
 
 struct ComplianceAgreementView_Previews: PreviewProvider {

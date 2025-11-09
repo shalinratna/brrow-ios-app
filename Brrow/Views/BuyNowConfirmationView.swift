@@ -82,8 +82,7 @@ struct BuyNowConfirmationView: View {
         }
         .fullScreenCover(isPresented: $viewModel.showCheckout) {
             if let checkoutURL = viewModel.checkoutURL {
-                SafariView(url: checkoutURL)
-                    .ignoresSafeArea()
+                StripeCheckoutSafariView(url: checkoutURL)
             }
         }
     }
@@ -565,10 +564,16 @@ class BuyNowViewModel: ObservableObject {
                         decoder.dateDecodingStrategy = .formatted(dateFormatter)
 
                         let response = try decoder.decode(CreatePurchaseResponse.self, from: data)
-                        print("✅ [BUY NOW] Purchase decoded successfully: \(response.purchase.id)")
+                        print("✅ [BUY NOW] Response decoded successfully")
                         print("✅ [BUY NOW] Needs payment method: \(response.needsPaymentMethod ?? false)")
 
-                        self?.createdPurchase = response.purchase
+                        // Purchase may be nil if using webhook-based flow (created after payment)
+                        if let purchase = response.purchase {
+                            print("✅ [BUY NOW] Purchase object present: \(purchase.id)")
+                            self?.createdPurchase = purchase
+                        } else {
+                            print("ℹ️ [BUY NOW] No purchase object - will be created after payment via webhook")
+                        }
 
                         // Check if user needs to add a payment method
                         if response.needsPaymentMethod == true {
@@ -576,6 +581,7 @@ class BuyNowViewModel: ObservableObject {
                             if let checkoutUrlString = response.checkoutUrl,
                                let checkoutURL = URL(string: checkoutUrlString) {
                                 print("💳 [BUY NOW] Opening Stripe Checkout - URL: \(checkoutUrlString)")
+                                print("💳 [BUY NOW] Session ID: \(response.sessionId ?? "none")")
                                 self?.checkoutURL = checkoutURL
                                 self?.showCheckout = true
                             } else {
@@ -585,8 +591,15 @@ class BuyNowViewModel: ObservableObject {
                                 self?.showErrorAlert = true
                             }
                         } else {
-                            print("✅ [BUY NOW] Payment method already set - showing receipt")
-                            self?.showReceipt = true
+                            // Payment method already exists - purchase should be created and held
+                            if let purchase = response.purchase {
+                                print("✅ [BUY NOW] Payment method already set - showing receipt")
+                                self?.showReceipt = true
+                            } else {
+                                print("⚠️ [BUY NOW] Payment method exists but no purchase returned")
+                                self?.errorMessage = "Payment setup error. Please try again."
+                                self?.showErrorAlert = true
+                            }
                         }
                     } catch {
                         print("❌ [BUY NOW] Failed to decode response: \(error)")
@@ -618,3 +631,42 @@ class BuyNowViewModel: ObservableObject {
 }
 
 // MARK: - Safari View for Stripe Checkout
+struct StripeCheckoutSafariView: UIViewControllerRepresentable {
+    let url: URL
+    @Environment(\.dismiss) var dismiss
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        config.barCollapsingEnabled = true
+
+        let safariVC = SFSafariViewController(url: url, configuration: config)
+        safariVC.preferredControlTintColor = .systemBlue
+        safariVC.preferredBarTintColor = .systemBackground
+        safariVC.dismissButtonStyle = .done
+        safariVC.delegate = context.coordinator
+
+        return safariVC
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
+        // No updates needed
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    class Coordinator: NSObject, SFSafariViewControllerDelegate {
+        let parent: StripeCheckoutSafariView
+
+        init(parent: StripeCheckoutSafariView) {
+            self.parent = parent
+        }
+
+        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+            print("🌐 [SAFARI] User tapped Done button in Stripe Checkout Safari view")
+            // Safari will automatically dismiss
+        }
+    }
+}

@@ -163,7 +163,7 @@ struct Purchase: Codable, Identifiable {
 // Note: PurchaseUser, PurchaseListing, and PurchaseListingDetail are defined in APITypes.swift
 struct CreatePurchaseResponse: Codable {
     let success: Bool
-    let purchase: Purchase
+    let purchase: Purchase?  // Optional - webhook flow doesn't return purchase immediately
     let message: String?
     let needsPaymentMethod: Bool?  // Present when payment method setup is required
     let checkoutUrl: String?  // Stripe Checkout URL for guest payment

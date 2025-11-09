@@ -146,7 +146,7 @@ struct StripeConnectOnboardingView: View {
             }
         }) {
             if let url = viewModel.onboardingURL {
-                SafariView(url: url)
+                StripeConnectSafariView(url: url)
             }
         }
         .fullScreenCover(isPresented: $viewModel.showSuccessScreen) {
@@ -161,14 +161,44 @@ struct StripeConnectOnboardingView: View {
     }
 }
 
-struct SafariView: UIViewControllerRepresentable {
+// SafariView: In-app browser for Stripe Connect onboarding
+struct StripeConnectSafariView: UIViewControllerRepresentable {
     let url: URL
+    @Environment(\.dismiss) var dismiss
 
     func makeUIViewController(context: Context) -> SFSafariViewController {
-        return SFSafariViewController(url: url)
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        config.barCollapsingEnabled = true
+
+        let safariVC = SFSafariViewController(url: url, configuration: config)
+        safariVC.preferredControlTintColor = .systemBlue
+        safariVC.preferredBarTintColor = .systemBackground
+        safariVC.dismissButtonStyle = .done
+        safariVC.delegate = context.coordinator
+
+        return safariVC
     }
 
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
+        // No updates needed
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    class Coordinator: NSObject, SFSafariViewControllerDelegate {
+        let parent: StripeConnectSafariView
+
+        init(parent: StripeConnectSafariView) {
+            self.parent = parent
+        }
+
+        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+            print("🌐 [SAFARI] User tapped Done button in Stripe Connect onboarding Safari view")
+            // Safari will automatically dismiss
+        }
     }
 }
 
