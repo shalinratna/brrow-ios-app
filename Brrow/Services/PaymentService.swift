@@ -399,7 +399,7 @@ enum PaymentError: LocalizedError {
 struct MarketplacePaymentIntent: Codable {
     let clientSecret: String
     let customerId: String
-    let ephemeralKey: String  // Ephemeral key for PaymentSheet authentication
+    let customerSessionClientSecret: String  // Customer Session for modern PaymentSheet authentication (SDK 25.0+)
     let transactionId: String
     let amount: Double
     let platformFee: Double
