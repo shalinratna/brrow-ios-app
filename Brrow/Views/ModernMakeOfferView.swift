@@ -446,6 +446,8 @@ class MakeOfferViewModel: ObservableObject {
                           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                           let responseData = json["data"] as? [String: Any],
                           let clientSecret = responseData["clientSecret"] as? String,
+                          let customerSessionClientSecret = responseData["customerSessionClientSecret"] as? String,
+                          let customerId = responseData["customerId"] as? String,
                           let offerId = responseData["id"] as? Int else {
                         self.errorMessage = "Invalid response from server"
                         self.showErrorAlert = true
@@ -459,9 +461,15 @@ class MakeOfferViewModel: ObservableObject {
                     print("💳 Received offer response:")
                     print("   Offer ID: \(offerId)")
                     print("   Client Secret: \(clientSecret.prefix(30))...")
+                    print("   Customer ID: \(customerId)")
+                    print("   Customer Session: \(customerSessionClientSecret.prefix(30))...")
 
-                    // Setup and present payment sheet
-                    self.setupPaymentSheet(clientSecret: clientSecret)
+                    // Setup and present payment sheet with Customer Session auth
+                    self.setupPaymentSheet(
+                        clientSecret: clientSecret,
+                        customerId: customerId,
+                        customerSessionClientSecret: customerSessionClientSecret
+                    )
                 } else if httpResponse.statusCode == 402 {
                     self.errorMessage = "Payment method declined. Please add a valid payment method."
                     self.showErrorAlert = true
@@ -484,10 +492,21 @@ class MakeOfferViewModel: ObservableObject {
 
     // MARK: - Stripe Payment Sheet
 
-    private func setupPaymentSheet(clientSecret: String) {
+    private func setupPaymentSheet(
+        clientSecret: String,
+        customerId: String,
+        customerSessionClientSecret: String
+    ) {
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
+        configuration.returnURL = "brrowapp://stripe-redirect"
+
+        // Use Customer Session authentication for Stripe SDK 25.0+
+        configuration.customer = .init(
+            id: customerId,
+            sessionClientSecret: customerSessionClientSecret
+        )
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,

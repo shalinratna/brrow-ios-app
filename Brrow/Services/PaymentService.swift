@@ -176,11 +176,24 @@ class PaymentService: NSObject, ObservableObject {
     }
     
     // MARK: - Payment Sheet Presentation
-    func presentPaymentSheet(from viewController: UIViewController, with clientSecret: String, completion: @escaping (Bool, Error?) -> Void) {
+    func presentPaymentSheet(
+        from viewController: UIViewController,
+        with clientSecret: String,
+        customerId: String,
+        customerSessionClientSecret: String,
+        completion: @escaping (Bool, Error?) -> Void
+    ) {
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "Brrow"
         configuration.allowsDelayedPaymentMethods = false
-        
+        configuration.returnURL = "brrowapp://stripe-redirect"
+
+        // Use Customer Session authentication for Stripe SDK 25.0+
+        configuration.customer = .init(
+            id: customerId,
+            sessionClientSecret: customerSessionClientSecret
+        )
+
         let paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
             configuration: configuration
