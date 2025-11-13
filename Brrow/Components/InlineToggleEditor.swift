@@ -39,13 +39,13 @@ struct InlineToggleEditor: View {
                     isOn: Binding(
                         get: {
                             if let options = viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions {
-                                return options.pickup ?? false
+                                return options.pickup
                             }
                             return viewModel.listing.deliveryOptions?.pickup ?? false
                         },
                         set: { newValue in
-                            var options = (viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions) ?? viewModel.listing.deliveryOptions ?? DeliveryOptions(delivery: false, pickup: false, shipping: false)
-                            options.pickup = newValue
+                            let currentOptions = (viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions) ?? viewModel.listing.deliveryOptions ?? DeliveryOptions(pickup: false, delivery: false, shipping: false)
+                            let options = DeliveryOptions(pickup: newValue, delivery: currentOptions.delivery, shipping: currentOptions.shipping)
                             viewModel.updateBuffer(key: "deliveryOptions", value: options)
                         }
                     )
@@ -59,13 +59,13 @@ struct InlineToggleEditor: View {
                     isOn: Binding(
                         get: {
                             if let options = viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions {
-                                return options.delivery ?? false
+                                return options.delivery
                             }
                             return viewModel.listing.deliveryOptions?.delivery ?? false
                         },
                         set: { newValue in
-                            var options = (viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions) ?? viewModel.listing.deliveryOptions ?? DeliveryOptions(delivery: false, pickup: false, shipping: false)
-                            options.delivery = newValue
+                            let currentOptions = (viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions) ?? viewModel.listing.deliveryOptions ?? DeliveryOptions(pickup: false, delivery: false, shipping: false)
+                            let options = DeliveryOptions(pickup: currentOptions.pickup, delivery: newValue, shipping: currentOptions.shipping)
                             viewModel.updateBuffer(key: "deliveryOptions", value: options)
                         }
                     )
@@ -79,13 +79,13 @@ struct InlineToggleEditor: View {
                     isOn: Binding(
                         get: {
                             if let options = viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions {
-                                return options.shipping ?? false
+                                return options.shipping
                             }
                             return viewModel.listing.deliveryOptions?.shipping ?? false
                         },
                         set: { newValue in
-                            var options = (viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions) ?? viewModel.listing.deliveryOptions ?? DeliveryOptions(delivery: false, pickup: false, shipping: false)
-                            options.shipping = newValue
+                            let currentOptions = (viewModel.editBuffer["deliveryOptions"] as? DeliveryOptions) ?? viewModel.listing.deliveryOptions ?? DeliveryOptions(pickup: false, delivery: false, shipping: false)
+                            let options = DeliveryOptions(pickup: currentOptions.pickup, delivery: currentOptions.delivery, shipping: newValue)
                             viewModel.updateBuffer(key: "deliveryOptions", value: options)
                         }
                     )

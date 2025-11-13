@@ -7,7 +7,7 @@
 
 import SwiftUI
 import Combine
-import StripePaymentSheet
+@_spi(CustomerSessionBetaAccess) import StripePaymentSheet
 
 struct ModernMakeOfferView: View {
     @Environment(\.dismiss) private var dismiss
@@ -502,11 +502,8 @@ class MakeOfferViewModel: ObservableObject {
         configuration.allowsDelayedPaymentMethods = false
         configuration.returnURL = "brrowapp://stripe-redirect"
 
-        // Use Customer Session authentication for Stripe SDK 25.0+
-        configuration.customer = .init(
-            id: customerId,
-            sessionClientSecret: customerSessionClientSecret
-        )
+        // Stripe SDK 25.0+ — Customer Session auth with customer ID and ephemeral key
+        configuration.customer = PaymentSheet.CustomerConfiguration(id: customerId, ephemeralKeySecret: customerSessionClientSecret)
 
         paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,

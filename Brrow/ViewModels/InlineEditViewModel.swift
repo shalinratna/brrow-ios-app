@@ -125,7 +125,8 @@ class InlineEditViewModel: ObservableObject {
         case .dailyRate:
             editBuffer["dailyRate"] = listing.dailyRate
         case .securityDeposit:
-            editBuffer["securityDeposit"] = listing.deliveryOptions?.securityDeposit
+            // Security deposit is not part of DeliveryOptions - it's a separate listing field
+            editBuffer["securityDeposit"] = 0.0
         case .category:
             editBuffer["categoryId"] = listing.categoryId
         case .condition:
@@ -221,22 +222,25 @@ class InlineEditViewModel: ObservableObject {
         }
 
         // Call API to update listing
-        apiClient.updateListing(listingId: listing.id, updates: updates) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let updatedListing):
-                    self?.listing = updatedListing
-                    self?.updatedListing = updatedListing
-                    self?.saveState = .saved
+        Task { [weak self] in
+            do {
+                let updatedListing = try await self?.apiClient.updateListing(listingId: listing.id, updates: updates)
+
+                await MainActor.run {
+                    guard let self = self, let updatedListing = updatedListing else { return }
+                    self.listing = updatedListing
+                    self.updatedListing = updatedListing
+                    self.saveState = .saved
 
                     // Auto-dismiss after showing success
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         if !autoSave {
-                            self?.cancelEditing()
+                            self.cancelEditing()
                         }
                     }
-
-                case .failure(let error):
+                }
+            } catch {
+                await MainActor.run { [weak self] in
                     self?.saveState = .error(error.localizedDescription)
                 }
             }

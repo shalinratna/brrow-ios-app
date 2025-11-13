@@ -365,40 +365,53 @@ struct BrrowApp: App {
             }
 
         case "payment":
-            // Handle payment return: brrowapp://payment/success or brrowapp://payment/cancel
+            // Handle payment return from Stripe Checkout Sessions
+            // Expected URLs:
+            // - brrowapp://payment/success?session_id={CHECKOUT_SESSION_ID}&listing_id={listingId}
+            // - brrowapp://payment/cancel?listing_id={listingId}
             let path = components.path ?? ""
 
             if path == "/success" {
-                // Payment completed successfully
+                // Payment completed successfully via Checkout Session
                 let sessionId = components.queryItems?.first(where: { $0.name == "session_id" })?.value
+                let listingId = components.queryItems?.first(where: { $0.name == "listing_id" })?.value
                 let purchaseId = components.queryItems?.first(where: { $0.name == "purchase_id" })?.value
 
-                print("✅ [PAYMENT] Checkout completed - session: \(sessionId ?? "none"), purchase: \(purchaseId ?? "none")")
+                print("✅ [PAYMENT] Checkout Session completed")
+                print("   - session_id: \(sessionId ?? "none")")
+                print("   - listing_id: \(listingId ?? "none")")
+                print("   - purchase_id: \(purchaseId ?? "none")")
 
-                // Don't force navigate to profile - let the view that initiated payment handle the UI
-                // The BuyNowConfirmationView listens for this notification and will show the receipt
-
-                // Show success notification immediately (no delay needed)
+                // Post notification for CheckoutFlowContainer and other payment views
+                // This notification is used by both Checkout Sessions (new) and legacy PaymentSheet flows
                 NotificationCenter.default.post(
                     name: Notification.Name("ShowPaymentSuccess"),
                     object: nil,
                     userInfo: [
                         "sessionId": sessionId ?? "",
+                        "listingId": listingId ?? "",
                         "purchaseId": purchaseId ?? ""
                     ]
                 )
 
             } else if path == "/cancel" {
-                // Payment canceled
+                // Payment canceled by user
+                let listingId = components.queryItems?.first(where: { $0.name == "listing_id" })?.value
                 let purchaseId = components.queryItems?.first(where: { $0.name == "purchase_id" })?.value
 
-                print("❌ [PAYMENT] Checkout canceled - purchase: \(purchaseId ?? "none")")
+                print("❌ [PAYMENT] Checkout Session canceled")
+                print("   - listing_id: \(listingId ?? "none")")
+                print("   - purchase_id: \(purchaseId ?? "none")")
 
-                // Stay on current screen, user can retry
+                // Post notification for CheckoutFlowContainer and other payment views
+                // User can retry payment after cancellation
                 NotificationCenter.default.post(
                     name: Notification.Name("ShowPaymentCanceled"),
                     object: nil,
-                    userInfo: ["purchaseId": purchaseId ?? ""]
+                    userInfo: [
+                        "listingId": listingId ?? "",
+                        "purchaseId": purchaseId ?? ""
+                    ]
                 )
             }
 

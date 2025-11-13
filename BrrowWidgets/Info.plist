@@ -9,9 +9,9 @@
 	<key>CFBundleName</key>
 	<string>BrrowWidgets</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
+	<string>1.3.5</string>
 	<key>CFBundleVersion</key>
-	<string>636</string>
+	<string>660</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>

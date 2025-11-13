@@ -8,7 +8,7 @@ target 'Brrow' do
 
   # Pods for Brrow
   pod 'Socket.IO-Client-Swift', '~> 16.1.0'
-  pod 'StripePaymentSheet', '~> 25.0'
+  pod 'StripePaymentSheet', '>= 25.0.1'
   pod 'FirebaseMessaging'
   pod 'FirebaseAuth'
   pod 'GoogleSignIn'

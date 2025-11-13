@@ -24,7 +24,7 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
+	<string>1.3.5</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -53,7 +53,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<string>660</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
@@ -78,6 +78,24 @@
 				<true/>
 				<key>NSThirdPartyExceptionAllowsInsecureHTTPLoads</key>
 				<true/>
+			</dict>
+			<key>stripe.com</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSTemporaryExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+			</dict>
+			<key>checkout.stripe.com</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSTemporaryExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
 			</dict>
 		</dict>
 	</dict>
@@ -127,7 +145,7 @@
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Brrow uses this information to provide you with a better experience and relevant content.</string>
 	<key>StripePublishableKey</key>
-	<string>pk_test_51RBObeDElThvrB3uy8YnsZm0zv9U4rjf3BVoFLJ7y1eUdHlDYQVwGmPeWW0ySlI2ycHLqMCk75FGdFPr1Hl9J46W00tAX29oWE</string>
+	<string>pk_test_51RBObeDElThvrB3uy8YnsZm0h91LmZNTzs0owC9s6n3XVdeVFe4foVcJsGPXLXe5EENF7ct1J9XYshVAjvN71f9100HMm7aEL5</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
