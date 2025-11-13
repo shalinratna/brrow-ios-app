@@ -9,9 +9,10 @@ import SwiftUI
 
 struct SimplifiedListingDetailView: View {
     @StateObject private var viewModel: ListingDetailViewModel
+    @StateObject private var editViewModel: InlineEditViewModel
     @EnvironmentObject var authManager: AuthManager
     @Environment(\.dismiss) private var dismiss
-    
+
     // State variables
     @State private var showingOfferFlow = false
     @State private var showingMakeOffer = false
@@ -23,7 +24,6 @@ struct SimplifiedListingDetailView: View {
     @State private var showingFullScreenImage = false
     @State private var showingReportSheet = false
     @State private var showingSellerProfile = false
-    @State private var showingEditView = false
     @State private var showingShareSheet = false
     @State private var showingDeleteAlert = false
     @State private var showingMarkAsSoldConfirmation = false
@@ -33,9 +33,10 @@ struct SimplifiedListingDetailView: View {
     @State private var deleteAnimationScale: CGFloat = 1.0
     @State private var deleteAnimationOpacity: Double = 1.0
     @State private var deleteAnimationOffset: CGSize = .zero
-    
+
     init(listing: Listing) {
         _viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
+        _editViewModel = StateObject(wrappedValue: InlineEditViewModel(listing: listing))
     }
 
     private var isOwner: Bool {
@@ -72,25 +73,37 @@ struct SimplifiedListingDetailView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                imageCarousel
-                mainContent
+        ZStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    imageCarousel
+                    mainContent
+                }
+            }
+            .navigationBarHidden(true)
+            .overlay(
+                navigationBar,
+                alignment: .top
+            )
+            .overlay(
+                bottomBar,
+                alignment: .bottom
+            )
+            // Apply delete animation
+            .scaleEffect(deleteAnimationScale)
+            .opacity(deleteAnimationOpacity)
+            .offset(deleteAnimationOffset)
+            // Blur content when editing
+            .blur(radius: editViewModel.editingField != nil ? 8 : 0)
+            .animation(.easeInOut(duration: 0.3), value: editViewModel.editingField)
+
+            // Inline edit overlay
+            if let field = editViewModel.editingField {
+                EditFieldOverlay(field: field, viewModel: editViewModel)
+                    .transition(.scale(scale: 0.95).combined(with: .opacity))
+                    .zIndex(999)
             }
         }
-        .navigationBarHidden(true)
-        .overlay(
-            navigationBar,
-            alignment: .top
-        )
-        .overlay(
-            bottomBar,
-            alignment: .bottom
-        )
-        // Apply delete animation
-        .scaleEffect(deleteAnimationScale)
-        .opacity(deleteAnimationOpacity)
-        .offset(deleteAnimationOffset)
         .sheet(isPresented: $showingMakeOffer) {
             ModernMakeOfferView(listing: viewModel.listing)
         }
@@ -105,10 +118,6 @@ struct SimplifiedListingDetailView: View {
                 UniversalProfileView(user: seller)
                     .environmentObject(AuthManager.shared)
             }
-        }
-        .sheet(isPresented: $showingEditView) {
-            EnhancedEditListingView(listing: viewModel.listing)
-                .environmentObject(authManager)
         }
         .sheet(isPresented: $showingMessageComposer) {
             ModernMessageComposer(
@@ -204,6 +213,11 @@ struct SimplifiedListingDetailView: View {
                         .frame(height: 400)
                         .clipped()
                         .tag(index)
+                        .onTapGesture {
+                            if isOwner {
+                                editViewModel.startEditing(.images)
+                            }
+                        }
                 }
             }
             .tabViewStyle(PageTabViewStyle())
@@ -217,6 +231,27 @@ struct SimplifiedListingDetailView: View {
             if viewModel.listing.availabilityStatus != .available {
                 ListingStatusBadge(listing: viewModel.listing, size: .medium)
                     .padding(12)
+            }
+
+            // Edit photos button for owners
+            if isOwner {
+                Button(action: {
+                    editViewModel.startEditing(.images)
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Edit Photos")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(20)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
     }
@@ -236,21 +271,56 @@ struct SimplifiedListingDetailView: View {
         VStack(alignment: .leading, spacing: 20) {
             // Title and price
             VStack(alignment: .leading, spacing: 8) {
-                Text(viewModel.listing.title)
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(Theme.Colors.text)
+                // Title (tappable for owners)
+                Button(action: {
+                    if isOwner {
+                        editViewModel.startEditing(.title)
+                    }
+                }) {
+                    HStack {
+                        Text(viewModel.listing.title)
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(Theme.Colors.text)
+                            .multilineTextAlignment(.leading)
+
+                        if isOwner {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+
+                        Spacer()
+                    }
+                }
+                .disabled(!isOwner)
 
                 HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Pricing type label
-                        Text(viewModel.listing.pricingType == "RENTAL" ? "Price per day" : "Sale price")
-                            .font(.caption)
-                            .foregroundColor(Theme.Colors.secondaryText)
+                    // Price (tappable for owners)
+                    Button(action: {
+                        if isOwner {
+                            editViewModel.startEditing(.price)
+                        }
+                    }) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Pricing type label
+                            HStack {
+                                Text(viewModel.listing.pricingType == "RENTAL" ? "Price per day" : "Sale price")
+                                    .font(.caption)
+                                    .foregroundColor(Theme.Colors.secondaryText)
 
-                        Text(viewModel.listing.priceDisplay)
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(Theme.Colors.primary)
+                                if isOwner {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(Theme.Colors.secondaryText)
+                                }
+                            }
+
+                            Text(viewModel.listing.priceDisplay)
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(Theme.Colors.primary)
+                        }
                     }
+                    .disabled(!isOwner)
 
                     // Negotiable badge
                     if viewModel.listing.isNegotiable {
@@ -289,30 +359,66 @@ struct SimplifiedListingDetailView: View {
             }
             .padding(.horizontal)
             
-            // Location
-            HStack {
-                Image(systemName: "location")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.secondaryText)
-                
-                Text(viewModel.listing.locationString)
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.secondaryText)
+            // Location (tappable for owners)
+            Button(action: {
+                if isOwner {
+                    editViewModel.startEditing(.location)
+                }
+            }) {
+                HStack {
+                    Image(systemName: "location")
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.secondaryText)
+
+                    Text(viewModel.listing.locationString)
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.secondaryText)
+
+                    if isOwner {
+                        Spacer()
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
             }
+            .disabled(!isOwner)
             .padding(.horizontal)
-            
+
             Divider()
-            
-            // Description
+
+            // Description (tappable for owners)
             VStack(alignment: .leading, spacing: 8) {
-                Text("Description")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(Theme.Colors.text)
-                
-                Text(viewModel.listing.description)
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.text)
-                    .lineSpacing(4)
+                HStack {
+                    Text("Description")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+
+                    if isOwner {
+                        Spacer()
+                        Button(action: {
+                            editViewModel.startEditing(.description)
+                        }) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+                    }
+                }
+
+                Button(action: {
+                    if isOwner {
+                        editViewModel.startEditing(.description)
+                    }
+                }) {
+                    Text(viewModel.listing.description)
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.text)
+                        .lineSpacing(4)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .disabled(!isOwner)
             }
             .padding(.horizontal)
             
@@ -385,26 +491,26 @@ struct SimplifiedListingDetailView: View {
         HStack(spacing: 12) {
             if isOwner {
                 VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        Button(action: { showingEditView = true }) {
-                            HStack {
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Text("Edit")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Theme.Colors.primary)
-                            .cornerRadius(25)
-                        }
+                    // Inline editing hint
+                    HStack {
+                        Image(systemName: "hand.tap")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                        Text("Tap any field above to edit inline")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Theme.Colors.primary.opacity(0.05))
+                    .cornerRadius(8)
 
+                    HStack(spacing: 12) {
                         Button(action: { showingDeleteAlert = true }) {
                             HStack {
                                 Image(systemName: "trash")
                                     .font(.system(size: 16, weight: .semibold))
-                                Text("Delete")
+                                Text("Delete Listing")
                                     .font(.system(size: 16, weight: .semibold))
                             }
                             .foregroundColor(.white)
