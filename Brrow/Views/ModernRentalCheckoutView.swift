@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import StripePaymentSheet
 
 struct ModernRentalCheckoutView: View {
     let listing: Listing
@@ -18,12 +17,12 @@ struct ModernRentalCheckoutView: View {
     @State private var deliveryMethod: DeliveryMethod = .pickup
     @State private var buyerMessage = ""
     @State private var includeInsurance = true
-    @State private var paymentSheet: PaymentSheet?
-    @State private var paymentIntent: MarketplacePaymentIntent?
+    @State private var showCheckoutFlow = false
     @State private var isProcessing = false
     @State private var showingSuccess = false
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var transactionId: String?
     @Environment(\.presentationMode) var presentationMode
 
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -111,6 +110,18 @@ struct ModernRentalCheckoutView: View {
             }
         } message: {
             Text(errorMessage)
+        }
+        .fullScreenCover(isPresented: $showCheckoutFlow) {
+            CheckoutFlowContainer(
+                listingId: listing.listingId,
+                sellerId: listing.userId,
+                transactionType: "RENTAL",
+                rentalStartDate: startDate,
+                rentalEndDate: endDate,
+                deliveryMethod: deliveryMethod.rawValue,
+                includeInsurance: includeInsurance,
+                onCompletion: handleCheckoutCompletion
+            )
         }
     }
 
@@ -595,139 +606,21 @@ struct ModernRentalCheckoutView: View {
 
     private func proceedToPayment() {
         impactFeedback.impactOccurred()
-        isProcessing = true
-
-        Task {
-            do {
-                let intent = try await paymentService.createMarketplacePaymentIntent(
-                    listingId: listing.listingId,
-                    sellerId: listing.userId,
-                    transactionType: "RENTAL",
-                    rentalStartDate: startDate,
-                    rentalEndDate: endDate,
-                    deliveryMethod: deliveryMethod.rawValue,
-                    buyerMessage: buyerMessage.isEmpty ? nil : buyerMessage
-                )
-
-                // DEBUG: Print payment intent details
-                print("🔍 DEBUG - Payment Intent Received:")
-                print("   Client Secret: \(intent.clientSecret.prefix(30))...")
-                print("   Amount: $\(intent.amount)")
-
-                await MainActor.run {
-                    self.paymentIntent = intent
-                    // Setup PaymentSheet WITH Customer Session (modern auth for SDK 25.0+)
-                    setupPaymentSheet(clientSecret: intent.clientSecret, customerId: intent.customerId, customerSessionClientSecret: intent.customerSessionClientSecret)
-                    presentPaymentSheet()
-                }
-
-            } catch PaymentError.sellerOnboardingRequired {
-                await MainActor.run {
-                    errorMessage = "The owner needs to complete their payment setup first. Please try again later."
-                    showingError = true
-                    isProcessing = false
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    showingError = true
-                    isProcessing = false
-                }
-            }
-        }
+        showCheckoutFlow = true
     }
 
-    private func setupPaymentSheet(clientSecret: String, customerId: String, customerSessionClientSecret: String) {
-        print("🔧 DEBUG - Setting up PaymentSheet WITH Customer Session (SDK 25.0+ modern auth):")
-        print("   Payment Intent Client Secret length: \(clientSecret.count)")
-        print("   Customer ID: \(customerId)")
-        print("   Customer Session Client Secret length: \(customerSessionClientSecret.count)")
-
-        var configuration = PaymentSheet.Configuration()
-        configuration.merchantDisplayName = "Brrow"
-        configuration.allowsDelayedPaymentMethods = false
-        configuration.returnURL = "brrow://stripe-redirect"
-
-        // Customer Session authentication (modern method for SDK 25.0+)
-        // This is the replacement for ephemeral keys with better security and reliability
-        configuration.customer = .init(
-            id: customerId,
-            customerSessionClientSecret: customerSessionClientSecret
-        )
-
-        paymentSheet = PaymentSheet(
-            paymentIntentClientSecret: clientSecret,
-            configuration: configuration
-        )
-
-        print("   ✅ PaymentSheet initialized WITH Customer Session (modern auth for SDK 25.0+)")
-    }
-
-    private func presentPaymentSheet() {
-        guard let paymentSheet = paymentSheet else {
-            isProcessing = false
-            return
-        }
-
-        // Get the topmost view controller (this checkout view), not the root
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-
-            var topController = window.rootViewController
-            while let presentedViewController = topController?.presentedViewController {
-                topController = presentedViewController
-            }
-
-            guard let topmostVC = topController else {
-                isProcessing = false
-                return
-            }
-
-            // Add a small delay to ensure this view is fully presented
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                paymentSheet.present(from: topmostVC) { result in
-                    Task {
-                        await self.handlePaymentResult(result)
-                    }
-                }
-            }
-        } else {
-            isProcessing = false
-        }
-    }
-
-    private func handlePaymentResult(_ result: PaymentSheetResult) async {
+    private func handleCheckoutCompletion(result: Result<String, Error>) {
         switch result {
-        case .completed:
-            if let transactionId = paymentIntent?.transactionId {
-                do {
-                    try await paymentService.confirmPayment(transactionId: transactionId)
-                    await MainActor.run {
-                        impactFeedback.impactOccurred()
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                            showingSuccess = true
-                        }
-                    }
-                } catch {
-                    await MainActor.run {
-                        errorMessage = "Payment succeeded but confirmation failed. Please contact support."
-                        showingError = true
-                        isProcessing = false
-                    }
-                }
+        case .success(let transactionId):
+            self.transactionId = transactionId
+            impactFeedback.impactOccurred()
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                showingSuccess = true
             }
 
-        case .canceled:
-            await MainActor.run {
-                isProcessing = false
-            }
-
-        case .failed(let error):
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                showingError = true
-                isProcessing = false
-            }
+        case .failure(let error):
+            errorMessage = error.localizedDescription
+            showingError = true
         }
     }
 }

@@ -375,20 +375,36 @@ struct TierInfo: Codable {
 
 // MARK: - Stripe Requests
 struct CreateCheckoutSessionRequest: Codable {
-    let priceId: String?
-    let successUrl: String
-    let cancelUrl: String
-    let metadata: [String: String]?
-    let customAmount: Int?
-    let customDescription: String?
-    
+    let listingId: String
+    let sellerId: String
+    let transactionType: String
+    let rentalStartDate: Date?
+    let rentalEndDate: Date?
+    let deliveryMethod: String
+    let includeInsurance: Bool?
+
     enum CodingKeys: String, CodingKey {
-        case priceId = "price_id"
-        case successUrl = "success_url"
-        case cancelUrl = "cancel_url"
-        case metadata
-        case customAmount = "custom_amount"
-        case customDescription = "custom_description"
+        case listingId, sellerId, transactionType, rentalStartDate, rentalEndDate, deliveryMethod, includeInsurance
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(listingId, forKey: .listingId)
+        try container.encode(sellerId, forKey: .sellerId)
+        try container.encode(transactionType, forKey: .transactionType)
+        try container.encode(deliveryMethod, forKey: .deliveryMethod)
+        try container.encodeIfPresent(includeInsurance, forKey: .includeInsurance)
+
+        // Encode dates as ISO 8601 strings if present
+        if let rentalStartDate = rentalStartDate {
+            let formatter = ISO8601DateFormatter()
+            try container.encode(formatter.string(from: rentalStartDate), forKey: .rentalStartDate)
+        }
+
+        if let rentalEndDate = rentalEndDate {
+            let formatter = ISO8601DateFormatter()
+            try container.encode(formatter.string(from: rentalEndDate), forKey: .rentalEndDate)
+        }
     }
 }
 

@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 import UIKit
-import StripePaymentSheet
+@_spi(CustomerSessionBetaAccess) import StripePaymentSheet
 import SwiftUI
 
 @MainActor
@@ -104,17 +104,91 @@ class PaymentService: NSObject, ObservableObject {
     /// Confirm payment after successful Stripe payment
     func confirmPayment(transactionId: String) async throws {
         let body = ["transactionId": transactionId]
-        
+
         let response = try await apiClient.performRequest(
             endpoint: "api/payments/confirm-payment",
             method: "POST",
             body: try JSONSerialization.data(withJSONObject: body),
             responseType: APIResponse<TransactionConfirmation>.self
         )
-        
+
         guard response.success else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to confirm payment")
         }
+    }
+
+    // MARK: - Checkout Session Flow (Modern Full-Page Checkout)
+
+    /// Create Checkout Session for full-page checkout experience
+    func createCheckoutSession(
+        listingId: String,
+        sellerId: String,
+        transactionType: String,
+        rentalStartDate: Date? = nil,
+        rentalEndDate: Date? = nil,
+        deliveryMethod: String = "PICKUP",
+        includeInsurance: Bool? = nil
+    ) async throws -> CheckoutSession {
+
+        isLoading = true
+        defer { isLoading = false }
+
+        let request = CreateCheckoutSessionRequest(
+            listingId: listingId,
+            sellerId: sellerId,
+            transactionType: transactionType,
+            rentalStartDate: rentalStartDate,
+            rentalEndDate: rentalEndDate,
+            deliveryMethod: deliveryMethod,
+            includeInsurance: includeInsurance
+        )
+
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/create-checkout-session",
+            method: "POST",
+            body: try JSONEncoder().encode(request),
+            responseType: APIResponse<CheckoutSession>.self
+        )
+
+        guard response.success, let session = response.data else {
+            let errorMessage = response.message ?? "Failed to create checkout session"
+            if errorMessage.contains("Seller needs to set up payment account") {
+                throw PaymentError.sellerOnboardingRequired
+            }
+            throw BrrowAPIError.serverError(errorMessage)
+        }
+
+        // Track analytics
+        let event = AnalyticsEvent(
+            eventName: "checkout_session_created",
+            eventType: "payment",
+            metadata: [
+                "amount": String(session.amount),
+                "transaction_type": transactionType,
+                "listing_id": listingId
+            ]
+        )
+
+        Task {
+            try? await apiClient.trackAnalytics(event: event)
+        }
+
+        return session
+    }
+
+    /// Check Checkout Session status after browser return
+    func checkCheckoutStatus(sessionId: String) async throws -> CheckoutStatus {
+        let response = try await apiClient.performRequest(
+            endpoint: "api/payments/checkout-status/\(sessionId)",
+            method: "GET",
+            responseType: APIResponse<CheckoutStatus>.self
+        )
+
+        guard response.success, let status = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to check checkout status")
+        }
+
+        return status
     }
     
     /// Release escrow funds after successful delivery
@@ -188,11 +262,8 @@ class PaymentService: NSObject, ObservableObject {
         configuration.allowsDelayedPaymentMethods = false
         configuration.returnURL = "brrowapp://stripe-redirect"
 
-        // Use Customer Session authentication for Stripe SDK 25.0+
-        configuration.customer = .init(
-            id: customerId,
-            sessionClientSecret: customerSessionClientSecret
-        )
+        // Stripe SDK 25.0+ — Customer Session auth with customer ID and ephemeral key
+        configuration.customer = PaymentSheet.CustomerConfiguration(id: customerId, ephemeralKeySecret: customerSessionClientSecret)
 
         let paymentSheet = PaymentSheet(
             paymentIntentClientSecret: clientSecret,
@@ -417,6 +488,33 @@ struct MarketplacePaymentIntent: Codable {
     let amount: Double
     let platformFee: Double
     let paymentIntentId: String
+}
+
+// MARK: - Checkout Session Models
+struct CheckoutSession: Codable {
+    let sessionId: String
+    let url: String
+    let expiresAt: Int
+    let amount: Double
+}
+
+struct CheckoutStatus: Codable {
+    let sessionStatus: String
+    let paymentStatus: String
+    let transactionId: String?
+    let transaction: CheckoutTransaction?
+    let metadata: [String: String]?
+
+    struct CheckoutTransaction: Codable {
+        let id: String
+        let paymentStatus: String
+        let status: String
+        let amount: Double
+
+        enum CodingKeys: String, CodingKey {
+            case id, paymentStatus = "payment_status", status, amount
+        }
+    }
 }
 
 struct CreatePaymentIntentRequest: Codable {
