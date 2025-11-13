@@ -764,8 +764,8 @@ class BorrowVsBuyViewModel: ObservableObject {
     func calculate(days: Int, frequency: String) {
         isCalculating = true
         error = nil
-        
-        let purchasePrice = nil ?? listing.price * 100 // Estimate if not for sale
+
+        let purchasePrice = listing.buyoutPrice ?? (listing.price * 100) // Use real buyout price or estimate
         
         apiClient.borrowVsBuyCalculation(
             listingId: Int(listing.id) ?? 0,

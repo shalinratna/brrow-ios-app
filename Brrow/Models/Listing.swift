@@ -98,6 +98,7 @@ struct Listing: Codable, Identifiable, Equatable {
     let price: Double
     let dailyRate: Double?  // Optional daily rental rate
     let estimatedValue: Double?  // Estimated value for rental insurance
+    let buyoutPrice: Double?  // Optional buyout/purchase price for listings
     let pricingType: String?  // Explicit pricing type from backend
     let isNegotiable: Bool
     let availabilityStatus: ListingStatus
@@ -197,6 +198,7 @@ struct Listing: Codable, Identifiable, Equatable {
         case condition, price
         case dailyRate = "daily_rate"
         case estimatedValue = "estimated_value"
+        case buyoutPrice = "buyout_price"
         case pricingType = "pricing_type"
         case isNegotiable = "is_negotiable"
         case availabilityStatus = "availability_status"
