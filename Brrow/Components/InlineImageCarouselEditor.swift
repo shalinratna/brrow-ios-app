@@ -29,8 +29,7 @@ struct InlineImageCarouselEditor: View {
                             ZStack(alignment: .topTrailing) {
                                 // Image
                                 BrrowAsyncImage(
-                                    url: URL(string: image.imageUrl),
-                                    contentMode: .fill
+                                    url: image.imageUrl
                                 )
                                 .frame(width: 150, height: 150)
                                 .cornerRadius(Theme.CornerRadius.md)

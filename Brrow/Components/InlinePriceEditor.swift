@@ -70,8 +70,8 @@ struct InlinePriceEditor: View {
             // Initialize from edit buffer
             if let price = viewModel.editBuffer[bufferKey] as? Double {
                 priceText = String(format: "%.2f", price)
-            } else if field == .price, let price = viewModel.listing.price {
-                priceText = String(format: "%.2f", price)
+            } else if field == .price {
+                priceText = String(format: "%.2f", viewModel.listing.price)
             } else if field == .dailyRate, let rate = viewModel.listing.dailyRate {
                 priceText = String(format: "%.2f", rate)
             }
