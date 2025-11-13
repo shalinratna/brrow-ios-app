@@ -22,42 +22,63 @@ struct PostsAnalyticsView: View {
 
     var body: some View {
         ZStack {
-                Theme.Colors.background
-                    .ignoresSafeArea()
+            Theme.Colors.background
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Header
+                header
 
                 if viewModel.isLoading {
-                    ProgressView("Loading analytics...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Spacer()
+                    VStack(spacing: Theme.Spacing.md) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.primary))
+                            .scaleEffect(1.5)
+                        Text("Loading analytics...")
+                            .font(Theme.Typography.body)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                    Spacer()
                 } else if let errorMessage = viewModel.errorMessage {
-                    VStack(spacing: 16) {
+                    Spacer()
+                    VStack(spacing: Theme.Spacing.lg) {
                         Image(systemName: "chart.bar.xaxis")
-                            .font(.system(size: 48))
-                            .foregroundColor(.gray)
+                            .font(.system(size: 60))
+                            .foregroundColor(Theme.Colors.secondaryText)
 
                         Text("Analytics Unavailable")
-                            .font(.headline)
+                            .font(Theme.Typography.title)
+                            .foregroundColor(Theme.Colors.text)
 
                         Text(errorMessage)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .font(Theme.Typography.body)
+                            .foregroundColor(Theme.Colors.secondaryText)
                             .multilineTextAlignment(.center)
+                            .padding(.horizontal, Theme.Spacing.xl)
 
-                        Button("Retry") {
+                        Button(action: {
                             Task {
                                 await viewModel.refreshAnalytics()
                             }
+                        }) {
+                            Text("Retry")
+                                .font(Theme.Typography.body.weight(.semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 140, height: 50)
+                                .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.primary))
                         }
-                        .buttonStyle(.borderedProminent)
                     }
-                    .padding()
+                    .padding(Theme.Spacing.lg)
+                    Spacer()
                 } else {
                     ScrollView {
-                        VStack(spacing: 20) {
-                            // Summary Cards
-                            summarySection
-
+                        VStack(spacing: Theme.Spacing.md) {
                             // Time Filter
                             timeframeSelector
+
+                            // Summary Cards
+                            summarySection
 
                             // Posts Over Time Chart
                             postsTimelineChart
@@ -68,22 +89,15 @@ struct PostsAnalyticsView: View {
                             // Status Breakdown
                             statusBreakdownChart
 
-                            // Performance Metrics (now with real data)
+                            // Performance Metrics
                             performanceMetrics
                         }
-                        .padding()
+                        .padding(Theme.Spacing.md)
                     }
                 }
             }
-        .navigationTitle("Posts Analytics")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
         }
+        .navigationBarHidden(true)
         .onAppear {
             Task {
                 await viewModel.fetchAnalytics()
@@ -91,64 +105,103 @@ struct PostsAnalyticsView: View {
         }
     }
 
+    // MARK: - Header
+    private var header: some View {
+        HStack {
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.title3)
+                    .foregroundColor(Theme.Colors.text)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Theme.Colors.cardBackground))
+            }
+
+            Spacer()
+
+            Text("Analytics")
+                .font(Theme.Typography.title)
+                .foregroundColor(Theme.Colors.text)
+
+            Spacer()
+
+            Button(action: {
+                Task {
+                    await viewModel.refreshAnalytics()
+                }
+            }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.title3)
+                    .foregroundColor(Theme.Colors.text)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Theme.Colors.cardBackground))
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.top, 60)
+        .padding(.bottom, Theme.Spacing.md)
+        .background(Theme.Colors.background)
+    }
+
     // MARK: - Summary Section
     private var summarySection: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 16) {
-                AnalyticsStatCard(
-                    title: "Total Posts",
-                    value: "\(getSummaryData().totalPosts)",
-                    icon: "doc.text.fill",
-                    color: Theme.Colors.primary
-                )
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.sm) {
+            AnalyticsStatCard(
+                title: "Total Posts",
+                value: "\(getSummaryData().totalPosts)",
+                icon: "doc.text.fill",
+                color: Theme.Colors.primary
+            )
 
-                AnalyticsStatCard(
-                    title: "Active",
-                    value: "\(getSummaryData().activePosts)",
-                    icon: "checkmark.circle.fill",
-                    color: .green
-                )
-            }
+            AnalyticsStatCard(
+                title: "Active",
+                value: "\(getSummaryData().activePosts)",
+                icon: "checkmark.circle.fill",
+                color: Theme.Colors.success
+            )
 
-            HStack(spacing: 16) {
-                AnalyticsStatCard(
-                    title: "Total Views",
-                    value: "\(getSummaryData().totalViews)",
-                    icon: "eye.fill",
-                    color: Theme.Colors.accentBlue
-                )
+            AnalyticsStatCard(
+                title: "Total Views",
+                value: "\(getSummaryData().totalViews)",
+                icon: "eye.fill",
+                color: Theme.Colors.accentBlue
+            )
 
-                AnalyticsStatCard(
-                    title: "Avg Price",
-                    value: "$\(getSummaryData().averagePrice)",
-                    icon: "dollarsign.circle.fill",
-                    color: Theme.Colors.accentOrange
-                )
-            }
+            AnalyticsStatCard(
+                title: "Avg Price",
+                value: "$\(String(format: "%.2f", getSummaryData().averagePrice))",
+                icon: "dollarsign.circle.fill",
+                color: Theme.Colors.accentOrange
+            )
         }
     }
 
     // MARK: - Timeframe Selector
     private var timeframeSelector: some View {
-        Picker("Timeframe", selection: $viewModel.selectedTimeframe) {
-            ForEach(AnalyticsTimeframe.allCases, id: \.self) { timeframe in
-                Text(timeframe.rawValue).tag(timeframe)
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text("Time Period")
+                .font(Theme.Typography.label)
+                .foregroundColor(Theme.Colors.secondaryText)
+
+            Picker("Timeframe", selection: $viewModel.selectedTimeframe) {
+                ForEach(AnalyticsTimeframe.allCases, id: \.self) { timeframe in
+                    Text(timeframe.rawValue).tag(timeframe)
+                }
             }
-        }
-        .pickerStyle(SegmentedPickerStyle())
-        .padding(.horizontal)
-        .onChange(of: viewModel.selectedTimeframe) { newTimeframe in
-            Task {
-                await viewModel.selectTimeframe(newTimeframe)
+            .pickerStyle(SegmentedPickerStyle())
+            .onChange(of: viewModel.selectedTimeframe) { newTimeframe in
+                Task {
+                    await viewModel.selectTimeframe(newTimeframe)
+                }
             }
         }
     }
 
     // MARK: - Posts Timeline Chart
     private var postsTimelineChart: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Posts Over Time")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
             if #available(iOS 16.0, *) {
                 Chart(getPostsOverTimeData()) { item in
@@ -159,108 +212,134 @@ struct PostsAnalyticsView: View {
                     .foregroundStyle(Theme.Colors.primary)
                 }
                 .frame(height: 200)
-                .padding(.horizontal)
             } else {
                 // Fallback for iOS 15
-                HStack(alignment: .bottom, spacing: 4) {
-                    ForEach(getPostsOverTimeData(), id: \.id) { item in
-                        VStack {
-                            Text("\(item.count)")
-                                .font(.caption2)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .bottom, spacing: Theme.Spacing.sm) {
+                        ForEach(getPostsOverTimeData(), id: \.id) { item in
+                            VStack(spacing: Theme.Spacing.xs) {
+                                Text("\(item.count)")
+                                    .font(Theme.Typography.caption)
+                                    .foregroundColor(Theme.Colors.text)
 
-                            Rectangle()
-                                .fill(Theme.Colors.primary)
-                                .frame(width: 30, height: CGFloat(item.count) * 20)
+                                Rectangle()
+                                    .fill(Theme.Colors.primary)
+                                    .frame(width: 32, height: max(CGFloat(item.count) * 15, 5))
+                                    .cornerRadius(Theme.CornerRadius.sm)
 
-                            Text(item.label)
-                                .font(.caption2)
-                                .rotationEffect(.degrees(-45))
+                                Text(item.label)
+                                    .font(Theme.Typography.caption)
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                                    .rotationEffect(.degrees(-45))
+                                    .fixedSize()
+                            }
                         }
                     }
+                    .padding(.horizontal)
                 }
                 .frame(height: 200)
-                .padding(.horizontal)
             }
         }
-        .padding()
-        .background(Theme.Colors.secondaryBackground)
-        .cornerRadius(12)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
     // MARK: - Category Distribution Chart
     private var categoryDistributionChart: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Category Distribution")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            ForEach(getCategoryData(), id: \.category) { item in
-                HStack {
-                    Text(item.category)
-                        .font(.caption)
-                        .frame(width: 100, alignment: .leading)
+            if getCategoryData().isEmpty {
+                Text("No category data available")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, Theme.Spacing.lg)
+            } else {
+                VStack(spacing: Theme.Spacing.sm) {
+                    ForEach(getCategoryData(), id: \.category) { item in
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Text(item.category)
+                                .font(Theme.Typography.body)
+                                .foregroundColor(Theme.Colors.text)
+                                .frame(width: 100, alignment: .leading)
 
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(height: 20)
-                                .cornerRadius(4)
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    Rectangle()
+                                        .fill(Theme.Colors.secondaryBackground)
+                                        .frame(height: 24)
+                                        .cornerRadius(Theme.CornerRadius.sm)
 
-                            Rectangle()
-                                .fill(Theme.Colors.primary)
-                                .frame(width: geometry.size.width * item.percentage, height: 20)
-                                .cornerRadius(4)
+                                    Rectangle()
+                                        .fill(Theme.Colors.primary)
+                                        .frame(width: max(geometry.size.width * item.percentage, 2), height: 24)
+                                        .cornerRadius(Theme.CornerRadius.sm)
+                                }
+                            }
+                            .frame(height: 24)
+
+                            Text("\(item.count)")
+                                .font(Theme.Typography.body.weight(.semibold))
+                                .foregroundColor(Theme.Colors.text)
+                                .frame(width: 40, alignment: .trailing)
                         }
                     }
-                    .frame(height: 20)
-
-                    Text("\(item.count)")
-                        .font(.caption)
-                        .frame(width: 30)
                 }
             }
         }
-        .padding()
-        .background(Theme.Colors.secondaryBackground)
-        .cornerRadius(12)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
     // MARK: - Status Breakdown
     private var statusBreakdownChart: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Status Breakdown")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            HStack(spacing: 20) {
-                ForEach(getStatusData(), id: \.status) { statusItem in
-                    StatusIndicator(
-                        label: statusItem.status.capitalized,
-                        count: statusItem.count,
-                        color: statusItem.color
-                    )
+            if getStatusData().isEmpty {
+                Text("No status data available")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, Theme.Spacing.lg)
+            } else {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(getStatusData(), id: \.status) { statusItem in
+                        StatusIndicator(
+                            label: statusItem.status.capitalized,
+                            count: statusItem.count,
+                            color: statusItem.color
+                        )
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
         }
-        .padding()
-        .background(Theme.Colors.secondaryBackground)
-        .cornerRadius(12)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
     // MARK: - Performance Metrics
     private var performanceMetrics: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Performance Metrics")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            HStack(spacing: 20) {
+            HStack(spacing: Theme.Spacing.md) {
                 AnalyticsMetricCard(
                     title: "Response Rate",
-                    value: "\(getSummaryData().responseRate)%",
+                    value: "\(Int(getSummaryData().responseRate))%",
                     trend: getResponseRateTrend()
                 )
                 AnalyticsMetricCard(
                     title: "Avg Views",
-                    value: "\(getSummaryData().averageViews)",
+                    value: "\(Int(getSummaryData().averageViews))",
                     trend: getAverageViewsTrend()
                 )
                 AnalyticsMetricCard(
@@ -270,9 +349,8 @@ struct PostsAnalyticsView: View {
                 )
             }
         }
-        .padding()
-        .background(Theme.Colors.secondaryBackground)
-        .cornerRadius(12)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
     // MARK: - Helper Functions for Trends
@@ -379,27 +457,34 @@ struct AnalyticsStatCard: View {
     let color: Color
 
     var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundColor(color)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(Theme.Colors.secondaryText)
-
-                Text(value)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(Theme.Colors.text)
+                Spacer()
             }
 
             Spacer()
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text(value)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(Theme.Colors.text)
+
+                Text(title)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
         }
-        .padding()
-        .background(Theme.Colors.secondaryBackground)
-        .cornerRadius(12)
+        .padding(Theme.Spacing.md)
+        .frame(height: 120)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(color.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 
@@ -409,18 +494,22 @@ struct StatusIndicator: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 8) {
-            Circle()
-                .fill(color)
-                .frame(width: 12, height: 12)
+        VStack(spacing: Theme.Spacing.sm) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.2))
+                    .frame(width: 48, height: 48)
 
-            Text("\(count)")
-                .font(.headline)
+                Text("\(count)")
+                    .font(Theme.Typography.body.weight(.bold))
+                    .foregroundColor(color)
+            }
 
             Text(label)
-                .font(.caption)
+                .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Colors.secondaryText)
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -442,29 +531,32 @@ struct AnalyticsMetricCard: View {
 
         var color: Color {
             switch self {
-            case .up: return .green
-            case .down: return .red
-            case .neutral: return .gray
+            case .up: return Theme.Colors.success
+            case .down: return Theme.Colors.error
+            case .neutral: return Theme.Colors.secondaryText
             }
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(Theme.Colors.secondaryText)
-
-            HStack {
+        VStack(alignment: .center, spacing: Theme.Spacing.sm) {
+            HStack(spacing: 4) {
                 Text(value)
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(Theme.Typography.body.weight(.bold))
+                    .foregroundColor(Theme.Colors.text)
 
                 Image(systemName: trend.icon)
-                    .font(.caption)
+                    .font(Theme.Typography.caption)
                     .foregroundColor(trend.color)
             }
+
+            Text(title)
+                .font(Theme.Typography.caption)
+                .foregroundColor(Theme.Colors.secondaryText)
+                .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
+        .padding(Theme.Spacing.sm)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm).fill(Theme.Colors.secondaryBackground))
     }
 }

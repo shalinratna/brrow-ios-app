@@ -58,11 +58,6 @@ struct EnhancedEditListingView: View {
     @State private var validationErrors: [String] = []
     @State private var showValidationAlert = false
 
-    // Enhanced features
-    @State private var showPreview = false
-    @State private var autoSaveEnabled = true
-    @State private var lastSaved: Date?
-
     init(listing: Listing) {
         self.listing = listing
         self._title = State(initialValue: listing.title)
@@ -97,60 +92,43 @@ struct EnhancedEditListingView: View {
             ZStack {
                 Theme.Colors.background.ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Enhanced Images Section
-                        Text("Images Section Disabled")
-                            .foregroundColor(.gray)
-                            .padding()
+                VStack(spacing: 0) {
+                    // Header
+                    header
 
-                        // Basic Information with validation
-                        enhancedBasicInfoSection
+                    ScrollView {
+                        VStack(spacing: Theme.Spacing.md) {
+                            // Images Section
+                            imagesSection
 
-                        // Enhanced Pricing Section
-                        enhancedPricingSection
+                            // Basic Information
+                            basicInfoSection
 
-                        // Enhanced Location Section
-                        enhancedLocationSection
+                            // Pricing Section
+                            pricingSection
 
-                        // Enhanced Details Section
-                        enhancedDetailsSection
+                            // Location Section
+                            locationSection
 
-                        // Delivery Options
-                        deliveryOptionsSection
+                            // Details Section
+                            detailsSection
 
-                        // Tags Section
-                        tagsSection
+                            // Delivery Options
+                            deliveryOptionsSection
 
-                        // Action Buttons
-                        actionButtons
-
-                        // Auto-save indicator
-                        if autoSaveEnabled && lastSaved != nil {
-                            autoSaveIndicator
+                            // Tags Section (if needed)
+                            if !tags.isEmpty || !newTag.isEmpty {
+                                tagsSection
+                            }
                         }
+                        .padding(Theme.Spacing.md)
                     }
-                    .padding()
+                    .scrollDismissesKeyboard(.interactively)
+
+                    // Save Button at Bottom
+                    saveButton
                 }
             }
-            .navigationTitle("Edit Listing")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(leading:
-                Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
-                },
-                trailing:
-                Menu {
-                    Button("Preview") { showPreview = true }
-                    Button("Auto-save: \(autoSaveEnabled ? "On" : "Off")") {
-                        autoSaveEnabled.toggle()
-                    }
-                    Button("Save") { saveChanges() }
-                        .disabled(isLoading || !hasChanges())
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            )
             .photosPicker(
                 isPresented: $showingImagePicker,
                 selection: $selectedImages,
@@ -170,10 +148,6 @@ struct EnhancedEditListingView: View {
                 ) {
                     updateLocationString()
                 }
-            }
-            .sheet(isPresented: $showPreview) {
-                // Preview of the listing
-                ListingPreviewView(listing: createPreviewListing())
             }
             .alert("Validation Errors", isPresented: $showValidationAlert) {
                 Button("OK") { }
@@ -202,326 +176,434 @@ struct EnhancedEditListingView: View {
             }
             .overlay {
                 if isLoading {
-                    ProgressView("Saving...")
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
+                    ZStack {
+                        Color.black.opacity(0.3)
+                            .ignoresSafeArea()
+
+                        VStack(spacing: Theme.Spacing.md) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.primary))
+                                .scaleEffect(1.5)
+
+                            Text("Saving Changes...")
+                                .font(Theme.Typography.body)
+                                .foregroundColor(Theme.Colors.text)
+                        }
+                        .padding(Theme.Spacing.lg)
+                        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.md).fill(Theme.Colors.surface))
+                        .shadow(color: Theme.Shadows.modal, radius: 10)
+                    }
                 }
             }
         }
-        .onAppear {
-            if autoSaveEnabled {
-                setupAutoSave()
+        .navigationViewStyle(StackNavigationViewStyle())
+    }
+
+    // MARK: - Header
+    private var header: some View {
+        HStack {
+            Button(action: { presentationMode.wrappedValue.dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.title3)
+                    .foregroundColor(Theme.Colors.text)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Theme.Colors.cardBackground))
+            }
+
+            Spacer()
+
+            Text("Edit Listing")
+                .font(Theme.Typography.title)
+                .foregroundColor(Theme.Colors.text)
+
+            Spacer()
+
+            Button(action: { showDeleteConfirmation = true }) {
+                Image(systemName: "trash")
+                    .font(.title3)
+                    .foregroundColor(Theme.Colors.error)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Theme.Colors.cardBackground))
             }
         }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.top, 60)
+        .padding(.bottom, Theme.Spacing.md)
+        .background(Theme.Colors.background)
     }
 
-    // MARK: - Enhanced Sections
+    // MARK: - Images Section
+    private var imagesSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Photos")
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-    private var enhancedImagesSection: some View {
-        Text("Photos Section")
-            .font(.headline)
-            .padding()
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    // Existing images
+                    ForEach(existingImages, id: \.self) { imageUrl in
+                        if !imagesToDelete.contains(imageUrl) {
+                            ZStack(alignment: .topTrailing) {
+                                BrrowAsyncImage(url: imageUrl) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Rectangle()
+                                        .fill(Theme.Colors.secondaryBackground)
+                                        .overlay(ProgressView())
+                                }
+                                .frame(width: 100, height: 100)
+                                .cornerRadius(Theme.CornerRadius.card)
+
+                                Button(action: {
+                                    imagesToDelete.insert(imageUrl)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.white)
+                                        .background(Circle().fill(Theme.Colors.error))
+                                }
+                                .padding(4)
+                            }
+                        }
+                    }
+
+                    // New images
+                    ForEach(Array(newImages.enumerated()), id: \.offset) { index, image in
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 100, height: 100)
+                                .cornerRadius(Theme.CornerRadius.card)
+
+                            Button(action: {
+                                newImages.remove(at: index)
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.white)
+                                    .background(Circle().fill(Theme.Colors.error))
+                            }
+                            .padding(4)
+                        }
+                    }
+
+                    // Add photo button
+                    if totalImageCount() < 5 {
+                        Button(action: { showingImagePicker = true }) {
+                            VStack(spacing: 8) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 24))
+                                Text("Add Photo")
+                                    .font(Theme.Typography.caption)
+                            }
+                            .foregroundColor(Theme.Colors.primary)
+                            .frame(width: 100, height: 100)
+                            .background(Theme.Colors.primary.opacity(0.1))
+                            .cornerRadius(Theme.CornerRadius.card)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                                    .stroke(Theme.Colors.primary, lineWidth: 2, dash: [5])
+                            )
+                        }
+                    }
+                }
+            }
+
+            Text("\(totalImageCount())/5 photos")
+                .font(Theme.Typography.caption)
+                .foregroundColor(Theme.Colors.secondaryText)
+        }
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
-    // REMOVED: Complex images section causing compilation issues
-
-    private var enhancedBasicInfoSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    // MARK: - Basic Info Section
+    private var basicInfoSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Basic Information")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            // Title with character count
-            VStack(alignment: .leading, spacing: 8) {
+            // Title
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 HStack {
                     Text("Title")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                        .font(Theme.Typography.label)
+                        .foregroundColor(Theme.Colors.secondaryText)
                     Spacer()
                     Text("\(title.count)/60")
-                        .font(.caption)
-                        .foregroundColor(title.count > 60 ? .red : .gray)
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(title.count > 60 ? Theme.Colors.error : Theme.Colors.secondaryText)
                 }
                 TextField("Item name", text: $title)
-                    .textFieldStyle(EnhancedTextFieldStyle())
-                    .onChange(of: title) { _ in
-                        if autoSaveEnabled { scheduleAutoSave() }
-                    }
+                    .textFieldStyle(BrrowTextFieldStyle())
             }
 
-            // Description with character count
-            VStack(alignment: .leading, spacing: 8) {
+            // Description
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 HStack {
                     Text("Description")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                        .font(Theme.Typography.label)
+                        .foregroundColor(Theme.Colors.secondaryText)
                     Spacer()
                     Text("\(description.count)/500")
-                        .font(.caption)
-                        .foregroundColor(description.count > 500 ? .red : .gray)
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(description.count > 500 ? Theme.Colors.error : Theme.Colors.secondaryText)
                 }
                 TextEditor(text: $description)
-                    .frame(minHeight: 120)
-                    .padding(12)
-                    .background(Theme.Colors.surface)
+                    .frame(minHeight: 100)
+                    .padding(Theme.Spacing.sm)
+                    .background(Theme.Colors.inputBackground)
+                    .cornerRadius(Theme.CornerRadius.card)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
                             .stroke(Theme.Colors.border, lineWidth: 1)
                     )
-                    .onChange(of: description) { _ in
-                        if autoSaveEnabled { scheduleAutoSave() }
-                    }
             }
 
-            // Enhanced category picker
-            VStack(alignment: .leading, spacing: 8) {
+            // Category
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text("Category")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                    .font(Theme.Typography.label)
+                    .foregroundColor(Theme.Colors.secondaryText)
                 Picker("Category", selection: $category) {
                     ForEach(BrrowCategory.allCases, id: \.rawValue) { cat in
-                        HStack {
-                            Image(systemName: cat.iconName)
-                            Text(cat.displayName)
-                        }.tag(cat.rawValue)
+                        Text(cat.displayName).tag(cat.rawValue)
                     }
                 }
                 .pickerStyle(MenuPickerStyle())
-                .padding(12)
-                .background(Theme.Colors.surface)
-                .cornerRadius(12)
+                .padding(Theme.Spacing.gutter)
+                .background(Theme.Colors.inputBackground)
+                .cornerRadius(Theme.CornerRadius.card)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
                         .stroke(Theme.Colors.border, lineWidth: 1)
                 )
             }
         }
-        .padding()
-        .background(Theme.Colors.surface)
-        .cornerRadius(16)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
-    private var enhancedPricingSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    // MARK: - Pricing Section
+    private var pricingSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Pricing")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            // Pricing type selector
-            VStack(alignment: .leading, spacing: 12) {
+            // Listing Type
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text("Listing Type")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                    .font(Theme.Typography.label)
+                    .foregroundColor(Theme.Colors.secondaryText)
 
-                HStack(spacing: 12) {
-                    PricingTypeButton(
-                        title: "For Sale",
-                        icon: "tag.fill",
-                        isSelected: pricingType == "sale",
-                        action: { pricingType = "sale" }
-                    )
-
-                    PricingTypeButton(
-                        title: "For Rent",
-                        icon: "arrow.triangle.2.circlepath",
-                        isSelected: pricingType == "rental",
-                        action: { pricingType = "rental" }
-                    )
-                }
-            }
-
-            // Price fields based on type
-            HStack(spacing: 16) {
-                if pricingType == "sale" || pricingType == "rental" {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(pricingType == "sale" ? "Sale Price" : "Rental Price")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                HStack(spacing: Theme.Spacing.sm) {
+                    Button(action: { pricingType = "sale" }) {
                         HStack {
-                            Text("$")
-                                .foregroundColor(.gray)
-                            TextField("0.00", text: $price)
-                                .keyboardType(.decimalPad)
+                            Image(systemName: "tag.fill")
+                            Text("For Sale")
                         }
-                        .textFieldStyle(EnhancedTextFieldStyle())
+                        .font(Theme.Typography.body)
+                        .foregroundColor(pricingType == "sale" ? .white : Theme.Colors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(Theme.Spacing.gutter)
+                        .background(pricingType == "sale" ? Theme.Colors.primary : Theme.Colors.primary.opacity(0.1))
+                        .cornerRadius(Theme.CornerRadius.card)
                     }
-                }
 
-                if pricingType == "rental" {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Per Day")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                    Button(action: { pricingType = "rental" }) {
                         HStack {
-                            Text("$")
-                                .foregroundColor(.gray)
-                            TextField("0.00", text: $dailyRate)
-                                .keyboardType(.decimalPad)
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Text("For Rent")
                         }
-                        .textFieldStyle(EnhancedTextFieldStyle())
+                        .font(Theme.Typography.body)
+                        .foregroundColor(pricingType == "rental" ? .white : Theme.Colors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(Theme.Spacing.gutter)
+                        .background(pricingType == "rental" ? Theme.Colors.primary : Theme.Colors.primary.opacity(0.1))
+                        .cornerRadius(Theme.CornerRadius.card)
                     }
                 }
             }
 
-            // Security deposit (for rentals)
+            // Price
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text(pricingType == "sale" ? "Sale Price" : "Rental Price")
+                    .font(Theme.Typography.label)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                HStack {
+                    Text("$")
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    TextField("0.00", text: $price)
+                        .keyboardType(.decimalPad)
+                }
+                .textFieldStyle(BrrowTextFieldStyle())
+            }
+
+            // Daily Rate (for rentals)
             if pricingType == "rental" {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Security Deposit (optional)")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Daily Rate")
+                        .font(Theme.Typography.label)
+                        .foregroundColor(Theme.Colors.secondaryText)
                     HStack {
                         Text("$")
-                            .foregroundColor(.gray)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                        TextField("0.00", text: $dailyRate)
+                            .keyboardType(.decimalPad)
+                    }
+                    .textFieldStyle(BrrowTextFieldStyle())
+                }
+
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Security Deposit (optional)")
+                        .font(Theme.Typography.label)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    HStack {
+                        Text("$")
+                            .foregroundColor(Theme.Colors.secondaryText)
                         TextField("0.00", text: $securityDeposit)
                             .keyboardType(.decimalPad)
                     }
-                    .textFieldStyle(EnhancedTextFieldStyle())
+                    .textFieldStyle(BrrowTextFieldStyle())
                 }
             }
 
             // Negotiable toggle
-            Toggle("Price is negotiable", isOn: $isNegotiable)
-                .padding()
-                .background(Theme.Colors.background)
-                .cornerRadius(12)
+            Toggle(isOn: $isNegotiable) {
+                Text("Price is negotiable")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.text)
+            }
+            .tint(Theme.Colors.primary)
         }
-        .padding()
-        .background(Theme.Colors.surface)
-        .cornerRadius(16)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
-    private var enhancedLocationSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Location")
-                    .font(.headline)
-                Spacer()
-                Button("Pick on Map") {
-                    showLocationPicker = true
-                }
-                .font(.caption)
-                .foregroundColor(Theme.Colors.primary)
-            }
+    // MARK: - Location Section
+    private var locationSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("Location")
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            VStack(spacing: 12) {
-                // Address field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Street Address")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    TextField("123 Main St", text: $address)
-                        .textFieldStyle(EnhancedTextFieldStyle())
+            // City and State
+            HStack(spacing: Theme.Spacing.sm) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("City")
+                        .font(Theme.Typography.label)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    TextField("San Francisco", text: $city)
+                        .textFieldStyle(BrrowTextFieldStyle())
                 }
 
-                // City, State, ZIP in a row
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("City")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        TextField("San Francisco", text: $city)
-                            .textFieldStyle(EnhancedTextFieldStyle())
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("State")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        TextField("CA", text: $state)
-                            .textFieldStyle(EnhancedTextFieldStyle())
-                    }
-                    .frame(width: 80)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("ZIP")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        TextField("94102", text: $zipCode)
-                            .textFieldStyle(EnhancedTextFieldStyle())
-                            .keyboardType(.numberPad)
-                    }
-                    .frame(width: 80)
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("State")
+                        .font(Theme.Typography.label)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    TextField("CA", text: $state)
+                        .textFieldStyle(BrrowTextFieldStyle())
                 }
-            }
-
-            // Location preview if coordinates available
-            if let coordinates = coordinates {
-                LocationPreviewView(coordinates: coordinates)
-                    .frame(height: 120)
-                    .cornerRadius(12)
+                .frame(width: 80)
             }
         }
-        .padding()
-        .background(Theme.Colors.surface)
-        .cornerRadius(16)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
-    private var enhancedDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    // MARK: - Details Section
+    private var detailsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Details")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            // Enhanced condition picker
-            VStack(alignment: .leading, spacing: 8) {
+            // Condition
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text("Condition")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                    .font(Theme.Typography.label)
+                    .foregroundColor(Theme.Colors.secondaryText)
                 Picker("Condition", selection: $condition) {
                     ForEach(["NEW", "LIKE_NEW", "EXCELLENT", "GOOD", "FAIR"], id: \.self) { cond in
-                        HStack {
-                            Image(systemName: conditionIcon(cond))
-                            Text(cond.replacingOccurrences(of: "_", with: " ").capitalized)
-                        }.tag(cond)
+                        Text(cond.replacingOccurrences(of: "_", with: " ").capitalized).tag(cond)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
             }
         }
-        .padding()
-        .background(Theme.Colors.surface)
-        .cornerRadius(16)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
+    // MARK: - Delivery Options Section
     private var deliveryOptionsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Delivery Options")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
-            VStack(spacing: 12) {
-                Toggle("Pickup Available", isOn: $pickupAvailable)
-                    .padding()
-                    .background(Theme.Colors.background)
-                    .cornerRadius(12)
+            VStack(spacing: Theme.Spacing.sm) {
+                Toggle(isOn: $pickupAvailable) {
+                    Text("Pickup Available")
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.text)
+                }
+                .tint(Theme.Colors.primary)
 
-                Toggle("Delivery Available", isOn: $deliveryAvailable)
-                    .padding()
-                    .background(Theme.Colors.background)
-                    .cornerRadius(12)
+                Divider()
 
-                Toggle("Shipping Available", isOn: $shippingAvailable)
-                    .padding()
-                    .background(Theme.Colors.background)
-                    .cornerRadius(12)
+                Toggle(isOn: $deliveryAvailable) {
+                    Text("Delivery Available")
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.text)
+                }
+                .tint(Theme.Colors.primary)
+
+                Divider()
+
+                Toggle(isOn: $shippingAvailable) {
+                    Text("Shipping Available")
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.text)
+                }
+                .tint(Theme.Colors.primary)
             }
         }
-        .padding()
-        .background(Theme.Colors.surface)
-        .cornerRadius(16)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
+    // MARK: - Tags Section
     private var tagsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Tags")
-                .font(.headline)
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.Colors.text)
 
             // Existing tags
             if !tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: Theme.Spacing.xs) {
                         ForEach(tags, id: \.self) { tag in
-                            TagView(tag: tag) {
-                                tags.removeAll { $0 == tag }
+                            HStack(spacing: 4) {
+                                Text(tag)
+                                    .font(Theme.Typography.caption)
+                                Button(action: {
+                                    tags.removeAll { $0 == tag }
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(Theme.Typography.caption)
+                                }
                             }
+                            .padding(.horizontal, Theme.Spacing.sm)
+                            .padding(.vertical, Theme.Spacing.xs)
+                            .background(Theme.Colors.primary.opacity(0.1))
+                            .foregroundColor(Theme.Colors.primary)
+                            .cornerRadius(Theme.CornerRadius.sm)
                         }
                     }
                 }
@@ -530,7 +612,7 @@ struct EnhancedEditListingView: View {
             // Add new tag
             HStack {
                 TextField("Add tag...", text: $newTag)
-                    .textFieldStyle(EnhancedTextFieldStyle())
+                    .textFieldStyle(BrrowTextFieldStyle())
                     .onSubmit {
                         addTag()
                     }
@@ -538,16 +620,19 @@ struct EnhancedEditListingView: View {
                 Button("Add") {
                     addTag()
                 }
+                .foregroundColor(Theme.Colors.primary)
                 .disabled(newTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding()
-        .background(Theme.Colors.surface)
-        .cornerRadius(16)
+        .padding(Theme.Spacing.md)
+        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(Theme.Colors.cardBackground))
     }
 
-    private var actionButtons: some View {
-        VStack(spacing: 12) {
+    // MARK: - Save Button
+    private var saveButton: some View {
+        VStack(spacing: 0) {
+            Divider()
+
             Button(action: {
                 if validateForm() {
                     saveChanges()
@@ -559,44 +644,21 @@ struct EnhancedEditListingView: View {
                     if isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.8)
                     } else {
                         Image(systemName: "checkmark.circle.fill")
                         Text("Save Changes")
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Theme.Colors.primary)
+                .font(Theme.Typography.body.weight(.semibold))
                 .foregroundColor(.white)
-                .cornerRadius(12)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(hasChanges() && !isLoading ? Theme.Colors.primary : Theme.Colors.secondaryText))
             }
             .disabled(isLoading || !hasChanges())
-
-            Button(action: { showDeleteConfirmation = true }) {
-                HStack {
-                    Image(systemName: "trash.fill")
-                    Text("Delete Listing")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.red.opacity(0.1))
-                .foregroundColor(.red)
-                .cornerRadius(12)
-            }
-            .disabled(isLoading)
+            .padding(Theme.Spacing.md)
         }
-    }
-
-    private var autoSaveIndicator: some View {
-        HStack {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-            Text("Auto-saved \(timeAgo(lastSaved!))")
-                .font(.caption)
-                .foregroundColor(.gray)
-        }
-        .padding(.vertical, 8)
+        .background(Theme.Colors.background)
     }
 
     // MARK: - Helper Methods
@@ -627,8 +689,8 @@ struct EnhancedEditListingView: View {
         }
 
         if pricingType == "rental" {
-            if Double(dailyRate) == nil || Double(dailyRate)! <= 0 {
-                validationErrors.append("Valid daily rate is required for rentals")
+            if !dailyRate.isEmpty, let rate = Double(dailyRate), rate <= 0 {
+                validationErrors.append("Daily rate must be greater than zero")
             }
         }
 
@@ -637,30 +699,6 @@ struct EnhancedEditListingView: View {
         }
 
         return validationErrors.isEmpty
-    }
-
-    private func setupAutoSave() {
-        // Auto-save every 30 seconds if there are changes
-        Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
-            if autoSaveEnabled && hasChanges() && !isLoading {
-                autoSave()
-            }
-        }
-    }
-
-    private func scheduleAutoSave() {
-        // Debounced auto-save after 3 seconds of inactivity
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            if self.autoSaveEnabled && self.hasChanges() && !self.isLoading {
-                self.autoSave()
-            }
-        }
-    }
-
-    private func autoSave() {
-        if autoSaveEnabled && hasChanges() && !isLoading && validateForm() {
-            saveChanges(silent: true)
-        }
     }
 
     private func updateLocationString() {
@@ -673,23 +711,6 @@ struct EnhancedEditListingView: View {
             tags.append(trimmedTag)
             newTag = ""
         }
-    }
-
-    private func conditionIcon(_ condition: String) -> String {
-        switch condition.uppercased() {
-        case "NEW": return "sparkles"
-        case "LIKE_NEW": return "star.fill"
-        case "EXCELLENT": return "star.circle.fill"
-        case "GOOD": return "checkmark.circle"
-        case "FAIR": return "minus.circle"
-        default: return "questionmark.circle"
-        }
-    }
-
-    private func timeAgo(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private func totalImageCount() -> Int {
@@ -709,11 +730,6 @@ struct EnhancedEditListingView: View {
                tags != listing.tags
     }
 
-    private func createPreviewListing() -> Listing {
-        // Create a preview version of the listing with current edits
-        return listing // This would be expanded to create a modified version
-    }
-
     private func loadSelectedImages(_ items: [PhotosPickerItem]) {
         Task {
             for item in items {
@@ -728,7 +744,7 @@ struct EnhancedEditListingView: View {
         }
     }
 
-    private func saveChanges(silent: Bool = false) {
+    private func saveChanges() {
         guard !isLoading else { return }
 
         isLoading = true
@@ -796,10 +812,7 @@ struct EnhancedEditListingView: View {
 
                 await MainActor.run {
                     isLoading = false
-                    lastSaved = Date()
-                    if !silent {
-                        showSuccessAlert = true
-                    }
+                    showSuccessAlert = true
                 }
 
             } catch {
@@ -839,62 +852,16 @@ struct EnhancedEditListingView: View {
 
 // MARK: - Supporting Views
 
-struct EnhancedTextFieldStyle: TextFieldStyle {
+struct BrrowTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
-            .padding(12)
-            .background(Theme.Colors.surface)
-            .cornerRadius(12)
+            .padding(Theme.Spacing.gutter)
+            .background(Theme.Colors.inputBackground)
+            .cornerRadius(Theme.CornerRadius.card)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
                     .stroke(Theme.Colors.border, lineWidth: 1)
             )
-    }
-}
-
-struct PricingTypeButton: View {
-    let title: String
-    let icon: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: icon)
-                Text(title)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(isSelected ? Theme.Colors.primary : Theme.Colors.background)
-            .foregroundColor(isSelected ? .white : Theme.Colors.text)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Theme.Colors.primary : Theme.Colors.border, lineWidth: 1)
-            )
-        }
-    }
-}
-
-struct TagView: View {
-    let tag: String
-    let onDelete: () -> Void
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(tag)
-                .font(.caption)
-            Button(action: onDelete) {
-                Image(systemName: "xmark")
-                    .font(.caption)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Theme.Colors.primary.opacity(0.1))
-        .foregroundColor(Theme.Colors.primary)
-        .cornerRadius(8)
     }
 }
 
