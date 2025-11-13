@@ -45,11 +45,19 @@ struct ModernCreateGarageSaleView: View {
                     progressHeader
                     
                     // Content
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            stepContent
-                                .padding(.horizontal, 16)
-                                .padding(.top, 24)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(spacing: 24) {
+                                stepContent
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 24)
+                            }
+                            .id("stepContent")
+                        }
+                        .onChange(of: currentStep) { _ in
+                            withAnimation {
+                                proxy.scrollTo("stepContent", anchor: .top)
+                            }
                         }
                     }
                     
