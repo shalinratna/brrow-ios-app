@@ -216,6 +216,7 @@ struct Meetup: Codable, Identifiable {
 
         // Decode dates
         let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
         if let scheduledTimeString = try container.decodeIfPresent(String.self, forKey: .scheduledTime) {
             scheduledTime = dateFormatter.date(from: scheduledTimeString)
