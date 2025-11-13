@@ -304,7 +304,8 @@ struct EnhancedEditListingView: View {
                             .cornerRadius(Theme.CornerRadius.card)
                             .overlay(
                                 RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
-                                    .stroke(Theme.Colors.primary, lineWidth: 2, dash: [5])
+                                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [5]))
+                                    .foregroundColor(Theme.Colors.primary)
                             )
                         }
                     }
