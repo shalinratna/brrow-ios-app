@@ -158,6 +158,7 @@ struct CheckoutFlowContainer: View {
     @State private var sessionId: String?
     @State private var isPolling = false
     @State private var errorMessage: String?
+    @State private var isCreatingSession = false  // Prevent double-tap duplicates
 
     var body: some View {
         ZStack {
@@ -251,6 +252,15 @@ struct CheckoutFlowContainer: View {
     }
 
     private func createCheckoutSession() async {
+        // Prevent double-tap duplicates - only create one session at a time
+        guard !isCreatingSession else {
+            print("⚠️ [CHECKOUT] Session creation already in progress, ignoring duplicate request")
+            return
+        }
+
+        isCreatingSession = true
+        defer { isCreatingSession = false }
+
         do {
             let session = try await paymentService.createCheckoutSession(
                 listingId: listingId,

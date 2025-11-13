@@ -194,3 +194,8 @@ struct GetPurchaseResponse: Codable {
     let success: Bool
     let purchase: Purchase
 }
+
+struct CancelPurchaseResponse: Codable {
+    let success: Bool
+    let message: String?
+}

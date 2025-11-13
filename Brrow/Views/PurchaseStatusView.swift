@@ -13,6 +13,8 @@ struct PurchaseStatusView: View {
     @State private var showingMessageComposer = false
     @State private var showingMeetupCreation = false
     @State private var meetupIsInvalid = false  // Track if meetup ID is stale/deleted
+    @State private var showingCancelConfirmation = false
+    @State private var isCanceling = false
 
     init(purchase: Purchase) {
         self._viewModel = StateObject(wrappedValue: PurchaseStatusViewModel(purchase: purchase))
@@ -93,6 +95,16 @@ struct PurchaseStatusView: View {
                     }
                 )
             }
+        }
+        .alert("Cancel Purchase?", isPresented: $showingCancelConfirmation) {
+            Button("Cancel Purchase", role: .destructive) {
+                Task {
+                    await cancelPurchase()
+                }
+            }
+            Button("Keep Purchase", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to cancel this purchase? Your payment will be refunded to your original payment method.")
         }
     }
 
@@ -405,11 +417,65 @@ struct PurchaseStatusView: View {
                     .frame(height: 50)
                     .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).stroke(Theme.Colors.primary, lineWidth: 2))
                 }
+
+                // Cancel Purchase Button (buyers only, for PENDING or HELD status)
+                if isBuyer && (viewModel.purchase.paymentStatus == .pending || viewModel.purchase.paymentStatus == .held) {
+                    Button(action: {
+                        showingCancelConfirmation = true
+                    }) {
+                        HStack {
+                            if isCanceling {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.error))
+                            } else {
+                                Image(systemName: "xmark.circle.fill")
+                                Text("Cancel Purchase")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                        }
+                        .foregroundColor(Theme.Colors.error)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).stroke(Theme.Colors.error, lineWidth: 2))
+                    }
+                    .disabled(isCanceling)
+                }
             }
         }
     }
 
     // MARK: - Helper Functions
+
+    /// Cancel the purchase and refund the payment
+    private func cancelPurchase() async {
+        isCanceling = true
+        defer { isCanceling = false }
+
+        print("🚫 [PURCHASE STATUS] Canceling purchase: \(viewModel.purchase.id)")
+
+        do {
+            let response: CancelPurchaseResponse = try await APIClient.shared.request(
+                "/api/purchases/\(viewModel.purchase.id)/cancel",
+                method: .POST,
+                body: ["reason": "Canceled by buyer"]
+            )
+
+            if response.success {
+                print("✅ [PURCHASE STATUS] Purchase canceled successfully")
+
+                // Refresh the purchase data to reflect cancellation
+                await MainActor.run {
+                    // Dismiss the view and notify to refresh marketplace
+                    dismiss()
+                    NotificationCenter.default.post(name: Notification.Name("RefreshMarketplace"), object: nil)
+                }
+            } else {
+                print("❌ [PURCHASE STATUS] Failed to cancel purchase: \(response.message ?? "Unknown error")")
+            }
+        } catch {
+            print("❌ [PURCHASE STATUS] Error canceling purchase: \(error.localizedDescription)")
+        }
+    }
 
     /// Proactively validate that a meetup exists before showing "Track Meetup" button
     private func validateMeetupExists(meetupId: String) {
