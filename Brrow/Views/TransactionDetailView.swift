@@ -14,6 +14,8 @@ struct TransactionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingMeetupScheduling = false
     @State private var meetupIsInvalid = false  // Track if meetup ID is stale/deleted
+    @State private var showingCancelPurchaseConfirmation = false
+    @State private var isCancelingPurchase = false
 
     var body: some View {
         ScrollView {
@@ -77,6 +79,17 @@ struct TransactionDetailView: View {
                     // Action buttons (if applicable)
                     if purchase.sellerConfirmed == false && !purchase.isBuyer {
                         SellerActionsSection(viewModel: viewModel, purchaseId: purchase.id)
+                    }
+
+                    // Buyer cancel purchase button
+                    if purchase.isBuyer &&
+                       purchase.paymentStatus != "CANCELLED" &&
+                       purchase.paymentStatus != "CAPTURED" &&
+                       purchase.paymentStatus != "REFUNDED" {
+                        BuyerActionsSection(
+                            showingCancelConfirmation: $showingCancelPurchaseConfirmation,
+                            isCanceling: $isCancelingPurchase
+                        )
                     }
                 }
             }
@@ -146,6 +159,14 @@ struct TransactionDetailView: View {
                 )
             }
         }
+        .alert("Cancel Purchase?", isPresented: $showingCancelPurchaseConfirmation) {
+            Button("Keep Purchase", role: .cancel) {}
+            Button("Cancel Purchase", role: .destructive) {
+                cancelPurchase()
+            }
+        } message: {
+            Text("Are you sure you want to cancel this purchase? Your payment will be refunded to your original payment method.")
+        }
     }
 
     // MARK: - Helper Functions
@@ -194,6 +215,41 @@ struct TransactionDetailView: View {
                     default:
                         break
                     }
+                }
+            }
+        }
+    }
+
+    /// Cancel the purchase and refund the payment
+    private func cancelPurchase() {
+        isCancelingPurchase = true
+
+        Task {
+            do {
+                let response: CancelPurchaseResponse = try await APIClient.shared.request(
+                    "/api/purchases/\(purchaseId)/cancel",
+                    method: .POST,
+                    parameters: ["reason": "Canceled by buyer"]
+                )
+
+                await MainActor.run {
+                    isCancelingPurchase = false
+
+                    if response.success {
+                        print("✅ [TRANSACTION DETAIL] Purchase canceled successfully")
+                        viewModel.successMessage = "Purchase cancelled successfully. Your payment will be refunded."
+                        // Refresh to show updated status
+                        viewModel.fetchPurchaseDetails(purchaseId: purchaseId)
+                    } else {
+                        print("❌ [TRANSACTION DETAIL] Failed to cancel purchase: \(response.message ?? "Unknown error")")
+                        viewModel.errorMessage = response.message ?? "Failed to cancel purchase"
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isCancelingPurchase = false
+                    print("❌ [TRANSACTION DETAIL] Error canceling purchase: \(error.localizedDescription)")
+                    viewModel.errorMessage = "Failed to cancel purchase: \(error.localizedDescription)"
                 }
             }
         }
@@ -658,6 +714,46 @@ struct SellerActionsSection: View {
                     .background(Color.red)
                     .cornerRadius(12)
             }
+        }
+        .padding(.vertical)
+    }
+}
+
+struct BuyerActionsSection: View {
+    @Binding var showingCancelConfirmation: Bool
+    @Binding var isCanceling: Bool
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Button(action: {
+                showingCancelConfirmation = true
+            }) {
+                HStack {
+                    if isCanceling {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        Text("Canceling...")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                    } else {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.white)
+                        Text("Cancel Purchase")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.red)
+                .cornerRadius(12)
+            }
+            .disabled(isCanceling)
+
+            Text("Cancel this purchase and receive a full refund to your original payment method.")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
         }
         .padding(.vertical)
     }
