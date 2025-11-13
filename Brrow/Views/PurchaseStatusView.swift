@@ -457,7 +457,7 @@ struct PurchaseStatusView: View {
             let response: CancelPurchaseResponse = try await APIClient.shared.request(
                 "/api/purchases/\(viewModel.purchase.id)/cancel",
                 method: .POST,
-                body: ["reason": "Canceled by buyer"]
+                parameters: ["reason": "Canceled by buyer"]
             )
 
             if response.success {
