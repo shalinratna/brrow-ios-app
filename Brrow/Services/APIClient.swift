@@ -4108,14 +4108,14 @@ class APIClient: ObservableObject {
                 ]
                 
                 let bodyData = try JSONSerialization.data(withJSONObject: parameters)
-                
+
                 // Custom response handling for complex JSON
                 let baseURL = await self.baseURL
-                var request = URLRequest(url: URL(string: "\(baseURL)/borrow_vs_buy.php")!)
+                var request = URLRequest(url: URL(string: "\(baseURL)/api/calculator/borrow-vs-buy")!)
                 request.httpMethod = "POST"
                 request.httpBody = bodyData
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                
+
                 // Add authentication header
                 if let user = AuthManager.shared.currentUser {
                     request.setValue(user.apiId, forHTTPHeaderField: "X-User-API-ID")
@@ -4129,21 +4129,25 @@ class APIClient: ObservableObject {
                 }
                 
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                
+
                 if let success = json?["success"] as? Bool, success,
-                   let calculation = json?["calculation"] as? [String: Any] {
+                   let responseData = json?["data"] as? [String: Any],
+                   let calculation = responseData["calculation"] as? [String: Any] {
                     var result: [String: Any] = ["calculation": calculation]
-                    
-                    if let insights = json?["insights"] {
+
+                    if let insights = responseData["insights"] {
                         result["insights"] = insights
                     }
-                    if let similarItems = json?["similar_items"] {
-                        result["similar_items"] = similarItems
+                    if let similarRentals = responseData["similar_rentals"] {
+                        result["similar_items"] = similarRentals
                     }
-                    if let userStats = json?["user_stats"] {
-                        result["user_stats"] = userStats
+                    if let environmentalImpact = responseData["environmental_impact"] {
+                        result["environmental_impact"] = environmentalImpact
                     }
-                    
+                    if let userHistory = responseData["user_history"] {
+                        result["user_stats"] = userHistory
+                    }
+
                     completion(.success(result))
                 } else {
                     let error = json?["error"] as? String ?? "Unknown error"
@@ -4360,7 +4364,7 @@ class APIClient: ObservableObject {
     
     func fetchPersonalizedRecommendations() async throws -> [Listing] {
         return try await performRequest(
-            endpoint: "ai_recommendations.php",
+            endpoint: "/api/recommendations/for-you",
             method: .GET,
             responseType: [Listing].self
         )
@@ -4784,26 +4788,10 @@ class APIClient: ObservableObject {
             responseType: StripeSubscription.self
         )
     }
-    
-    func createStripeCheckoutSession(priceId: String?, successUrl: String, cancelUrl: String, metadata: [String: String]? = nil, customAmount: Int? = nil, customDescription: String? = nil) async throws -> StripeCheckoutSession {
-        let request = CreateCheckoutSessionRequest(
-            priceId: priceId,
-            successUrl: successUrl,
-            cancelUrl: cancelUrl,
-            metadata: metadata,
-            customAmount: customAmount,
-            customDescription: customDescription
-        )
-        let bodyData = try JSONEncoder().encode(request)
-        
-        return try await performRequest(
-            endpoint: "stripe_create_checkout.php",
-            method: .POST,
-            body: bodyData,
-            responseType: StripeCheckoutSession.self
-        )
-    }
-    
+
+    // NOTE: Old createStripeCheckoutSession function removed (was for subscriptions)
+    // New marketplace checkout uses PaymentService.createCheckoutSession() instead
+
     func getStripeCustomerPortal() async throws -> StripeCustomerPortal {
         return try await performRequest(
             endpoint: "stripe_customer_portal.php",
