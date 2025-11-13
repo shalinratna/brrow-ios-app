@@ -418,8 +418,12 @@ struct Listing: Codable, Identifiable, Equatable {
         return isActive && availabilityStatus.canPurchase
     }
 
-    // Status badge display text
+    // Status badge display text - context-aware for IN_TRANSACTION status
     var statusDisplayText: String {
+        // For IN_TRANSACTION status, check if it's a rental or sale
+        if availabilityStatus == .inTransaction {
+            return listingType == "rental" ? "Rental Pending" : "Sale Pending"
+        }
         return availabilityStatus.displayText
     }
 

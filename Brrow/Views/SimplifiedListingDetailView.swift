@@ -442,8 +442,28 @@ struct SimplifiedListingDetailView: View {
                         .cornerRadius(25)
                 }
 
-                // Main action button based on listing type
-                if viewModel.listing.type == "rental" {
+                // Check if listing is unavailable (RENTED or SOLD)
+                if viewModel.listing.availabilityStatus == .rented || viewModel.listing.availabilityStatus == .sold {
+                    // Unavailable state - show message
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.orange)
+
+                        Text(viewModel.listing.availabilityStatus == .rented ?
+                             "This item is currently rented and unavailable" :
+                             "This item has been sold")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(Theme.Colors.text)
+                            .multilineTextAlignment(.leading)
+
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                } else if viewModel.listing.type == "rental" {
+                    // Main action button for rentals
                     Button(action: { showingBorrowFlow = true }) {
                         HStack {
                             Image(systemName: "calendar")

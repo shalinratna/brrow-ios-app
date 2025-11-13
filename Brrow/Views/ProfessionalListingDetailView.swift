@@ -558,36 +558,44 @@ struct ProfessionalListingDetailView: View {
             } else {
                 // Simple action buttons
                 VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        Button(action: {
-                            if viewModel.isGuestUser {
-                                viewModel.showGuestAlert = true
-                            } else {
-                                showingMessageComposer = true
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "message.fill")
-                                Text("Message")
-                            }
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Theme.Colors.primary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Theme.Colors.primary, lineWidth: 1.5)
-                            )
-                        }
+                    // Check if listing is unavailable (RENTED or SOLD)
+                    if viewModel.listing.availabilityStatus == .rented || viewModel.listing.availabilityStatus == .sold {
+                        // Unavailable state - show message
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.orange)
 
-                        // Show "Make Offer" button for sale items (always) or negotiable rentals
-                        if viewModel.listing.listingType == "sale" || viewModel.listing.isNegotiable {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Currently Unavailable")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(Theme.Colors.text)
+
+                                    Text(viewModel.listing.availabilityStatus == .rented ?
+                                         "This item is currently rented and unavailable" :
+                                         "This item has been sold")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Theme.Colors.secondaryText)
+                                }
+
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color.orange.opacity(0.1))
+                            .cornerRadius(12)
+
+                            // Still allow messaging the owner
                             Button(action: {
-                                showingMakeOffer = true
+                                if viewModel.isGuestUser {
+                                    viewModel.showGuestAlert = true
+                                } else {
+                                    showingMessageComposer = true
+                                }
                             }) {
                                 HStack {
-                                    Image(systemName: "tag")
-                                    Text("Make Offer")
+                                    Image(systemName: "message.fill")
+                                    Text("Message Owner")
                                 }
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(Theme.Colors.primary)
@@ -599,22 +607,66 @@ struct ProfessionalListingDetailView: View {
                                 )
                             }
                         }
-                    }
+                    } else {
+                        // Available state - show action buttons
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                if viewModel.isGuestUser {
+                                    viewModel.showGuestAlert = true
+                                } else {
+                                    showingMessageComposer = true
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "message.fill")
+                                    Text("Message")
+                                }
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Theme.Colors.primary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Theme.Colors.primary, lineWidth: 1.5)
+                                )
+                            }
 
-                    Button(action: {
-                        if viewModel.listing.listingType == "sale" {
-                            showingBuyNow = true
-                        } else {
-                            showingBorrowOptions = true
+                            // Show "Make Offer" button for sale items (always) or negotiable rentals
+                            if viewModel.listing.listingType == "sale" || viewModel.listing.isNegotiable {
+                                Button(action: {
+                                    showingMakeOffer = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "tag")
+                                        Text("Make Offer")
+                                    }
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(Theme.Colors.primary)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 48)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Theme.Colors.primary, lineWidth: 1.5)
+                                    )
+                                }
+                            }
                         }
-                    }) {
-                        Text(viewModel.listing.listingType == "sale" ? "Buy Now" : "Rent Now")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(viewModel.listing.listingType == "sale" ? Color.red : Theme.Colors.primary)
-                            .cornerRadius(8)
+
+                        Button(action: {
+                            if viewModel.listing.listingType == "sale" {
+                                showingBuyNow = true
+                            } else {
+                                showingBorrowOptions = true
+                            }
+                        }) {
+                            Text(viewModel.listing.listingType == "sale" ? "Buy Now" : "Rent Now")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(viewModel.listing.listingType == "sale" ? Color.red : Theme.Colors.primary)
+                                .cornerRadius(8)
+                        }
                     }
                 }
             }
@@ -638,7 +690,7 @@ struct ProfessionalListingDetailView: View {
                     .foregroundColor(.orange)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Sale Pending")
+                    Text(viewModel.listing.listingType == "rental" ? "Rental Pending" : "Sale Pending")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(Theme.Colors.text)
 
@@ -1055,7 +1107,7 @@ struct ProfessionalListingDetailView: View {
                         Image(systemName: "clock.badge.checkmark.fill")
                             .font(.system(size: 18))
                             .foregroundColor(.orange)
-                        Text("Pending Sale")
+                        Text(viewModel.listing.listingType == "rental" ? "Rental Pending" : "Sale Pending")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.orange)
                     }
@@ -1082,42 +1134,60 @@ struct ProfessionalListingDetailView: View {
                     }
                 } else {
                     // Non-owner actions
-                    Button(action: {
-                        if viewModel.isGuestUser {
-                            viewModel.showGuestAlert = true
-                        } else {
-                            showingMessageComposer = true
+                    // Check if listing is unavailable (RENTED or SOLD)
+                    if viewModel.listing.availabilityStatus == .rented || viewModel.listing.availabilityStatus == .sold {
+                        // Unavailable state - show status badge
+                        HStack(spacing: 8) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.gray)
+                            Text(viewModel.listing.availabilityStatus == .rented ? "Currently Rented" : "Sold")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.gray)
                         }
-                    }) {
-                        Image(systemName: "message.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Circle().fill(Theme.Colors.primary))
-                    }
-
-                    Button(action: { showingShareSheet = true }) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 20))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Circle().fill(Theme.Colors.primary))
-                    }
-
-                    Button(action: {
-                        if viewModel.listing.listingType == "sale" {
-                            showingBuyNow = true
-                        } else {
-                            showingBorrowOptions = true
+                        .padding(.horizontal, 20)
+                        .frame(height: 44)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(22)
+                    } else {
+                        // Available state - show action buttons
+                        Button(action: {
+                            if viewModel.isGuestUser {
+                                viewModel.showGuestAlert = true
+                            } else {
+                                showingMessageComposer = true
+                            }
+                        }) {
+                            Image(systemName: "message.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Circle().fill(Theme.Colors.primary))
                         }
-                    }) {
-                        Text(viewModel.listing.isRental ? "Rent Now" : "Buy Now")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 24)
-                            .frame(height: 44)
-                            .background(viewModel.listing.isRental ? Theme.Colors.primary : Color.red)
-                            .cornerRadius(22)
+
+                        Button(action: { showingShareSheet = true }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Circle().fill(Theme.Colors.primary))
+                        }
+
+                        Button(action: {
+                            if viewModel.listing.listingType == "sale" {
+                                showingBuyNow = true
+                            } else {
+                                showingBorrowOptions = true
+                            }
+                        }) {
+                            Text(viewModel.listing.isRental ? "Rent Now" : "Buy Now")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 24)
+                                .frame(height: 44)
+                                .background(viewModel.listing.isRental ? Theme.Colors.primary : Color.red)
+                                .cornerRadius(22)
+                        }
                     }
                 }
             }

@@ -1167,12 +1167,12 @@ class ProfessionalMarketplaceViewModel: ObservableObject {
             print("🔍 [MARKETPLACE] Condition filter '\(condition)': \(beforeCount) -> \(filtered.count) listings")
         }
 
-        // Apply availability filter
+        // Apply availability filter - only show AVAILABLE status (not RENTED, SOLD, etc.)
         if showOnlyAvailable {
             let beforeCount = filtered.count
-            filtered = filtered.filter { $0.isAvailable }
+            filtered = filtered.filter { $0.availabilityStatus == .available }
             if beforeCount != filtered.count {
-                print("🔍 [MARKETPLACE] Availability filter (only available): \(beforeCount) -> \(filtered.count) listings")
+                print("🔍 [MARKETPLACE] Availability filter (only available for rent/sale): \(beforeCount) -> \(filtered.count) listings")
             }
         }
 
