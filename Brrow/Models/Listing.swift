@@ -229,11 +229,11 @@ struct Listing: Codable, Identifiable, Equatable {
         enum RawKeys: String, CodingKey {
             case id, title, description, condition, price, location, tags, metadata, user, videos, imageUrl
             // camelCase versions
-            case categoryId, dailyRate, estimatedValue, pricingType, isNegotiable, availabilityStatus, userId
+            case categoryId, dailyRate, estimatedValue, buyoutPrice, pricingType, isNegotiable, availabilityStatus, userId
             case viewCount, favoriteCount, isActive, isPremium, premiumExpiresAt, deliveryOptions
             case createdAt, updatedAt, category, images
             // snake_case versions
-            case category_id, daily_rate, estimated_value, pricing_type, is_negotiable, availability_status, user_id
+            case category_id, daily_rate, estimated_value, buyout_price, pricing_type, is_negotiable, availability_status, user_id
             case view_count, favorite_count, is_active, is_premium, premium_expires_at, delivery_options
             case created_at, updated_at, categories, listing_images, imageUrls, _count
         }
