@@ -204,43 +204,45 @@ struct EnhancedEditListingView: View {
         HStack {
             Button(action: { presentationMode.wrappedValue.dismiss() }) {
                 Image(systemName: "xmark")
-                    .font(.title3)
+                    .font(.title3.weight(.semibold))
                     .foregroundColor(Theme.Colors.text)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(Theme.Colors.cardBackground))
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
 
             Spacer()
 
             Text("Edit Listing")
-                .font(Theme.Typography.title)
+                .font(.system(size: 28, weight: .bold))
                 .foregroundColor(Theme.Colors.text)
 
             Spacer()
 
             Button(action: { showDeleteConfirmation = true }) {
                 Image(systemName: "trash")
-                    .font(.title3)
+                    .font(.title3.weight(.semibold))
                     .foregroundColor(Theme.Colors.error)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(Theme.Colors.cardBackground))
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
         }
         .padding(.horizontal, Theme.Spacing.md)
-        .padding(.top, 60)
+        .padding(.top, 16)
         .padding(.bottom, Theme.Spacing.md)
         .background(Theme.Colors.background)
     }
 
     // MARK: - Images Section
     private var imagesSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Photos")
                 .font(Theme.Typography.headline)
                 .foregroundColor(Theme.Colors.text)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.sm) {
+                HStack(spacing: Theme.Spacing.md) {
                     // Existing images
                     ForEach(existingImages, id: \.self) { imageUrl in
                         if !imagesToDelete.contains(imageUrl) {
@@ -254,17 +256,23 @@ struct EnhancedEditListingView: View {
                                         .fill(Theme.Colors.secondaryBackground)
                                         .overlay(ProgressView())
                                 }
-                                .frame(width: 100, height: 100)
-                                .cornerRadius(Theme.CornerRadius.card)
+                                .frame(width: 140, height: 140)
+                                .cornerRadius(Theme.CornerRadius.md)
+                                .shadow(color: Theme.Shadows.card, radius: 4, y: 2)
 
                                 Button(action: {
                                     imagesToDelete.insert(imageUrl)
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
+                                        .font(.title3)
                                         .foregroundColor(.white)
-                                        .background(Circle().fill(Theme.Colors.error))
+                                        .background(
+                                            Circle()
+                                                .fill(Color.black.opacity(0.6))
+                                                .frame(width: 28, height: 28)
+                                        )
                                 }
-                                .padding(4)
+                                .padding(8)
                             }
                         }
                     }
@@ -275,36 +283,45 @@ struct EnhancedEditListingView: View {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(width: 100, height: 100)
-                                .cornerRadius(Theme.CornerRadius.card)
+                                .frame(width: 140, height: 140)
+                                .cornerRadius(Theme.CornerRadius.md)
+                                .shadow(color: Theme.Shadows.card, radius: 4, y: 2)
 
                             Button(action: {
                                 newImages.remove(at: index)
                             }) {
                                 Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
                                     .foregroundColor(.white)
-                                    .background(Circle().fill(Theme.Colors.error))
+                                    .background(
+                                        Circle()
+                                            .fill(Color.black.opacity(0.6))
+                                            .frame(width: 28, height: 28)
+                                    )
                             }
-                            .padding(4)
+                            .padding(8)
                         }
                     }
 
                     // Add photo button
                     if totalImageCount() < 5 {
                         Button(action: { showingImagePicker = true }) {
-                            VStack(spacing: 8) {
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 24))
+                            VStack(spacing: 12) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(Theme.Colors.primary)
                                 Text("Add Photo")
-                                    .font(Theme.Typography.caption)
+                                    .font(Theme.Typography.body)
+                                    .foregroundColor(Theme.Colors.primary)
                             }
-                            .foregroundColor(Theme.Colors.primary)
-                            .frame(width: 100, height: 100)
-                            .background(Theme.Colors.primary.opacity(0.1))
-                            .cornerRadius(Theme.CornerRadius.card)
+                            .frame(width: 140, height: 140)
+                            .background(Theme.Colors.primary.opacity(0.05))
+                            .cornerRadius(Theme.CornerRadius.md)
                             .overlay(
-                                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
-                                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [5]))
+                                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                                    .strokeBorder(
+                                        style: StrokeStyle(lineWidth: 2, dash: [8, 6])
+                                    )
                                     .foregroundColor(Theme.Colors.primary)
                             )
                         }
@@ -641,25 +658,37 @@ struct EnhancedEditListingView: View {
                     showValidationAlert = true
                 }
             }) {
-                HStack {
+                HStack(spacing: 12) {
                     if isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        Text("Saving...")
+                            .font(.system(size: 18, weight: .bold))
                     } else {
                         Image(systemName: "checkmark.circle.fill")
+                            .font(.title3)
                         Text("Save Changes")
+                            .font(.system(size: 18, weight: .bold))
                     }
                 }
-                .font(Theme.Typography.body.weight(.semibold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
-                .background(RoundedRectangle(cornerRadius: Theme.CornerRadius.card).fill(hasChanges() && !isLoading ? Theme.Colors.primary : Theme.Colors.secondaryText))
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                        .fill(hasChanges() && !isLoading ? Theme.Colors.primary : Theme.Colors.secondaryText)
+                )
+                .shadow(
+                    color: hasChanges() && !isLoading ? Theme.Colors.primary.opacity(0.3) : .clear,
+                    radius: 10,
+                    y: 5
+                )
             }
             .disabled(isLoading || !hasChanges())
             .padding(Theme.Spacing.md)
+            .animation(.spring(), value: hasChanges())
         }
-        .background(Theme.Colors.background)
+        .background(.ultraThinMaterial)
     }
 
     // MARK: - Helper Methods
