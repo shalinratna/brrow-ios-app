@@ -268,6 +268,13 @@ struct Listing: Codable, Identifiable, Equatable {
             estimatedValue = try? rawContainer.decodeIfPresent(Double.self, forKey: .estimated_value)
         }
 
+        // Try both formats for buyoutPrice
+        if let val = try? rawContainer.decodeIfPresent(Double.self, forKey: .buyoutPrice) {
+            buyoutPrice = val
+        } else {
+            buyoutPrice = try? rawContainer.decodeIfPresent(Double.self, forKey: .buyout_price)
+        }
+
         // Try both formats for pricingType
         if let val = try? rawContainer.decodeIfPresent(String.self, forKey: .pricingType) {
             pricingType = val
