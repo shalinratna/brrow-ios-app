@@ -83,9 +83,13 @@ struct InlineLocationEditor: View {
             Button(action: {
                 // Update location in buffer
                 let location = Location(
+                    address: addressText,
+                    city: cityText,
+                    state: stateText,
+                    zipCode: zipText,
+                    country: viewModel.listing.location.country,
                     latitude: viewModel.listing.location.latitude,
-                    longitude: viewModel.listing.location.longitude,
-                    formattedAddress: "\(addressText), \(cityText), \(stateText) \(zipText)"
+                    longitude: viewModel.listing.location.longitude
                 )
                 viewModel.updateBuffer(key: "location", value: location)
             }) {
@@ -103,9 +107,15 @@ struct InlineLocationEditor: View {
         }
         .onAppear {
             if let location = viewModel.editBuffer["location"] as? Location {
-                addressText = location.formattedAddress
+                addressText = location.address
+                cityText = location.city
+                stateText = location.state
+                zipText = location.zipCode
             } else {
-                addressText = viewModel.listing.location.formattedAddress
+                addressText = viewModel.listing.location.address
+                cityText = viewModel.listing.location.city
+                stateText = viewModel.listing.location.state
+                zipText = viewModel.listing.location.zipCode
             }
         }
     }
