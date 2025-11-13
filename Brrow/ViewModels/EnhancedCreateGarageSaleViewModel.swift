@@ -130,13 +130,18 @@ class EnhancedCreateGarageSaleViewModel: ObservableObject {
         addressError = nil
         
         locationService.getCurrentLocationFormatted()
+            .timeout(.seconds(30), scheduler: DispatchQueue.main, customError: { LocationError.locationTimeout })
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isUsingCurrentLocation = false
-                    
+
                     if case .failure(let error) = completion {
-                        self?.addressError = error.localizedDescription
+                        if let locationError = error as? LocationError, case .locationTimeout = locationError {
+                            self?.addressError = "Location request timed out. Please try again or enter address manually."
+                        } else {
+                            self?.addressError = error.localizedDescription
+                        }
                     }
                 },
                 receiveValue: { [weak self] result in
