@@ -119,7 +119,7 @@ struct RentalDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Listing Image
             if let listing = booking.listing,
-               let firstImage = listing.listingImages?.first {
+               let firstImage = listing.images.first {
                 AsyncImage(url: URL(string: firstImage.imageUrl)) { image in
                     image
                         .resizable()
@@ -330,7 +330,7 @@ struct RentalDetailView: View {
     private func userCard(user: User) -> some View {
         HStack(spacing: 12) {
             // Profile Picture
-            if let profileUrl = user.profilePictureUrl {
+            if let profileUrl = user.profilePicture {
                 AsyncImage(url: URL(string: profileUrl)) { image in
                     image
                         .resizable()
