@@ -136,7 +136,7 @@ struct PendingOfferCard: View {
                                         .lineLimit(1)
 
                                     // Verification badge
-                                    if borrower.isVerified {
+                                    if borrower.isVerified == true {
                                         Image(systemName: "checkmark.seal.fill")
                                             .font(.system(size: 14))
                                             .foregroundColor(.white.opacity(0.9))
