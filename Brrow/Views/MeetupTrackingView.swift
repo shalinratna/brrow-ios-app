@@ -31,6 +31,8 @@ struct MeetupTrackingView: View {
     @State private var proximityCheckTimer: Timer?
     @State private var showManualArrivalAlert = false
     @State private var userDistanceFromMeetup: Double?
+    @State private var showingOverrideWarning = false
+    @State private var calculatedDistance: Double = 0
 
     @State private var cancellables = Set<AnyCancellable>()
 
@@ -151,10 +153,52 @@ struct MeetupTrackingView: View {
     private func mapView(for meetup: Meetup) -> some View {
         let annotations = buildAnnotations(for: meetup)
 
-        return Map(coordinateRegion: $region, annotationItems: annotations) { item in
-            MapMarker(coordinate: item.coordinate, tint: item.color)
+        return ZStack(alignment: .bottom) {
+            Map(coordinateRegion: $region, annotationItems: annotations) { item in
+                MapMarker(coordinate: item.coordinate, tint: item.color)
+            }
+            .edgesIgnoringSafeArea(.all)
+
+            // Distance display overlay
+            if let meetupLoc = meetup.meetupLocation,
+               let userLocation = locationService.currentLocation {
+                let meetupLocation = CLLocation(latitude: meetupLoc.latitude, longitude: meetupLoc.longitude)
+                let distanceMeters = userLocation.distance(from: meetupLocation)
+                let distanceMiles = DistanceFormatter.metersToMiles(distanceMeters)
+
+                VStack(spacing: 4) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "location.circle.fill")
+                            .foregroundColor(distanceColor(for: distanceMiles))
+                        Text(DistanceFormatter.formatDistance(distanceMeters))
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(distanceColor(for: distanceMiles))
+                        Text("to meetup")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule()
+                            .fill(Color.black.opacity(0.75))
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    )
+                }
+                .padding(.bottom, 160) // Position above bottom card
+            }
         }
-        .edgesIgnoringSafeArea(.all)
+    }
+
+    // Distance color coding
+    private func distanceColor(for miles: Double) -> Color {
+        if miles < 0.1 {
+            return Theme.Colors.success  // Green: < 0.1 miles
+        } else if miles < 0.5 {
+            return Theme.Colors.warning  // Yellow: 0.1 - 0.5 miles
+        } else {
+            return Theme.Colors.error    // Red: > 0.5 miles
+        }
     }
 
 
@@ -335,7 +379,7 @@ struct MeetupTrackingView: View {
                 .cornerRadius(Theme.CornerRadius.card)
             } else {
                 VStack(spacing: Theme.Spacing.sm) {
-                    if let proximityStatus = proximityStatus {
+                    if proximityStatus != nil {
                         Text("Waiting for both users to arrive at the meetup location...")
                             .font(Theme.Typography.body)
                             .foregroundColor(Theme.Colors.secondaryText)
@@ -368,18 +412,24 @@ struct MeetupTrackingView: View {
                 .cornerRadius(Theme.CornerRadius.card)
             }
         }
-        .alert("Confirm Manual Arrival", isPresented: $showManualArrivalAlert) {
+        .alert("⚠️ Location Override", isPresented: $showingOverrideWarning) {
             Button("Cancel", role: .cancel) { }
-            Button("Yes, I'm Here") {
+            Button("Yes, I'm Here", role: .destructive) {
                 confirmManualArrival(meetup: meetup)
             }
         } message: {
-            if let distance = userDistanceFromMeetup {
-                let distanceText = DistanceFormatter.formatDistance(distance)
-                Text("Your location doesn't indicate you're nearby (\(distanceText) away). Are you sure you want to mark yourself as arrived?")
-            } else {
-                Text("Are you sure you want to mark yourself as arrived?")
-            }
+            let distanceMiles = DistanceFormatter.metersToMiles(calculatedDistance)
+            let distanceText = String(format: "%.1f", distanceMiles)
+            Text("""
+            You're currently \(distanceText) miles away from the meetup location.
+
+            Are you sure you want to mark yourself as arrived? This should only be used if:
+            • You're at the correct location but GPS is inaccurate
+            • You've arranged an alternative meetup spot
+            • The other party has confirmed the change
+
+            Misusing this feature may result in account suspension.
+            """)
         }
     }
 
@@ -549,21 +599,22 @@ struct MeetupTrackingView: View {
         // Calculate distance from user to meetup location
         guard let userLocation = locationService.currentLocation,
               let meetupLoc = meetup.meetupLocation else {
-            // If we can't get locations, just show the confirmation
-            showManualArrivalAlert = true
+            // If we can't get locations, show warning
+            calculatedDistance = 0
+            showingOverrideWarning = true
             return
         }
 
         let meetupLocation = CLLocation(latitude: meetupLoc.latitude, longitude: meetupLoc.longitude)
         let distanceMeters = userLocation.distance(from: meetupLocation)
-        userDistanceFromMeetup = distanceMeters
+        calculatedDistance = distanceMeters
 
-        // Check if within 30 miles
-        let distanceMiles = DistanceFormatter.metersToMiles(distanceMeters)
+        // Check if within 50 meters (0.03 miles)
+        let proximityThresholdMeters: Double = 50.0
 
-        if distanceMiles > DistanceFormatter.maxManualOverrideMiles {
-            // Show alert with distance warning
-            showManualArrivalAlert = true
+        if distanceMeters > proximityThresholdMeters {
+            // Show override warning alert
+            showingOverrideWarning = true
         } else {
             // Within acceptable range, confirm directly
             confirmManualArrival(meetup: meetup)
@@ -593,35 +644,40 @@ struct MeetupTrackingView: View {
     private func buildAnnotations(for meetup: Meetup) -> [MapMarkerItem] {
         var items: [MapMarkerItem] = []
 
-        // Meetup location (only if exists)
+        let currentUserId = AuthManager.shared.currentUser?.id
+        let isBuyer = currentUserId == meetup.buyerId
+
+        // Meetup destination location (ORANGE pin, larger, static)
         if let meetupLoc = meetup.meetupLocation {
             items.append(MapMarkerItem(
                 coordinate: meetupLoc.coordinate,
                 label: "Meetup",
                 icon: "mappin.circle.fill",
-                color: Theme.Colors.primary,
+                color: Theme.Colors.accentOrange,
                 userId: nil // Meetup location, not a user
             ))
         }
 
-        // Current user location only - DO NOT show other user's location for privacy
-        let currentUserId = AuthManager.shared.currentUser?.id
-        let isBuyer = currentUserId == meetup.buyerId
-
-        if isBuyer, let buyerLoc = meetup.buyerLocation {
+        // Buyer location (BLUE if current user, RED if other party)
+        if let buyerLoc = meetup.buyerLocation {
+            let isCurrentUser = isBuyer
             items.append(MapMarkerItem(
                 coordinate: buyerLoc.coordinate,
-                label: "You",
+                label: isCurrentUser ? "You" : "Other Party",
                 icon: "location.fill",
-                color: Theme.Colors.accentBlue,
+                color: isCurrentUser ? Theme.Colors.accentBlue : Theme.Colors.accent,
                 userId: meetup.buyerId
             ))
-        } else if !isBuyer, let sellerLoc = meetup.sellerLocation {
+        }
+
+        // Seller location (BLUE if current user, RED if other party)
+        if let sellerLoc = meetup.sellerLocation {
+            let isCurrentUser = !isBuyer
             items.append(MapMarkerItem(
                 coordinate: sellerLoc.coordinate,
-                label: "You",
+                label: isCurrentUser ? "You" : "Other Party",
                 icon: "location.fill",
-                color: Theme.Colors.accentBlue,
+                color: isCurrentUser ? Theme.Colors.accentBlue : Theme.Colors.accent,
                 userId: meetup.sellerId
             ))
         }
