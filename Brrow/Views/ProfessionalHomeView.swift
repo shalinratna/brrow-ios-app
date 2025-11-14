@@ -473,6 +473,33 @@ struct ProfessionalHomeView: View {
             // News Carousel
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.md) {
+                    // Get top actionable items (max 2 total)
+                    let actionableItems = viewModel.topActionableItems
+
+                    // Pending Purchase Cards
+                    ForEach(actionableItems.purchases) { purchase in
+                        PendingPurchaseCard(purchase: purchase) {
+                            // TODO: Navigate to purchase detail/verification view
+                            print("💳 Tapped purchase: \(purchase.id)")
+                        }
+                    }
+
+                    // Pending Offer Cards
+                    ForEach(actionableItems.offers) { offer in
+                        PendingOfferCard(offer: offer) {
+                            // TODO: Navigate to offer detail view
+                            print("🏷️ Tapped offer: \(offer.id)")
+                        }
+                    }
+
+                    // Upcoming Meetup Cards (only if slots remaining)
+                    ForEach(actionableItems.meetups) { meetup in
+                        MeetupCard(meetup: meetup) {
+                            // TODO: Navigate to transaction/meetup detail view
+                            print("📍 Tapped meetup: \(meetup.id)")
+                        }
+                    }
+
                     // Welcome Promotion (ACTIVE)
                     NewsPromotionCard(
                         title: "🎉 Brrow is Just Getting Started!",
@@ -914,22 +941,52 @@ class ProfessionalHomeViewModel: ObservableObject {
     @Published var featuredItems: [FeaturedItem] = []
     @Published var recentActivities: [ProfessionalRecentActivity] = []
     @Published var nearbyGarageSales: [GarageSaleItem] = []
+    @Published var upcomingMeetups: [UpcomingMeetup] = []
+    @Published var pendingPurchases: [Purchase] = []
+    @Published var pendingOffers: [Offer] = []
     @Published var errorMessage: String?
     @Published var toastMessage: String?
     @Published var toastType: ToastModifier.ToastType = .error
     @Published var isLoadingFeatured = false
-    
+
     init() {
         updateGreeting()
         // Data will be loaded from API
     }
-    
+
     func loadHomeData() {
         Task {
             await loadFeaturedItems()
             await loadRecentActivities()
             await loadGarageSales()
+            await loadUpcomingMeetups()
+            await loadPendingTransactions()
         }
+    }
+
+    // Get top 2 actionable items (purchases, offers, or meetups)
+    var topActionableItems: (purchases: [Purchase], offers: [Offer], meetups: [UpcomingMeetup]) {
+        let sortedPurchases = pendingPurchases.sorted { $0.deadline < $1.deadline }
+        let sortedOffers = pendingOffers.sorted { offer1, offer2 in
+            // Sort by expiration date if available, otherwise keep original order
+            if let exp1 = offer1.expiresAt, let exp2 = offer2.expiresAt {
+                return exp1 < exp2
+            }
+            return false
+        }
+        let sortedMeetups = upcomingMeetups // Already sorted by API
+
+        // Priority: Purchases > Offers > Meetups, max 2 total
+        var remainingSlots = 2
+        let purchasesToShow = Array(sortedPurchases.prefix(remainingSlots))
+        remainingSlots -= purchasesToShow.count
+
+        let offersToShow = remainingSlots > 0 ? Array(sortedOffers.prefix(remainingSlots)) : []
+        remainingSlots -= offersToShow.count
+
+        let meetupsToShow = remainingSlots > 0 ? Array(sortedMeetups.prefix(remainingSlots)) : []
+
+        return (purchasesToShow, offersToShow, meetupsToShow)
     }
     
     func refreshData() async {
@@ -1000,7 +1057,61 @@ class ProfessionalHomeViewModel: ObservableObject {
             self.recentActivities = []
         }
     }
-    
+
+    private func loadUpcomingMeetups() async {
+        do {
+            let meetups = try await APIClient.shared.fetchUpcomingMeetups()
+            await MainActor.run {
+                self.upcomingMeetups = Array(meetups.prefix(2)) // Max 2 meetups as requested
+                print("📍 DEBUG: Loaded \(meetups.count) upcoming meetups (showing \(self.upcomingMeetups.count))")
+            }
+        } catch {
+            print("❌ Failed to load upcoming meetups: \(error)")
+            await MainActor.run {
+                self.upcomingMeetups = []
+            }
+        }
+    }
+
+    private func loadPendingTransactions() async {
+        // Load purchases and offers in parallel
+        async let purchasesTask = loadPendingPurchases()
+        async let offersTask = loadPendingOffers()
+
+        await purchasesTask
+        await offersTask
+    }
+
+    private func loadPendingPurchases() async {
+        do {
+            let purchases = try await APIClient.shared.fetchPendingPurchases()
+            await MainActor.run {
+                self.pendingPurchases = purchases
+                print("💳 DEBUG: Loaded \(purchases.count) pending purchases")
+            }
+        } catch {
+            print("❌ Failed to load pending purchases: \(error)")
+            await MainActor.run {
+                self.pendingPurchases = []
+            }
+        }
+    }
+
+    private func loadPendingOffers() async {
+        do {
+            let offers = try await APIClient.shared.fetchPendingOffers()
+            await MainActor.run {
+                self.pendingOffers = offers
+                print("🏷️ DEBUG: Loaded \(offers.count) pending offers")
+            }
+        } catch {
+            print("❌ Failed to load pending offers: \(error)")
+            await MainActor.run {
+                self.pendingOffers = []
+            }
+        }
+    }
+
 }
 
 // MARK: - Calculator Launcher View

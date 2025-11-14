@@ -348,9 +348,15 @@ class APIClient: ObservableObject {
                 case 400...499:
                     // Client error - don't retry
                     let errorMessage: String
-                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let message = errorData["error"] as? String {
-                        errorMessage = message
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        // Try "message" field first (our standard), then "error" field (legacy)
+                        if let message = errorData["message"] as? String {
+                            errorMessage = message
+                        } else if let error = errorData["error"] as? String {
+                            errorMessage = error
+                        } else {
+                            errorMessage = String(data: data, encoding: .utf8) ?? "Client error"
+                        }
                     } else {
                         errorMessage = String(data: data, encoding: .utf8) ?? "Client error"
                     }
@@ -948,7 +954,7 @@ class APIClient: ObservableObject {
         
         return authResponse
     }
-    
+
     // MARK: - Combine-based Authentication (for legacy support)
     func login(email: String, password: String) -> AnyPublisher<AuthResponse, BrrowAPIError> {
         return Future { promise in
@@ -987,31 +993,56 @@ class APIClient: ObservableObject {
     }
     
     // MARK: - Password Reset
-    func requestPasswordReset(email: String) async throws -> PasswordResetResponse {
-        let requestData = ["email": email]
-        let bodyData = try JSONEncoder().encode(requestData)
-        
-        return try await performRequest(
-            endpoint: "api/auth/request-password-reset",
+    func requestPasswordReset(email: String) async throws {
+        struct ForgotPasswordRequest: Codable {
+            let email: String
+        }
+
+        struct ForgotPasswordResponse: Codable {
+            let success: Bool
+            let message: String?
+        }
+
+        let request = ForgotPasswordRequest(email: email)
+        let bodyData = try JSONEncoder().encode(request)
+
+        let response = try await performRequest(
+            endpoint: "api/auth/forgot-password",
             method: .POST,
             body: bodyData,
-            responseType: PasswordResetResponse.self
+            responseType: ForgotPasswordResponse.self
         )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to send reset email")
+        }
     }
-    
-    func resetPassword(token: String, newPassword: String) async throws -> PasswordResetResponse {
-        let requestData = [
-            "token": token,
-            "password": newPassword
-        ]
-        let bodyData = try JSONEncoder().encode(requestData)
-        
-        return try await performRequest(
+
+    func resetPassword(email: String, token: String, newPassword: String) async throws {
+        struct ResetPasswordRequest: Codable {
+            let email: String
+            let token: String
+            let newPassword: String
+        }
+
+        struct ResetPasswordResponse: Codable {
+            let success: Bool
+            let message: String?
+        }
+
+        let request = ResetPasswordRequest(email: email, token: token, newPassword: newPassword)
+        let bodyData = try JSONEncoder().encode(request)
+
+        let response = try await performRequest(
             endpoint: "api/auth/reset-password",
             method: .POST,
             body: bodyData,
-            responseType: PasswordResetResponse.self
+            responseType: ResetPasswordResponse.self
         )
+
+        guard response.success else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to reset password")
+        }
     }
     
     // MARK: - Creator System
@@ -1623,7 +1654,7 @@ class APIClient: ObservableObject {
 
         struct UpdateListingAPIResponse: Codable {
             let success: Bool
-            let listing: Listing?
+            let data: Listing?  // Backend returns "data", not "listing"
             let error: String?
         }
 
@@ -1635,7 +1666,7 @@ class APIClient: ObservableObject {
             cachePolicy: .ignoreCache // Don't use cache for updates
         )
 
-        guard response.success, let updatedListing = response.listing else {
+        guard response.success, let updatedListing = response.data else {
             throw BrrowAPIError.serverError(response.error ?? "Failed to update listing")
         }
 
@@ -3476,6 +3507,76 @@ class APIClient: ObservableObject {
         )
     }
     
+    func fetchUpcomingMeetups() async throws -> [UpcomingMeetup] {
+        struct MeetupsResponse: Codable {
+            let data: [UpcomingMeetup]
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/transactions/upcoming/meetups",
+            method: .GET,
+            responseType: APIResponse<MeetupsResponse>.self
+        )
+
+        guard response.success, let data = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch upcoming meetups")
+        }
+
+        return data.data
+    }
+
+    func fetchPendingPurchases() async throws -> [Purchase] {
+        struct PurchasesResponse: Codable {
+            let purchases: [Purchase]
+            let pagination: PaginationInfo?
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/purchases?status=pending",
+            method: .GET,
+            responseType: APIResponse<PurchasesResponse>.self
+        )
+
+        guard response.success, let data = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch pending purchases")
+        }
+
+        return data.purchases
+    }
+
+    func fetchPendingOffers() async throws -> [Offer] {
+        let response = try await performRequest(
+            endpoint: "api/offers?status=pending&type=received",
+            method: .GET,
+            responseType: APIResponse<[Offer]>.self
+        )
+
+        guard response.success, let offers = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch pending offers")
+        }
+
+        return offers
+    }
+
+    func fetchPendingTransactions() async throws -> [Transaction] {
+        struct TransactionsResponse: Codable {
+            let transactions: [Transaction]
+            let pagination: PaginationInfo?
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/transactions?status=pending,confirmed",
+            method: .GET,
+            responseType: APIResponse<TransactionsResponse>.self
+        )
+
+        guard response.success, let data = response.data else {
+            throw BrrowAPIError.serverError(response.message ?? "Failed to fetch pending transactions")
+        }
+
+        return data.transactions
+    }
+
     func extendTransaction(transactionId: Int, additionalDays: Int) async throws -> Transaction {
         let request = APIExtendTransactionRequest(transactionId: String(transactionId), additionalDays: additionalDays)
         let bodyData = try JSONEncoder().encode(request)
