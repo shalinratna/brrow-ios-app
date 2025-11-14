@@ -52,33 +52,40 @@ struct TransactionDetailView: View {
                         TimelineSection(steps: purchase.timeline)
 
                         // Receipt
-                        ReceiptSection(receipt: purchase.receipt, amount: purchase.amount)
+                        ReceiptSection(purchase: purchase)
                     }
 
                     // Check if purchase is cancelled (expired)
                     if purchase.paymentStatus == "CANCELLED" {
                         // Transaction cancelled/expired - show expired message
                         TransactionExpiredSection(cancellationReason: purchase.cancellationReason, cancelledAt: purchase.cancelledAt)
-                    } else if let meetup = purchase.meetup,
-                       !meetupIsInvalid,
-                       meetup.status != "EXPIRED",
-                       meetup.status != "CANCELLED",
-                       meetup.meetupLocation != nil || meetup.scheduledTime != nil {
-                        // Meetup exists, is valid, NOT expired/cancelled, AND has data - show tracking
-                        MeetupTrackingSection(meetupId: meetup.id, viewModel: viewModel)
-                    } else if let meetup = purchase.meetup, (meetup.status == "EXPIRED") {
-                        // Meetup expired - show expired message
-                        MeetupExpiredSection()
-                    } else {
-                        // No meetup OR meetup is incomplete OR meetup is invalid - show scheduling
-                        MeetupSchedulingSection(
-                            showingMeetupScheduling: $showingMeetupScheduling
-                        )
                     }
 
-                    // Action buttons (if applicable)
+                    // Action buttons (if applicable) - Show these BEFORE meetup section
                     if purchase.sellerConfirmed == false && !purchase.isBuyer {
+                        // Seller hasn't confirmed yet - show action buttons for seller
                         SellerActionsSection(viewModel: viewModel, purchaseId: purchase.id)
+                    } else if purchase.sellerConfirmed == false && purchase.isBuyer {
+                        // Buyer is waiting for seller to confirm
+                        WaitingForSellerSection()
+                    } else if purchase.sellerConfirmed {
+                        // Only show meetup section AFTER seller has confirmed
+                        if let meetup = purchase.meetup,
+                           !meetupIsInvalid,
+                           meetup.status != "EXPIRED",
+                           meetup.status != "CANCELLED",
+                           meetup.meetupLocation != nil || meetup.scheduledTime != nil {
+                            // Meetup exists, is valid, NOT expired/cancelled, AND has data - show tracking
+                            MeetupTrackingSection(meetupId: meetup.id, viewModel: viewModel)
+                        } else if let meetup = purchase.meetup, (meetup.status == "EXPIRED") {
+                            // Meetup expired - show expired message
+                            MeetupExpiredSection()
+                        } else {
+                            // No meetup OR meetup is incomplete OR meetup is invalid - show scheduling
+                            MeetupSchedulingSection(
+                                showingMeetupScheduling: $showingMeetupScheduling
+                            )
+                        }
                     }
 
                     // Buyer cancel purchase button
@@ -285,10 +292,20 @@ struct ListingInfoSection: View {
                             .foregroundColor(.gray)
                             .lineLimit(3)
 
-                        Text("$\(String(format: "%.2f", listing.price))")
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.blue)
+                        // Show price based on purchase type
+                        if purchase.purchaseType == .buyNow || purchase.purchaseType == .acceptedOffer {
+                            // For sales, show just the price
+                            Text("$\(String(format: "%.2f", listing.price))")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        } else {
+                            // For rentals, show daily rate
+                            Text("$\(String(format: "%.2f", listing.price))/day")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        }
                     }
 
                     Spacer()
@@ -448,8 +465,24 @@ struct TimelineStepView: View {
 }
 
 struct ReceiptSection: View {
-    let receipt: Receipt
-    let amount: Double
+    let purchase: PurchaseDetail
+
+    private var numberOfDays: Int {
+        guard let listing = purchase.listing else { return 1 }
+        // Calculate number of days based on amount / daily rate
+        let days = Int(round(purchase.amount / listing.price))
+        return max(1, days) // Minimum 1 day
+    }
+
+    private var dailyRateCost: Double {
+        guard let listing = purchase.listing else { return purchase.amount }
+        return listing.price * Double(numberOfDays)
+    }
+
+    private var insuranceCost: Double {
+        // Insurance is the difference between amount and daily rate cost
+        return purchase.receipt.subtotal - dailyRateCost
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -457,11 +490,37 @@ struct ReceiptSection: View {
                 .font(.headline)
 
             VStack(spacing: 10) {
-                ReceiptRow(label: "Subtotal", value: formatCurrency(receipt.subtotal))
-                // Show promotions/discounts if any (placeholder for future implementation)
+                // Show price breakdown based on purchase type
+                if let listing = purchase.listing {
+                    if purchase.purchaseType == .buyNow || purchase.purchaseType == .acceptedOffer {
+                        // For sales (BUY_NOW/ACCEPTED_OFFER), show item price
+                        ReceiptRow(
+                            label: "Item Price",
+                            value: formatCurrency(listing.price)
+                        )
+                    } else {
+                        // For rentals, show daily rate breakdown
+                        ReceiptRow(
+                            label: "Daily Rate",
+                            value: formatCurrency(listing.price),
+                            note: "$\(String(format: "%.2f", listing.price)) × \(numberOfDays) day\(numberOfDays > 1 ? "s" : "") = $\(String(format: "%.2f", dailyRateCost))"
+                        )
+                    }
+
+                    // Show insurance if there's any
+                    if insuranceCost > 0.01 {
+                        ReceiptRow(
+                            label: "Optional Insurance",
+                            value: formatCurrency(insuranceCost)
+                        )
+                    }
+                }
+
+                Divider()
+                ReceiptRow(label: "Subtotal", value: formatCurrency(purchase.receipt.subtotal))
                 // Note: Stripe fees are NOT shown to buyers - they never pay more than subtotal
                 Divider()
-                ReceiptRow(label: "Total", value: formatCurrency(receipt.subtotal), isBold: true)
+                ReceiptRow(label: "Total", value: formatCurrency(purchase.receipt.subtotal), isBold: true)
             }
         }
         .padding()
@@ -653,6 +712,53 @@ struct TransactionExpiredSection: View {
     }
 }
 
+struct WaitingForSellerSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "hourglass")
+                    .foregroundColor(Theme.Colors.primary)
+                    .font(.system(size: 36))
+                Text("Waiting for Seller")
+                    .font(Theme.Typography.title)
+                    .foregroundColor(Theme.Colors.primary)
+            }
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("Your purchase is pending seller confirmation")
+                    .font(Theme.Typography.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.text)
+
+                Text("The seller has been notified of your purchase. Once they confirm, you'll be able to schedule a meetup to complete the exchange.")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundColor(Theme.Colors.primary)
+                        .font(.system(size: 16))
+                    Text("Your payment is securely held and won't be charged until you verify the item.")
+                        .font(Theme.Typography.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(Theme.Colors.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, Theme.Spacing.xs)
+            }
+        }
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Colors.primary.opacity(0.08))
+        .cornerRadius(Theme.CornerRadius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(Theme.Colors.primary.opacity(0.3), lineWidth: 1.5)
+        )
+        .padding(.horizontal, Theme.Spacing.md)
+    }
+}
+
 struct MeetupExpiredSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -690,29 +796,52 @@ struct SellerActionsSection: View {
     let purchaseId: String
 
     var body: some View {
-        VStack(spacing: 12) {
-            Button(action: {
-                viewModel.acceptPurchase(purchaseId: purchaseId)
-            }) {
-                Text("Accept Purchase")
+        VStack(alignment: .leading, spacing: 16) {
+            // Instructional header
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Action Required")
                     .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .cornerRadius(12)
-            }
+                    .fontWeight(.bold)
 
-            Button(action: {
-                viewModel.declinePurchase(purchaseId: purchaseId)
-            }) {
-                Text("Decline Purchase")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red)
-                    .cornerRadius(12)
+                Text("A buyer has requested to rent your item. Review the transaction details above and decide whether to accept or decline this rental request.")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("After accepting, you'll schedule a meetup to exchange the item.")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.top, 4)
+            }
+            .padding()
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(12)
+
+            // Action buttons
+            VStack(spacing: 12) {
+                Button(action: {
+                    viewModel.acceptPurchase(purchaseId: purchaseId)
+                }) {
+                    Text("Accept Purchase")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .cornerRadius(12)
+                }
+
+                Button(action: {
+                    viewModel.declinePurchase(purchaseId: purchaseId)
+                }) {
+                    Text("Decline Purchase")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(12)
+                }
             }
         }
         .padding(.vertical)
