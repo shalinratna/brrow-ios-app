@@ -18,7 +18,7 @@ struct ScheduleRentalMeetupView: View {
 
     var onScheduled: (Meetup) -> Void
 
-    @StateObject private var locationManager = LocationManager()
+    @StateObject private var locationManager: LocationManager
     @StateObject private var rentalService = RentalBookingService.shared
 
     @State private var selectedLocation: CLLocationCoordinate2D
@@ -44,6 +44,9 @@ struct ScheduleRentalMeetupView: View {
         self.suggestedLocation = suggestedLocation
         self.suggestedTime = suggestedTime
         self.onScheduled = onScheduled
+
+        // Initialize LocationManager
+        _locationManager = StateObject(wrappedValue: LocationManager())
 
         // Initialize location and date
         let initialLocation = suggestedLocation?.coordinate ?? CLLocationCoordinate2D(
