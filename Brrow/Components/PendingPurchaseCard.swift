@@ -94,8 +94,8 @@ struct PendingPurchaseCard: View {
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(.white.opacity(0.8))
 
-                                    if let profilePicture = otherParty.profilePicture, !profilePicture.isEmpty {
-                                        BrrowAsyncImage(url: profilePicture) { image in
+                                    if let profilePictureUrl = otherParty.profilePictureUrl, !profilePictureUrl.isEmpty {
+                                        BrrowAsyncImage(url: profilePictureUrl) { image in
                                             image
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fill)
