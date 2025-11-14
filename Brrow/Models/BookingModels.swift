@@ -19,7 +19,7 @@ struct Booking: Codable, Identifiable {
     let totalAmount: Double
     let platformFee: Double
     let brrowProtectionFee: Double
-    let status: BookingStatus
+    let status: GeneralBookingStatus
     let bookingType: BookingType
     let specialRequests: String?
     let pickupLocation: Location?
@@ -54,7 +54,7 @@ struct Booking: Codable, Identifiable {
     }
 }
 
-enum BookingStatus: String, Codable, CaseIterable {
+enum GeneralBookingStatus: String, Codable, CaseIterable {
     case pending = "PENDING"
     case confirmed = "CONFIRMED"
     case active = "ACTIVE"
@@ -338,7 +338,7 @@ struct CreateBookingRequest: Codable {
 }
 
 struct UpdateBookingRequest: Codable {
-    let status: BookingStatus?
+    let status: GeneralBookingStatus?
     let startDate: String?
     let endDate: String?
     let specialRequests: String?
@@ -430,7 +430,7 @@ struct UpdateAvailabilityRequest: Codable {
 // MARK: - Booking Filters & Search
 
 struct BookingFilters: Codable {
-    var status: BookingStatus?
+    var status: GeneralBookingStatus?
     var bookingType: BookingType?
     var dateRange: DateRange?
     var userId: String?
