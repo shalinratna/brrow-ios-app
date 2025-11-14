@@ -31,13 +31,17 @@ struct TransactionDetailView: View {
                             .fontWeight(.bold)
 
                         if let displayId = purchase.transactionDisplayId {
+                            // Color based on completion status
+                            let isComplete = purchase.paymentStatus == "CAPTURED"
+                            let statusColor: Color = isComplete ? Theme.Colors.success : .blue
+
                             Text(displayId)
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.blue)
+                                .foregroundColor(statusColor)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 6)
-                                .background(Color.blue.opacity(0.1))
+                                .background(statusColor.opacity(0.1))
                                 .cornerRadius(8)
                         }
                     }
@@ -61,6 +65,9 @@ struct TransactionDetailView: View {
                         TransactionExpiredSection(cancellationReason: purchase.cancellationReason, cancelledAt: purchase.cancelledAt)
                     }
 
+                    // Check if transaction is complete
+                    let isTransactionComplete = purchase.paymentStatus == "CAPTURED"
+
                     // Action buttons (if applicable) - Show these BEFORE meetup section
                     if purchase.sellerConfirmed == false && !purchase.isBuyer {
                         // Seller hasn't confirmed yet - show action buttons for seller
@@ -68,8 +75,13 @@ struct TransactionDetailView: View {
                     } else if purchase.sellerConfirmed == false && purchase.isBuyer {
                         // Buyer is waiting for seller to confirm
                         WaitingForSellerSection()
+                    } else if isTransactionComplete {
+                        // Transaction is complete - show completed state
+                        if let meetup = purchase.meetup {
+                            CompletedTransactionSection(meetup: meetup, purchase: purchase)
+                        }
                     } else if purchase.sellerConfirmed {
-                        // Only show meetup section AFTER seller has confirmed
+                        // Only show meetup section AFTER seller has confirmed and before completion
                         if let meetup = purchase.meetup,
                            !meetupIsInvalid,
                            meetup.status != "EXPIRED",
@@ -754,6 +766,105 @@ struct WaitingForSellerSection: View {
         .overlay(
             RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
                 .stroke(Theme.Colors.primary.opacity(0.3), lineWidth: 1.5)
+        )
+        .padding(.horizontal, Theme.Spacing.md)
+    }
+}
+
+struct CompletedTransactionSection: View {
+    let meetup: PurchaseMeetup
+    let purchase: PurchaseDetail
+
+    private var formattedDate: String {
+        guard let verifiedAt = meetup.verifiedAt else {
+            return "Recently"
+        }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: ISO8601DateFormatter().date(from: verifiedAt) ?? Date())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            // Success header
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundColor(Theme.Colors.success)
+                    .font(.system(size: 36))
+                Text("Transaction Complete!")
+                    .font(Theme.Typography.title)
+                    .foregroundColor(Theme.Colors.success)
+            }
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("Payment captured and verified")
+                    .font(Theme.Typography.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.text)
+
+                Text("This transaction was successfully completed on \(formattedDate). The payment has been captured and funds will be transferred to the seller's account.")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Meetup details (past tense)
+                if let location = meetup.meetupLocation {
+                    Divider()
+                        .padding(.vertical, Theme.Spacing.xs)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(Theme.Colors.info)
+                                .font(.system(size: 16))
+                            Text("Meetup Location")
+                                .font(Theme.Typography.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Theme.Colors.text)
+                        }
+
+                        Text(location.address)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
+
+                // Payment status for buyer
+                if purchase.isBuyer {
+                    HStack(spacing: 6) {
+                        Image(systemName: "creditcard.fill")
+                            .foregroundColor(Theme.Colors.success)
+                            .font(.system(size: 16))
+                        Text("Your payment method was charged $\(String(format: "%.2f", purchase.amount))")
+                            .font(Theme.Typography.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Theme.Colors.success)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, Theme.Spacing.xs)
+                } else {
+                    // Payment status for seller
+                    HStack(spacing: 6) {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .foregroundColor(Theme.Colors.success)
+                            .font(.system(size: 16))
+                        Text("Funds will be transferred to your account within 2-3 business days")
+                            .font(Theme.Typography.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Theme.Colors.success)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, Theme.Spacing.xs)
+                }
+            }
+        }
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Colors.success.opacity(0.08))
+        .cornerRadius(Theme.CornerRadius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(Theme.Colors.success.opacity(0.3), lineWidth: 1.5)
         )
         .padding(.horizontal, Theme.Spacing.md)
     }

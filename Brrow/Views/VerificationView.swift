@@ -20,6 +20,7 @@ struct VerificationView: View {
     @State private var selectedTab = 0
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var isDismissing = false
 
     var isSeller: Bool {
         AuthManager.shared.currentUser?.id == meetup.sellerId
@@ -88,6 +89,7 @@ struct PINVerificationView: View {
     let isSeller: Bool
     let onVerificationComplete: ((VerificationResult) -> Void)?
 
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var meetupService = MeetupService.shared
     @State private var generatedCode: VerificationCode?
     @State private var pinInput = ""
@@ -96,6 +98,10 @@ struct PINVerificationView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showSuccess = false
+    @State private var isPollingPayment = false
+    @State private var pollingAttempts = 0
+    @State private var pollingTimer: Timer?
+    @State private var verificationResult: VerificationResult?
 
     @State private var cancellables = Set<AnyCancellable>()
 
@@ -112,6 +118,17 @@ struct PINVerificationView: View {
         case .return:
             return "Return verified! The rental is complete. Payment will be processed."
         }
+    }
+
+    var statusMessage: String {
+        if isPollingPayment {
+            return "Confirming payment capture..."
+        } else if isVerifying {
+            return "Verifying..."
+        } else if isGenerating {
+            return "Generating PIN..."
+        }
+        return ""
     }
 
     var instructionText: String {
@@ -150,6 +167,9 @@ struct PINVerificationView: View {
         } message: {
             Text(successMessage)
         }
+        .onDisappear {
+            cleanup()
+        }
     }
 
     // MARK: - Seller View
@@ -169,6 +189,23 @@ struct PINVerificationView: View {
                     .font(Theme.Typography.body)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .multilineTextAlignment(.center)
+            }
+
+            // Polling Status
+            if isPollingPayment {
+                VStack(spacing: Theme.Spacing.sm) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.primary))
+                    Text(statusMessage)
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    Text("Attempt \(pollingAttempts) of 15")
+                        .font(Theme.Typography.footnote)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.secondaryBackground)
+                .cornerRadius(Theme.CornerRadius.card)
             }
 
             // Generated PIN Display
@@ -377,6 +414,9 @@ struct PINVerificationView: View {
                     print("   Is Expired: \(code.isExpired)")
                     generatedCode = code
                     print("   State updated: generatedCode = \(String(describing: generatedCode))")
+
+                    // Start polling for payment capture after generating code
+                    startPollingForPaymentCapture()
                 }
             )
             .store(in: &cancellables)
@@ -406,11 +446,98 @@ struct PINVerificationView: View {
                     print("   Payment Captured: \(result.paymentCaptured)")
                     print("   Is Purchase: \(result.isPurchase ?? false)")
                     print("   Is Transaction: \(result.isTransaction ?? false)")
+
+                    verificationResult = result
                     showSuccess = true
+
+                    // Call completion callback
                     onVerificationComplete?(result)
+
+                    // Auto-dismiss after 2 seconds for buyer
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                        print("🔄 [VerificationView] Auto-dismissing after successful verification")
+                        dismiss()
+                    }
                 }
             )
             .store(in: &cancellables)
+    }
+
+    // MARK: - Payment Polling Functions
+    private func startPollingForPaymentCapture() {
+        guard isSeller, let transactionId = meetup.transactionId else {
+            print("⚠️ [VerificationView] Not seller or no transactionId, skipping polling")
+            return
+        }
+
+        print("🔄 [VerificationView] Starting payment capture polling for transaction: \(transactionId)")
+        isPollingPayment = true
+        pollingAttempts = 0
+
+        // Start timer to poll every 2 seconds
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [self] timer in
+            Task { @MainActor in
+                await self.checkPaymentStatus(transactionId: transactionId, timer: timer)
+            }
+        }
+    }
+
+    @MainActor
+    private func checkPaymentStatus(transactionId: String, timer: Timer) async {
+        pollingAttempts += 1
+        print("🔍 [VerificationView] Polling attempt \(pollingAttempts)/15 for transaction: \(transactionId)")
+
+        // Stop after 15 attempts (30 seconds)
+        if pollingAttempts > 15 {
+            print("⏱ [VerificationView] Polling timeout reached")
+            stopPolling()
+            return
+        }
+
+        do {
+            let transaction = try await TransactionService.shared.fetchTransactionDetails(transactionId: transactionId)
+            print("📊 [VerificationView] Transaction status: \(transaction.paymentStatus)")
+
+            if transaction.paymentStatus.uppercased() == "CAPTURED" {
+                print("✅ [VerificationView] Payment captured! Auto-dismissing view")
+                stopPolling()
+
+                // Show success message briefly
+                showSuccess = true
+
+                // Create verification result
+                let result = VerificationResult(
+                    verified: true,
+                    meetupStatus: "VERIFIED",
+                    transactionStatus: transaction.paymentStatus,
+                    paymentCaptured: true,
+                    isPurchase: true,
+                    isTransaction: true
+                )
+
+                // Call completion callback
+                onVerificationComplete?(result)
+
+                // Auto-dismiss after 2 seconds
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                dismiss()
+            }
+        } catch {
+            print("❌ [VerificationView] Error polling transaction: \(error.localizedDescription)")
+        }
+    }
+
+    private func stopPolling() {
+        print("🛑 [VerificationView] Stopping payment polling")
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+        isPollingPayment = false
+    }
+
+    private func cleanup() {
+        stopPolling()
+        cancellables.removeAll()
     }
 }
 
@@ -420,6 +547,7 @@ struct QRVerificationView: View {
     let isSeller: Bool
     let onVerificationComplete: ((VerificationResult) -> Void)?
 
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var meetupService = MeetupService.shared
     @State private var generatedCode: VerificationCode?
     @State private var qrCodeImage: UIImage?
@@ -429,6 +557,10 @@ struct QRVerificationView: View {
     @State private var errorMessage = ""
     @State private var showSuccess = false
     @State private var showScanner = false
+    @State private var isPollingPayment = false
+    @State private var pollingAttempts = 0
+    @State private var pollingTimer: Timer?
+    @State private var verificationResult: VerificationResult?
 
     @State private var cancellables = Set<AnyCancellable>()
 
@@ -445,6 +577,17 @@ struct QRVerificationView: View {
         case .return:
             return "Return verified! The rental is complete. Payment will be processed."
         }
+    }
+
+    var statusMessage: String {
+        if isPollingPayment {
+            return "Confirming payment capture..."
+        } else if isVerifying {
+            return "Verifying..."
+        } else if isGenerating {
+            return "Generating QR code..."
+        }
+        return ""
     }
 
     var instructionText: String {
@@ -489,6 +632,9 @@ struct QRVerificationView: View {
         } message: {
             Text(successMessage)
         }
+        .onDisappear {
+            cleanup()
+        }
     }
 
     // MARK: - Seller View
@@ -508,6 +654,23 @@ struct QRVerificationView: View {
                     .font(Theme.Typography.body)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .multilineTextAlignment(.center)
+            }
+
+            // Polling Status
+            if isPollingPayment {
+                VStack(spacing: Theme.Spacing.sm) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Theme.Colors.primary))
+                    Text(statusMessage)
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    Text("Attempt \(pollingAttempts) of 15")
+                        .font(Theme.Typography.footnote)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .padding(Theme.Spacing.md)
+                .background(Theme.Colors.secondaryBackground)
+                .cornerRadius(Theme.CornerRadius.card)
             }
 
             // QR Code Display
@@ -613,6 +776,9 @@ struct QRVerificationView: View {
                     generatedCode = code
                     qrCodeImage = generateQRCodeImage(from: code.codeValue)
                     print("   State updated with QR code image")
+
+                    // Start polling for payment capture after generating code
+                    startPollingForPaymentCapture()
                 }
             )
             .store(in: &cancellables)
@@ -662,11 +828,98 @@ struct QRVerificationView: View {
                     print("   Payment Captured: \(result.paymentCaptured)")
                     print("   Is Purchase: \(result.isPurchase ?? false)")
                     print("   Is Transaction: \(result.isTransaction ?? false)")
+
+                    verificationResult = result
                     showSuccess = true
+
+                    // Call completion callback
                     onVerificationComplete?(result)
+
+                    // Auto-dismiss after 2 seconds for buyer
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                        print("🔄 [VerificationView] Auto-dismissing after successful QR verification")
+                        dismiss()
+                    }
                 }
             )
             .store(in: &cancellables)
+    }
+
+    // MARK: - Payment Polling Functions
+    private func startPollingForPaymentCapture() {
+        guard isSeller, let transactionId = meetup.transactionId else {
+            print("⚠️ [VerificationView] Not seller or no transactionId, skipping polling")
+            return
+        }
+
+        print("🔄 [VerificationView] Starting payment capture polling for transaction: \(transactionId)")
+        isPollingPayment = true
+        pollingAttempts = 0
+
+        // Start timer to poll every 2 seconds
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [self] timer in
+            Task { @MainActor in
+                await self.checkPaymentStatus(transactionId: transactionId, timer: timer)
+            }
+        }
+    }
+
+    @MainActor
+    private func checkPaymentStatus(transactionId: String, timer: Timer) async {
+        pollingAttempts += 1
+        print("🔍 [VerificationView] Polling attempt \(pollingAttempts)/15 for transaction: \(transactionId)")
+
+        // Stop after 15 attempts (30 seconds)
+        if pollingAttempts > 15 {
+            print("⏱ [VerificationView] Polling timeout reached")
+            stopPolling()
+            return
+        }
+
+        do {
+            let transaction = try await TransactionService.shared.fetchTransactionDetails(transactionId: transactionId)
+            print("📊 [VerificationView] Transaction status: \(transaction.paymentStatus)")
+
+            if transaction.paymentStatus.uppercased() == "CAPTURED" {
+                print("✅ [VerificationView] Payment captured! Auto-dismissing view")
+                stopPolling()
+
+                // Show success message briefly
+                showSuccess = true
+
+                // Create verification result
+                let result = VerificationResult(
+                    verified: true,
+                    meetupStatus: "VERIFIED",
+                    transactionStatus: transaction.paymentStatus,
+                    paymentCaptured: true,
+                    isPurchase: true,
+                    isTransaction: true
+                )
+
+                // Call completion callback
+                onVerificationComplete?(result)
+
+                // Auto-dismiss after 2 seconds
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                dismiss()
+            }
+        } catch {
+            print("❌ [VerificationView] Error polling transaction: \(error.localizedDescription)")
+        }
+    }
+
+    private func stopPolling() {
+        print("🛑 [VerificationView] Stopping payment polling")
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+        isPollingPayment = false
+    }
+
+    private func cleanup() {
+        stopPolling()
+        cancellables.removeAll()
     }
 }
 
