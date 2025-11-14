@@ -47,8 +47,8 @@ enum MeetupStatus: String, Codable {
 
 // MARK: - Verification Method
 enum VerificationMethod: String, Codable {
-    case pinCode = "PIN"
-    case qrCode = "QR"
+    case pinCode = "PIN_CODE"
+    case qrCode = "QR_CODE"
 
     var displayName: String {
         switch self {
@@ -144,11 +144,36 @@ struct MeetupPurchase: Codable {
     }
 }
 
+// MARK: - Meetup Type
+enum MeetupType: String, Codable {
+    case sale = "SALE"          // Single meetup for purchases/sales
+    case pickup = "PICKUP"      // First meetup for rentals (item handoff)
+    case `return` = "RETURN"    // Second meetup for rentals (item return)
+
+    var displayName: String {
+        switch self {
+        case .sale: return "Sale Meetup"
+        case .pickup: return "Pickup"
+        case .return: return "Return"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .sale: return "handshake.fill"
+        case .pickup: return "shippingbox.fill"
+        case .return: return "arrow.uturn.backward"
+        }
+    }
+}
+
 // MARK: - Meetup Model
 struct Meetup: Codable, Identifiable {
     let id: String
     let transactionId: String?
     let purchaseId: String?
+    let bookingId: String?         // NEW: For rental bookings
+    let meetupType: MeetupType?    // NEW: SALE, PICKUP, or RETURN
     let buyerId: String
     let sellerId: String
     let meetupLocation: MeetupLocation?
@@ -176,6 +201,8 @@ struct Meetup: Codable, Identifiable {
         case id
         case transactionId = "transaction_id"
         case purchaseId = "purchase_id"
+        case bookingId = "booking_id"
+        case meetupType = "meetup_type"
         case buyerId = "buyer_id"
         case sellerId = "seller_id"
         case meetupLocation = "meetup_location"
@@ -201,6 +228,8 @@ struct Meetup: Codable, Identifiable {
         id = try container.decode(String.self, forKey: .id)
         transactionId = try container.decodeIfPresent(String.self, forKey: .transactionId)
         purchaseId = try container.decodeIfPresent(String.self, forKey: .purchaseId)
+        bookingId = try container.decodeIfPresent(String.self, forKey: .bookingId)
+        meetupType = try container.decodeIfPresent(MeetupType.self, forKey: .meetupType)
         buyerId = try container.decode(String.self, forKey: .buyerId)
         sellerId = try container.decode(String.self, forKey: .sellerId)
         meetupLocation = try container.decodeIfPresent(MeetupLocation.self, forKey: .meetupLocation)
@@ -311,13 +340,31 @@ struct VerificationCode: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
+        print("🔍 [VerificationCode] Starting decode...")
+
         id = try container.decode(String.self, forKey: .id)
+        print("   ID: \(id)")
+
         codeType = try container.decode(VerificationMethod.self, forKey: .codeType)
+        print("   CodeType: \(codeType)")
+
         codeValue = try container.decode(String.self, forKey: .codeValue)
+        print("   CodeValue: \(codeValue)")
 
         let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let expiresAtString = try container.decode(String.self, forKey: .expiresAt)
-        expiresAt = dateFormatter.date(from: expiresAtString) ?? Date()
+        print("   ExpiresAt String: \(expiresAtString)")
+
+        if let date = dateFormatter.date(from: expiresAtString) {
+            expiresAt = date
+            print("   ✅ Parsed date: \(date)")
+        } else {
+            print("   ⚠️ Failed to parse date, using current date")
+            expiresAt = Date()
+        }
+
+        print("✅ [VerificationCode] Decode complete")
     }
 
     var isExpired: Bool {
@@ -383,14 +430,18 @@ struct VerificationResultResponse: Codable {
 struct VerificationResult: Codable {
     let verified: Bool
     let meetupStatus: String
-    let transactionStatus: String
+    let transactionStatus: String?
     let paymentCaptured: Bool
+    let isPurchase: Bool?
+    let isTransaction: Bool?
 
     enum CodingKeys: String, CodingKey {
         case verified
         case meetupStatus = "meetupStatus"
         case transactionStatus = "transactionStatus"
         case paymentCaptured = "paymentCaptured"
+        case isPurchase = "isPurchase"
+        case isTransaction = "isTransaction"
     }
 }
 
@@ -415,4 +466,42 @@ struct LocationUpdateData: Codable {
         case meetup, distance
         case withinProximity = "withinProximity"
     }
+}
+
+// MARK: - Upcoming Meetup (for News & Updates)
+struct UpcomingMeetup: Codable, Identifiable {
+    let id: String
+    let transactionType: String
+    let status: String
+    let amount: Double
+    let meetupTime: Date?
+    let meetupLocation: String?
+    let meetupLatitude: Double?
+    let meetupLongitude: Double?
+    let buyer: UpcomingMeetupUser
+    let seller: UpcomingMeetupUser
+    let listing: UpcomingMeetupListing
+    let userRole: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, transactionType, status, amount
+        case meetupTime, meetupLocation, meetupLatitude, meetupLongitude
+        case buyer, seller, listing, userRole
+    }
+}
+
+struct UpcomingMeetupUser: Codable {
+    let id: String
+    let username: String
+    let displayName: String?
+    let profilePicture: String?
+    let rating: Double
+}
+
+struct UpcomingMeetupListing: Codable {
+    let id: String
+    let title: String
+    let price: Double
+    let dailyRate: Double?
+    let image: String?
 }
