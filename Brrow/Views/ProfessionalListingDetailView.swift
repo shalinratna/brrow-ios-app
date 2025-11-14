@@ -380,16 +380,16 @@ struct ProfessionalListingDetailView: View {
     
     // MARK: - Title and Price (Simple & Clean)
     private var titlePriceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Price first (like Facebook Marketplace) - tappable for owners
-            let currentUser = AuthManager.shared.currentUser
-            let isOwner = currentUser != nil && (
-                viewModel.listing.userId == currentUser?.id ||
-                viewModel.listing.userId == currentUser?.apiId ||
-                viewModel.listing.user?.apiId == currentUser?.apiId ||
-                viewModel.listing.user?.id == currentUser?.id
-            )
+        let currentUser = AuthManager.shared.currentUser
+        let isOwner = currentUser != nil && (
+            viewModel.listing.userId == currentUser?.id ||
+            viewModel.listing.userId == currentUser?.apiId ||
+            viewModel.listing.user?.apiId == currentUser?.apiId ||
+            viewModel.listing.user?.id == currentUser?.id
+        )
 
+        return VStack(alignment: .leading, spacing: 12) {
+            // Price first (like Facebook Marketplace) - tappable for owners
             Button(action: {
                 if isOwner {
                     editViewModel.startEditing(viewModel.listing.isRental ? .dailyRate : .price)
@@ -450,16 +450,8 @@ struct ProfessionalListingDetailView: View {
             }
             .buttonStyle(PlainButtonStyle())
             .disabled(!isOwner)
-            
-            // Title (tappable for owners)
-            let currentUser = AuthManager.shared.currentUser
-            let isOwner = currentUser != nil && (
-                viewModel.listing.userId == currentUser?.id ||
-                viewModel.listing.userId == currentUser?.apiId ||
-                viewModel.listing.user?.apiId == currentUser?.apiId ||
-                viewModel.listing.user?.id == currentUser?.id
-            )
 
+            // Title (tappable for owners)
             Button(action: {
                 if isOwner {
                     editViewModel.startEditing(.title)
