@@ -200,6 +200,10 @@ class AuthManager: ObservableObject {
             // Clear favorites
             FavoritesManager.shared.clearAll()
 
+            // Clear all notifications to prevent cross-user notification display
+            NotificationManager.shared.clearAllNotifications()
+            print("🔔 [AUTH] All notifications cleared")
+
             // Logout from OneSignal
             // OneSignal.logout()
             print("📱 OneSignal user will be logged out")

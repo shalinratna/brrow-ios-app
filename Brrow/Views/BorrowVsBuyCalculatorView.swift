@@ -134,28 +134,58 @@ struct BorrowVsBuyCalculatorView: View {
             Text("How long do you need it?")
                 .font(.headline)
             
-            // Usage days slider
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("\(selectedUsageDays) days")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Theme.Colors.primary)
-                    
+            // Usage days slider (limited to 1-30 days)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(selectedUsageDays)")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundColor(Theme.Colors.primary)
+                        Text(selectedUsageDays == 1 ? "day" : "days")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
                     Spacer()
-                    
-                    Text("$\(String(format: "%.2f", listing.price * Double(selectedUsageDays))) total")
-                        .font(.callout)
-                        .foregroundColor(.gray)
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("$\(String(format: "%.2f", listing.price * Double(selectedUsageDays)))")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                        Text("total cost")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
-                
+
+                // Slider with range 1-30 days
                 Slider(value: Binding(
                     get: { Double(selectedUsageDays) },
                     set: { selectedUsageDays = Int($0) }
-                ), in: 1...365, step: 1)
+                ), in: 1...30, step: 1)
                 .accentColor(Theme.Colors.primary)
                 .onChange(of: selectedUsageDays) { _ in
                     viewModel.calculate(days: selectedUsageDays, frequency: selectedFrequency)
+                }
+
+                // Quick selection buttons
+                HStack(spacing: 8) {
+                    ForEach([1, 3, 7, 14, 30], id: \.self) { days in
+                        Button(action: {
+                            selectedUsageDays = days
+                            viewModel.calculate(days: selectedUsageDays, frequency: selectedFrequency)
+                        }) {
+                            Text("\(days)d")
+                                .font(.caption)
+                                .fontWeight(selectedUsageDays == days ? .bold : .regular)
+                                .foregroundColor(selectedUsageDays == days ? .white : .secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(selectedUsageDays == days ? Theme.Colors.primary : Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                        }
+                    }
                 }
             }
             

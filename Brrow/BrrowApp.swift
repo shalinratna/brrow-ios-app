@@ -381,6 +381,21 @@ struct BrrowApp: App {
                 print("   - session_id: \(sessionId ?? "none")")
                 print("   - listing_id: \(listingId ?? "none")")
                 print("   - purchase_id: \(purchaseId ?? "none")")
+                print("   - Full URL: \(url.absoluteString)")
+
+                // Validate that we have a session ID
+                guard let validSessionId = sessionId, !validSessionId.isEmpty else {
+                    print("❌ [PAYMENT] ERROR: Missing session_id in payment callback")
+                    print("   - This might indicate a problem with Stripe checkout configuration")
+                    print("   - Expected URL format: brrowapp://payment/success?session_id={CHECKOUT_SESSION_ID}")
+
+                    // Show user-friendly error
+                    ToastManager.shared.showError(
+                        title: "Payment Verification Failed",
+                        message: "Unable to verify payment. Please check your transactions or contact support."
+                    )
+                    return
+                }
 
                 // Post notification for CheckoutFlowContainer and other payment views
                 // This notification is used by both Checkout Sessions (new) and legacy PaymentSheet flows
@@ -388,7 +403,7 @@ struct BrrowApp: App {
                     name: Notification.Name("ShowPaymentSuccess"),
                     object: nil,
                     userInfo: [
-                        "sessionId": sessionId ?? "",
+                        "sessionId": validSessionId,
                         "listingId": listingId ?? "",
                         "purchaseId": purchaseId ?? ""
                     ]

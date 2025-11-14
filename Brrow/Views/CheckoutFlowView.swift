@@ -199,19 +199,49 @@ struct CheckoutFlowContainer: View {
                 )
                 .ignoresSafeArea()
             } else if isPolling {
-                // Show polling indicator
-                VStack(spacing: 20) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .tint(.white)
+                // Show polling indicator with improved UI
+                VStack(spacing: 24) {
+                    // Animated checkmark circle
+                    ZStack {
+                        Circle()
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 4)
+                            .frame(width: 80, height: 80)
 
-                    Text("Verifying payment...")
-                        .foregroundColor(.white)
-                        .font(.headline)
+                        Circle()
+                            .trim(from: 0, to: 0.7)
+                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .frame(width: 80, height: 80)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isPolling)
+
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.blue)
+                            .opacity(0.3)
+                    }
+
+                    VStack(spacing: 8) {
+                        Text("Verifying Payment")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+
+                        Text("This usually takes a few seconds")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .padding(40)
-                .background(Color.black.opacity(0.8))
-                .cornerRadius(16)
+                .frame(maxWidth: 320)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color(.separator), lineWidth: 1)
+                )
             }
         }
         .task {
