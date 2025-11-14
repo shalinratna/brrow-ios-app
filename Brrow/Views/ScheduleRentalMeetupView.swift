@@ -280,10 +280,10 @@ struct ScheduleRentalMeetupView: View {
 
     // MARK: - Helper Functions
     private func useCurrentLocation() {
-        locationManager.requestLocation()
+        locationManager.requestSingleLocation()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            if let location = locationManager.location {
+            if let location = locationManager.currentLocation {
                 selectedLocation = location.coordinate
                 region = MKCoordinateRegion(
                     center: location.coordinate,
