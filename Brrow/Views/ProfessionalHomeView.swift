@@ -158,17 +158,17 @@ struct ProfessionalHomeView: View {
                             .frame(width: 44, height: 44)
                             .background(Theme.Colors.secondaryBackground)
                             .clipShape(Circle())
-                        
-                        if viewModel.unreadNotifications > 0 {
+
+                        if viewModel.actionableNotificationCount > 0 {
                             Circle()
                                 .fill(Theme.Colors.accent)
-                                .frame(width: 12, height: 12)
+                                .frame(width: 20, height: 20)
                                 .overlay(
-                                    Text("\(viewModel.unreadNotifications)")
-                                        .font(.system(size: 8, weight: .bold))
+                                    Text("\(viewModel.actionableNotificationCount)")
+                                        .font(.system(size: 10, weight: .bold))
                                         .foregroundColor(.white)
                                 )
-                                .offset(x: -8, y: 8)
+                                .offset(x: -6, y: 6)
                         }
                     }
                 }
@@ -962,6 +962,11 @@ class ProfessionalHomeViewModel: ObservableObject {
             await loadUpcomingMeetups()
             await loadPendingTransactions()
         }
+    }
+
+    // Get total count of actionable notifications (for badge display)
+    var actionableNotificationCount: Int {
+        return pendingPurchases.count + pendingOffers.count + unreadNotifications
     }
 
     // Get top 2 actionable items (purchases, offers, or meetups)

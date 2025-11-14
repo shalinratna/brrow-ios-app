@@ -3531,8 +3531,9 @@ class APIClient: ObservableObject {
             let pagination: PaginationInfo?
         }
 
+        // Use /my-purchases endpoint with role=seller to get purchases awaiting seller confirmation
         let response = try await performRequest(
-            endpoint: "api/purchases?status=pending",
+            endpoint: "api/purchases/my-purchases?role=seller&status=PENDING",
             method: .GET,
             responseType: APIResponse<PurchasesResponse>.self
         )

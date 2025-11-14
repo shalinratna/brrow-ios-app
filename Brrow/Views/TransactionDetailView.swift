@@ -64,7 +64,7 @@ struct TransactionDetailView: View {
                     // Action buttons (if applicable) - Show these BEFORE meetup section
                     if purchase.sellerConfirmed == false && !purchase.isBuyer {
                         // Seller hasn't confirmed yet - show action buttons for seller
-                        SellerActionsSection(viewModel: viewModel, purchaseId: purchase.id)
+                        SellerActionsSection(viewModel: viewModel, purchaseId: purchase.id, purchaseType: purchase.purchaseType)
                     } else if purchase.sellerConfirmed == false && purchase.isBuyer {
                         // Buyer is waiting for seller to confirm
                         WaitingForSellerSection()
@@ -293,7 +293,7 @@ struct ListingInfoSection: View {
                             .lineLimit(3)
 
                         // Show price based on purchase type
-                        if purchase.purchaseType == .buyNow || purchase.purchaseType == .acceptedOffer {
+                        if purchase.purchaseType == "BUY_NOW" || purchase.purchaseType == "ACCEPTED_OFFER" {
                             // For sales, show just the price
                             Text("$\(String(format: "%.2f", listing.price))")
                                 .font(.title3)
@@ -492,7 +492,7 @@ struct ReceiptSection: View {
             VStack(spacing: 10) {
                 // Show price breakdown based on purchase type
                 if let listing = purchase.listing {
-                    if purchase.purchaseType == .buyNow || purchase.purchaseType == .acceptedOffer {
+                    if purchase.purchaseType == "BUY_NOW" || purchase.purchaseType == "ACCEPTED_OFFER" {
                         // For sales (BUY_NOW/ACCEPTED_OFFER), show item price
                         ReceiptRow(
                             label: "Item Price",
@@ -794,57 +794,112 @@ struct MeetupExpiredSection: View {
 struct SellerActionsSection: View {
     @ObservedObject var viewModel: TransactionDetailViewModel
     let purchaseId: String
+    let purchaseType: String
+
+    private var isPurchase: Bool {
+        purchaseType == "BUY_NOW" || purchaseType == "ACCEPTED_OFFER"
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Instructional header
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Action Required")
-                    .font(.headline)
-                    .fontWeight(.bold)
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            // Instructional header with icon
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(Theme.Colors.warning)
+                    .font(.system(size: 36))
 
-                Text("A buyer has requested to rent your item. Review the transaction details above and decide whether to accept or decline this rental request.")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                Text("Action Required")
+                    .font(Theme.Typography.title)
+                    .foregroundColor(Theme.Colors.text)
+            }
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text(isPurchase ? "Review this purchase request" : "Review this rental request")
+                    .font(Theme.Typography.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.text)
+
+                Text(isPurchase ?
+                     "A buyer wants to purchase your item. Review the transaction details above and decide whether to accept or decline." :
+                     "A buyer wants to rent your item. Review the transaction details above and decide whether to accept or decline this rental request.")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("After accepting, you'll schedule a meetup to exchange the item.")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.top, 4)
-            }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(12)
-
-            // Action buttons
-            VStack(spacing: 12) {
-                Button(action: {
-                    viewModel.acceptPurchase(purchaseId: purchaseId)
-                }) {
-                    Text("Accept Purchase")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .cornerRadius(12)
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(Theme.Colors.info)
+                        .font(.system(size: 16))
+                    Text("After accepting, you'll schedule a meetup to exchange the item.")
+                        .font(Theme.Typography.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(Theme.Colors.info)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                Button(action: {
-                    viewModel.declinePurchase(purchaseId: purchaseId)
-                }) {
-                    Text("Decline Purchase")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .cornerRadius(12)
-                }
+                .padding(.top, Theme.Spacing.xs)
             }
         }
-        .padding(.vertical)
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Colors.warning.opacity(0.08))
+        .cornerRadius(Theme.CornerRadius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(Theme.Colors.warning.opacity(0.3), lineWidth: 1.5)
+        )
+        .padding(.horizontal, Theme.Spacing.md)
+
+        // Action buttons
+        VStack(spacing: Theme.Spacing.md) {
+            Button(action: {
+                viewModel.acceptPurchase(purchaseId: purchaseId)
+            }) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                    Text("Accept Purchase")
+                        .font(Theme.Typography.body)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(
+                    LinearGradient(
+                        colors: [Theme.Colors.success, Theme.Colors.success.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(Theme.CornerRadius.md)
+                .shadow(color: Theme.Colors.success.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+
+            Button(action: {
+                viewModel.declinePurchase(purchaseId: purchaseId)
+            }) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                    Text("Decline Purchase")
+                        .font(Theme.Typography.body)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(
+                    LinearGradient(
+                        colors: [Theme.Colors.error, Theme.Colors.error.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(Theme.CornerRadius.md)
+                .shadow(color: Theme.Colors.error.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.top, Theme.Spacing.sm)
     }
 }
 
