@@ -18,6 +18,7 @@ struct ListingScrollOffsetPreferenceKey: PreferenceKey {
 struct ProfessionalListingDetailView: View {
     let initialListing: Listing
     @StateObject private var viewModel: ListingDetailViewModel
+    @StateObject private var editViewModel: InlineEditViewModel
     @State private var selectedImageIndex = 0
     @State private var showingFullScreenImage = false
     @State private var showingMakeOffer = false
@@ -41,20 +42,21 @@ struct ProfessionalListingDetailView: View {
     @State private var buttonScale: CGFloat = 1.0
     @State private var favoriteScale: CGFloat = 1.0
     @Environment(\.dismiss) private var dismiss
-    
+
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
     private let selectionFeedback = UISelectionFeedbackGenerator()
-    
+
     init(listing: Listing) {
         self.initialListing = listing
         self._viewModel = StateObject(wrappedValue: ListingDetailViewModel(listing: listing))
+        self._editViewModel = StateObject(wrappedValue: InlineEditViewModel(listing: listing))
     }
     
     var body: some View {
         ZStack {
             Color(UIColor.systemBackground)
                 .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(spacing: 0) {
                     // Large image gallery like Facebook Marketplace
@@ -171,11 +173,22 @@ struct ProfessionalListingDetailView: View {
             .onPreferenceChange(ListingScrollOffsetPreferenceKey.self) { value in
                 scrollOffset = value
             }
-            
+            .blur(radius: editViewModel.editingField != nil ? 8 : 0)
+            .animation(.easeInOut(duration: 0.3), value: editViewModel.editingField)
+
             // Sticky Bottom Bar
             VStack {
                 Spacer()
                 bottomActionBar
+            }
+            .blur(radius: editViewModel.editingField != nil ? 8 : 0)
+            .animation(.easeInOut(duration: 0.3), value: editViewModel.editingField)
+
+            // Inline Edit Overlay
+            if let field = editViewModel.editingField {
+                EditFieldOverlay(field: field, viewModel: editViewModel)
+                    .transition(.scale(scale: 0.95).combined(with: .opacity))
+                    .zIndex(999)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -228,11 +241,6 @@ struct ProfessionalListingDetailView: View {
             if let seller = viewModel.seller {
                 UniversalProfileView(user: seller)
                     .environmentObject(AuthManager.shared)
-            }
-        }
-        .sheet(isPresented: $showingEditView) {
-            NavigationView {
-                EnhancedEditListingView(listing: viewModel.listing)
             }
         }
         .alert("Delete Listing", isPresented: $showingDeleteConfirmation) {
@@ -373,57 +381,106 @@ struct ProfessionalListingDetailView: View {
     // MARK: - Title and Price (Simple & Clean)
     private var titlePriceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Price first (like Facebook Marketplace)
-            HStack(alignment: .bottom, spacing: 4) {
-                Text("$\(Int(viewModel.listing.displayPrice))")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(Theme.Colors.text)
+            // Price first (like Facebook Marketplace) - tappable for owners
+            let currentUser = AuthManager.shared.currentUser
+            let isOwner = currentUser != nil && (
+                viewModel.listing.userId == currentUser?.id ||
+                viewModel.listing.userId == currentUser?.apiId ||
+                viewModel.listing.user?.apiId == currentUser?.apiId ||
+                viewModel.listing.user?.id == currentUser?.id
+            )
 
-                if viewModel.listing.isRental {
-                    Text("/day")
-                        .font(.system(size: 16))
-                        .foregroundColor(Theme.Colors.secondaryText)
+            Button(action: {
+                if isOwner {
+                    editViewModel.startEditing(viewModel.listing.isRental ? .dailyRate : .price)
                 }
-                
-                Spacer()
-                
-                // Simple badges
-                HStack(spacing: 8) {
-                    if viewModel.listing.listingType == "sale" {
-                        Text("FOR SALE")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Color.red)
-                            .cornerRadius(4)
-                    } else if viewModel.listing.listingType == "rental" {
-                        Text("FOR RENT")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Theme.Colors.primary)
-                            .cornerRadius(4)
+            }) {
+                HStack(alignment: .bottom, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text("$\(Int(viewModel.listing.displayPrice))")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(Theme.Colors.text)
+
+                        if viewModel.listing.isRental {
+                            Text("/day")
+                                .font(.system(size: 16))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+
+                        if isOwner {
+                            Image(systemName: "pencil.circle.fill")
+                                .foregroundColor(Theme.Colors.primary.opacity(0.6))
+                                .font(.system(size: 20))
+                        }
                     }
-                    
-                    if viewModel.listing.isNew ?? false {
-                        Text("NEW")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Color.green)
-                            .cornerRadius(4)
+
+                    Spacer()
+
+                    // Simple badges
+                    HStack(spacing: 8) {
+                        if viewModel.listing.listingType == "sale" {
+                            Text("FOR SALE")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.red)
+                                .cornerRadius(4)
+                        } else if viewModel.listing.listingType == "rental" {
+                            Text("FOR RENT")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Theme.Colors.primary)
+                                .cornerRadius(4)
+                        }
+
+                        if viewModel.listing.isNew ?? false {
+                            Text("NEW")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.green)
+                                .cornerRadius(4)
+                        }
                     }
                 }
             }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(!isOwner)
             
-            // Title
-            Text(viewModel.listing.title.isEmpty ? "Unnamed \(viewModel.listing.itemType)" : viewModel.listing.title)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(Theme.Colors.text)
-                .lineLimit(2)
+            // Title (tappable for owners)
+            let currentUser = AuthManager.shared.currentUser
+            let isOwner = currentUser != nil && (
+                viewModel.listing.userId == currentUser?.id ||
+                viewModel.listing.userId == currentUser?.apiId ||
+                viewModel.listing.user?.apiId == currentUser?.apiId ||
+                viewModel.listing.user?.id == currentUser?.id
+            )
+
+            Button(action: {
+                if isOwner {
+                    editViewModel.startEditing(.title)
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Text(viewModel.listing.title.isEmpty ? "Unnamed \(viewModel.listing.itemType)" : viewModel.listing.title)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(Theme.Colors.text)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if isOwner {
+                        Image(systemName: "pencil.circle.fill")
+                            .foregroundColor(Theme.Colors.primary.opacity(0.6))
+                            .font(.system(size: 18))
+                    }
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(!isOwner)
             
             // Condition and negotiable
             HStack(spacing: 12) {
@@ -509,22 +566,20 @@ struct ProfessionalListingDetailView: View {
             } else if isOwner {
                 // Owner actions - Simple design
                 VStack(spacing: 12) {
-                    HStack(spacing: 12) {
-                        Button(action: {
-                            showingEditView = true
-                        }) {
-                            HStack {
-                                Image(systemName: "pencil")
-                                Text("Edit Listing")
-                            }
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(Theme.Colors.primary)
-                            .cornerRadius(8)
-                        }
+                    // Inline editing hint
+                    HStack(spacing: 8) {
+                        Image(systemName: "hand.tap.fill")
+                            .foregroundColor(Theme.Colors.primary)
+                        Text("Tap any field above to edit inline")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Theme.Colors.primary.opacity(0.1))
+                    .cornerRadius(8)
 
+                    HStack(spacing: 12) {
                         Button(action: {
                             showingAnalytics = true
                         }) {
@@ -541,18 +596,21 @@ struct ProfessionalListingDetailView: View {
                                     .stroke(Theme.Colors.primary, lineWidth: 1.5)
                             )
                         }
-                    }
 
-                    Button(action: {
-                        showingMarkAsSoldConfirmation = true
-                    }) {
-                        Text("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")")
+                        Button(action: {
+                            showingMarkAsSoldConfirmation = true
+                        }) {
+                            HStack {
+                                Image(systemName: "checkmark.circle")
+                                Text("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")")
+                            }
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
                             .background(Color.green)
                             .cornerRadius(8)
+                        }
                     }
                 }
             } else {
@@ -812,22 +870,48 @@ struct ProfessionalListingDetailView: View {
     
     // MARK: - Description
     private var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("DESCRIPTION")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(Theme.Colors.secondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .onAppear {
-                    print("📝 Description section appeared with text: '\(viewModel.listing.description)'")
+        let currentUser = AuthManager.shared.currentUser
+        let isOwner = currentUser != nil && (
+            viewModel.listing.userId == currentUser?.id ||
+            viewModel.listing.userId == currentUser?.apiId ||
+            viewModel.listing.user?.apiId == currentUser?.apiId ||
+            viewModel.listing.user?.id == currentUser?.id
+        )
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("DESCRIPTION")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Theme.Colors.secondaryText)
+
+                Spacer()
+
+                if isOwner {
+                    Image(systemName: "pencil.circle.fill")
+                        .foregroundColor(Theme.Colors.primary.opacity(0.6))
+                        .font(.system(size: 16))
                 }
-            
-            Text(viewModel.listing.description.isEmpty ? "No description available for this item." : viewModel.listing.description)
-                .font(.body)
-                .foregroundColor(viewModel.listing.description.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.text)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onAppear {
+                print("📝 Description section appeared with text: '\(viewModel.listing.description)'")
+            }
+
+            Button(action: {
+                if isOwner {
+                    editViewModel.startEditing(.description)
+                }
+            }) {
+                Text(viewModel.listing.description.isEmpty ? "No description available for this item." : viewModel.listing.description)
+                    .font(.body)
+                    .foregroundColor(viewModel.listing.description.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(!isOwner)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1117,18 +1201,18 @@ struct ProfessionalListingDetailView: View {
                     .cornerRadius(22)
                 } else if isOwner {
                     // Owner actions
-                    Button(action: { showingEditView = true }) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 20))
-                            .foregroundColor(Theme.Colors.primary)
-                            .frame(width: 44, height: 44)
-                            .background(Circle().fill(Color.gray.opacity(0.1)))
-                    }
-
                     Button(action: { showingDeleteConfirmation = true }) {
                         Image(systemName: "trash")
                             .font(.system(size: 20))
                             .foregroundColor(.red)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(Color.gray.opacity(0.1)))
+                    }
+
+                    Button(action: { showingAnalytics = true }) {
+                        Image(systemName: "chart.bar")
+                            .font(.system(size: 20))
+                            .foregroundColor(Theme.Colors.primary)
                             .frame(width: 44, height: 44)
                             .background(Circle().fill(Color.gray.opacity(0.1)))
                     }
