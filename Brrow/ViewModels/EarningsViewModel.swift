@@ -10,20 +10,40 @@ import Combine
 
 @MainActor
 class EarningsViewModel: ObservableObject {
-    @Published var totalEarnings: Double = 0.0
+    // NEW BALANCE SYSTEM FIELDS
     @Published var availableBalance: Double = 0.0
+    @Published var pendingBalance: Double = 0.0
+    @Published var totalEarned: Double = 0.0
+    @Published var totalWithdrawn: Double = 0.0
+    @Published var hasStripeConnected: Bool = false
+    @Published var canRequestPayout: Bool = false
+
+    // LEGACY FIELDS (for backward compatibility)
+    @Published var totalEarnings: Double = 0.0
     @Published var monthlyEarnings: Double = 0.0
     @Published var earningsChange: Double = 0.0
     @Published var itemsRented: Int = 0
     @Published var avgDailyEarnings: Double = 0.0
     @Published var pendingPayments: Int = 0
-    
+    @Published var totalSales: Int = 0
+    @Published var platformFees: Double = 0.0
+
+    // PAYOUT INFO
+    @Published var minimumPayout: Double = 10.0
+    @Published var payoutMethod: String = "not_connected"
+    @Published var stripeAccountId: String?
+
+    // DATA LISTS
     @Published var chartData: [EarningsDataPoint] = []
     @Published var recentPayouts: [EarningsPayout] = []
     @Published var recentTransactions: [LegacyEarningsTransaction] = []
-    
+    @Published var balanceTransactions: [BalanceTransaction] = []
+
+    // UI STATE
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var isRequestingPayout = false
+    @Published var payoutSuccessMessage: String?
     
     private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
@@ -38,24 +58,32 @@ class EarningsViewModel: ObservableObject {
     func loadEarningsData() {
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 async let earningsTask = fetchEarningsOverview()
                 async let transactionsTask = fetchRecentTransactions()
                 async let payoutsTask = fetchRecentPayouts()
                 async let chartTask = fetchChartData()
-                
-                let (earnings, transactions, payouts, chart) = try await (earningsTask, transactionsTask, payoutsTask, chartTask)
-                
+                async let balanceTransactionsTask = fetchBalanceTransactions()
+
+                let (earnings, transactions, payouts, chart, balanceTxs) = try await (
+                    earningsTask,
+                    transactionsTask,
+                    payoutsTask,
+                    chartTask,
+                    balanceTransactionsTask
+                )
+
                 await MainActor.run {
                     self.updateEarningsData(earnings)
                     self.recentTransactions = transactions
                     self.recentPayouts = payouts
                     self.chartData = chart
+                    self.balanceTransactions = balanceTxs
                     self.isLoading = false
                 }
-                
+
             } catch {
                 await MainActor.run {
                     self.errorMessage = error.localizedDescription
@@ -71,11 +99,54 @@ class EarningsViewModel: ObservableObject {
             method: method,
             userId: authManager.currentUser?.apiId ?? ""
         )
-        
+
         try await apiClient.requestPayout(payoutRequest)
-        
+
         // Refresh data after successful payout request
         loadEarningsData()
+    }
+
+    // NEW: Request payout via Stripe
+    func requestStripePayout(amount: Double) async throws {
+        isRequestingPayout = true
+        errorMessage = nil
+        payoutSuccessMessage = nil
+
+        do {
+            try await apiClient.requestStripePayout(amount: amount)
+
+            await MainActor.run {
+                self.payoutSuccessMessage = "Payout requested successfully! Funds will arrive in 2-3 business days."
+                self.isRequestingPayout = false
+            }
+
+            // Refresh data after successful payout request
+            loadEarningsData()
+
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.isRequestingPayout = false
+            }
+            throw error
+        }
+    }
+
+    // NEW: Get Stripe Connect onboarding URL
+    func getStripeConnectURL() async throws -> String {
+        return try await apiClient.getStripeConnectOnboardingURL()
+    }
+
+    // NEW: Check Stripe account status
+    func checkStripeAccountStatus() async {
+        do {
+            let isConnected = try await apiClient.checkStripeAccountStatus()
+            await MainActor.run {
+                self.hasStripeConnected = isConnected
+            }
+        } catch {
+            print("Error checking Stripe account status: \(error)")
+        }
     }
     
     func refreshData() async {
@@ -110,15 +181,29 @@ class EarningsViewModel: ObservableObject {
     private func fetchChartData() async throws -> [EarningsDataPoint] {
         return try await apiClient.fetchEarningsChartData()
     }
+
+    private func fetchBalanceTransactions() async throws -> [BalanceTransaction] {
+        return try await apiClient.fetchBalanceTransactions()
+    }
     
     private func updateEarningsData(_ overview: EarningsOverview) {
-        totalEarnings = overview.totalEarnings
+        // NEW BALANCE SYSTEM FIELDS
         availableBalance = overview.availableBalance
+        pendingBalance = overview.pendingBalanceValue
+        totalEarned = overview.totalEarnedValue
+        totalWithdrawn = overview.totalWithdrawnValue
+        hasStripeConnected = overview.hasStripeConnectedValue
+        canRequestPayout = overview.canRequestPayoutValue
+
+        // LEGACY FIELDS
+        totalEarnings = overview.totalEarnings
         monthlyEarnings = overview.monthlyEarningsValue
         earningsChange = overview.earningsChangeValue
         itemsRented = overview.itemsRentedValue
         avgDailyEarnings = overview.avgDailyEarningsValue
         pendingPayments = overview.pendingPaymentsValue
+        totalSales = overview.totalSalesValue
+        platformFees = overview.platformFeesValue
     }
     
     private func addNewTransaction(_ transaction: LegacyEarningsTransaction) {

@@ -824,7 +824,7 @@ struct CompletedTransactionSection: View {
                                 .foregroundColor(Theme.Colors.text)
                         }
 
-                        Text(location.address)
+                        Text(location.address ?? "Location coordinates: \(location.latitude), \(location.longitude)")
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Colors.secondaryText)
                     }

@@ -870,6 +870,15 @@ struct FixedEarningsOverviewResponse: Codable {
     }
     
     struct EarningsOverviewInfo: Codable {
+        // NEW BALANCE SYSTEM FIELDS
+        let availableBalance: Double?
+        let pendingBalance: Double?
+        let totalEarned: Double?
+        let totalWithdrawn: Double?
+        let hasStripeConnected: Bool?
+        let canRequestPayout: Bool?
+
+        // LEGACY FIELDS (keep for compatibility)
         let lifetimeEarnings: Double?
         let lifetimeSpent: Double?
         let netEarnings: Double?
@@ -879,6 +888,26 @@ struct FixedEarningsOverviewResponse: Codable {
         let totalRentals: Int?
         let totalBorrowings: Int?
         let averageRentalValue: Double?
+        let totalSales: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case availableBalance = "availableBalance"
+            case pendingBalance = "pendingBalance"
+            case totalEarned = "totalEarned"
+            case totalWithdrawn = "totalWithdrawn"
+            case hasStripeConnected = "hasStripeConnected"
+            case canRequestPayout = "canRequestPayout"
+            case lifetimeEarnings = "lifetimeEarnings"
+            case lifetimeSpent = "lifetimeSpent"
+            case netEarnings = "netEarnings"
+            case platformFees = "platformFees"
+            case pendingEarnings = "pendingEarnings"
+            case activeEarnings = "activeEarnings"
+            case totalRentals = "totalRentals"
+            case totalBorrowings = "totalBorrowings"
+            case averageRentalValue = "averageRentalValue"
+            case totalSales = "totalSales"
+        }
     }
     
     struct MonthlyEarning: Codable {
@@ -898,6 +927,18 @@ struct FixedEarningsOverviewResponse: Codable {
         let payoutMethod: String?
         let isPayoutEnabled: Bool?
         let availableBalance: Double?
+        let stripeAccountId: String?
+        let accountStatus: String?
+
+        enum CodingKeys: String, CodingKey {
+            case nextPayoutDate = "nextPayoutDate"
+            case minimumPayout = "minimumPayout"
+            case payoutMethod = "payoutMethod"
+            case isPayoutEnabled = "isPayoutEnabled"
+            case availableBalance = "availableBalance"
+            case stripeAccountId = "stripeAccountId"
+            case accountStatus = "accountStatus"
+        }
     }
 }
 

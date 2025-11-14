@@ -4586,18 +4586,25 @@ class APIClient: ObservableObject {
             method: .GET,
             responseType: FixedEarningsOverviewResponse.self
         )
-        
+
         // Convert to EarningsOverview format expected by the app
         return EarningsOverview(
-            totalEarnings: response.data.overview.lifetimeEarnings ?? 0,
-            pendingEarnings: response.data.overview.pendingEarnings ?? 0,
-            availableBalance: response.data.payoutInfo.availableBalance ?? 0,
+            availableBalance: response.data.overview.availableBalance ?? response.data.payoutInfo.availableBalance ?? 0,
+            pendingBalance: response.data.overview.pendingBalance ?? response.data.overview.pendingEarnings,
+            totalEarned: response.data.overview.totalEarned ?? response.data.overview.lifetimeEarnings,
+            totalWithdrawn: response.data.overview.totalWithdrawn,
+            hasStripeConnected: response.data.overview.hasStripeConnected,
+            canRequestPayout: response.data.overview.canRequestPayout,
+            totalEarnings: response.data.overview.lifetimeEarnings ?? response.data.overview.totalEarned ?? 0,
+            pendingEarnings: response.data.overview.pendingEarnings,
             lastPayout: nil,
-            monthlyEarnings: 0, // Not provided in API response
-            earningsChange: 0, // Not provided in API response
-            itemsRented: response.data.overview.totalRentals ?? 0,
-            avgDailyEarnings: response.data.overview.averageRentalValue ?? 0,
-            pendingPayments: Int(response.data.overview.pendingEarnings ?? 0)
+            monthlyEarnings: 0,
+            earningsChange: 0,
+            itemsRented: response.data.overview.totalRentals,
+            avgDailyEarnings: response.data.overview.averageRentalValue,
+            pendingPayments: Int(response.data.overview.pendingEarnings ?? 0),
+            totalSales: response.data.overview.totalSales,
+            platformFees: response.data.overview.platformFees
         )
     }
     
@@ -4717,7 +4724,7 @@ class APIClient: ObservableObject {
     
     func requestPayout(_ request: PayoutRequest) async throws {
         let bodyData = try JSONEncoder().encode(request)
-        
+
         _ = try await performRequest(
             endpoint: "request_payout.php",
             method: .POST,
@@ -4725,7 +4732,108 @@ class APIClient: ObservableObject {
             responseType: EmptyResponse.self
         )
     }
-    
+
+    // MARK: - Balance Transactions
+    func fetchBalanceTransactions(limit: Int = 50) async throws -> [BalanceTransaction] {
+        struct BalanceTransactionsResponse: Codable {
+            let success: Bool
+            let data: BalanceTransactionsData
+        }
+
+        struct BalanceTransactionsData: Codable {
+            let transactions: [BalanceTransaction]
+            let pagination: PaginationInfo?
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/earnings/balance-transactions?limit=\(limit)",
+            method: .GET,
+            responseType: BalanceTransactionsResponse.self
+        )
+
+        return response.data.transactions
+    }
+
+    // MARK: - Stripe Payout
+    func requestStripePayout(amount: Double) async throws {
+        struct PayoutRequest: Codable {
+            let amount: Double
+        }
+
+        struct PayoutResponse: Codable {
+            let success: Bool
+            let message: String?
+            let data: PayoutData?
+        }
+
+        struct PayoutData: Codable {
+            let payoutId: String
+            let amount: Double
+            let estimatedArrival: String?
+
+            enum CodingKeys: String, CodingKey {
+                case payoutId = "payout_id"
+                case amount
+                case estimatedArrival = "estimated_arrival"
+            }
+        }
+
+        let request = PayoutRequest(amount: amount)
+        let bodyData = try JSONEncoder().encode(request)
+
+        _ = try await performRequest(
+            endpoint: "api/earnings/request-payout",
+            method: .POST,
+            body: bodyData,
+            responseType: PayoutResponse.self
+        )
+    }
+
+    // MARK: - Stripe Connect
+    func getStripeConnectOnboardingURL() async throws -> String {
+        struct OnboardingResponse: Codable {
+            let success: Bool
+            let data: OnboardingData
+        }
+
+        struct OnboardingData: Codable {
+            let url: String
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/stripe/connect/onboarding",
+            method: .POST,
+            responseType: OnboardingResponse.self
+        )
+
+        return response.data.url
+    }
+
+    func checkStripeAccountStatus() async throws -> Bool {
+        struct StatusResponse: Codable {
+            let success: Bool
+            let data: StatusData
+        }
+
+        struct StatusData: Codable {
+            let connected: Bool
+            let accountStatus: String?
+
+            enum CodingKeys: String, CodingKey {
+                case connected
+                case accountStatus = "account_status"
+            }
+        }
+
+        let response = try await performRequest(
+            endpoint: "api/stripe/connect/status",
+            method: .GET,
+            responseType: StatusResponse.self
+        )
+
+        return response.data.connected
+    }
+
     // MARK: - User Profile Methods
     
     func fetchSocialUserListings(userId: Int) async throws -> [Listing] {

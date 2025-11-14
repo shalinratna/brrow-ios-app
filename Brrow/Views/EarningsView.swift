@@ -18,21 +18,27 @@ struct EarningsView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: Theme.Spacing.lg) {
-                    // Header with total earnings
-                    earningsHeader
-                    
+                    // Balance Display Section
+                    balanceDisplaySection
+
+                    // Stripe Connection Status
+                    stripeConnectionSection
+
                     // Quick stats cards
                     quickStatsSection
-                    
+
                     // Earnings chart
                     earningsChartSection
-                    
-                    // Payout section
+
+                    // Payout History
                     payoutSection
-                    
-                    // Recent transactions
+
+                    // Balance Transactions
+                    balanceTransactionsSection
+
+                    // Recent transactions (legacy)
                     transactionsSection
-                    
+
                     // Earnings opportunities
                     opportunitiesSection
                 }
@@ -51,11 +57,30 @@ struct EarningsView: View {
                 }
             }
             .sheet(isPresented: $showingPayoutSheet) {
-                PayoutRequestView()
+                StripePayoutRequestView()
+                    .environmentObject(viewModel)
             }
             .sheet(isPresented: $showingEarningsBreakdown) {
                 EarningsBreakdownView()
                     .environmentObject(viewModel)
+            }
+            .alert("Success", isPresented: .constant(viewModel.payoutSuccessMessage != nil)) {
+                Button("OK") {
+                    viewModel.payoutSuccessMessage = nil
+                }
+            } message: {
+                if let message = viewModel.payoutSuccessMessage {
+                    Text(message)
+                }
+            }
+            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("OK") {
+                    viewModel.errorMessage = nil
+                }
+            } message: {
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                }
             }
         }
         .onAppear {
@@ -63,73 +88,72 @@ struct EarningsView: View {
         }
     }
     
-    // MARK: - Earnings Header
-    private var earningsHeader: some View {
+    // MARK: - Balance Display Section
+    private var balanceDisplaySection: some View {
         VStack(spacing: Theme.Spacing.md) {
-            // Total earnings card
             VStack(spacing: Theme.Spacing.sm) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Total Earnings")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                        
-                        Text(String(format: "$%.2f", viewModel.totalEarnings))
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .foregroundColor(Theme.Colors.text)
-                        
-                        HStack(spacing: 4) {
-                            Image(systemName: viewModel.earningsChange >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(viewModel.earningsChange >= 0 ? Theme.Colors.success : Theme.Colors.error)
-                            
-                            Text(String(format: "%.1f%% from last month", abs(viewModel.earningsChange)))
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(viewModel.earningsChange >= 0 ? Theme.Colors.success : Theme.Colors.error)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Earnings trend mini chart
-                    VStack {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.system(size: 24))
-                            .foregroundColor(Theme.Colors.primary)
-                        
-                        Text("Trending")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Theme.Colors.primary)
-                    }
-                    .padding(12)
-                    .background(Theme.Colors.primary.opacity(0.1))
-                    .cornerRadius(12)
+                // Available Balance (Large, prominent)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Available Balance")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(Theme.Colors.secondaryText)
+
+                    Text(String(format: "$%.2f", viewModel.availableBalance))
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundColor(viewModel.availableBalance > 0 ? Theme.Colors.success : Theme.Colors.text)
                 }
-                
-                // Available balance
-                HStack {
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                // Balance breakdown row
+                HStack(spacing: Theme.Spacing.lg) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Available Balance")
-                            .font(.system(size: 14, weight: .medium))
+                        Text("Pending")
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundColor(Theme.Colors.secondaryText)
-                        
-                        Text(String(format: "$%.2f", viewModel.availableBalance))
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(Theme.Colors.success)
+
+                        Text(String(format: "$%.2f", viewModel.pendingBalance))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Theme.Colors.secondaryText)
                     }
-                    
+
                     Spacer()
-                    
-                    Button(action: { showingPayoutSheet = true }) {
-                        Text("Cash Out")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Theme.Colors.primary)
-                            .cornerRadius(20)
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Total Earned")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(Theme.Colors.secondaryText)
+
+                        Text(String(format: "$%.2f", viewModel.totalEarned))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Theme.Colors.text)
                     }
-                    .disabled(viewModel.availableBalance < 5.0)
+                }
+
+                HStack(spacing: Theme.Spacing.lg) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Total Withdrawn")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(Theme.Colors.secondaryText)
+
+                        Text(String(format: "$%.2f", viewModel.totalWithdrawn))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Platform Fees")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(Theme.Colors.secondaryText)
+
+                        Text(String(format: "$%.2f", viewModel.platformFees))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Theme.Colors.error)
+                    }
                 }
             }
             .padding(Theme.Spacing.lg)
@@ -137,7 +161,7 @@ struct EarningsView: View {
                 LinearGradient(
                     colors: [
                         Theme.Colors.surface,
-                        Theme.Colors.primary.opacity(0.05)
+                        Theme.Colors.success.opacity(0.05)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -145,6 +169,109 @@ struct EarningsView: View {
             )
             .cornerRadius(Theme.CornerRadius.card)
             .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 4, x: 0, y: 2)
+        }
+    }
+
+    // MARK: - Stripe Connection Section
+    private var stripeConnectionSection: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            if !viewModel.hasStripeConnected {
+                // Not connected - show warning banner
+                VStack(spacing: Theme.Spacing.sm) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.orange)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Connect Stripe Account")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
+
+                            Text("Connect your Stripe account to cash out your earnings")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.Colors.secondaryText)
+                        }
+
+                        Spacer()
+                    }
+
+                    Button(action: {
+                        Task {
+                            do {
+                                let url = try await viewModel.getStripeConnectURL()
+                                if let stripeURL = URL(string: url) {
+                                    await UIApplication.shared.open(stripeURL)
+                                }
+                            } catch {
+                                viewModel.errorMessage = "Failed to get Stripe onboarding URL"
+                            }
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "link.circle.fill")
+                            Text("Connect Stripe Account")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Theme.Colors.success)
+                        .cornerRadius(12)
+                    }
+                }
+                .padding(Theme.Spacing.lg)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(Theme.CornerRadius.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                )
+
+            } else {
+                // Connected - show status and payout button
+                VStack(spacing: Theme.Spacing.sm) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(Theme.Colors.success)
+
+                        Text("Stripe Account Connected")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Theme.Colors.success)
+
+                        Spacer()
+                    }
+
+                    if viewModel.canRequestPayout {
+                        Button(action: { showingPayoutSheet = true }) {
+                            HStack {
+                                Image(systemName: "dollarsign.circle.fill")
+                                Text("Request Payout")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Theme.Colors.success)
+                            .cornerRadius(12)
+                        }
+                        .disabled(viewModel.availableBalance < viewModel.minimumPayout)
+                    } else {
+                        Text("Minimum payout amount: $\(String(format: "%.0f", viewModel.minimumPayout))")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(Theme.Spacing.lg)
+                .background(Theme.Colors.success.opacity(0.1))
+                .cornerRadius(Theme.CornerRadius.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                        .stroke(Theme.Colors.success.opacity(0.3), lineWidth: 1)
+                )
+            }
         }
     }
     
@@ -277,6 +404,33 @@ struct EarningsView: View {
         .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
     }
     
+    // MARK: - Balance Transactions Section
+    private var balanceTransactionsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("Balance History")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(Theme.Colors.text)
+
+            if viewModel.balanceTransactions.isEmpty {
+                Text("No balance transactions yet")
+                    .font(.system(size: 14))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, Theme.Spacing.lg)
+            } else {
+                LazyVStack(spacing: Theme.Spacing.sm) {
+                    ForEach(viewModel.balanceTransactions.prefix(10), id: \.id) { transaction in
+                        BalanceTransactionRow(transaction: transaction)
+                    }
+                }
+            }
+        }
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Colors.surface)
+        .cornerRadius(Theme.CornerRadius.card)
+        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+
     // MARK: - Transactions Section
     private var transactionsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -535,7 +689,164 @@ enum EarningsTimeframe: String, CaseIterable {
     case year = "Year"
 }
 
-// MARK: - Payout Request View
+// MARK: - Balance Transaction Row
+struct BalanceTransactionRow: View {
+    let transaction: BalanceTransaction
+
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(transaction.isCredit ? Theme.Colors.success.opacity(0.2) : Theme.Colors.error.opacity(0.2))
+                .frame(width: 8, height: 8)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transaction.description)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Theme.Colors.text)
+                    .lineLimit(2)
+
+                if let date = transaction.createdDate {
+                    Text(date, style: .relative)
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                } else {
+                    Text(transaction.createdAt)
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(String(format: "%@$%.2f", transaction.isCredit ? "+" : "-", abs(transaction.amount)))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(transaction.isCredit ? Theme.Colors.success : Theme.Colors.error)
+
+                Text(String(format: "Balance: $%.2f", transaction.balanceAfter))
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.Colors.secondaryText)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Stripe Payout Request View
+struct StripePayoutRequestView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var viewModel: EarningsViewModel
+    @State private var payoutAmount: String = ""
+    @State private var showingConfirmation = false
+
+    var amountDouble: Double {
+        return Double(payoutAmount) ?? 0.0
+    }
+
+    var isValidAmount: Bool {
+        let amount = amountDouble
+        return amount >= viewModel.minimumPayout && amount <= viewModel.availableBalance
+    }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Available Balance") {
+                    HStack {
+                        Text("Available")
+                        Spacer()
+                        Text(String(format: "$%.2f", viewModel.availableBalance))
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(Theme.Colors.success)
+                    }
+                }
+
+                Section("Payout Amount") {
+                    HStack {
+                        Text("$")
+                            .foregroundColor(Theme.Colors.text)
+                        TextField("0.00", text: $payoutAmount)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Minimum: $\(String(format: "%.0f", viewModel.minimumPayout))")
+                            .font(.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                        Text("Maximum: $\(String(format: "%.2f", viewModel.availableBalance))")
+                            .font(.caption)
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
+
+                Section("Payout Details") {
+                    HStack {
+                        Text("Method")
+                        Spacer()
+                        Text("Stripe Transfer")
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+
+                    HStack {
+                        Text("Estimated Arrival")
+                        Spacer()
+                        Text("2-3 business days")
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+                }
+
+                Section {
+                    Button("Request Payout") {
+                        showingConfirmation = true
+                    }
+                    .disabled(!isValidAmount || viewModel.isRequestingPayout)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
+
+                Section {
+                    Text("Funds will be transferred to your connected Stripe account. Processing typically takes 2-3 business days.")
+                        .font(.caption)
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+            }
+            .navigationTitle("Request Payout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+            .alert("Confirm Payout", isPresented: $showingConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Confirm") {
+                    Task {
+                        do {
+                            try await viewModel.requestStripePayout(amount: amountDouble)
+                            dismiss()
+                        } catch {
+                            // Error already handled in viewModel
+                        }
+                    }
+                }
+            } message: {
+                Text("Request a payout of $\(String(format: "%.2f", amountDouble))? This amount will be transferred to your Stripe account in 2-3 business days.")
+            }
+            .overlay {
+                if viewModel.isRequestingPayout {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black.opacity(0.3))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Payout Request View (Legacy)
 struct PayoutRequestView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var payoutAmount: String = ""
