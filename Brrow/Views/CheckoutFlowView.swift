@@ -167,6 +167,10 @@ struct CheckoutFlowContainer: View {
                 CheckoutFlowView(
                     checkoutURL: url,
                     onSuccess: { sessionId in
+                        guard !sessionId.isEmpty else {
+                            print("⚠️ [CheckoutFlow] onSuccess called with empty sessionId")
+                            return
+                        }
                         self.sessionId = sessionId
                         showCheckout = false
                         pollCheckoutStatus(sessionId: sessionId)
@@ -174,13 +178,23 @@ struct CheckoutFlowContainer: View {
                     onCancel: {
                         showCheckout = false
                         onCompletion(.failure(CheckoutError.userCanceled))
-                        dismiss()
+
+                        // Delay dismiss to let parent view handle completion callback
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                            dismiss()
+                        }
                     },
                     onError: { error in
                         showCheckout = false
                         errorMessage = error.localizedDescription
                         onCompletion(.failure(error))
-                        dismiss()
+
+                        // Delay dismiss to let parent view handle completion callback
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                            dismiss()
+                        }
                     }
                 )
                 .ignoresSafeArea()
@@ -235,8 +249,13 @@ struct CheckoutFlowContainer: View {
 
                 // Close the Safari view and report error
                 showCheckout = false
-                onCompletion(.failure(CheckoutError.invalidDeepLink))
-                dismiss()
+                onCompletion(.failure(CheckoutError.userCanceled))
+
+                // Delay dismiss to let parent view handle completion callback
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                    dismiss()
+                }
             }
         }
         .alert("Payment Error", isPresented: .constant(errorMessage != nil)) {
@@ -294,6 +313,12 @@ struct CheckoutFlowContainer: View {
     }
 
     private func pollCheckoutStatus(sessionId: String) {
+        // Guard against empty session ID
+        guard !sessionId.isEmpty else {
+            print("⚠️ [CheckoutFlow] Cannot poll with empty session ID")
+            return
+        }
+
         isPolling = true
 
         Task {
@@ -313,12 +338,16 @@ struct CheckoutFlowContainer: View {
                         } else {
                             onCompletion(.failure(CheckoutError.missingSessionId))
                         }
+
+                        // Delay dismiss to let parent view handle completion callback
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                            dismiss()
+                        }
                     } else {
                         // Payment not yet complete, poll again
                         pollCheckoutStatus(sessionId: sessionId)
                     }
-
-                    dismiss()
                 }
 
             } catch {
@@ -326,7 +355,12 @@ struct CheckoutFlowContainer: View {
                     isPolling = false
                     errorMessage = error.localizedDescription
                     onCompletion(.failure(error))
-                    dismiss()
+
+                    // Delay dismiss to let parent view handle completion callback
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                        dismiss()
+                    }
                 }
             }
         }
