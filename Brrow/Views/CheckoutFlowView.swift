@@ -90,7 +90,7 @@ struct CheckoutFlowView: UIViewControllerRepresentable {
 
             let path = components.path
 
-            if path.contains("/payment/success") {
+            if path.contains("/success") {
                 // Extract session ID from query parameters
                 if let sessionId = components.queryItems?.first(where: { $0.name == "session_id" })?.value {
                     print("✅ Checkout Session: Success with session ID \(sessionId)")
@@ -98,7 +98,7 @@ struct CheckoutFlowView: UIViewControllerRepresentable {
                 } else {
                     onError(CheckoutError.missingSessionId)
                 }
-            } else if path.contains("/payment/cancel") {
+            } else if path.contains("/cancel") {
                 print("🚫 Checkout Session: User canceled payment")
                 onCancel()
             } else {
