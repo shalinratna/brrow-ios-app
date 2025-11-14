@@ -119,8 +119,9 @@ struct RentalDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Listing Image
             if let listing = booking.listing,
-               let firstImage = listing.images.first {
-                AsyncImage(url: URL(string: firstImage.imageUrl)) { image in
+               let firstImage = listing.images.first,
+               let imageUrlString = firstImage.imageUrl {
+                AsyncImage(url: URL(string: imageUrlString)) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -361,12 +362,12 @@ struct RentalDetailView: View {
                 Text(user.displayName ?? user.username)
                     .font(.headline)
 
-                if let rating = user.rating {
+                if user.rating > 0 {
                     HStack(spacing: 4) {
                         Image(systemName: "star.fill")
                             .font(.caption)
                             .foregroundColor(.yellow)
-                        Text(String(format: "%.1f", rating))
+                        Text(String(format: "%.1f", user.rating))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
