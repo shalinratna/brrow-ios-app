@@ -41,6 +41,7 @@ struct ProfessionalListingDetailView: View {
     @State private var imageScale: CGFloat = 1.0
     @State private var buttonScale: CGFloat = 1.0
     @State private var favoriteScale: CGFloat = 1.0
+    @State private var isEditMode: Bool = false
     @Environment(\.dismiss) private var dismiss
 
     private let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -391,7 +392,7 @@ struct ProfessionalListingDetailView: View {
         return VStack(alignment: .leading, spacing: 12) {
             // Price first (like Facebook Marketplace) - tappable for owners
             Button(action: {
-                if isOwner {
+                if isOwner && isEditMode {
                     editViewModel.startEditing(viewModel.listing.isRental ? .dailyRate : .price)
                 }
             }) {
@@ -407,7 +408,7 @@ struct ProfessionalListingDetailView: View {
                                 .foregroundColor(Theme.Colors.secondaryText)
                         }
 
-                        if isOwner {
+                        if isOwner && isEditMode {
                             Image(systemName: "pencil.circle.fill")
                                 .foregroundColor(Theme.Colors.primary.opacity(0.6))
                                 .font(.system(size: 20))
@@ -453,7 +454,7 @@ struct ProfessionalListingDetailView: View {
 
             // Title (tappable for owners)
             Button(action: {
-                if isOwner {
+                if isOwner && isEditMode {
                     editViewModel.startEditing(.title)
                 }
             }) {
@@ -464,7 +465,7 @@ struct ProfessionalListingDetailView: View {
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if isOwner {
+                    if isOwner && isEditMode {
                         Image(systemName: "pencil.circle.fill")
                             .foregroundColor(Theme.Colors.primary.opacity(0.6))
                             .font(.system(size: 18))
@@ -472,14 +473,30 @@ struct ProfessionalListingDetailView: View {
                 }
             }
             .buttonStyle(PlainButtonStyle())
-            .disabled(!isOwner)
+            .disabled(!isOwner || !isEditMode)
             
             // Condition and negotiable
             HStack(spacing: 12) {
-                Text("Condition: \(conditionDisplayName)")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.secondaryText)
-                
+                Button(action: {
+                    if isOwner && isEditMode {
+                        editViewModel.startEditing(.condition)
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Text("Condition: \(conditionDisplayName)")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+
+                        if isOwner && isEditMode {
+                            Image(systemName: "pencil.circle.fill")
+                                .foregroundColor(Theme.Colors.primary.opacity(0.6))
+                                .font(.system(size: 14))
+                        }
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(!isOwner || !isEditMode)
+
                 if viewModel.listing.isNegotiable {
                     Text("• Negotiable")
                         .font(.system(size: 14))
@@ -558,20 +575,24 @@ struct ProfessionalListingDetailView: View {
             } else if isOwner {
                 // Owner actions - Simple design
                 VStack(spacing: 12) {
-                    // Inline editing hint
-                    HStack(spacing: 8) {
-                        Image(systemName: "hand.tap.fill")
-                            .foregroundColor(Theme.Colors.primary)
-                        Text("Tap any field above to edit inline")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Theme.Colors.primary.opacity(0.1))
-                    .cornerRadius(8)
-
                     HStack(spacing: 12) {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                isEditMode.toggle()
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: isEditMode ? "checkmark.circle.fill" : "pencil")
+                                Text(isEditMode ? "Done Editing" : "Edit Listing")
+                            }
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(isEditMode ? Color.green : Theme.Colors.primary)
+                            .cornerRadius(8)
+                        }
+
                         Button(action: {
                             showingAnalytics = true
                         }) {
@@ -588,21 +609,21 @@ struct ProfessionalListingDetailView: View {
                                     .stroke(Theme.Colors.primary, lineWidth: 1.5)
                             )
                         }
+                    }
 
-                        Button(action: {
-                            showingMarkAsSoldConfirmation = true
-                        }) {
-                            HStack {
-                                Image(systemName: "checkmark.circle")
-                                Text("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")")
-                            }
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(Color.green)
-                            .cornerRadius(8)
+                    Button(action: {
+                        showingMarkAsSoldConfirmation = true
+                    }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle")
+                            Text("Mark as \(viewModel.listing.listingType == "sale" ? "Sold" : "Rented")")
                         }
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Color.green)
+                        .cornerRadius(8)
                     }
                 }
             } else {
@@ -879,7 +900,7 @@ struct ProfessionalListingDetailView: View {
 
                 Spacer()
 
-                if isOwner {
+                if isOwner && isEditMode {
                     Image(systemName: "pencil.circle.fill")
                         .foregroundColor(Theme.Colors.primary.opacity(0.6))
                         .font(.system(size: 16))
@@ -891,7 +912,7 @@ struct ProfessionalListingDetailView: View {
             }
 
             Button(action: {
-                if isOwner {
+                if isOwner && isEditMode {
                     editViewModel.startEditing(.description)
                 }
             }) {
