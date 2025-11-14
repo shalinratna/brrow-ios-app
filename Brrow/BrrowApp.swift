@@ -371,7 +371,7 @@ struct BrrowApp: App {
             // - brrowapp://payment/cancel?listing_id={listingId}
             let path = components.path ?? ""
 
-            if path == "/success" {
+            if path == "/payment/success" {
                 // Payment completed successfully via Checkout Session
                 let sessionId = components.queryItems?.first(where: { $0.name == "session_id" })?.value
                 let listingId = components.queryItems?.first(where: { $0.name == "listing_id" })?.value
@@ -394,7 +394,7 @@ struct BrrowApp: App {
                     ]
                 )
 
-            } else if path == "/cancel" {
+            } else if path == "/payment/cancel" {
                 // Payment canceled by user
                 let listingId = components.queryItems?.first(where: { $0.name == "listing_id" })?.value
                 let purchaseId = components.queryItems?.first(where: { $0.name == "purchase_id" })?.value
