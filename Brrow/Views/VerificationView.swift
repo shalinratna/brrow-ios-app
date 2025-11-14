@@ -25,6 +25,20 @@ struct VerificationView: View {
         AuthManager.shared.currentUser?.id == meetup.sellerId
     }
 
+    var navigationTitle: String {
+        if let meetupType = meetup.meetupType {
+            switch meetupType {
+            case .pickup:
+                return isSeller ? "Show Pickup Code" : "Verify Pickup"
+            case .return:
+                return isSeller ? "Show Return Code" : "Verify Return"
+            case .sale:
+                return isSeller ? "Show Code" : "Verify Code"
+            }
+        }
+        return isSeller ? "Show Code" : "Verify Code"
+    }
+
     var body: some View {
         NavigationView {
             TabView(selection: $selectedTab) {
@@ -54,7 +68,7 @@ struct VerificationView: View {
                 }
                 .tag(1)
             }
-            .navigationTitle(isSeller ? "Show Code" : "Verify Code")
+            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -85,6 +99,36 @@ struct PINVerificationView: View {
 
     @State private var cancellables = Set<AnyCancellable>()
 
+    var successMessage: String {
+        guard let meetupType = meetup.meetupType else {
+            return "Verification successful! Payment has been captured."
+        }
+
+        switch meetupType {
+        case .sale:
+            return "Verification successful! Payment has been captured."
+        case .pickup:
+            return "Pickup verified! The rental has started. Payment is on hold until return."
+        case .return:
+            return "Return verified! The rental is complete. Payment will be processed."
+        }
+    }
+
+    var instructionText: String {
+        guard let meetupType = meetup.meetupType else {
+            return isSeller ? "Share this 4-digit code with the buyer to complete verification." : "Enter the 4-digit code shown by the seller."
+        }
+
+        switch meetupType {
+        case .sale:
+            return isSeller ? "Share this 4-digit code with the buyer to complete verification." : "Enter the 4-digit code shown by the seller."
+        case .pickup:
+            return isSeller ? "Share this code with the renter to confirm item pickup." : "Enter the code shown by the owner to confirm pickup."
+        case .return:
+            return isSeller ? "Share this code with the renter to confirm item return." : "Enter the code shown by the owner to confirm return."
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
@@ -104,7 +148,7 @@ struct PINVerificationView: View {
         .alert("Success!", isPresented: $showSuccess) {
             Button("OK") {}
         } message: {
-            Text("Verification successful! Payment has been captured.")
+            Text(successMessage)
         }
     }
 
@@ -121,7 +165,7 @@ struct PINVerificationView: View {
                     .font(Theme.Typography.title)
                     .foregroundColor(Theme.Colors.text)
 
-                Text("Share this 4-digit code with the buyer to complete verification.")
+                Text(instructionText)
                     .font(Theme.Typography.body)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .multilineTextAlignment(.center)
@@ -189,7 +233,7 @@ struct PINVerificationView: View {
                     .font(Theme.Typography.title)
                     .foregroundColor(Theme.Colors.text)
 
-                Text("Enter the 4-digit code shown by the seller.")
+                Text(instructionText)
                     .font(Theme.Typography.body)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .multilineTextAlignment(.center)
@@ -310,6 +354,7 @@ struct PINVerificationView: View {
 
     // MARK: - Helper Functions
     private func generatePIN() {
+        print("🔄 [VerificationView] Generating PIN for meetup: \(meetup.id)")
         isGenerating = true
 
         meetupService.generateVerificationCode(meetupId: meetup.id, codeType: .pinCode)
@@ -317,19 +362,28 @@ struct PINVerificationView: View {
             .sink(
                 receiveCompletion: { completion in
                     isGenerating = false
+                    print("🏁 [VerificationView] Generation completed")
                     if case .failure(let error) = completion {
+                        print("❌ [VerificationView] Error: \(error.localizedDescription)")
                         errorMessage = error.localizedDescription
                         showError = true
                     }
                 },
                 receiveValue: { code in
+                    print("✅ [VerificationView] Received code, updating state")
+                    print("   Code ID: \(code.id)")
+                    print("   Code Value: \(code.codeValue)")
+                    print("   Expires At: \(code.expiresAt)")
+                    print("   Is Expired: \(code.isExpired)")
                     generatedCode = code
+                    print("   State updated: generatedCode = \(String(describing: generatedCode))")
                 }
             )
             .store(in: &cancellables)
     }
 
     private func verifyPIN() {
+        print("🔄 [VerificationView] Verifying PIN: \(pinInput)")
         isVerifying = true
 
         meetupService.verifyCode(meetupId: meetup.id, codeValue: pinInput)
@@ -337,12 +391,21 @@ struct PINVerificationView: View {
             .sink(
                 receiveCompletion: { completion in
                     isVerifying = false
+                    print("🏁 [VerificationView] PIN verification completed")
                     if case .failure(let error) = completion {
-                        errorMessage = error.localizedDescription
+                        print("❌ [VerificationView] PIN verification error: \(error.localizedDescription)")
+                        errorMessage = "Verification failed: \(error.localizedDescription)"
                         showError = true
                     }
                 },
                 receiveValue: { result in
+                    print("✅ [VerificationView] PIN verified successfully!")
+                    print("   Verified: \(result.verified)")
+                    print("   Meetup Status: \(result.meetupStatus)")
+                    print("   Transaction Status: \(result.transactionStatus ?? "N/A")")
+                    print("   Payment Captured: \(result.paymentCaptured)")
+                    print("   Is Purchase: \(result.isPurchase ?? false)")
+                    print("   Is Transaction: \(result.isTransaction ?? false)")
                     showSuccess = true
                     onVerificationComplete?(result)
                 }
@@ -369,6 +432,36 @@ struct QRVerificationView: View {
 
     @State private var cancellables = Set<AnyCancellable>()
 
+    var successMessage: String {
+        guard let meetupType = meetup.meetupType else {
+            return "Verification successful! Payment has been captured."
+        }
+
+        switch meetupType {
+        case .sale:
+            return "Verification successful! Payment has been captured."
+        case .pickup:
+            return "Pickup verified! The rental has started. Payment is on hold until return."
+        case .return:
+            return "Return verified! The rental is complete. Payment will be processed."
+        }
+    }
+
+    var instructionText: String {
+        guard let meetupType = meetup.meetupType else {
+            return isSeller ? "Show this QR code to the buyer to complete verification." : "Scan the QR code shown by the seller to complete verification."
+        }
+
+        switch meetupType {
+        case .sale:
+            return isSeller ? "Show this QR code to the buyer to complete verification." : "Scan the QR code shown by the seller to complete verification."
+        case .pickup:
+            return isSeller ? "Show this QR code to the renter to confirm item pickup." : "Scan the QR code shown by the owner to confirm pickup."
+        case .return:
+            return isSeller ? "Show this QR code to the renter to confirm item return." : "Scan the QR code shown by the owner to confirm return."
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
@@ -394,7 +487,7 @@ struct QRVerificationView: View {
         .alert("Success!", isPresented: $showSuccess) {
             Button("OK") {}
         } message: {
-            Text("Verification successful! Payment has been captured.")
+            Text(successMessage)
         }
     }
 
@@ -411,7 +504,7 @@ struct QRVerificationView: View {
                     .font(Theme.Typography.title)
                     .foregroundColor(Theme.Colors.text)
 
-                Text("Show this QR code to the buyer to complete verification.")
+                Text(instructionText)
                     .font(Theme.Typography.body)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .multilineTextAlignment(.center)
@@ -476,7 +569,7 @@ struct QRVerificationView: View {
                     .font(Theme.Typography.title)
                     .foregroundColor(Theme.Colors.text)
 
-                Text("Scan the QR code shown by the seller to complete verification.")
+                Text(instructionText)
                     .font(Theme.Typography.body)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .multilineTextAlignment(.center)
@@ -497,6 +590,7 @@ struct QRVerificationView: View {
 
     // MARK: - Helper Functions
     private func generateQRCode() {
+        print("🔄 [VerificationView] Generating QR Code for meetup: \(meetup.id)")
         isGenerating = true
 
         meetupService.generateVerificationCode(meetupId: meetup.id, codeType: .qrCode)
@@ -504,14 +598,21 @@ struct QRVerificationView: View {
             .sink(
                 receiveCompletion: { completion in
                     isGenerating = false
+                    print("🏁 [VerificationView] QR Generation completed")
                     if case .failure(let error) = completion {
+                        print("❌ [VerificationView] QR Error: \(error.localizedDescription)")
                         errorMessage = error.localizedDescription
                         showError = true
                     }
                 },
                 receiveValue: { code in
+                    print("✅ [VerificationView] Received QR code, updating state")
+                    print("   Code ID: \(code.id)")
+                    print("   Code Value: \(code.codeValue)")
+                    print("   Expires At: \(code.expiresAt)")
                     generatedCode = code
                     qrCodeImage = generateQRCodeImage(from: code.codeValue)
+                    print("   State updated with QR code image")
                 }
             )
             .store(in: &cancellables)
@@ -538,6 +639,7 @@ struct QRVerificationView: View {
     }
 
     private func verifyQRCode(_ code: String) {
+        print("🔄 [VerificationView] Verifying QR Code: \(code)")
         isVerifying = true
 
         meetupService.verifyCode(meetupId: meetup.id, codeValue: code)
@@ -545,12 +647,21 @@ struct QRVerificationView: View {
             .sink(
                 receiveCompletion: { completion in
                     isVerifying = false
+                    print("🏁 [VerificationView] QR verification completed")
                     if case .failure(let error) = completion {
-                        errorMessage = error.localizedDescription
+                        print("❌ [VerificationView] QR verification error: \(error.localizedDescription)")
+                        errorMessage = "QR Code verification failed: \(error.localizedDescription)"
                         showError = true
                     }
                 },
                 receiveValue: { result in
+                    print("✅ [VerificationView] QR Code verified successfully!")
+                    print("   Verified: \(result.verified)")
+                    print("   Meetup Status: \(result.meetupStatus)")
+                    print("   Transaction Status: \(result.transactionStatus ?? "N/A")")
+                    print("   Payment Captured: \(result.paymentCaptured)")
+                    print("   Is Purchase: \(result.isPurchase ?? false)")
+                    print("   Is Transaction: \(result.isTransaction ?? false)")
                     showSuccess = true
                     onVerificationComplete?(result)
                 }
