@@ -13,7 +13,7 @@ import CoreData
 // MARK: - Offer Model (Codable for API)
 struct Offer: Codable, Identifiable {
     let id: Int
-    let listingId: Int
+    let listingId: String  // UUID format
     let borrowerId: Int
     let amount: Double
     let message: String?
@@ -36,7 +36,7 @@ struct Offer: Codable, Identifiable {
     let offerType: String?
 
     // Initializer
-    init(id: Int, listingId: Int, borrowerId: Int, amount: Double, message: String?, duration: Int?, status: OfferStatus, createdAt: Date, updatedAt: Date, listing: Listing? = nil, borrower: User? = nil, stripePaymentIntentId: String? = nil, stripePaymentStatus: String? = nil, paymentHeldAt: Date? = nil, paymentCapturedAt: Date? = nil, paymentReleasedAt: Date? = nil, expiresAt: Date? = nil, acceptedAt: Date? = nil, declinedAt: Date? = nil, offerType: String? = nil) {
+    init(id: Int, listingId: String, borrowerId: Int, amount: Double, message: String?, duration: Int?, status: OfferStatus, createdAt: Date, updatedAt: Date, listing: Listing? = nil, borrower: User? = nil, stripePaymentIntentId: String? = nil, stripePaymentStatus: String? = nil, paymentHeldAt: Date? = nil, paymentCapturedAt: Date? = nil, paymentReleasedAt: Date? = nil, expiresAt: Date? = nil, acceptedAt: Date? = nil, declinedAt: Date? = nil, offerType: String? = nil) {
         self.id = id
         self.listingId = listingId
         self.borrowerId = borrowerId
@@ -92,7 +92,7 @@ struct Offer: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(Int.self, forKey: .id)
-        listingId = try container.decode(Int.self, forKey: .listingId)
+        listingId = try container.decode(String.self, forKey: .listingId)
         borrowerId = try container.decode(Int.self, forKey: .borrowerId)
         amount = try container.decode(Double.self, forKey: .amount)
         message = try container.decodeIfPresent(String.self, forKey: .message)
@@ -199,7 +199,7 @@ extension OfferEntity {
         
         return Offer(
             id: Int(id) ?? 0,
-            listingId: Int(listingId) ?? 0,
+            listingId: listingId,  // Already a String (UUID)
             borrowerId: Int(offererId) ?? 0,
             amount: offerAmount,
             message: message,
