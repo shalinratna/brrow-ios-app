@@ -33,4 +33,9 @@ extension Notification.Name {
 
     // Profile Updates
     static let profilePictureUpdated = Notification.Name("profilePictureUpdated")
+
+    // Stripe Connect
+    static let stripeAccountConnected = Notification.Name("stripeAccountConnected")
+    static let refreshEarnings = Notification.Name("refreshEarnings")
+    static let refreshProfile = Notification.Name("refreshProfile")
 }

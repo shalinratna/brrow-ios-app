@@ -451,6 +451,56 @@ struct BrrowApp: App {
                 }
             }
 
+        case "stripe-connect":
+            // Handle Stripe Connect onboarding callback
+            if let successParam = components.queryItems?.first(where: { $0.name == "success" })?.value,
+               successParam == "true" {
+                print("✅ [STRIPE CONNECT] Onboarding completed successfully")
+
+                // Refresh user profile and earnings data to get updated Stripe account status
+                Task {
+                    await AuthManager.shared.refreshUserProfile()
+
+                    // Also refresh earnings data
+                    if let earningsViewModel = try? await MainActor.run(body: { () -> EarningsViewModel? in
+                        // Get the earnings view model if it exists
+                        return nil // Will be refreshed when view appears
+                    }) {
+                        await earningsViewModel.loadEarningsData()
+                    }
+
+                    await MainActor.run {
+                        print("✅ [STRIPE CONNECT] User profile refreshed")
+
+                        // Show success toast
+                        ToastManager.shared.showSuccess(
+                            title: "Stripe Connected!",
+                            message: "Your account is now connected. You can request payouts!"
+                        )
+
+                        // Post notification to refresh any listening views
+                        NotificationCenter.default.post(name: .stripeAccountConnected, object: nil)
+
+                        // Small delay to ensure toast is visible, then refresh current view
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            // Refresh the current view by posting notifications
+                            NotificationCenter.default.post(name: .refreshEarnings, object: nil)
+                            NotificationCenter.default.post(name: .refreshProfile, object: nil)
+                        }
+                    }
+                }
+            } else if let refreshParam = components.queryItems?.first(where: { $0.name == "refresh" })?.value,
+                      refreshParam == "true" {
+                print("⚠️ [STRIPE CONNECT] Onboarding refresh required")
+
+                Task { @MainActor in
+                    ToastManager.shared.showWarning(
+                        title: "Continue Setup",
+                        message: "Please complete your Stripe account setup"
+                    )
+                }
+            }
+
         default:
             // Check if it's a web URL format: https://brrowapp.com/listing/123 or https://brrowapp.com/profile/456
             let path = components.path ?? ""

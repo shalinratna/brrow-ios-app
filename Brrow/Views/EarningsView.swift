@@ -24,6 +24,9 @@ struct EarningsView: View {
                     // Stripe Connection Status
                     stripeConnectionSection
 
+                    // Payout Tier Information
+                    payoutTierSection
+
                     // Quick stats cards
                     quickStatsSection
 
@@ -43,10 +46,12 @@ struct EarningsView: View {
                     opportunitiesSection
                 }
                 .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, 1)
+                .padding(.bottom, Theme.Spacing.lg)
             }
             .background(Theme.Colors.background)
             .navigationTitle("Earnings")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingEarningsBreakdown = true }) {
@@ -86,121 +91,106 @@ struct EarningsView: View {
         .onAppear {
             viewModel.loadEarningsData()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshEarnings)) { _ in
+            print("📊 [EARNINGS] Received refresh notification - reloading data")
+            viewModel.loadEarningsData()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .stripeAccountConnected)) { _ in
+            print("✅ [EARNINGS] Stripe account connected - reloading data")
+            viewModel.loadEarningsData()
+        }
     }
     
     // MARK: - Balance Display Section
     private var balanceDisplaySection: some View {
         VStack(spacing: Theme.Spacing.md) {
-            VStack(spacing: Theme.Spacing.sm) {
+            // Main Balance Card
+            VStack(spacing: 16) {
                 // Available Balance (Large, prominent)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Available Balance")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Theme.Colors.text.opacity(0.7))
+                    HStack(spacing: 4) {
+                        Text("Available Balance")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Theme.Colors.text.opacity(0.6))
+
+                        Button(action: {
+                            showInfoAlert(
+                                title: "Available Balance",
+                                message: "Money you've earned that's ready to withdraw. Includes completed sales after Brrow's 5% commission and payment processing fees are deducted."
+                            )
+                        }) {
+                            Image(systemName: "info.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.Colors.primary.opacity(0.6))
+                        }
+                    }
 
                     Text(String(format: "$%.2f", viewModel.availableBalance))
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundColor(viewModel.availableBalance > 0 ? Theme.Colors.success : Theme.Colors.text)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Divider()
-                    .padding(.vertical, 4)
-
-                // Gross sales and fees breakdown
-                VStack(spacing: 12) {
-                    HStack(spacing: Theme.Spacing.lg) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 4) {
-                                Text("Gross Sales")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(Theme.Colors.text.opacity(0.7))
-                                Image(systemName: "info.circle")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Theme.Colors.text.opacity(0.5))
-                            }
-
-                            Text(String(format: "$%.2f", viewModel.totalEarned / 0.95))
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(Theme.Colors.text)
+                // Simple Fee Breakdown
+                VStack(spacing: 10) {
+                    HStack {
+                        HStack(spacing: 6) {
+                            Image(systemName: "building.columns.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.Colors.text.opacity(0.5))
+                            Text("Brrow Fee (5%)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Theme.Colors.text.opacity(0.6))
                         }
 
                         Spacer()
 
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("Net Earnings")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(Theme.Colors.text.opacity(0.7))
-
-                            Text(String(format: "$%.2f", viewModel.totalEarned))
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(Theme.Colors.success)
-                        }
-                    }
-
-                    // Fees breakdown
-                    VStack(spacing: 8) {
-                        HStack {
-                            HStack(spacing: 4) {
-                                Image(systemName: "building.columns")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Theme.Colors.text.opacity(0.5))
-                                Text("Brrow Fee (5%)")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(Theme.Colors.text.opacity(0.7))
-                            }
-
-                            Spacer()
-
-                            Text(String(format: "$%.2f", viewModel.platformFees))
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Theme.Colors.text.opacity(0.7))
-                        }
-
-                        HStack {
-                            HStack(spacing: 4) {
-                                Image(systemName: "creditcard")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Theme.Colors.text.opacity(0.5))
-                                Text("Payment Processing")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(Theme.Colors.text.opacity(0.7))
-                            }
-
-                            Spacer()
-
-                            Text(String(format: "$%.2f", calculateStripeFees()))
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Theme.Colors.text.opacity(0.7))
-                        }
-                    }
-                    .padding(.top, 4)
-                }
-
-                Divider()
-                    .padding(.vertical, 4)
-
-                HStack(spacing: Theme.Spacing.lg) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Pending")
-                            .font(.system(size: 13, weight: .medium))
+                        Text(String(format: "$%.2f", viewModel.platformFees))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(Theme.Colors.text.opacity(0.7))
+                    }
+
+                    HStack {
+                        HStack(spacing: 6) {
+                            Image(systemName: "creditcard.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(Theme.Colors.text.opacity(0.5))
+                            Text("Payment Processing")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Theme.Colors.text.opacity(0.6))
+                        }
+
+                        Spacer()
+
+                        Text(String(format: "$%.2f", calculateStripeFees()))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
+                    }
+                }
+                .padding(.top, 8)
+
+                // Secondary Metrics
+                HStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Pending")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Theme.Colors.text.opacity(0.5))
 
                         Text(String(format: "$%.2f", viewModel.pendingBalance))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Theme.Colors.text)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(Theme.Colors.text.opacity(0.8))
                     }
 
                     Spacer()
 
-                    VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .trailing, spacing: 6) {
                         Text("Total Withdrawn")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Theme.Colors.text.opacity(0.7))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Theme.Colors.text.opacity(0.5))
 
                         Text(String(format: "$%.2f", viewModel.totalWithdrawn))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Theme.Colors.text)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(Theme.Colors.text.opacity(0.8))
                     }
                 }
             }
@@ -331,7 +321,208 @@ struct EarningsView: View {
             }
         }
     }
-    
+
+    // MARK: - Payout Tier Section
+    private var payoutTierSection: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            VStack(spacing: Theme.Spacing.sm) {
+                // Header with tier badge
+                HStack(spacing: 12) {
+                    // Tier icon
+                    ZStack {
+                        Circle()
+                            .fill(tierColor.opacity(0.15))
+                            .frame(width: 40, height: 40)
+
+                        Image(systemName: tierIcon)
+                            .font(.system(size: 20))
+                            .foregroundColor(tierColor)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.payoutTier)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Theme.Colors.text)
+
+                        Text("Payout Hold: \(viewModel.holdDays) days")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                    }
+
+                    Spacer()
+                }
+
+                // Verification status
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: viewModel.emailVerified ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(viewModel.emailVerified ? Theme.Colors.success : Theme.Colors.secondaryText.opacity(0.5))
+
+                        Text("Email Verified")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
+
+                        Spacer()
+                    }
+
+                    HStack {
+                        Image(systemName: viewModel.idVerified ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(viewModel.idVerified ? Theme.Colors.success : Theme.Colors.secondaryText.opacity(0.5))
+
+                        Text("ID Verified")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
+
+                        Spacer()
+                    }
+
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.success)
+
+                        Text("Completed Sales: \(viewModel.tierCompletedSales)")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
+
+                        Spacer()
+                    }
+                }
+                .padding(.top, 8)
+
+                // Next payout date if available
+                if let nextDate = viewModel.nextPayoutDate {
+                    HStack {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 14))
+                            .foregroundColor(Theme.Colors.primary)
+
+                        Text("Next funds available: \(nextDate)")
+                            .font(.system(size: 13))
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
+
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                }
+
+                // Upgrade suggestion
+                if viewModel.payoutTierCode == "UNVERIFIED" {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.Colors.primary)
+
+                            Text("Reduce wait time to 5 days")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Theme.Colors.primary)
+                        }
+
+                        Text("Verify your email and ID to unlock faster payouts")
+                            .font(.system(size: 12))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                            .padding(.leading, 20)
+                    }
+                    .padding(.top, 12)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Theme.Colors.primary.opacity(0.05))
+                    .cornerRadius(8)
+                } else if viewModel.payoutTierCode == "VERIFIED" && viewModel.tierCompletedSales < 10 {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Theme.Colors.success)
+
+                            Text("Reduce wait time to 3 days")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Theme.Colors.success)
+                        }
+
+                        Text("Complete \(10 - viewModel.tierCompletedSales) more sales to become a Trusted Seller")
+                            .font(.system(size: 12))
+                            .foregroundColor(Theme.Colors.secondaryText)
+                            .padding(.leading, 20)
+                    }
+                    .padding(.top, 12)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Theme.Colors.success.opacity(0.05))
+                    .cornerRadius(8)
+                } else if viewModel.payoutTierCode == "TRUSTED" {
+                    HStack(spacing: 6) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.orange)
+
+                        Text("Fastest payout tier unlocked!")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .padding(Theme.Spacing.lg)
+            .background(tierBackgroundGradient)
+            .cornerRadius(Theme.CornerRadius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                    .stroke(tierColor.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+        }
+    }
+
+    // Helper computed properties for tier styling
+    private var tierColor: Color {
+        switch viewModel.payoutTierCode {
+        case "TRUSTED":
+            return .orange
+        case "VERIFIED":
+            return Theme.Colors.success
+        default:
+            return Theme.Colors.primary
+        }
+    }
+
+    private var tierIcon: String {
+        switch viewModel.payoutTierCode {
+        case "TRUSTED":
+            return "star.fill"
+        case "VERIFIED":
+            return "checkmark.seal.fill"
+        default:
+            return "person.fill"
+        }
+    }
+
+    private var tierBackgroundGradient: LinearGradient {
+        switch viewModel.payoutTierCode {
+        case "TRUSTED":
+            return LinearGradient(
+                colors: [Color.white, Color.orange.opacity(0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case "VERIFIED":
+            return LinearGradient(
+                colors: [Color.white, Theme.Colors.success.opacity(0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        default:
+            return LinearGradient(
+                colors: [Color.white, Theme.Colors.primary.opacity(0.03)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
     // MARK: - Quick Stats
     private var quickStatsSection: some View {
         HStack(spacing: Theme.Spacing.md) {
@@ -563,6 +754,26 @@ struct EarningsView: View {
         .background(Color.white)
         .cornerRadius(Theme.CornerRadius.card)
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+    }
+
+    // MARK: - Helper Methods
+
+    private func showInfoAlert(title: String, message: String) {
+        let alert = UIAlertController(
+            title: title,
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Got it", style: .default))
+
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootViewController = windowScene.windows.first?.rootViewController {
+            var topController = rootViewController
+            while let presented = topController.presentedViewController {
+                topController = presented
+            }
+            topController.present(alert, animated: true)
+        }
     }
 }
 

@@ -39,6 +39,16 @@ class GoogleAuthService: ObservableObject {
         isLoading = true
         errorMessage = ""
 
+        // Check if running on simulator
+        #if targetEnvironment(simulator)
+        print("⚠️ [GOOGLE SIGN-IN] Running on simulator")
+        print("⚠️ Google Sign-In may not work reliably on simulators due to:")
+        print("   - Network/SSL certificate issues")
+        print("   - Google security restrictions on simulators")
+        print("   - Safari authentication flow limitations")
+        print("ℹ️  For best results, test Google Sign-In on a real device")
+        #endif
+
         do {
             // Get view controller
             guard let viewController = getCurrentViewController() else {
@@ -159,6 +169,16 @@ class GoogleAuthService: ObservableObject {
     private func handleSignInError(_ error: Error) {
         print("❌ Google Sign-In error: \(error)")
 
+        // Check if running on simulator
+        #if targetEnvironment(simulator)
+        let errorDescription = error.localizedDescription.lowercased()
+        if errorDescription.contains("network") || errorDescription.contains("connection") || errorDescription.contains("lost") {
+            errorMessage = "⚠️ Simulator Network Issue\n\nGoogle Sign-In doesn't work reliably on simulators due to network/SSL limitations.\n\nPlease test on a real device for Google authentication.\n\nAlternative: Use Email/Password or Apple Sign-In for testing."
+            isLoading = false
+            return
+        }
+        #endif
+
         if let gidError = error as? GIDSignInError {
             switch gidError.code {
             case .canceled:
@@ -175,9 +195,17 @@ class GoogleAuthService: ObservableObject {
                 errorMessage = ""
                 print("ℹ️ Permissions already granted")
             case .unknown:
+                #if targetEnvironment(simulator)
+                errorMessage = "Google Sign-In failed on simulator. Please use a real device or alternative sign-in method."
+                #else
                 errorMessage = "Google Sign-In failed. Please try again."
+                #endif
             @unknown default:
+                #if targetEnvironment(simulator)
+                errorMessage = "Google Sign-In not supported on simulator. Please use a real device."
+                #else
                 errorMessage = "Google Sign-In failed. Please try again."
+                #endif
             }
         } else if let customError = error as? GoogleSignInError {
             switch customError {
@@ -195,8 +223,12 @@ class GoogleAuthService: ObservableObject {
         } else {
             // Check for network errors
             let errorDescription = error.localizedDescription.lowercased()
-            if errorDescription.contains("internet") || errorDescription.contains("network") || errorDescription.contains("offline") {
+            if errorDescription.contains("internet") || errorDescription.contains("network") || errorDescription.contains("offline") || errorDescription.contains("lost") {
+                #if targetEnvironment(simulator)
+                errorMessage = "Network error on simulator.\n\nGoogle Sign-In requires a real device.\n\nPlease use Email/Password or Apple Sign-In for simulator testing."
+                #else
                 errorMessage = "Please check your internet connection and try again."
+                #endif
             } else {
                 errorMessage = "Google Sign-In failed. Please try again."
             }

@@ -45,18 +45,12 @@ class ForgotPasswordViewModel: ObservableObject {
         
         Task {
             do {
-                let response = try await APIClient.shared.requestPasswordReset(email: email)
-                
+                try await APIClient.shared.requestPasswordReset(email: email)
+
                 await MainActor.run {
                     self.isLoading = false
-                    if response.success {
-                        self.showSuccessAlert = true
-                        HapticManager.notification(type: .success)
-                    } else {
-                        self.errorMessage = response.message ?? "Failed to send reset link"
-                        self.showErrorAlert = true
-                        HapticManager.notification(type: .error)
-                    }
+                    self.showSuccessAlert = true
+                    HapticManager.notification(type: .success)
                 }
             } catch {
                 await MainActor.run {
@@ -71,15 +65,16 @@ class ForgotPasswordViewModel: ObservableObject {
 }
 
 class ResetPasswordViewModel: ObservableObject {
+    @Published var email = ""
     @Published var resetCode = ""
     @Published var newPassword = ""
     @Published var confirmPassword = ""
     @Published var isLoading = false
     @Published var showSuccessAlert = false
     @Published var errorMessage: String?
-    
+
     @Published var passwordValidation = PasswordValidation()
-    
+
     private var cancellables = Set<AnyCancellable>()
     
     var isValid: Bool {
@@ -127,36 +122,16 @@ class ResetPasswordViewModel: ObservableObject {
         
         Task {
             do {
-                let response = try await APIClient.shared.resetPassword(
+                try await APIClient.shared.resetPassword(
+                    email: email,
                     token: resetCode,
                     newPassword: newPassword
                 )
-                
+
                 await MainActor.run {
                     self.isLoading = false
-                    if response.success {
-                        // If we got a token, handle the auth success
-                        if let token = response.data?.token,
-                           let userData = response.data?.user {
-                            // Create user object using the custom initializer
-                            let user = User(
-                                id: "0", // Will be updated from profile
-                                username: userData.username,
-                                email: userData.email,
-                                apiId: String(userData.id)
-                            )
-                            
-                            // Create AuthResponse and handle authentication
-                            let authResponse = AuthResponse(token: token, user: user)
-                            AuthManager.shared.handleAuthSuccess(authResponse)
-                        }
-                        
-                        self.showSuccessAlert = true
-                        HapticManager.notification(type: .success)
-                    } else {
-                        self.errorMessage = response.message ?? "Failed to reset password"
-                        HapticManager.notification(type: .error)
-                    }
+                    self.showSuccessAlert = true
+                    HapticManager.notification(type: .success)
                 }
             } catch {
                 await MainActor.run {

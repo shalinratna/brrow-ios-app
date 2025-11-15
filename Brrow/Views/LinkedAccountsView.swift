@@ -82,6 +82,18 @@ struct LinkedAccountsView: View {
             .onDisappear {
                 viewModel.stopVerificationPolling()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .refreshProfile)) { _ in
+                print("👤 [LINKED ACCOUNTS] Received refresh notification - reloading data")
+                Task {
+                    await viewModel.fetchLinkedAccounts()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .stripeAccountConnected)) { _ in
+                print("✅ [LINKED ACCOUNTS] Stripe account connected - reloading data")
+                Task {
+                    await viewModel.fetchLinkedAccounts()
+                }
+            }
             .alert("Cannot Unlink", isPresented: $showingLastMethodWarning) {
                 Button("OK", role: .cancel) { }
             } message: {

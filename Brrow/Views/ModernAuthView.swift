@@ -23,7 +23,8 @@ struct ModernAuthView: View {
     @State private var hasInteractedWithFirstName = false
     @State private var hasInteractedWithLastName = false
     @State private var isGoogleSignInLoading = false
-    
+    @State private var showForgotPassword = false
+
     enum Field: Hashable {
         case email, username, password, firstName, lastName
     }
@@ -159,7 +160,7 @@ struct ModernAuthView: View {
                 text: $viewModel.email,
                 placeholder: isSignUpMode ? "Enter your email" : "Email or username",
                 icon: isSignUpMode ? "envelope.fill" : "person.crop.circle",
-                keyboardType: isSignUpMode ? .emailAddress : .default,
+                keyboardType: .emailAddress,  // Always use emailAddress to prevent auto-capitalization
                 isValid: !hasInteractedWithEmail || !viewModel.email.isEmpty,
                 textContentType: isSignUpMode ? .emailAddress : nil
             )
@@ -415,10 +416,28 @@ struct ModernAuthView: View {
     
     private var actionButtonsSection: some View {
         VStack(spacing: 16) {
+            // Forgot Password link (only show in Sign In mode)
+            if !isSignUpMode {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        showForgotPassword = true
+                    }) {
+                        Text("Forgot Password?")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Theme.Colors.primary)
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+
             primaryActionButton
             toggleModeButton
         }
         .padding(.horizontal, 24)
+        .sheet(isPresented: $showForgotPassword) {
+            ForgotPasswordView()
+        }
     }
     
     private var primaryActionButton: some View {
@@ -510,6 +529,23 @@ struct ModernAuthView: View {
         VStack(spacing: 14) {
             appleSignInButton
             googleSignInButton
+
+            // Simulator Warning for Google Sign-In
+            #if targetEnvironment(simulator)
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.orange)
+                Text("Google Sign-In requires a real device")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.orange)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(8)
+            #endif
+
             guestModeButton
         }
         .padding(.horizontal, 24)

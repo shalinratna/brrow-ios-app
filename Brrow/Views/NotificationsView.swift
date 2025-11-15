@@ -15,6 +15,8 @@ struct NotificationsView: View {
     @State private var selectedNotification: NotificationHistoryItem?
     @State private var selectedChatId: String?
     @State private var navigateToChat = false
+    @State private var selectedTransactionId: String?
+    @State private var navigateToTransaction = false
     @State private var allNotifications: [NotificationHistoryItem] = []
 
     private let filters = [
@@ -72,20 +74,38 @@ struct NotificationsView: View {
                 AnalyticsService.shared.trackScreen(name: "notifications")
             }
             .background(
-                NavigationLink(
-                    destination: destinationView,
-                    isActive: $navigateToChat,
-                    label: { EmptyView() }
-                )
-                .hidden()
+                Group {
+                    NavigationLink(
+                        destination: chatDestinationView,
+                        isActive: $navigateToChat,
+                        label: { EmptyView() }
+                    )
+                    .hidden()
+
+                    NavigationLink(
+                        destination: transactionDestinationView,
+                        isActive: $navigateToTransaction,
+                        label: { EmptyView() }
+                    )
+                    .hidden()
+                }
             )
         }
     }
 
     @ViewBuilder
-    private var destinationView: some View {
+    private var chatDestinationView: some View {
         if let chatId = selectedChatId {
             ConversationNavigationView(conversationId: chatId)
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var transactionDestinationView: some View {
+        if let transactionId = selectedTransactionId {
+            TransactionDetailView(purchaseId: transactionId)
         } else {
             EmptyView()
         }
@@ -232,8 +252,21 @@ struct NotificationsView: View {
             let chatId = urlString.replacingOccurrences(of: "brrow://chat/", with: "")
             selectedChatId = chatId
             navigateToChat = true
+        } else if urlString.hasPrefix("brrow://rental/") {
+            // Handle rental/transaction deep link (e.g., "brrow://rental/txn_abc123")
+            let transactionId = urlString.replacingOccurrences(of: "brrow://rental/", with: "")
+            selectedTransactionId = transactionId
+            navigateToTransaction = true
+        } else if urlString.hasPrefix("brrow://transaction/") {
+            // Handle transaction deep link (e.g., "brrow://transaction/txn_abc123")
+            let transactionId = urlString.replacingOccurrences(of: "brrow://transaction/", with: "")
+            selectedTransactionId = transactionId
+            navigateToTransaction = true
+        } else if urlString == "brrow://transactions" || urlString == "brrow://payments" {
+            // Handle generic transactions/payments URL - could show TransactionsListView
+            // For now, just log it
+            print("Navigate to transactions list")
         }
-        // Add more deep link handlers as needed
         print("Navigate to: \(urlString)")
     }
 }

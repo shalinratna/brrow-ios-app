@@ -505,6 +505,14 @@ struct CheckoutStatus: Codable {
     let transaction: CheckoutTransaction?
     let metadata: [String: String]?
 
+    enum CodingKeys: String, CodingKey {
+        case sessionStatus
+        case paymentStatus
+        case transactionId = "purchaseId"  // Backend returns "purchaseId"
+        case transaction = "purchase"      // Backend returns "purchase"
+        case metadata
+    }
+
     struct CheckoutTransaction: Codable {
         let id: String
         let paymentStatus: String
@@ -512,7 +520,10 @@ struct CheckoutStatus: Codable {
         let amount: Double
 
         enum CodingKeys: String, CodingKey {
-            case id, paymentStatus = "payment_status", status, amount
+            case id
+            case paymentStatus = "payment_status"
+            case status = "verification_status"  // Backend returns "verification_status"
+            case amount
         }
     }
 }

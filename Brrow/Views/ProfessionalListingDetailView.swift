@@ -31,6 +31,7 @@ struct ProfessionalListingDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingEditListing = false
     @State private var showingAnalytics = false
+    @State private var shouldRefreshListing = false
     @State private var showingMarkAsSold = false
     @State private var showingMarkAsSoldConfirmation = false
     @State private var showingBuyNow = false
@@ -240,8 +241,19 @@ struct ProfessionalListingDetailView: View {
         }
         .sheet(isPresented: $showingSellerProfile) {
             if let seller = viewModel.seller {
-                UniversalProfileView(user: seller)
-                    .environmentObject(AuthManager.shared)
+                NavigationView {
+                    UniversalProfileView(user: seller)
+                        .environmentObject(AuthManager.shared)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Done") {
+                                    showingSellerProfile = false
+                                }
+                                .foregroundColor(Theme.Colors.primary)
+                            }
+                        }
+                }
             }
         }
         .alert("Delete Listing", isPresented: $showingDeleteConfirmation) {
@@ -270,7 +282,10 @@ struct ProfessionalListingDetailView: View {
             Text("Are you sure you want to mark this listing as \(viewModel.listing.listingType == "sale" ? "sold" : "rented")? This will update the status and notify potential buyers/renters.")
         }
         .sheet(isPresented: $showingBorrowOptions) {
-            BorrowOptionsView(listing: viewModel.listing)
+            BorrowOptionsView(listing: viewModel.listing) {
+                // Refresh listing after rental completes
+                shouldRefreshListing = true
+            }
         }
         .sheet(isPresented: $showingInquiry) {
             ModernMessageComposer(
@@ -309,6 +324,14 @@ struct ProfessionalListingDetailView: View {
             impactFeedback.prepare()
             selectionFeedback.prepare()
             AnalyticsService.shared.trackListingView(listingId: viewModel.listing.id, listingTitle: viewModel.listing.title)
+        }
+        .onChange(of: shouldRefreshListing) { newValue in
+            if newValue {
+                // Refresh the listing data after rental completion
+                print("🔄 [ListingDetail] Refreshing listing after rental completion")
+                viewModel.loadListingDetails()
+                shouldRefreshListing = false
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RefreshListingDetail"))) { notification in
             // Check if this notification is for our listing
@@ -399,12 +422,13 @@ struct ProfessionalListingDetailView: View {
                 HStack(alignment: .bottom, spacing: 4) {
                     HStack(spacing: 8) {
                         Text("$\(Int(viewModel.listing.displayPrice))")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(Theme.Colors.text)
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.black)
+                            .opacity(1.0)
 
                         if viewModel.listing.isRental {
                             Text("/day")
-                                .font(.system(size: 16))
+                                .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(Theme.Colors.secondaryText)
                         }
 
@@ -450,7 +474,7 @@ struct ProfessionalListingDetailView: View {
                 }
             }
             .buttonStyle(PlainButtonStyle())
-            .disabled(!isOwner)
+            .allowsHitTesting(isOwner && isEditMode)
 
             // Title (tappable for owners)
             Button(action: {
@@ -460,8 +484,9 @@ struct ProfessionalListingDetailView: View {
             }) {
                 HStack(spacing: 8) {
                     Text(viewModel.listing.title.isEmpty ? "Unnamed \(viewModel.listing.itemType)" : viewModel.listing.title)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(Theme.Colors.text)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.black)
+                        .opacity(1.0)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -473,7 +498,7 @@ struct ProfessionalListingDetailView: View {
                 }
             }
             .buttonStyle(PlainButtonStyle())
-            .disabled(!isOwner || !isEditMode)
+            .allowsHitTesting(isOwner && isEditMode)
             
             // Condition and negotiable
             HStack(spacing: 12) {
@@ -484,8 +509,9 @@ struct ProfessionalListingDetailView: View {
                 }) {
                     HStack(spacing: 4) {
                         Text("Condition: \(conditionDisplayName)")
-                            .font(.system(size: 14))
-                            .foregroundColor(Theme.Colors.secondaryText)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.black)
+                            .opacity(1.0)
 
                         if isOwner && isEditMode {
                             Image(systemName: "pencil.circle.fill")
@@ -495,11 +521,11 @@ struct ProfessionalListingDetailView: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
-                .disabled(!isOwner || !isEditMode)
+                .allowsHitTesting(isOwner && isEditMode)
 
                 if viewModel.listing.isNegotiable {
                     Text("• Negotiable")
-                        .font(.system(size: 14))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundColor(Color.green)
                 }
             }
@@ -762,8 +788,8 @@ struct ProfessionalListingDetailView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.listing.listingType == "rental" ? "Rental Pending" : "Sale Pending")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Theme.Colors.text)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.black)
 
                     Text("Payment hold active – awaiting verification")
                         .font(.system(size: 14))
@@ -917,8 +943,8 @@ struct ProfessionalListingDetailView: View {
                 }
             }) {
                 Text(viewModel.listing.description.isEmpty ? "No description available for this item." : viewModel.listing.description)
-                    .font(.body)
-                    .foregroundColor(viewModel.listing.description.isEmpty ? Theme.Colors.secondaryText : Theme.Colors.text)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(viewModel.listing.description.isEmpty ? Theme.Colors.secondaryText : .primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .multilineTextAlignment(.leading)
@@ -947,9 +973,8 @@ struct ProfessionalListingDetailView: View {
                         Spacer()
                         
                         Text(spec.value)
-                            .font(.body)
-                            .fontWeight(.medium)
-                            .foregroundColor(Theme.Colors.text)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.black)
                     }
                     .padding(.vertical, 4)
                     
@@ -992,13 +1017,13 @@ struct ProfessionalListingDetailView: View {
                 HStack {
                     Image(systemName: "location.fill")
                         .foregroundColor(Theme.Colors.primary)
-                    
+
                     Text("\(viewModel.distanceFromUser ?? "Calculating...") away")
-                        .font(.body)
-                        .foregroundColor(Theme.Colors.text)
-                    
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.black)
+
                     Spacer()
-                    
+
                     Button(action: openInMaps) {
                         Text("Get Directions")
                             .font(.caption)
@@ -1024,15 +1049,15 @@ struct ProfessionalListingDetailView: View {
                 Circle()
                     .fill(viewModel.listing.isAvailable ? Color.green : Color.red)
                     .frame(width: 8, height: 8)
-                
+
                 Text(viewModel.listing.isAvailable ?
                      (viewModel.listing.isRental ? "Available for rent" : "Available for purchase") :
                      (viewModel.listing.isRental ? "Currently rented" : "Sold"))
-                    .font(.body)
-                    .foregroundColor(Theme.Colors.text)
-                
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.black)
+
                 Spacer()
-                
+
                 if !viewModel.listing.isAvailable, let nextAvailable = viewModel.nextAvailableDate {
                     Text("Available \(nextAvailable, style: .date)")
                         .font(.caption)
@@ -1581,6 +1606,7 @@ struct MakeOfferView: View {
 
 struct BorrowOptionsView: View {
     let listing: Listing
+    let onComplete: () -> Void
     @State private var selectedDuration = 1
     @State private var startDate = Date()
     @State private var includeInsurance = true
@@ -1805,6 +1831,8 @@ struct BorrowOptionsView: View {
                 onComplete: {
                     showingPaymentFlow = false
                     dismiss()
+                    // Notify parent to refresh
+                    onComplete()
                 }
             )
         }

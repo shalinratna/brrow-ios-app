@@ -12,6 +12,7 @@ struct EditFieldOverlay: View {
     let field: EditableField
     @ObservedObject var viewModel: InlineEditViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var keyboardHeight: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -55,6 +56,7 @@ struct EditFieldOverlay: View {
                     editorContent
                         .padding(Theme.Spacing.lg)
                 }
+                .frame(minHeight: 200, maxHeight: .infinity) // Give more space to editor content
 
                 Divider()
                     .background(Theme.Colors.border)
@@ -65,11 +67,37 @@ struct EditFieldOverlay: View {
             .background(Theme.Colors.background)
             .cornerRadius(Theme.CornerRadius.xl)
             .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
-            .padding(.horizontal, Theme.Spacing.lg)
-            .frame(maxWidth: 500)
+            .padding(.horizontal, Theme.Spacing.md) // Reduced padding for more width
+            .padding(.vertical, Theme.Spacing.xl) // Added vertical padding
+            .frame(maxWidth: 700, maxHeight: .infinity) // Increased maxWidth and allow full height
         }
+        .padding(.bottom, keyboardHeight) // Adjust for keyboard
         .transition(.scale(scale: 0.95).combined(with: .opacity))
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.editingField)
+        .onAppear {
+            // Listen for keyboard notifications
+            NotificationCenter.default.addObserver(
+                forName: UIResponder.keyboardWillShowNotification,
+                object: nil,
+                queue: .main
+            ) { notification in
+                if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        keyboardHeight = keyboardFrame.height * 0.3 // Adjust by 30% to give breathing room
+                    }
+                }
+            }
+
+            NotificationCenter.default.addObserver(
+                forName: UIResponder.keyboardWillHideNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                withAnimation(.easeOut(duration: 0.3)) {
+                    keyboardHeight = 0
+                }
+            }
+        }
     }
 
     // MARK: - Editor Content
