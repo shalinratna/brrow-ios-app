@@ -930,6 +930,14 @@ struct FixedEarningsOverviewResponse: Codable {
         let stripeAccountId: String?
         let accountStatus: String?
 
+        // Payout tier information
+        let payoutTier: String?          // "New User", "Verified User", "Trusted Seller"
+        let payoutTierCode: String?      // "UNVERIFIED", "VERIFIED", "TRUSTED"
+        let holdDays: Int?               // 7, 5, or 3
+        let emailVerified: Bool?
+        let idVerified: Bool?
+        let completedSales: Int?
+
         enum CodingKeys: String, CodingKey {
             case nextPayoutDate = "nextPayoutDate"
             case minimumPayout = "minimumPayout"
@@ -938,6 +946,12 @@ struct FixedEarningsOverviewResponse: Codable {
             case availableBalance = "availableBalance"
             case stripeAccountId = "stripeAccountId"
             case accountStatus = "accountStatus"
+            case payoutTier = "payoutTier"
+            case payoutTierCode = "payoutTierCode"
+            case holdDays = "holdDays"
+            case emailVerified = "emailVerified"
+            case idVerified = "idVerified"
+            case completedSales = "completedSales"
         }
     }
 }

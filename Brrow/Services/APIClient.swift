@@ -3508,21 +3508,17 @@ class APIClient: ObservableObject {
     }
     
     func fetchUpcomingMeetups() async throws -> [UpcomingMeetup] {
-        struct MeetupsResponse: Codable {
-            let data: [UpcomingMeetup]
-        }
-
         let response = try await performRequest(
             endpoint: "api/transactions/upcoming/meetups",
             method: .GET,
-            responseType: APIResponse<MeetupsResponse>.self
+            responseType: APIResponse<[UpcomingMeetup]>.self
         )
 
         guard response.success, let data = response.data else {
             throw BrrowAPIError.serverError(response.message ?? "Failed to fetch upcoming meetups")
         }
 
-        return data.data
+        return data
     }
 
     func fetchPendingPurchases() async throws -> [Purchase] {
@@ -4790,35 +4786,41 @@ class APIClient: ObservableObject {
     func getStripeConnectOnboardingURL() async throws -> String {
         struct OnboardingResponse: Codable {
             let success: Bool
-            let data: OnboardingData
-        }
-
-        struct OnboardingData: Codable {
-            let url: String
+            let onboardingUrl: String
+            let accountId: String
         }
 
         let response = try await performRequest(
-            endpoint: "api/stripe/connect/onboarding",
+            endpoint: "api/stripe/connect/onboard",
             method: .POST,
             responseType: OnboardingResponse.self
         )
 
-        return response.data.url
+        return response.onboardingUrl
     }
 
     func checkStripeAccountStatus() async throws -> Bool {
         struct StatusResponse: Codable {
             let success: Bool
-            let data: StatusData
-        }
-
-        struct StatusData: Codable {
             let connected: Bool
-            let accountStatus: String?
+            let accountId: String?
+            let payoutsEnabled: Bool?
+            let chargesEnabled: Bool?
+            let detailsSubmitted: Bool?
+            let canReceivePayments: Bool?
+            let requiresOnboarding: Bool?
+            let bankLast4: String?
 
             enum CodingKeys: String, CodingKey {
+                case success
                 case connected
-                case accountStatus = "account_status"
+                case accountId
+                case payoutsEnabled
+                case chargesEnabled
+                case detailsSubmitted
+                case canReceivePayments
+                case requiresOnboarding
+                case bankLast4
             }
         }
 
@@ -4828,7 +4830,7 @@ class APIClient: ObservableObject {
             responseType: StatusResponse.self
         )
 
-        return response.data.connected
+        return response.connected
     }
 
     // MARK: - User Profile Methods

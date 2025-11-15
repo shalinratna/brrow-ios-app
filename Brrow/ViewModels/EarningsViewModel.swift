@@ -32,6 +32,15 @@ class EarningsViewModel: ObservableObject {
     @Published var minimumPayout: Double = 10.0
     @Published var payoutMethod: String = "not_connected"
     @Published var stripeAccountId: String?
+    @Published var nextPayoutDate: String?
+
+    // PAYOUT TIER INFO
+    @Published var payoutTier: String = "New User"
+    @Published var payoutTierCode: String = "UNVERIFIED"
+    @Published var holdDays: Int = 7
+    @Published var emailVerified: Bool = false
+    @Published var idVerified: Bool = false
+    @Published var tierCompletedSales: Int = 0
 
     // DATA LISTS
     @Published var chartData: [EarningsDataPoint] = []
@@ -74,6 +83,9 @@ class EarningsViewModel: ObservableObject {
                     chartTask,
                     balanceTransactionsTask
                 )
+
+                // Also check Stripe connection status
+                await checkStripeAccountStatus()
 
                 await MainActor.run {
                     self.updateEarningsData(earnings)
