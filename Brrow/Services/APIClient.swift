@@ -4595,16 +4595,13 @@ class APIClient: ObservableObject {
             totalWithdrawn: response.data.overview.totalWithdrawn,
             hasStripeConnected: response.data.overview.hasStripeConnected,
             canRequestPayout: response.data.overview.canRequestPayout,
-            totalEarnings: response.data.overview.lifetimeEarnings ?? response.data.overview.totalEarned ?? 0,
+            lifetimeEarnings: response.data.overview.lifetimeEarnings,
+            netEarnings: response.data.overview.netEarnings,
+            platformFees: response.data.overview.platformFees,
             pendingEarnings: response.data.overview.pendingEarnings,
-            lastPayout: nil,
-            monthlyEarnings: 0,
-            earningsChange: 0,
-            itemsRented: response.data.overview.totalRentals,
-            avgDailyEarnings: response.data.overview.averageRentalValue,
-            pendingPayments: Int(response.data.overview.pendingEarnings ?? 0),
-            totalSales: response.data.overview.totalSales,
-            platformFees: response.data.overview.platformFees
+            activeEarnings: response.data.overview.activeEarnings,
+            totalRentals: response.data.overview.totalRentals,
+            totalSales: response.data.overview.totalSales
         )
     }
     
@@ -4746,7 +4743,7 @@ class APIClient: ObservableObject {
         }
 
         let response = try await performRequest(
-            endpoint: "api/earnings/balance-transactions?limit=\(limit)",
+            endpoint: "api/earnings/transactions?limit=\(limit)",
             method: .GET,
             responseType: BalanceTransactionsResponse.self
         )

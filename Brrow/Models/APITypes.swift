@@ -995,9 +995,24 @@ struct CheckPasswordExistsResponse: Codable {
 // MARK: - Purchase/Transaction Types
 struct PurchasesListResponse: Codable {
     let success: Bool
-    let purchases: [PurchaseSummary]
-    let count: Int
+    let data: PurchasesData
     let message: String?
+
+    struct PurchasesData: Codable {
+        let purchases: [PurchaseSummary]
+        let pagination: PurchasesPagination?
+    }
+
+    struct PurchasesPagination: Codable {
+        let total: Int
+        let page: Int
+        let limit: Int
+    }
+
+    // Convenience property for backward compatibility
+    var purchases: [PurchaseSummary] {
+        return data.purchases
+    }
 }
 
 struct PurchaseSummary: Codable, Identifiable {
