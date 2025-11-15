@@ -96,7 +96,7 @@ struct EarningsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Available Balance")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Theme.Colors.secondaryText)
+                        .foregroundColor(Theme.Colors.text.opacity(0.7))
 
                     Text(String(format: "$%.2f", viewModel.availableBalance))
                         .font(.system(size: 42, weight: .bold, design: .rounded))
@@ -107,52 +107,100 @@ struct EarningsView: View {
                 Divider()
                     .padding(.vertical, 4)
 
-                // Balance breakdown row
+                // Gross sales and fees breakdown
+                VStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.lg) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Text("Gross Sales")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(Theme.Colors.text.opacity(0.7))
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Theme.Colors.text.opacity(0.5))
+                            }
+
+                            Text(String(format: "$%.2f", viewModel.totalEarned / 0.95))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Theme.Colors.text)
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Net Earnings")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Theme.Colors.text.opacity(0.7))
+
+                            Text(String(format: "$%.2f", viewModel.totalEarned))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Theme.Colors.success)
+                        }
+                    }
+
+                    // Fees breakdown
+                    VStack(spacing: 8) {
+                        HStack {
+                            HStack(spacing: 4) {
+                                Image(systemName: "building.columns")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Theme.Colors.text.opacity(0.5))
+                                Text("Brrow Fee (5%)")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(Theme.Colors.text.opacity(0.7))
+                            }
+
+                            Spacer()
+
+                            Text(String(format: "$%.2f", viewModel.platformFees))
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Theme.Colors.text.opacity(0.7))
+                        }
+
+                        HStack {
+                            HStack(spacing: 4) {
+                                Image(systemName: "creditcard")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Theme.Colors.text.opacity(0.5))
+                                Text("Payment Processing")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(Theme.Colors.text.opacity(0.7))
+                            }
+
+                            Spacer()
+
+                            Text(String(format: "$%.2f", calculateStripeFees()))
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Theme.Colors.text.opacity(0.7))
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+
+                Divider()
+                    .padding(.vertical, 4)
+
                 HStack(spacing: Theme.Spacing.lg) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Pending")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Theme.Colors.secondaryText)
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
 
                         Text(String(format: "$%.2f", viewModel.pendingBalance))
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Total Earned")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Theme.Colors.secondaryText)
-
-                        Text(String(format: "$%.2f", viewModel.totalEarned))
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(Theme.Colors.text)
                     }
-                }
-
-                HStack(spacing: Theme.Spacing.lg) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Total Withdrawn")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Theme.Colors.secondaryText)
-
-                        Text(String(format: "$%.2f", viewModel.totalWithdrawn))
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Theme.Colors.secondaryText)
-                    }
 
                     Spacer()
 
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text("Platform Fees")
+                        Text("Total Withdrawn")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Theme.Colors.secondaryText)
+                            .foregroundColor(Theme.Colors.text.opacity(0.7))
 
-                        Text(String(format: "$%.2f", viewModel.platformFees))
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Theme.Colors.error)
+                        Text(String(format: "$%.2f", viewModel.totalWithdrawn))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Theme.Colors.text)
                     }
                 }
             }
@@ -160,16 +208,25 @@ struct EarningsView: View {
             .background(
                 LinearGradient(
                     colors: [
-                        Theme.Colors.surface,
-                        Theme.Colors.success.opacity(0.05)
+                        Color.white,
+                        Theme.Colors.success.opacity(0.03)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .cornerRadius(Theme.CornerRadius.card)
-            .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 4, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         }
+    }
+
+    // Calculate Stripe payment processing fees (2.9% + $0.30 per transaction)
+    private func calculateStripeFees() -> Double {
+        let grossSales = viewModel.totalEarned / 0.95
+        // Approximate Stripe fee: 2.9% + $0.30 per transaction
+        // Assuming average transaction count based on sales
+        let transactionCount = max(1.0, Double(viewModel.totalSales))
+        return (grossSales * 0.029) + (0.30 * transactionCount)
     }
 
     // MARK: - Stripe Connection Section
@@ -371,23 +428,23 @@ struct EarningsView: View {
             }
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.surface)
+        .background(Color.white)
         .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
-    
+
     // MARK: - Payout Section
     private var payoutSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text("Payouts")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
-            
+
             VStack(spacing: Theme.Spacing.sm) {
                 ForEach(viewModel.recentPayouts.prefix(3), id: \.id) { payout in
                     PayoutRow(payout: payout)
                 }
-                
+
                 if viewModel.recentPayouts.count > 3 {
                     Button("View All Payouts") {
                         // Navigate to full payouts list
@@ -399,11 +456,11 @@ struct EarningsView: View {
             }
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.surface)
+        .background(Color.white)
         .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
-    
+
     // MARK: - Balance Transactions Section
     private var balanceTransactionsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -426,9 +483,9 @@ struct EarningsView: View {
             }
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.surface)
+        .background(Color.white)
         .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 
     // MARK: - Transactions Section
@@ -438,16 +495,16 @@ struct EarningsView: View {
                 Text("Recent Transactions")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(Theme.Colors.text)
-                
+
                 Spacer()
-                
+
                 Button("View All") {
                     // Navigate to transactions
                 }
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(Theme.Colors.primary)
             }
-            
+
             LazyVStack(spacing: Theme.Spacing.sm) {
                 ForEach(viewModel.recentTransactions.prefix(5), id: \.id) { legacyTransaction in
                     let transaction = EarningsTransaction(
@@ -467,48 +524,45 @@ struct EarningsView: View {
             }
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.surface)
+        .background(Color.white)
         .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
     
     // MARK: - Opportunities Section
     private var opportunitiesSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            Text("Boost Your Earnings")
+            Text("Helpful Tips")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(Theme.Colors.text)
-            
-            LazyVStack(spacing: Theme.Spacing.sm) {
-                EarningsOpportunityCard(
-                    title: "List More Items",
-                    description: "Add 3 more items to increase earnings by up to 40%",
-                    icon: "plus.circle.fill",
-                    color: Theme.Colors.primary,
-                    action: {}
+
+            LazyVStack(spacing: Theme.Spacing.md) {
+                EarningsTipCard(
+                    title: "Quality Photos Increase Sales",
+                    description: "Listings with 3+ clear photos get 2x more views. Use natural lighting and show items from multiple angles.",
+                    icon: "camera.fill",
+                    color: Theme.Colors.primary
                 )
-                
-                EarningsOpportunityCard(
-                    title: "Complete Profile",
-                    description: "Verified profiles earn 25% more on average",
-                    icon: "checkmark.shield.fill",
-                    color: Theme.Colors.success,
-                    action: {}
+
+                EarningsTipCard(
+                    title: "Competitive Pricing Matters",
+                    description: "Check similar items in your area. Pricing 10-15% below average leads to faster bookings and higher earnings.",
+                    icon: "tag.fill",
+                    color: Theme.Colors.success
                 )
-                
-                EarningsOpportunityCard(
-                    title: "Respond Quickly",
-                    description: "Fast responders get 60% more bookings",
+
+                EarningsTipCard(
+                    title: "Quick Responses = More Rentals",
+                    description: "Responding within 1 hour increases booking chances by 60%. Enable push notifications to never miss a message.",
                     icon: "bolt.fill",
-                    color: .orange,
-                    action: {}
+                    color: .orange
                 )
             }
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Colors.surface)
+        .background(Color.white)
         .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 }
 
@@ -537,9 +591,9 @@ struct EarningsStatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Theme.Spacing.md)
-        .background(Theme.Colors.surface)
+        .background(Color.white)
         .cornerRadius(Theme.CornerRadius.card)
-        .shadow(color: Theme.Shadows.card.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 }
 
@@ -637,47 +691,45 @@ struct EarningsTransactionRow: View {
     }
 }
 
-struct EarningsOpportunityCard: View {
+struct EarningsTipCard: View {
     let title: String
     let description: String
     let icon: String
     let color: Color
-    let action: () -> Void
-    
+
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
+            // Icon in a circle
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.1))
+                    .frame(width: 40, height: 40)
+
                 Image(systemName: icon)
-                    .font(.system(size: 20))
+                    .font(.system(size: 18))
                     .foregroundColor(color)
-                    .frame(width: 32)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Theme.Colors.text)
-                    
-                    Text(description)
-                        .font(.system(size: 14))
-                        .foregroundColor(Theme.Colors.secondaryText)
-                        .multilineTextAlignment(.leading)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Theme.Colors.secondaryText)
             }
-            .padding(Theme.Spacing.md)
-            .background(color.opacity(0.05))
-            .cornerRadius(Theme.CornerRadius.card)
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
-                    .stroke(color.opacity(0.2), lineWidth: 1)
-            )
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Theme.Colors.text)
+
+                Text(description)
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.Colors.text.opacity(0.7))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(2)
+            }
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(Theme.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.03))
+        .cornerRadius(Theme.CornerRadius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(color.opacity(0.15), lineWidth: 1)
+        )
     }
 }
 
