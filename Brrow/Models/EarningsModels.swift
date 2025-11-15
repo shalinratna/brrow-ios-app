@@ -106,13 +106,25 @@ struct EarningsPayout: Identifiable, Codable {
 
 struct BalanceTransaction: Identifiable, Codable {
     let id: String
-    let type: String  // SALE_COMPLETED, RENTAL_COMPLETED, PAYOUT_REQUESTED, etc.
+    let type: String  // SALE_CREDIT, PAYOUT_DEBIT, etc.
     let amount: Double
     let balanceAfter: Double
     let description: String
-    let createdAt: String
-    let relatedId: String?  // Transaction or payout ID
-    let metadata: TransactionMetadata?
+    let date: String  // Backend sends "date" not "createdAt"
+
+    // Optional fields from backend
+    let listingTitle: String?
+    let purchaseId: String?
+    let stripePaymentIntent: String?
+
+    // CodingKeys to exclude computed properties
+    enum CodingKeys: String, CodingKey {
+        case id, type, amount, balanceAfter, description, date
+        case listingTitle, purchaseId, stripePaymentIntent
+    }
+
+    // Computed property for backward compatibility
+    var createdAt: String { date }
 
     var transactionType: BalanceTransactionType? {
         return BalanceTransactionType(rawValue: type)
@@ -120,45 +132,29 @@ struct BalanceTransaction: Identifiable, Codable {
 
     var createdDate: Date? {
         let formatter = ISO8601DateFormatter()
-        return formatter.date(from: createdAt)
+        return formatter.date(from: date)
     }
 
     var isCredit: Bool {
-        guard let txType = transactionType else { return false }
-        switch txType {
-        case .saleCompleted, .rentalCompleted, .refundReceived:
-            return true
-        case .payoutRequested, .payoutCompleted, .platformFee:
-            return false
-        }
+        return amount > 0
     }
 
     enum BalanceTransactionType: String, Codable {
         case saleCompleted = "SALE_COMPLETED"
+        case saleCredit = "SALE_CREDIT"
         case rentalCompleted = "RENTAL_COMPLETED"
+        case rentalPickup = "RENTAL_PICKUP"
+        case rentalReturn = "RENTAL_RETURN"
         case payoutRequested = "PAYOUT_REQUESTED"
         case payoutCompleted = "PAYOUT_COMPLETED"
+        case payoutDebit = "PAYOUT_DEBIT"
+        case payoutFailed = "PAYOUT_FAILED"
+        case payoutRefund = "PAYOUT_REFUND"
         case platformFee = "PLATFORM_FEE"
-        case refundReceived = "REFUND_RECEIVED"
-    }
-
-    struct TransactionMetadata: Codable {
-        let listingTitle: String?
-        let buyerName: String?
-        let sellerName: String?
-
-        enum CodingKeys: String, CodingKey {
-            case listingTitle = "listing_title"
-            case buyerName = "buyer_name"
-            case sellerName = "seller_name"
-        }
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case id, type, amount, description, metadata
-        case balanceAfter = "balance_after"
-        case createdAt = "created_at"
-        case relatedId = "related_id"
+        case refundIssued = "REFUND_ISSUED"
+        case adjustmentCredit = "ADJUSTMENT_CREDIT"
+        case adjustmentDebit = "ADJUSTMENT_DEBIT"
+        case adminAdjustment = "ADMIN_ADJUSTMENT"
     }
 }
 
