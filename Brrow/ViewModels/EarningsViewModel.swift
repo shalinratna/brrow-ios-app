@@ -207,6 +207,15 @@ class EarningsViewModel: ObservableObject {
         hasStripeConnected = overview.hasStripeConnectedValue
         canRequestPayout = overview.canRequestPayoutValue
 
+        // PAYOUT TIER FIELDS
+        payoutTier = overview.payoutTier ?? "New User"
+        payoutTierCode = overview.payoutTierCode ?? "UNVERIFIED"
+        holdDays = overview.holdDays ?? 7
+        emailVerified = overview.emailVerified ?? false
+        idVerified = overview.idVerified ?? false
+        tierCompletedSales = overview.tierCompletedSales ?? 0
+        nextPayoutDate = overview.nextPayoutDate
+
         // LEGACY FIELDS
         totalEarnings = overview.totalEarnings
         monthlyEarnings = overview.monthlyEarningsValue

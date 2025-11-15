@@ -85,6 +85,15 @@ struct EarningsOverview: Codable {
     let hasStripeConnected: Bool?
     let canRequestPayout: Bool?
 
+    // PAYOUT TIER FIELDS
+    let payoutTier: String?
+    let payoutTierCode: String?
+    let holdDays: Int?
+    let emailVerified: Bool?
+    let idVerified: Bool?
+    let tierCompletedSales: Int?
+    let nextPayoutDate: String?
+
     // BACKEND LEGACY FIELDS (matches backend camelCase)
     let lifetimeEarnings: Double?
     let netEarnings: Double?
