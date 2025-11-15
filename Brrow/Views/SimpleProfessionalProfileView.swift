@@ -20,6 +20,7 @@ struct SimpleProfessionalProfileView: View {
     @State private var showingOffers = false
     @State private var showingSavedItems = false
     @State private var showingTransactions = false
+    @State private var showingEarnings = false
     @State private var selectedPurchaseId: String? = nil
 
     // Show email verification banner if user's email is not verified and banner hasn't been dismissed
@@ -133,6 +134,12 @@ struct SimpleProfessionalProfileView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingEarnings) {
+                NavigationView {
+                    EarningsView()
+                        .environmentObject(EarningsViewModel())
+                }
+            }
             .onAppear {
                 withAnimation {
                     animateContent = true
@@ -173,6 +180,10 @@ struct SimpleProfessionalProfileView: View {
                 }
 
                 showingTransactions = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openEarnings)) { _ in
+                print("🔔 [Profile] Received openEarnings notification")
+                showingEarnings = true
             }
     }
     
@@ -471,6 +482,14 @@ struct SimpleProfessionalProfileView: View {
                 ProfileMenuRow(
                     icon: "cart.fill",
                     title: "Transactions"
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            Button(action: { showingEarnings = true }) {
+                ProfileMenuRow(
+                    icon: "dollarsign.circle.fill",
+                    title: "Earnings"
                 )
             }
             .buttonStyle(PlainButtonStyle())
