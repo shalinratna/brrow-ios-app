@@ -126,7 +126,7 @@ class OffersViewModel: ObservableObject {
                 let transaction = Transaction(
                     id: 0,
                     offerId: offer.id,
-                    listingId: offer.listingId,
+                    listingId: Int(offer.listingId) ?? 0,  // Convert UUID string to Int (legacy support)
                     borrowerId: offer.borrowerId,
                     lenderId: Int(offer.listing?.userId ?? "0") ?? 0,
                     startDate: Date(),
